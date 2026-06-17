@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PumpSync.ApiContracts\PumpSync.ApiContracts.csproj" />
+    <ProjectReference Include="..\PumpSync.Domain\PumpSync.Domain.csproj" />
+  </ItemGroup>
+</Project>

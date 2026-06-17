@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\PumpSync.Domain\PumpSync.Domain.csproj" />
+  </ItemGroup>
+</Project>

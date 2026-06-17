@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+.vscode/
+local.settings.json
+*.user
+*.suo
+TestResults/
+coverage/
+client/ios/.DerivedData/
+*.xcresult
