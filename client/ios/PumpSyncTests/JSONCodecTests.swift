@@ -29,4 +29,12 @@ final class JSONCodecTests: XCTestCase {
     XCTAssertEqual(response.samples.count, 1)
     XCTAssertEqual(response.samples[0].type, "insulin.bolus")
   }
+
+  func testAPIClientErrorClassifiesTransientStatuses() {
+    XCTAssertTrue(APIClientError.invalidResponse.isTransient)
+    XCTAssertTrue(APIClientError.httpStatus(429, nil).isTransient)
+    XCTAssertTrue(APIClientError.httpStatus(503, nil).isTransient)
+    XCTAssertFalse(APIClientError.httpStatus(400, nil).isTransient)
+    XCTAssertFalse(APIClientError.httpStatus(401, nil).isTransient)
+  }
 }

@@ -1,6 +1,7 @@
 using PumpSync.ApiContracts;
 using PumpSync.Application.Abstractions;
 using PumpSync.Application.Mapping;
+using PumpSync.Application.Validation;
 using PumpSync.Domain.Auth;
 using PumpSync.Domain.Common;
 using PumpSync.Domain.Tandem;
@@ -19,6 +20,8 @@ public sealed class SyncTandemUseCase(
         TandemSyncRequest request,
         CancellationToken cancellationToken)
     {
+        TandemSyncRequestValidator.Validate(request, clock.UtcNow);
+
         var allowed = await rateLimiter.AllowAsync(user.UserId, "sync-tandem", 12, TimeSpan.FromHours(1), cancellationToken);
         if (!allowed)
         {

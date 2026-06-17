@@ -1,0 +1,49 @@
+name: iOS CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client/ios/**"
+      - ".github/workflows/ios-ci.yml"
+  pull_request:
+    paths:
+      - "client/ios/**"
+      - ".github/workflows/ios-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: Generate, build, and test iOS
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: client/ios
+        run: xcodegen generate
+
+      - name: Build for testing
+        run: |
+          xcodebuild build-for-testing \
+            -project client/ios/PumpSync.xcodeproj \
+            -scheme PumpSync \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -derivedDataPath client/ios/.DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Test
+        run: |
+          xcodebuild test-without-building \
+            -project client/ios/PumpSync.xcodeproj \
+            -scheme PumpSync \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -derivedDataPath client/ios/.DerivedData \
+            CODE_SIGNING_ALLOWED=NO

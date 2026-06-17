@@ -1,0 +1,57 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub environment to deploy
+        required: true
+        default: nonprod
+        type: choice
+        options:
+          - nonprod
+          - prod
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy Azure Functions backend
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure
+        run: |
+          az deployment sub create \
+            --location "${{ vars.AZURE_LOCATION }}" \
+            --template-file infra/bicep/main.bicep \
+            --parameters @infra/environments/${{ inputs.environment }}.bicepparam
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+
+      - name: Publish Functions package
+        run: dotnet publish backend/src/PumpSync.Functions/PumpSync.Functions.csproj --configuration Release --output backend/artifacts/functions
+
+      - name: Deploy Functions package
+        run: |
+          cd backend/artifacts/functions
+          zip -r ../functions.zip .
+          az functionapp deployment source config-zip \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_FUNCTION_APP_NAME }}" \
+            --src ../functions.zip

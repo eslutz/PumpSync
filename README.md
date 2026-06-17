@@ -47,6 +47,12 @@ dotnet test backend/PumpSync.sln
 ```
 
 ```sh
+dotnet restore services/services.slnx
+dotnet build services/services.slnx
+az bicep build --file infra/bicep/main.bicep
+```
+
+```sh
 cd client/ios
 xcodegen generate
 cd ../..
@@ -54,3 +60,7 @@ xcodebuild test -project client/ios/PumpSync.xcodeproj -scheme PumpSync -destina
 ```
 
 The Azure Functions Core Tools CLI is needed to run the Functions host locally.
+
+## Manual Gates
+
+See [docs/manual-setup-and-validation.md](docs/manual-setup-and-validation.md) for the remaining items that require Apple Developer access, Azure secrets, real Tandem credentials, GitHub repository settings, or physical-device validation.

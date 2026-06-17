@@ -34,6 +34,10 @@ final class HealthKitService {
   }
 
   func save(samples: [SampleDTO]) async throws -> Int {
+    guard !samples.isEmpty else {
+      return 0
+    }
+
     if !isAuthorized {
       try await requestAuthorization()
     }

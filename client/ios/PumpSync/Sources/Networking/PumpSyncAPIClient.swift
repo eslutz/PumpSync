@@ -3,10 +3,13 @@ import Foundation
 struct PumpSyncAPIClient {
   var baseURL: URL
   var urlSession: URLSession
+  var maxRetryCount: Int = 2
 
   static func live() -> PumpSyncAPIClient {
     let configuredBaseURL = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String
-    let baseURL = configuredBaseURL.flatMap(URL.init(string:)) ?? URL(string: "https://localhost:7071")!
+    let baseURL = configuredBaseURL
+      .flatMap(URL.init(string:))
+      ?? URL(string: "https://localhost:7071")!
     return PumpSyncAPIClient(baseURL: baseURL, urlSession: .shared)
   }
 
@@ -23,6 +26,30 @@ struct PumpSyncAPIClient {
   }
 
   private func send<Request: Encodable, Response: Decodable>(
+    path: String,
+    method: String,
+    body: Request,
+    accessToken: String?
+  ) async throws -> Response {
+    var lastError: Error?
+
+    for attempt in 0...maxRetryCount {
+      do {
+        return try await sendOnce(path: path, method: method, body: body, accessToken: accessToken)
+      } catch {
+        lastError = error
+        guard shouldRetry(error: error), attempt < maxRetryCount else {
+          throw error
+        }
+
+        try await Task.sleep(for: .milliseconds(250 * (attempt + 1)))
+      }
+    }
+
+    throw lastError ?? APIClientError.invalidResponse
+  }
+
+  private func sendOnce<Request: Encodable, Response: Decodable>(
     path: String,
     method: String,
     body: Request,
@@ -53,6 +80,15 @@ struct PumpSyncAPIClient {
 
     return try JSONCodec.decoder.decode(Response.self, from: data)
   }
+
+  private func shouldRetry(error: Error) -> Bool {
+    if let apiError = error as? APIClientError {
+      return apiError.isTransient
+    }
+
+    let nsError = error as NSError
+    return nsError.domain == NSURLErrorDomain
+  }
 }
 
 private struct EmptyRequest: Encodable {}
@@ -66,6 +102,15 @@ private struct ErrorResponse: Decodable {
 enum APIClientError: LocalizedError {
   case invalidResponse
   case httpStatus(Int, String?)
+
+  var isTransient: Bool {
+    switch self {
+    case .invalidResponse:
+      return true
+    case .httpStatus(let status, _):
+      return status == 408 || status == 429 || (500..<600).contains(status)
+    }
+  }
 
   var errorDescription: String? {
     switch self {

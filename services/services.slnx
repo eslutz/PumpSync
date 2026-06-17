@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/log-drain/" />
+  <Folder Name="/log-drain/src/">
+    <Project Path="log-drain/src/PumpSync.LogDrain.Functions/PumpSync.LogDrain.Functions.csproj" />
+  </Folder>
+  <Folder Name="/model-cost-updater/" />
+  <Folder Name="/model-cost-updater/src/">
+    <Project Path="model-cost-updater/src/PumpSync.ModelCostUpdater.Functions/PumpSync.ModelCostUpdater.Functions.csproj" />
+  </Folder>
+</Solution>

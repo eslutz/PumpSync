@@ -9,3 +9,4 @@ TestResults/
 coverage/
 client/ios/.DerivedData/
 *.xcresult
+infra/bicep/*.json

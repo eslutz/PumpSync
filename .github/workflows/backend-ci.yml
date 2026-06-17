@@ -1,0 +1,49 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "infra/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "infra/**"
+      - ".github/workflows/backend-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Restore, build, and test backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: backend/global.json
+
+      - name: Restore
+        run: dotnet restore backend/PumpSync.sln
+
+      - name: Build
+        run: dotnet build backend/PumpSync.sln --no-restore --configuration Release /nr:false
+
+      - name: Test
+        run: dotnet test backend/PumpSync.sln --no-build --configuration Release /nr:false
+
+      - name: Restore helper services
+        run: dotnet restore services/services.slnx
+
+      - name: Build helper services
+        run: dotnet build services/services.slnx --no-restore --configuration Release /nr:false
+
+      - name: Validate Bicep syntax
+        run: az bicep build --file infra/bicep/main.bicep
