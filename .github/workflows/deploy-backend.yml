@@ -37,9 +37,13 @@ jobs:
         env:
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'eastus2' }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || format('rg-pumpsync-{0}', inputs.environment) }}
-          AZURE_SQL_SERVER: ${{ vars.AZURE_SQL_SERVER || 'ericslutz-dev-db.database.windows.net' }}
-          AZURE_SQL_DATABASE: ${{ vars.AZURE_SQL_DATABASE || 'ericslutz.dev.db' }}
-          APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID || 'com.ericslutz.PumpSync' }}
+          APPSTORE_BUNDLE_ID: ${{ vars.APPSTORE_BUNDLE_ID || 'dev.ericslutz.PumpSync' }}
+          APPSTORE_ENVIRONMENT: ${{ vars.APPSTORE_ENVIRONMENT || (inputs.environment == 'prod' && 'Production' || 'Sandbox') }}
+          APPSTORE_SUBSCRIPTION_PRODUCT_ID: ${{ vars.APPSTORE_SUBSCRIPTION_PRODUCT_ID || 'dev.ericslutz.PumpSync.hosted.monthly' }}
+          APPSTORE_ISSUER_ID: ${{ vars.APPSTORE_ISSUER_ID }}
+          APPSTORE_KEY_ID: ${{ vars.APPSTORE_KEY_ID }}
+          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          APPSTORE_ROOT_CERTIFICATE_PEM: ${{ vars.APPSTORE_ROOT_CERTIFICATE_PEM }}
           PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY: ${{ secrets.PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY }}
           PUMPSYNC_LOG_DRAIN_SHARED_SECRET: ${{ secrets.PUMPSYNC_LOG_DRAIN_SHARED_SECRET }}
           PUMPSYNC_MODEL_COST_UPDATER_SCHEDULE: ${{ vars.PUMPSYNC_MODEL_COST_UPDATER_SCHEDULE || '0 0 4 * * *' }}
