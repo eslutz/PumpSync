@@ -7,6 +7,11 @@ public interface IRateLimiter
     Task<bool> AllowAsync(UserId userId, string operation, int maxRequests, TimeSpan window, CancellationToken cancellationToken);
 }
 
+public interface IBackendModeProvider
+{
+    bool IsSelfHosted { get; }
+}
+
 public interface IIdempotencyStore
 {
     Task<IdempotencyRecord?> TryGetAsync(UserId userId, string endpoint, string key, CancellationToken cancellationToken);

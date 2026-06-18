@@ -15,11 +15,13 @@ struct DeveloperView: View {
       }
 
       GlassSection("State") {
-        GlassStatusRow(title: "Apple account", value: services.authService.isSignedIn ? "Signed in" : "Not signed in", systemImage: "person.crop.circle")
+        GlassStatusRow(title: "Backend", value: services.authService.isSignedIn ? "Connected" : "Not connected", systemImage: "network")
         GlassDivider()
-        GlassStatusRow(title: "Tandem", value: services.credentialStore.hasStoredCredentials ? "Credentials saved" : "Not configured", systemImage: "key")
+        GlassStatusRow(title: "Mode", value: services.backendConfigurationStore.mode.title, systemImage: "server.rack")
         GlassDivider()
-        GlassStatusRow(title: "Health", value: services.healthKitService.isAuthorized ? "Write access allowed" : "Write access incomplete", systemImage: "heart")
+        GlassStatusRow(title: "Tandem", value: tandemCredentialStatus, systemImage: "key")
+        GlassDivider()
+        GlassStatusRow(title: "Health", value: healthWriteStatus, systemImage: "heart")
       }
 
       GlassSection("Sync") {
@@ -62,14 +64,15 @@ struct DeveloperView: View {
             } label: {
               Label("Copy", systemImage: "doc.on.doc")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
 
             Button(role: .destructive) {
               services.diagnosticsLogStore.clear()
             } label: {
               Label("Clear", systemImage: "trash")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.plain)
           }
           .padding(.top, 12)
         }
@@ -86,6 +89,30 @@ struct DeveloperView: View {
 
   private var bundleIdentifier: String {
     Bundle.main.bundleIdentifier ?? "Unknown"
+  }
+
+  private var tandemCredentialStatus: String {
+    if services.credentialStore.hasValidatedCredentials {
+      return "Validated"
+    }
+
+    if services.credentialStore.hasStoredCredentials {
+      return "Needs validation"
+    }
+
+    return "Not configured"
+  }
+
+  private var healthWriteStatus: String {
+    if services.healthKitService.isAuthorized {
+      return "All write access allowed"
+    }
+
+    if services.healthKitService.hasAnyWritePermission {
+      return "Partial write access allowed"
+    }
+
+    return "Write access incomplete"
   }
 
   private var diagnosticsText: String {

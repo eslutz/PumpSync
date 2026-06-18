@@ -17,7 +17,7 @@ PumpSync is not a medical device. PumpSync does not provide medical advice, diag
 Users are responsible for:
 
 - using PumpSync only with accounts and devices they are authorized to access;
-- keeping Apple, Tandem, and device credentials secure;
+- keeping App Store, Tandem, device, and self-hosted backend credentials secure;
 - reviewing Apple Health data for accuracy after sync;
 - complying with Tandem, Apple, and other applicable third-party terms;
 - stopping use of PumpSync if it behaves unexpectedly or appears to produce inaccurate data.
@@ -32,7 +32,7 @@ PumpSync writes data to Apple Health only after the user grants permission. User
 
 ## Account And Data Deletion
 
-Users may remove Tandem credentials in the app. Users may request deletion of PumpSync account metadata using `docs/legal/data-deletion.md`.
+Users may remove Tandem credentials in the app. Users may request deletion of PumpSync hosted subscription and installation metadata using `docs/legal/data-deletion.md`.
 
 ## Acceptable Use
 

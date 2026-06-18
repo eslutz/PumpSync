@@ -2,7 +2,7 @@
 
 Effective date: 2026-06-18
 
-PumpSync stores minimal server-side account metadata and does not persist Tandem credentials, Tandem tokens, raw Tandem events, or normalized Tandem samples on the backend.
+PumpSync stores minimal hosted subscription and installation metadata and does not persist Tandem credentials, Tandem tokens, raw Tandem events, or normalized Tandem samples on the backend.
 
 ## Delete Tandem Credentials From The Device
 
@@ -26,13 +26,15 @@ In iOS:
 
 Samples already written to Apple Health are controlled by Apple Health. Deleting PumpSync does not automatically delete samples already written to Apple Health.
 
-## Delete PumpSync Account Metadata
+## Delete PumpSync Hosted Metadata
 
-To request deletion of PumpSync backend account metadata, contact PumpSync support using the support contact listed on the App Store product page or TestFlight invitation.
+To request deletion of PumpSync hosted backend metadata, contact PumpSync support using the support contact listed on the App Store product page or TestFlight invitation.
 
-Include the Apple account or private relay email used with PumpSync. Do not include Tandem passwords, Tandem tokens, screenshots containing health data, or other sensitive medical details in the request.
+Include the PumpSync installation ID shown in Settings, the App Store subscription original transaction ID if available from Apple purchase history, or the Apple ID receipt details needed to locate the subscription through App Store support tooling. Do not include Tandem passwords, Tandem tokens, screenshots containing health data, or other sensitive medical details in the request.
 
-Deletion covers PumpSync server-side account metadata associated with the account, subject to records PumpSync must retain for security, fraud prevention, legal compliance, billing, dispute handling, or service integrity.
+Deletion covers PumpSync hosted server-side metadata associated with the subscription or installation, subject to records PumpSync must retain for security, fraud prevention, legal compliance, billing, dispute handling, or service integrity.
+
+Self-hosted users control their own backend data and should delete data directly from their self-hosted storage account or database.
 
 ## Nonprod And TestFlight Data
 

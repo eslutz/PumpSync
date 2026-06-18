@@ -7,25 +7,46 @@ public sealed class PumpSyncOptions
     public string ServiceTokenIssuer { get; set; } = "pumpsync";
 
     public string ServiceTokenAudience { get; set; } = "pumpsync-ios";
+
+    public string BackendMode { get; set; } = "Hosted";
 }
 
-public sealed class AppleOptions
+public sealed class AppStoreOptions
 {
-    public string ClientId { get; set; } = string.Empty;
+    public string BundleId { get; set; } = "dev.ericslutz.PumpSync";
 
-    public string Issuer { get; set; } = "https://appleid.apple.com";
+    public string Environment { get; set; } = "Sandbox";
 
-    public string JwksUrl { get; set; } = "https://appleid.apple.com/auth/keys";
+    public string SubscriptionProductId { get; set; } = "dev.ericslutz.PumpSync.hosted.monthly";
+
+    public string IssuerId { get; set; } = string.Empty;
+
+    public string KeyId { get; set; } = string.Empty;
+
+    public string PrivateKey { get; set; } = string.Empty;
+
+    public string RootCertificatePem { get; set; } = string.Empty;
 }
 
 public sealed class AzureStorageOptions
 {
     public string ConnectionString { get; set; } = string.Empty;
-}
 
-public sealed class AzureSqlOptions
-{
-    public string ConnectionString { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
+
+    public string SubscriptionEntitlementsTableName { get; set; } = "SubscriptionEntitlements";
+
+    public string InstallationsTableName { get; set; } = "Installations";
+
+    public string InstallationLookupTableName { get; set; } = "InstallationLookup";
+
+    public string SyncAttemptsTableName { get; set; } = "SyncAttempts";
+
+    public string RateLimitBucketsTableName { get; set; } = "RateLimitBuckets";
+
+    public string AppStoreNotificationIdempotencyTableName { get; set; } = "AppleNotificationIdempotency";
+
+    public string AuditEventsTableName { get; set; } = "AuditEvents";
 }
 
 public sealed class TandemSourceOptions

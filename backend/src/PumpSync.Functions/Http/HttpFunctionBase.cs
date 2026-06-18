@@ -73,7 +73,7 @@ public abstract class HttpFunctionBase(IServiceTokenValidator tokenValidator)
         }
         catch (SecurityTokenException ex)
         {
-            return await ErrorAsync(request, HttpStatusCode.Unauthorized, "invalid_apple_identity", ex.Message, request.FunctionContext.CancellationToken);
+            return await ErrorAsync(request, HttpStatusCode.Unauthorized, "invalid_token", ex.Message, request.FunctionContext.CancellationToken);
         }
         catch (ArgumentException ex)
         {

@@ -18,18 +18,19 @@ struct HealthAccessView: View {
             GlassDivider()
           }
         }
-      }
 
-      GlassEffectContainer(spacing: 16) {
+        GlassDivider()
+
         Button {
           Task {
             await services.healthKitService.manageWriteAccess()
           }
         } label: {
-          GlassPrimaryLabel(title: "Manage Apple Health Access", systemImage: "heart")
+          Label("Manage Apple Health Access", systemImage: "heart")
+            .font(.body)
+            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
         }
-        .buttonStyle(.glassProminent)
-        .controlSize(.large)
+        .buttonStyle(GroupedInlineButtonStyle())
       }
 
       if let message = services.healthKitService.errorMessage {

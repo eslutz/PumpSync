@@ -29,6 +29,7 @@ targets:
       path: PumpSync/Resources/Info.plist
       properties:
         API_BASE_URL: https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api
+        HOSTED_SUBSCRIPTION_PRODUCT_ID: dev.ericslutz.PumpSync.hosted.monthly
         BGTaskSchedulerPermittedIdentifiers:
           - dev.ericslutz.PumpSync.daily-sync
         CFBundleDevelopmentRegion: en
@@ -55,8 +56,6 @@ targets:
     entitlements:
       path: PumpSync/PumpSync.entitlements
       properties:
-        com.apple.developer.applesignin:
-          - Default
         com.apple.developer.healthkit: true
   PumpSyncTests:
     type: bundle.unit-test
@@ -67,6 +66,7 @@ targets:
       - target: PumpSync
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: dev.ericslutz.PumpSyncTests
   PumpSyncUITests:
     type: bundle.ui-testing
@@ -77,4 +77,5 @@ targets:
       - target: PumpSync
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: dev.ericslutz.PumpSyncUITests

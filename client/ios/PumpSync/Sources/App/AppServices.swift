@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class AppServices {
   let apiClient: PumpSyncAPIClient
+  let backendConfigurationStore: BackendConfigurationStore
   let diagnosticsLogStore: DiagnosticsLogStore
   let authService: AuthService
   let credentialStore: TandemCredentialStore
@@ -16,6 +17,7 @@ final class AppServices {
 
   private init(
     apiClient: PumpSyncAPIClient,
+    backendConfigurationStore: BackendConfigurationStore,
     diagnosticsLogStore: DiagnosticsLogStore,
     authService: AuthService,
     credentialStore: TandemCredentialStore,
@@ -26,6 +28,7 @@ final class AppServices {
     backgroundSyncScheduler: BackgroundSyncScheduler
   ) {
     self.apiClient = apiClient
+    self.backendConfigurationStore = backendConfigurationStore
     self.diagnosticsLogStore = diagnosticsLogStore
     self.authService = authService
     self.credentialStore = credentialStore
@@ -38,10 +41,12 @@ final class AppServices {
 
   static func live() -> AppServices {
     let apiClient = PumpSyncAPIClient.live()
+    let backendConfigurationStore = BackendConfigurationStore()
+    _ = backendConfigurationStore.apply(to: apiClient)
     let diagnosticsLogStore = DiagnosticsLogStore()
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
     let credentialStore = TandemCredentialStore(keychain: keychain)
-    let authService = AuthService(apiClient: apiClient, diagnostics: diagnosticsLogStore)
+    let authService = AuthService(apiClient: apiClient, configurationStore: backendConfigurationStore, diagnostics: diagnosticsLogStore)
     let healthKitService = HealthKitService(diagnostics: diagnosticsLogStore)
     let importedSampleLedger = ImportedSampleLedger(keychain: keychain)
     let syncMetadataStore = SyncMetadataStore()
@@ -58,6 +63,7 @@ final class AppServices {
 
     return AppServices(
       apiClient: apiClient,
+      backendConfigurationStore: backendConfigurationStore,
       diagnosticsLogStore: diagnosticsLogStore,
       authService: authService,
       credentialStore: credentialStore,

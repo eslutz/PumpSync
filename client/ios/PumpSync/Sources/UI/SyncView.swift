@@ -22,22 +22,22 @@ struct SyncView: View {
         }
       }
 
-      GlassEffectContainer(spacing: 16) {
-        Button {
-          Task {
+      Button {
+        Task {
+          if canSync {
             await services.syncCoordinator.sync(reason: .manual)
           }
-        } label: {
-          GlassPrimaryLabel(title: syncButtonTitle, systemImage: "arrow.triangle.2.circlepath")
         }
-        .buttonStyle(.glassProminent)
-        .controlSize(.large)
-        .disabled(!services.authService.isSignedIn || !services.credentialStore.hasStoredCredentials || services.syncCoordinator.isSyncing)
+      } label: {
+        GlassPrimaryLabel(title: syncButtonTitle, systemImage: "arrow.triangle.2.circlepath")
       }
+      .buttonStyle(GroupedActionButtonStyle())
+      .disabled(!canSync)
 
       if let message = Self.readinessMessage(
-        isSignedIn: services.authService.isSignedIn,
-        hasStoredCredentials: services.credentialStore.hasStoredCredentials
+        isBackendConnected: services.authService.isSignedIn,
+        hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
+        hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
       ) {
         GlassSection {
           Text(message)
@@ -77,6 +77,13 @@ struct SyncView: View {
     )
   }
 
+  private var canSync: Bool {
+    services.authService.isSignedIn
+      && services.credentialStore.hasValidatedCredentials
+      && services.healthKitService.hasAnyWritePermission
+      && !services.syncCoordinator.isSyncing
+  }
+
   private var syncButtonTitle: String {
     if services.syncCoordinator.isSyncing {
       return "Syncing"
@@ -93,13 +100,21 @@ struct SyncView: View {
     return date.formatted(date: .abbreviated, time: .shortened)
   }
 
-  static func readinessMessage(isSignedIn: Bool, hasStoredCredentials: Bool) -> String? {
-    if !isSignedIn {
-      return "Sign in from Settings before syncing."
+  static func readinessMessage(
+    isBackendConnected: Bool,
+    hasValidatedCredentials: Bool,
+    hasAnyHealthWritePermission: Bool
+  ) -> String? {
+    if !isBackendConnected {
+      return nil
     }
 
-    if !hasStoredCredentials {
-      return "Add Tandem credentials in Settings before syncing."
+    if !hasValidatedCredentials {
+      return "Validate Tandem credentials in Settings before syncing."
+    }
+
+    if !hasAnyHealthWritePermission {
+      return "Enable at least one Apple Health write permission before syncing."
     }
 
     return nil

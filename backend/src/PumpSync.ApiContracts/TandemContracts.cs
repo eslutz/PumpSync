@@ -5,6 +5,12 @@ public sealed record TandemCredentialsDto(
     string Password,
     string Region);
 
+public sealed record TandemCredentialValidationRequest(
+    TandemCredentialsDto Tandem);
+
+public sealed record TandemCredentialValidationResponse(
+    bool Validated);
+
 public sealed record TandemSyncRequest(
     TandemCredentialsDto Tandem,
     string? DeviceId,

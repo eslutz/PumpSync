@@ -2,22 +2,29 @@
 
 ## Boundaries
 
-PumpSync keeps backend logic independent from Azure Functions triggers. Triggers deserialize requests, call application services, and serialize responses. Business logic lives in reusable libraries so the backend can move to Azure App Service without rewriting Tandem parsing, authentication, billing checks, rate limiting, or sync orchestration.
+PumpSync keeps backend logic independent from Azure Functions triggers. Triggers deserialize requests, call application services, and serialize responses. Business logic lives in reusable libraries so the backend can move to another host without rewriting Tandem parsing, access checks, rate limiting, or sync orchestration.
 
 The iOS app owns Apple-only platform capabilities:
 
-- Sign in with Apple presentation.
+- StoreKit purchase and restore for the hosted subscription.
 - HealthKit authorization and writes.
 - Background refresh scheduling.
 - Device-only Tandem credential storage.
 - Local duplicate-prevention ledger.
+- Self-hosted backend URL selection.
 
 The backend owns server-side concerns:
 
-- Apple identity token validation.
-- User account and billing records in Azure SQL.
-- Rate limiting and operational request telemetry.
+- App Store signed transaction and notification verification for hosted access.
+- Self-hosted session issuance when deployed in self-hosted mode.
+- Subscription entitlement, installation lookup, rate-limit, sync attempt, and notification idempotency records in Azure Table Storage.
 - Request-local Tandem retrieval and normalization.
+
+## Access Modes
+
+Hosted mode accepts only verified App Store subscription transactions. The backend derives an internal user ID from the original transaction ID and issues short-lived PumpSync service tokens to installations associated with that transaction.
+
+Self-hosted mode is intended for a user-controlled backend. It issues short-lived PumpSync service tokens for the configured installation ID without App Store subscription verification. Do not deploy the public hosted infrastructure in self-hosted mode.
 
 ## Data Retention
 

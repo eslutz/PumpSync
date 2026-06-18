@@ -18,18 +18,35 @@ param appName string = 'pumpsync'
 @description('Resource group that will contain the PumpSync backend resources.')
 param resourceGroupName string = 'rg-${appName}-${environmentName}'
 
-@description('Apple Services ID or bundle identifier expected in Sign in with Apple tokens.')
-param appleClientId string
-
-@description('Existing Azure SQL server FQDN used for PumpSync user, auth, billing, idempotency, and sync state tables.')
-param sqlServer string
-
-@description('Existing Azure SQL database name used for PumpSync user, auth, billing, idempotency, and sync state tables.')
-param sqlDatabase string
-
 @secure()
 @description('Service token signing key. Store this only in deployment secrets or Key Vault.')
 param serviceTokenSigningKey string
+
+@description('Bundle identifier expected in App Store subscription transactions.')
+param appStoreBundleId string = 'dev.ericslutz.PumpSync'
+
+@description('App Store transaction environment expected by this backend.')
+@allowed([
+  'Sandbox'
+  'Production'
+])
+param appStoreEnvironment string = environmentName == 'prod' ? 'Production' : 'Sandbox'
+
+@description('Auto-renewable subscription product id used for PumpSync Hosted.')
+param appStoreSubscriptionProductId string = 'dev.ericslutz.PumpSync.hosted.monthly'
+
+@description('App Store Server API issuer id.')
+param appStoreIssuerId string = ''
+
+@description('App Store Server API key id.')
+param appStoreKeyId string = ''
+
+@secure()
+@description('App Store Server API private key.')
+param appStorePrivateKey string = ''
+
+@description('PEM-encoded Apple root certificate used to pin App Store signed payload verification.')
+param appStoreRootCertificatePem string = ''
 
 @secure()
 @description('Shared secret accepted by the standalone log-drain Function App.')
@@ -60,10 +77,14 @@ module backend './main.bicep' = {
     environmentName: environmentName
     location: location
     appName: appName
-    appleClientId: appleClientId
-    sqlServer: sqlServer
-    sqlDatabase: sqlDatabase
     serviceTokenSigningKey: serviceTokenSigningKey
+    appStoreBundleId: appStoreBundleId
+    appStoreEnvironment: appStoreEnvironment
+    appStoreSubscriptionProductId: appStoreSubscriptionProductId
+    appStoreIssuerId: appStoreIssuerId
+    appStoreKeyId: appStoreKeyId
+    appStorePrivateKey: appStorePrivateKey
+    appStoreRootCertificatePem: appStoreRootCertificatePem
     logDrainSharedSecret: logDrainSharedSecret
     modelCostUpdaterSchedule: modelCostUpdaterSchedule
     modelCostUpdaterCatalogUrl: modelCostUpdaterCatalogUrl
@@ -83,6 +104,6 @@ output keyVaultName string = backend.outputs.keyVaultName
 output keyVaultUri string = backend.outputs.keyVaultUri
 output applicationInsightsName string = backend.outputs.applicationInsightsName
 output logWorkspaceName string = backend.outputs.logWorkspaceName
-output sqlServer string = backend.outputs.sqlServer
-output sqlDatabase string = backend.outputs.sqlDatabase
-output tandemSyncOperationsTableName string = backend.outputs.tandemSyncOperationsTableName
+output subscriptionEntitlementsTableName string = backend.outputs.subscriptionEntitlementsTableName
+output installationsTableName string = backend.outputs.installationsTableName
+output syncAttemptsTableName string = backend.outputs.syncAttemptsTableName

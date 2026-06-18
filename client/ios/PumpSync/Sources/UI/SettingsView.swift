@@ -5,52 +5,137 @@ struct SettingsView: View {
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
-      GlassSection("Account") {
-        if services.authService.isSignedIn {
-          GlassStatusRow(
-            title: "Apple account",
-            value: services.authService.statusMessage,
-            systemImage: "checkmark.seal.fill",
-            tint: .green
-          )
+      GlassSection("Backend Access") {
+        Picker("Mode", selection: backendModeBinding) {
+          ForEach(BackendAccessMode.allCases) { mode in
+            Text(mode.title).tag(mode)
+          }
+        }
+        .pickerStyle(.segmented)
+        .frame(minHeight: 44)
 
+        GlassDivider()
+
+        GlassStatusRow(
+          title: "Session",
+          value: services.authService.isSignedIn
+            ? services.authService.statusMessage
+            : services.authService.errorMessage ?? services.authService.statusMessage,
+          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
+          tint: services.authService.isSignedIn ? .green : .secondary
+        )
+
+        switch services.backendConfigurationStore.mode {
+        case .hosted:
+          GlassDivider()
+
+          Button {
+            Task {
+              await services.authService.purchaseHostedSubscription()
+            }
+          } label: {
+            GlassPrimaryLabel(
+              title: services.authService.isConnecting ? "Connecting" : "Subscribe",
+              systemImage: "creditcard"
+            )
+          }
+          .buttonStyle(GroupedActionButtonStyle())
+          .disabled(services.authService.isConnecting)
+
+          Button {
+            Task {
+              await services.authService.connectHostedUsingCurrentSubscription()
+            }
+          } label: {
+            Label("Restore Subscription", systemImage: "arrow.clockwise")
+              .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+          }
+          .buttonStyle(GroupedInlineButtonStyle())
+          .disabled(services.authService.isConnecting)
+
+        case .selfHosted:
+          GlassDivider()
+
+          TextField("https://example.com/api", text: selfHostedURLBinding)
+            .textInputAutocapitalization(.never)
+            .keyboardType(.URL)
+            .autocorrectionDisabled()
+            .frame(minHeight: 44)
+
+          GlassDivider()
+
+          Button {
+            Task {
+              await services.authService.connectSelfHosted()
+            }
+          } label: {
+            GlassPrimaryLabel(
+              title: services.authService.isConnecting ? "Connecting" : "Connect",
+              systemImage: "server.rack"
+            )
+          }
+          .buttonStyle(GroupedActionButtonStyle())
+          .disabled(services.authService.isConnecting)
+        }
+
+        if services.authService.isConnecting {
+          GlassDivider()
+
+          HStack(spacing: 8) {
+            ProgressView()
+            Text(services.authService.statusMessage)
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+          }
+        }
+
+        if services.authService.isSignedIn {
           GlassDivider()
 
           Button(role: .destructive) {
             services.authService.signOut()
           } label: {
-            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+            Label("Disconnect", systemImage: "rectangle.portrait.and.arrow.right")
               .frame(maxWidth: .infinity, alignment: .leading)
           }
-          .buttonStyle(.glass)
-        } else {
-          VStack(alignment: .leading, spacing: 12) {
-            SignInWithAppleButton(isEnabled: !services.authService.isSigningIn) {
-              Task {
-                await services.authService.signIn()
-              }
-            }
-            .frame(height: 52)
-            .accessibilityIdentifier("settings.signInWithAppleButton")
+          .buttonStyle(GroupedInlineButtonStyle())
+        }
+      }
 
-            HStack(spacing: 8) {
-              if services.authService.isSigningIn {
-                ProgressView()
-              }
+      GlassSection("Backend Details") {
+        GlassStatusRow(
+          title: "URL",
+          value: services.apiClient.baseURL.absoluteString,
+          systemImage: "network"
+        )
 
-              Text(services.authService.errorMessage ?? services.authService.statusMessage)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
+        GlassDivider()
+
+        HStack(alignment: .top, spacing: 10) {
+          Image(systemName: "iphone")
+            .foregroundStyle(.secondary)
+            .frame(width: 24)
+
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Install")
+              .font(.subheadline.weight(.semibold))
+
+            Text(services.backendConfigurationStore.installationId)
+              .font(.caption.monospaced())
+              .foregroundStyle(.secondary)
+              .textSelection(.enabled)
+              .lineLimit(2)
+              .minimumScaleFactor(0.75)
           }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
       }
 
       GlassSection("PumpSync") {
         NavigationLink {
           TandemCredentialForm()
         } label: {
-          GlassNavigationRow("Credentials", subtitle: services.credentialStore.hasStoredCredentials ? "Saved on this device" : "Not configured", systemImage: "key")
+          GlassNavigationRow("Credentials", subtitle: tandemCredentialStatus, systemImage: "key")
         }
         .buttonStyle(.plain)
 
@@ -65,7 +150,7 @@ struct SettingsView: View {
         NavigationLink {
           HealthAccessView()
         } label: {
-          GlassNavigationRow("Apple Health Access", subtitle: services.healthKitService.isAuthorized ? "Write access allowed" : "Review write access", systemImage: "heart")
+          GlassNavigationRow("Apple Health Access", subtitle: healthWriteStatus, systemImage: "heart")
         }
         .buttonStyle(.plain)
 
@@ -89,5 +174,57 @@ struct SettingsView: View {
       }
     }
     .navigationTitle("Settings")
+  }
+
+  private var backendModeBinding: Binding<BackendAccessMode> {
+    Binding(
+      get: {
+        services.backendConfigurationStore.mode
+      },
+      set: { mode in
+        services.backendConfigurationStore.mode = mode
+        services.authService.signOut()
+        _ = services.backendConfigurationStore.apply(to: services.apiClient)
+      }
+    )
+  }
+
+  private var selfHostedURLBinding: Binding<String> {
+    Binding(
+      get: {
+        services.backendConfigurationStore.selfHostedBaseURLString
+      },
+      set: { value in
+        services.backendConfigurationStore.selfHostedBaseURLString = value
+        if services.backendConfigurationStore.mode == .selfHosted {
+          services.authService.signOut()
+          _ = services.backendConfigurationStore.apply(to: services.apiClient)
+        }
+      }
+    )
+  }
+
+  private var tandemCredentialStatus: String {
+    if services.credentialStore.hasValidatedCredentials {
+      return "Validated"
+    }
+
+    if services.credentialStore.hasStoredCredentials {
+      return "Needs validation"
+    }
+
+    return "Not configured"
+  }
+
+  private var healthWriteStatus: String {
+    if services.healthKitService.isAuthorized {
+      return "Write access allowed"
+    }
+
+    if services.healthKitService.hasAnyWritePermission {
+      return "Partial write access allowed"
+    }
+
+    return "Review write access"
   }
 }

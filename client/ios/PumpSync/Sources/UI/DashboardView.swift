@@ -7,17 +7,17 @@ struct DashboardView: View {
     PumpSyncScreen {
       GlassSection {
         GlassStatusRow(
-          title: "Apple account",
-          value: services.authService.isSignedIn ? services.authService.statusMessage : "Not signed in.",
-          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "person.crop.circle.badge.exclamationmark"
+          title: "Backend",
+          value: services.authService.isSignedIn ? services.authService.statusMessage : "Not connected.",
+          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled"
         )
 
         GlassDivider()
 
         GlassStatusRow(
           title: "Tandem",
-          value: services.credentialStore.hasStoredCredentials ? "Saved on this device" : "Not configured",
-          systemImage: services.credentialStore.hasStoredCredentials ? "key.fill" : "key.slash"
+          value: tandemStatus,
+          systemImage: services.credentialStore.hasValidatedCredentials ? "key.fill" : "key.slash"
         )
 
         GlassDivider()
@@ -29,24 +29,23 @@ struct DashboardView: View {
         )
       }
 
-      GlassEffectContainer(spacing: 16) {
-        Button {
-          Task {
+      Button {
+        Task {
+          if canSync {
             await services.syncCoordinator.sync(reason: .manual)
           }
-        } label: {
-          GlassPrimaryLabel(title: services.syncCoordinator.isSyncing ? "Syncing" : "Sync Now", systemImage: "arrow.triangle.2.circlepath")
         }
-        .buttonStyle(.glassProminent)
-        .controlSize(.large)
-        .disabled(!services.authService.isSignedIn || services.syncCoordinator.isSyncing)
+      } label: {
+        GlassPrimaryLabel(title: services.syncCoordinator.isSyncing ? "Syncing" : "Sync Now", systemImage: "arrow.triangle.2.circlepath")
       }
+      .buttonStyle(GroupedActionButtonStyle())
+      .disabled(!canSync)
 
       ForEach(
         Self.dashboardMessages(
-          isSignedIn: services.authService.isSignedIn,
-          hasStoredCredentials: services.credentialStore.hasStoredCredentials,
-          isHealthAuthorized: services.healthKitService.isAuthorized
+          isBackendConnected: services.authService.isSignedIn,
+          hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
+          hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
         ),
         id: \.self
       ) { message in
@@ -60,8 +59,29 @@ struct DashboardView: View {
     }
     .navigationTitle("PumpSync")
     .refreshable {
-      await services.syncCoordinator.sync(reason: .manual)
+      if canSync {
+        await services.syncCoordinator.sync(reason: .manual)
+      }
     }
+  }
+
+  private var canSync: Bool {
+    services.authService.isSignedIn
+      && services.credentialStore.hasValidatedCredentials
+      && services.healthKitService.hasAnyWritePermission
+      && !services.syncCoordinator.isSyncing
+  }
+
+  private var tandemStatus: String {
+    if services.credentialStore.hasValidatedCredentials {
+      return "Validated"
+    }
+
+    if services.credentialStore.hasStoredCredentials {
+      return "Needs validation"
+    }
+
+    return "Not configured"
   }
 
   private func formattedDate(_ date: Date?) -> String {
@@ -73,20 +93,20 @@ struct DashboardView: View {
   }
 
   static func dashboardMessages(
-    isSignedIn: Bool,
-    hasStoredCredentials: Bool,
-    isHealthAuthorized: Bool
+    isBackendConnected: Bool,
+    hasValidatedCredentials: Bool,
+    hasAnyHealthWritePermission: Bool
   ) -> [String] {
-    if !isSignedIn {
-      return ["Sign in from Settings before syncing."]
+    if !isBackendConnected {
+      return []
     }
 
-    if !hasStoredCredentials {
-      return ["Add Tandem credentials in Settings before syncing."]
+    if !hasValidatedCredentials {
+      return ["Validate Tandem credentials in Settings before syncing."]
     }
 
-    if !isHealthAuthorized {
-      return ["Manage Apple Health access in Settings before syncing."]
+    if !hasAnyHealthWritePermission {
+      return ["Enable at least one Apple Health write permission before syncing."]
     }
 
     return []

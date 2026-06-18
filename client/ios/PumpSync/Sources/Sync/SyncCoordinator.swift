@@ -53,14 +53,26 @@ final class SyncCoordinator {
     }
 
     guard let accessToken = authService.accessToken else {
-      lastMessage = "Sign in before syncing."
-      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing Apple session.")
+      lastMessage = "Connect backend access before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing backend session.")
+      return
+    }
+
+    guard credentialStore.hasValidatedCredentials else {
+      lastMessage = "Validate Tandem credentials before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Tandem credentials are not validated.")
       return
     }
 
     guard let credentials = try? credentialStore.load() else {
       lastMessage = "Add Tandem credentials before syncing."
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing Tandem credentials.")
+      return
+    }
+
+    guard healthKitService.hasAnyWritePermission else {
+      lastMessage = "Enable Apple Health write access before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "No Apple Health write permissions are enabled.")
       return
     }
 

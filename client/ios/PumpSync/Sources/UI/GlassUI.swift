@@ -45,8 +45,11 @@ struct GlassSection<Content: View>: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(.horizontal, 18)
-      .padding(.vertical, 8)
-      .glassEffect(.regular, in: .rect(cornerRadius: 28))
+      .padding(.vertical, 12)
+      .background(
+        Color(.secondarySystemGroupedBackground),
+        in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+      )
     }
   }
 }
@@ -132,7 +135,44 @@ struct GlassPrimaryLabel: View {
   let systemImage: String
 
   var body: some View {
-    Label(title, systemImage: systemImage)
-      .frame(maxWidth: .infinity, minHeight: 28, alignment: .center)
+    HStack(spacing: 14) {
+      Image(systemName: systemImage)
+        .font(.title3)
+        .frame(width: 28)
+        .foregroundStyle(.tint)
+
+      Text(title)
+        .foregroundStyle(.primary)
+
+      Spacer(minLength: 0)
+    }
+      .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+  }
+}
+
+struct GroupedActionButtonStyle: ButtonStyle {
+  @Environment(\.isEnabled) private var isEnabled
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .padding(.horizontal, 18)
+      .padding(.vertical, 16)
+      .background(
+        Color(.secondarySystemGroupedBackground),
+        in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+      )
+      .opacity(isEnabled ? (configuration.isPressed ? 0.65 : 1) : 0.45)
+  }
+}
+
+struct GroupedInlineButtonStyle: ButtonStyle {
+  @Environment(\.isEnabled) private var isEnabled
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .foregroundStyle(.tint)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.vertical, 6)
+      .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : 0.45)
   }
 }

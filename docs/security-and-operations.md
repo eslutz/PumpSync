@@ -10,10 +10,11 @@
 
 ## Backend Operations
 
-- Use Azure SQL for user accounts, billing entitlement state, rate-limit events, sync attempt metadata, and idempotency records for non-credential endpoints.
+- Use Azure Table Storage for subscription entitlement state, installation lookup, rate-limit buckets, sync attempt metadata, and App Store notification idempotency.
 - Use Application Insights for operational telemetry.
 - Use Key Vault/App Configuration for service secrets and environment settings.
 - Treat Tandem endpoint failures as transient unless the response clearly indicates invalid credentials or authorization failure.
+- Keep `AppStore__RootCertificatePem` configured for hosted deployments. App Store payload verification fails closed when the Apple root certificate is missing.
 
 ## Logging
 
@@ -29,7 +30,9 @@ Backend and helper services must redact keys containing:
 
 ## Rate Limiting
 
-The Tandem sync endpoint currently allows 12 sync requests per user per hour. Increase only with real Tandem rate-limit evidence and measured backend cost.
+The Tandem sync endpoint currently allows 12 sync requests per internal user per hour. Hosted users are keyed from the App Store original transaction ID. Self-hosted users are keyed from the installation ID.
+
+Increase rate limits only with real Tandem rate-limit evidence and measured backend cost.
 
 ## Background Sync
 

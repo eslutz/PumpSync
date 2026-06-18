@@ -1,25 +1,32 @@
 import Foundation
 
-struct AppleSessionRequest: Encodable {
-  let identityToken: String
-  let authorizationCode: String?
-  let email: String?
-  let fullName: String?
+struct CapabilitiesResponse: Decodable, Equatable {
+  let apiVersion: String
+  let serviceMode: String
+  let billingMode: String
+  let tandemCredentialStorage: String
+  let tandemDataRetention: String
 }
 
-struct AppleSessionResponse: Decodable, Equatable {
+struct SubscriptionSessionRequest: Encodable {
+  let signedTransactionInfo: String
+  let installationId: String
+}
+
+struct SelfHostedSessionRequest: Encodable {
+  let installationId: String
+}
+
+struct BackendSessionResponse: Decodable, Equatable {
   let accessToken: String
   let expiresAt: Date
-  let user: UserSummary
-}
-
-struct UserSummary: Decodable, Equatable {
-  let userId: String
-  let email: String?
+  let entitlementActive: Bool
+  let serviceMode: String
 }
 
 struct StatusResponse: Decodable, Equatable {
   let entitlementActive: Bool
+  let serviceMode: String
   let tandemCredentialStorage: String
   let tandemDataRetention: String
 }
@@ -29,6 +36,14 @@ struct TandemSyncRequest: Encodable {
   let deviceId: String?
   let minDate: Date?
   let maxDate: Date?
+}
+
+struct TandemCredentialValidationRequest: Encodable {
+  let tandem: TandemCredentials
+}
+
+struct TandemCredentialValidationResponse: Decodable, Equatable {
+  let validated: Bool
 }
 
 struct TandemSyncResponse: Decodable {

@@ -11,10 +11,13 @@ public static class DependencyInjection
     {
         services.AddSingleton<IdempotentExecutor>();
         services.AddSingleton<Abstractions.ISampleNormalizer, TandemSampleNormalizer>();
-        services.AddScoped<AuthAppleSessionUseCase>();
-        services.AddScoped<HandleAppleServerNotificationUseCase>();
-        services.AddScoped<AuthenticatedUserGuard>();
+        services.AddScoped<GetCapabilitiesUseCase>();
+        services.AddScoped<CreateSubscriptionSessionUseCase>();
+        services.AddScoped<CreateSelfHostedSessionUseCase>();
+        services.AddScoped<HandleAppStoreNotificationUseCase>();
+        services.AddScoped<BackendAccessGuard>();
         services.AddScoped<SyncTandemUseCase>();
+        services.AddScoped<ValidateTandemCredentialsUseCase>();
         services.AddScoped<GetStatusUseCase>();
         return services;
     }

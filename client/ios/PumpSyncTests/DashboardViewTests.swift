@@ -4,19 +4,39 @@ import XCTest
 final class DashboardViewTests: XCTestCase {
   func testDashboardMessagesShowProductionReadinessPrompts() {
     let messages = DashboardView.dashboardMessages(
-      isSignedIn: false,
-      hasStoredCredentials: false,
-      isHealthAuthorized: false
+      isBackendConnected: false,
+      hasValidatedCredentials: false,
+      hasAnyHealthWritePermission: false
     )
 
-    XCTAssertEqual(messages, ["Sign in from Settings before syncing."])
+    XCTAssertEqual(messages, [])
+  }
+
+  func testDashboardMessagesPromptForValidatedCredentialsAfterSignIn() {
+    let messages = DashboardView.dashboardMessages(
+      isBackendConnected: true,
+      hasValidatedCredentials: false,
+      hasAnyHealthWritePermission: false
+    )
+
+    XCTAssertEqual(messages, ["Validate Tandem credentials in Settings before syncing."])
+  }
+
+  func testDashboardMessagesPromptForHealthWriteAccessAfterCredentialsAreValidated() {
+    let messages = DashboardView.dashboardMessages(
+      isBackendConnected: true,
+      hasValidatedCredentials: true,
+      hasAnyHealthWritePermission: false
+    )
+
+    XCTAssertEqual(messages, ["Enable at least one Apple Health write permission before syncing."])
   }
 
   func testDashboardMessagesHideDeveloperErrorsWhenReady() {
     let messages = DashboardView.dashboardMessages(
-      isSignedIn: true,
-      hasStoredCredentials: true,
-      isHealthAuthorized: true
+      isBackendConnected: true,
+      hasValidatedCredentials: true,
+      hasAnyHealthWritePermission: true
     )
 
     XCTAssertEqual(messages, [])

@@ -3,20 +3,40 @@ import XCTest
 
 final class SyncViewTests: XCTestCase {
   func testReadinessMessagePromptsForSignInFirst() {
+    XCTAssertNil(SyncView.readinessMessage(
+      isBackendConnected: false,
+      hasValidatedCredentials: false,
+      hasAnyHealthWritePermission: false
+    ))
+  }
+
+  func testReadinessMessagePromptsForValidatedCredentialsAfterSignIn() {
     XCTAssertEqual(
-      SyncView.readinessMessage(isSignedIn: false, hasStoredCredentials: false),
-      "Sign in from Settings before syncing."
+      SyncView.readinessMessage(
+        isBackendConnected: true,
+        hasValidatedCredentials: false,
+        hasAnyHealthWritePermission: false
+      ),
+      "Validate Tandem credentials in Settings before syncing."
     )
   }
 
-  func testReadinessMessagePromptsForCredentialsAfterSignIn() {
+  func testReadinessMessagePromptsForHealthWriteAccessAfterCredentialsAreValidated() {
     XCTAssertEqual(
-      SyncView.readinessMessage(isSignedIn: true, hasStoredCredentials: false),
-      "Add Tandem credentials in Settings before syncing."
+      SyncView.readinessMessage(
+        isBackendConnected: true,
+        hasValidatedCredentials: true,
+        hasAnyHealthWritePermission: false
+      ),
+      "Enable at least one Apple Health write permission before syncing."
     )
   }
 
   func testReadinessMessageIsNilWhenReady() {
-    XCTAssertNil(SyncView.readinessMessage(isSignedIn: true, hasStoredCredentials: true))
+    XCTAssertNil(SyncView.readinessMessage(
+      isBackendConnected: true,
+      hasValidatedCredentials: true,
+      hasAnyHealthWritePermission: true
+    ))
   }
 }

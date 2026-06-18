@@ -15,25 +15,7 @@ public static class TandemSyncRequestValidator
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (request.Tandem is null)
-        {
-            throw new InvalidOperationException("Tandem credentials are required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Tandem.Username))
-        {
-            throw new InvalidOperationException("Tandem username is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Tandem.Password))
-        {
-            throw new InvalidOperationException("Tandem password is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Tandem.Region) || !AllowedRegions.Contains(request.Tandem.Region))
-        {
-            throw new InvalidOperationException("Tandem region must be 'us' or 'eu'.");
-        }
+        ValidateCredentials(request.Tandem);
 
         if (request.MinDate is { } minDate && request.MaxDate is { } maxDate && minDate > maxDate)
         {
@@ -49,6 +31,29 @@ public static class TandemSyncRequestValidator
         if (request.MaxDate is { } requestedMaxDate && requestedMaxDate > now.AddMinutes(5))
         {
             throw new InvalidOperationException("MaxDate cannot be in the future.");
+        }
+    }
+
+    public static void ValidateCredentials(TandemCredentialsDto? credentials)
+    {
+        if (credentials is null)
+        {
+            throw new InvalidOperationException("Tandem credentials are required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(credentials.Username))
+        {
+            throw new InvalidOperationException("Tandem username is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(credentials.Password))
+        {
+            throw new InvalidOperationException("Tandem password is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(credentials.Region) || !AllowedRegions.Contains(credentials.Region))
+        {
+            throw new InvalidOperationException("Tandem region must be 'us' or 'eu'.");
         }
     }
 }

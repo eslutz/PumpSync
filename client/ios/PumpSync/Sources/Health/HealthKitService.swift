@@ -13,6 +13,10 @@ final class HealthKitService {
   var errorMessage: String?
   var managementMessage: String?
 
+  var hasAnyWritePermission: Bool {
+    writePermissions.contains { $0.status == .sharingAuthorized }
+  }
+
   init(diagnostics: DiagnosticsLogStore? = nil) {
     self.diagnostics = diagnostics
   }
@@ -120,11 +124,11 @@ final class HealthKitService {
       return 0
     }
 
-    if !isAuthorized {
+    if !hasAnyWritePermission {
       try await requestAuthorization()
     }
 
-    guard isAuthorized else {
+    guard hasAnyWritePermission else {
       throw HealthKitError.authorizationDenied
     }
 
@@ -174,14 +178,27 @@ final class HealthKitService {
   private func makeHealthKitSample(from sample: SampleDTO) -> HKQuantitySample? {
     switch sample.type {
     case "insulin.bolus":
+      guard canWrite(.insulinDelivery) else {
+        return nil
+      }
       return insulinSample(sample, reason: .bolus)
     case "insulin.basal":
+      guard canWrite(.insulinDelivery) else {
+        return nil
+      }
       return insulinSample(sample, reason: .basal)
     case "nutrition.carbohydrates":
+      guard canWrite(.dietaryCarbohydrates) else {
+        return nil
+      }
       return carbohydrateSample(sample)
     default:
       return nil
     }
+  }
+
+  private func canWrite(_ kind: HealthWriteSampleKind) -> Bool {
+    writePermissions.first { $0.kind == kind }?.status == .sharingAuthorized
   }
 
   private func insulinSample(_ sample: SampleDTO, reason: HKInsulinDeliveryReason) -> HKQuantitySample? {

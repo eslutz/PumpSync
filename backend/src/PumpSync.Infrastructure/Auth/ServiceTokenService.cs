@@ -14,15 +14,17 @@ public sealed class ServiceTokenService(IOptions<PumpSyncOptions> options) : ISe
 {
     private readonly PumpSyncOptions options = options.Value;
 
-    public string IssueToken(UserId userId, string appleSubject, DateTimeOffset expiresAt)
+    public string IssueToken(AuthenticatedUser user, DateTimeOffset expiresAt)
     {
         var credentials = new SigningCredentials(SecurityKey(), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
             options.ServiceTokenIssuer,
             options.ServiceTokenAudience,
             [
-                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-                new Claim("apple_sub", appleSubject),
+                new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
+                new Claim("subject_id", user.SubjectId),
+                new Claim("installation_id", user.InstallationId),
+                new Claim("mode", user.Mode is AuthenticatedUserMode.SelfHosted ? "selfHosted" : "hosted"),
                 new Claim("scope", "ios")
             ],
             DateTime.UtcNow,
@@ -54,11 +56,16 @@ public sealed class ServiceTokenService(IOptions<PumpSyncOptions> options) : ISe
         var userId = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
             ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? throw new SecurityTokenValidationException("Service token is missing subject.");
-        var appleSubject = principal.FindFirst("apple_sub")?.Value
-            ?? throw new SecurityTokenValidationException("Service token is missing Apple subject.");
+        var subjectId = principal.FindFirst("subject_id")?.Value
+            ?? throw new SecurityTokenValidationException("Service token is missing subject id.");
+        var installationId = principal.FindFirst("installation_id")?.Value
+            ?? throw new SecurityTokenValidationException("Service token is missing installation id.");
+        var mode = principal.FindFirst("mode")?.Value is "selfHosted"
+            ? AuthenticatedUserMode.SelfHosted
+            : AuthenticatedUserMode.Hosted;
         var scopes = principal.FindAll("scope").Select(x => x.Value).ToArray();
 
-        return new AuthenticatedUser(new UserId(Guid.ParseExact(userId, "N")), appleSubject, scopes);
+        return new AuthenticatedUser(new UserId(Guid.ParseExact(userId, "N")), subjectId, installationId, mode, scopes);
     }
 
     private SymmetricSecurityKey SecurityKey()

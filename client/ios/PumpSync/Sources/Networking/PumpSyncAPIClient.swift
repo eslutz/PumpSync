@@ -1,20 +1,38 @@
 import Foundation
+import Observation
 
-struct PumpSyncAPIClient {
+@MainActor
+@Observable
+final class PumpSyncAPIClient {
   var baseURL: URL
   var urlSession: URLSession
   var maxRetryCount: Int = 2
 
+  init(baseURL: URL, urlSession: URLSession, maxRetryCount: Int = 2) {
+    self.baseURL = baseURL
+    self.urlSession = urlSession
+    self.maxRetryCount = maxRetryCount
+  }
+
   static func live() -> PumpSyncAPIClient {
-    let configuredBaseURL = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String
-    let baseURL = configuredBaseURL
-      .flatMap(URL.init(string:))
-      ?? URL(string: "https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api")!
+    let baseURL = AppConstants.defaultAPIBaseURL
     return PumpSyncAPIClient(baseURL: baseURL, urlSession: .shared)
   }
 
-  func createAppleSession(_ request: AppleSessionRequest) async throws -> AppleSessionResponse {
-    try await send(path: "/v1/auth/apple/session", method: "POST", body: request, accessToken: nil)
+  func updateBaseURL(_ baseURL: URL) {
+    self.baseURL = baseURL
+  }
+
+  func getCapabilities() async throws -> CapabilitiesResponse {
+    try await send(path: "/v1/capabilities", method: "GET", body: EmptyRequest(), accessToken: nil)
+  }
+
+  func createSubscriptionSession(_ request: SubscriptionSessionRequest) async throws -> BackendSessionResponse {
+    try await send(path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil)
+  }
+
+  func createSelfHostedSession(_ request: SelfHostedSessionRequest) async throws -> BackendSessionResponse {
+    try await send(path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil)
   }
 
   func getStatus(accessToken: String) async throws -> StatusResponse {
@@ -23,6 +41,10 @@ struct PumpSyncAPIClient {
 
   func syncTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
     try await send(path: "/v1/sync/tandem", method: "POST", body: request, accessToken: accessToken)
+  }
+
+  func validateTandemCredentials(_ request: TandemCredentialValidationRequest, accessToken: String) async throws -> TandemCredentialValidationResponse {
+    try await send(path: "/v1/tandem/credentials/validate", method: "POST", body: request, accessToken: accessToken)
   }
 
   private func send<Request: Encodable, Response: Decodable>(

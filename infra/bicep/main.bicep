@@ -15,18 +15,35 @@ param location string = resourceGroup().location
 @maxLength(12)
 param appName string = 'pumpsync'
 
-@description('Apple Services ID or bundle identifier expected in Sign in with Apple tokens.')
-param appleClientId string
-
-@description('Existing Azure SQL server FQDN used for PumpSync user, auth, billing, idempotency, and sync state tables.')
-param sqlServer string
-
-@description('Existing Azure SQL database name used for PumpSync user, auth, billing, idempotency, and sync state tables.')
-param sqlDatabase string
-
 @secure()
 @description('Service token signing key. Store this only in deployment secrets or Key Vault.')
 param serviceTokenSigningKey string
+
+@description('Bundle identifier expected in App Store subscription transactions.')
+param appStoreBundleId string = 'dev.ericslutz.PumpSync'
+
+@description('App Store transaction environment expected by this backend.')
+@allowed([
+  'Sandbox'
+  'Production'
+])
+param appStoreEnvironment string = environmentName == 'prod' ? 'Production' : 'Sandbox'
+
+@description('Auto-renewable subscription product id used for PumpSync Hosted.')
+param appStoreSubscriptionProductId string = 'dev.ericslutz.PumpSync.hosted.monthly'
+
+@description('App Store Server API issuer id.')
+param appStoreIssuerId string = ''
+
+@description('App Store Server API key id.')
+param appStoreKeyId string = ''
+
+@secure()
+@description('App Store Server API private key.')
+param appStorePrivateKey string = ''
+
+@description('PEM-encoded Apple root certificate used to pin App Store signed payload verification.')
+param appStoreRootCertificatePem string = ''
 
 @secure()
 @description('Shared secret accepted by the standalone log-drain Function App.')
@@ -56,7 +73,13 @@ var modelCostUpdaterFunctionAppName = take('func-${appName}-${environmentName}-f
 var backendIdentityName = '${prefix}-backend-id'
 var logDrainIdentityName = '${prefix}-log-drain-id'
 var modelCostUpdaterIdentityName = '${prefix}-cost-updater-id'
-var tandemTableName = 'TandemSyncOperations'
+var subscriptionEntitlementsTableName = 'SubscriptionEntitlements'
+var installationsTableName = 'Installations'
+var installationLookupTableName = 'InstallationLookup'
+var syncAttemptsTableName = 'SyncAttempts'
+var rateLimitBucketsTableName = 'RateLimitBuckets'
+var appStoreNotificationIdempotencyTableName = 'AppleNotificationIdempotency'
+var auditEventsTableName = 'AuditEvents'
 var backendPackageContainerName = 'function-packages-backend'
 var logDrainPackageContainerName = 'function-packages-log-drain'
 var modelCostUpdaterPackageContainerName = 'function-packages-model-cost'
@@ -141,9 +164,39 @@ resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-0
   name: 'default'
 }
 
-resource tandemSyncOperationsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+resource subscriptionEntitlementsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
   parent: tableService
-  name: tandemTableName
+  name: subscriptionEntitlementsTableName
+}
+
+resource installationsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: installationsTableName
+}
+
+resource installationLookupTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: installationLookupTableName
+}
+
+resource syncAttemptsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: syncAttemptsTableName
+}
+
+resource rateLimitBucketsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: rateLimitBucketsTableName
+}
+
+resource appStoreNotificationIdempotencyTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: appStoreNotificationIdempotencyTableName
+}
+
+resource auditEventsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: auditEventsTableName
 }
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
@@ -185,21 +238,19 @@ resource modelCostUpdaterIdentity 'Microsoft.ManagedIdentity/userAssignedIdentit
   tags: tags
 }
 
-var sqlConnectionString = 'Server=tcp:${sqlServer},1433;Initial Catalog=${sqlDatabase};Authentication=Active Directory Managed Identity;User ID=${backendIdentity.properties.clientId};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
-
-resource sqlConnectionSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'AzureSql--ConnectionString'
-  properties: {
-    value: sqlConnectionString
-  }
-}
-
 resource serviceTokenSigningKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'PumpSync--ServiceTokenSigningKey'
   properties: {
     value: serviceTokenSigningKey
+  }
+}
+
+resource appStorePrivateKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'AppStore--PrivateKey'
+  properties: {
+    value: appStorePrivateKey
   }
 }
 
@@ -345,8 +396,8 @@ resource backendFunctionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: appInsights.properties.ConnectionString
         }
         {
-          name: 'Apple__ClientId'
-          value: appleClientId
+          name: 'PumpSync__BackendMode'
+          value: 'Hosted'
         }
         {
           name: 'PumpSync__ServiceTokenIssuer'
@@ -361,16 +412,64 @@ resource backendFunctionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: '@Microsoft.KeyVault(SecretUri=${serviceTokenSigningKeySecret.properties.secretUri})'
         }
         {
-          name: 'AzureSql__ConnectionString'
-          value: '@Microsoft.KeyVault(SecretUri=${sqlConnectionSecret.properties.secretUri})'
+          name: 'AppStore__BundleId'
+          value: appStoreBundleId
+        }
+        {
+          name: 'AppStore__Environment'
+          value: appStoreEnvironment
+        }
+        {
+          name: 'AppStore__SubscriptionProductId'
+          value: appStoreSubscriptionProductId
+        }
+        {
+          name: 'AppStore__IssuerId'
+          value: appStoreIssuerId
+        }
+        {
+          name: 'AppStore__KeyId'
+          value: appStoreKeyId
+        }
+        {
+          name: 'AppStore__PrivateKey'
+          value: '@Microsoft.KeyVault(SecretUri=${appStorePrivateKeySecret.properties.secretUri})'
+        }
+        {
+          name: 'AppStore__RootCertificatePem'
+          value: appStoreRootCertificatePem
         }
         {
           name: 'AzureStorage__AccountName'
           value: storage.name
         }
         {
-          name: 'AzureStorage__TandemSyncOperationsTableName'
-          value: tandemSyncOperationsTable.name
+          name: 'AzureStorage__SubscriptionEntitlementsTableName'
+          value: subscriptionEntitlementsTable.name
+        }
+        {
+          name: 'AzureStorage__InstallationsTableName'
+          value: installationsTable.name
+        }
+        {
+          name: 'AzureStorage__InstallationLookupTableName'
+          value: installationLookupTable.name
+        }
+        {
+          name: 'AzureStorage__SyncAttemptsTableName'
+          value: syncAttemptsTable.name
+        }
+        {
+          name: 'AzureStorage__RateLimitBucketsTableName'
+          value: rateLimitBucketsTable.name
+        }
+        {
+          name: 'AzureStorage__AppStoreNotificationIdempotencyTableName'
+          value: appStoreNotificationIdempotencyTable.name
+        }
+        {
+          name: 'AzureStorage__AuditEventsTableName'
+          value: auditEventsTable.name
         }
         {
           name: 'TandemSource__EventTimeZoneId'
@@ -608,6 +707,6 @@ output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output applicationInsightsName string = appInsights.name
 output logWorkspaceName string = logWorkspace.name
-output sqlServer string = sqlServer
-output sqlDatabase string = sqlDatabase
-output tandemSyncOperationsTableName string = tandemSyncOperationsTable.name
+output subscriptionEntitlementsTableName string = subscriptionEntitlementsTable.name
+output installationsTableName string = installationsTable.name
+output syncAttemptsTableName string = syncAttemptsTable.name

@@ -1,5 +1,3 @@
-using PumpSync.Domain.Users;
-
 namespace PumpSync.Domain.Billing;
 
 public enum BillingEntitlementStatus
@@ -12,9 +10,9 @@ public enum BillingEntitlementStatus
 }
 
 public sealed record BillingEntitlement(
-    UserId UserId,
     string OriginalTransactionId,
     string ProductId,
     BillingEntitlementStatus Status,
+    string Environment,
     DateTimeOffset? ExpiresAt,
     DateTimeOffset UpdatedAt);
