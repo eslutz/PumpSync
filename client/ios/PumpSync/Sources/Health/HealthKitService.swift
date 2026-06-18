@@ -6,9 +6,36 @@ import Observation
 @Observable
 final class HealthKitService {
   private let healthStore = HKHealthStore()
+  private let diagnostics: DiagnosticsLogStore?
 
   private(set) var isAuthorized = false
+  private(set) var writePermissions = HealthWritePermission.defaultWritePermissions()
   var errorMessage: String?
+  var managementMessage: String?
+
+  init(diagnostics: DiagnosticsLogStore? = nil) {
+    self.diagnostics = diagnostics
+  }
+
+  func refreshAuthorizationStatus() {
+    guard HKHealthStore.isHealthDataAvailable() else {
+      writePermissions = HealthWritePermission.defaultWritePermissions(
+        statuses: Dictionary(
+          uniqueKeysWithValues: HealthWriteSampleKind.allCases.map { ($0, .unavailable) }
+        )
+      )
+      isAuthorized = false
+      return
+    }
+
+    var statuses: [HealthWriteSampleKind: HealthWriteAccessStatus] = [:]
+    for (kind, type) in writableTypePairs() {
+      statuses[kind] = HealthWriteAccessStatus(healthKitStatus: healthStore.authorizationStatus(for: type))
+    }
+
+    writePermissions = HealthWritePermission.defaultWritePermissions(statuses: statuses)
+    isAuthorized = writePermissions.allSatisfy { $0.status == .sharingAuthorized }
+  }
 
   func requestAuthorization() async throws {
     guard HKHealthStore.isHealthDataAvailable() else {
@@ -16,7 +43,65 @@ final class HealthKitService {
     }
 
     let types = try writableTypes()
+    try await requestAuthorization(toShare: types)
 
+    refreshAuthorizationStatus()
+    errorMessage = nil
+  }
+
+  func manageWriteAccess() async {
+    do {
+      guard HKHealthStore.isHealthDataAvailable() else {
+        throw HealthKitError.notAvailable
+      }
+
+      let types = try writableTypes()
+      let requestStatus = try await healthStore.statusForAuthorizationRequest(toShare: types, read: [])
+
+      switch requestStatus {
+      case .shouldRequest, .unknown:
+        do {
+          try await requestAuthorization(toShare: types)
+          refreshAuthorizationStatus()
+          if isAuthorized {
+            managementMessage = nil
+            errorMessage = nil
+            diagnostics?.record(source: .health, title: "Health write access authorized")
+          } else {
+            managementMessage = HealthAccessCopy.healthAppInstructions
+            errorMessage = nil
+            diagnostics?.record(
+              source: .health,
+              severity: .warning,
+              title: "Health authorization incomplete",
+              message: "The authorization sheet completed but not all requested write permissions are authorized."
+            )
+          }
+        } catch {
+          refreshAuthorizationStatus()
+          managementMessage = HealthAccessCopy.healthAppInstructions
+          errorMessage = nil
+          diagnostics?.record(error: error, source: .health, title: "Health authorization request failed")
+        }
+      case .unnecessary:
+        refreshAuthorizationStatus()
+        managementMessage = HealthAccessCopy.healthAppInstructions
+        errorMessage = nil
+        diagnostics?.record(source: .health, title: "Health permissions already decided")
+      @unknown default:
+        refreshAuthorizationStatus()
+        managementMessage = HealthAccessCopy.healthAppInstructions
+        errorMessage = nil
+        diagnostics?.record(source: .health, severity: .warning, title: "Unknown Health authorization request status")
+      }
+    } catch {
+      errorMessage = "Apple Health access could not be updated."
+      managementMessage = nil
+      diagnostics?.record(error: error, source: .health, title: "Health access management failed")
+    }
+  }
+
+  private func requestAuthorization(toShare types: Set<HKSampleType>) async throws {
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
       healthStore.requestAuthorization(toShare: types, read: []) { success, error in
         if let error {
@@ -28,9 +113,6 @@ final class HealthKitService {
         }
       }
     }
-
-    isAuthorized = true
-    errorMessage = nil
   }
 
   func save(samples: [SampleDTO]) async throws -> Int {
@@ -40,6 +122,10 @@ final class HealthKitService {
 
     if !isAuthorized {
       try await requestAuthorization()
+    }
+
+    guard isAuthorized else {
+      throw HealthKitError.authorizationDenied
     }
 
     let objects = samples.compactMap(makeHealthKitSample)
@@ -63,14 +149,26 @@ final class HealthKitService {
   }
 
   private func writableTypes() throws -> Set<HKSampleType> {
-    guard
-      let insulin = HKObjectType.quantityType(forIdentifier: .insulinDelivery),
-      let carbohydrates = HKObjectType.quantityType(forIdentifier: .dietaryCarbohydrates)
-    else {
+    let types = writableTypePairs().map(\.type)
+    guard types.count == HealthWriteSampleKind.allCases.count else {
       throw HealthKitError.unsupportedSampleType
     }
 
-    return [insulin, carbohydrates]
+    return Set(types)
+  }
+
+  private func writableTypePairs() -> [(kind: HealthWriteSampleKind, type: HKSampleType)] {
+    var pairs: [(kind: HealthWriteSampleKind, type: HKSampleType)] = []
+
+    if let insulin = HKObjectType.quantityType(forIdentifier: .insulinDelivery) {
+      pairs.append((.insulinDelivery, insulin))
+    }
+
+    if let carbohydrates = HKObjectType.quantityType(forIdentifier: .dietaryCarbohydrates) {
+      pairs.append((.dietaryCarbohydrates, carbohydrates))
+    }
+
+    return pairs
   }
 
   private func makeHealthKitSample(from sample: SampleDTO) -> HKQuantitySample? {
@@ -136,6 +234,21 @@ final class HealthKitService {
 
   private func decimalToDouble(_ value: Decimal) -> Double {
     NSDecimalNumber(decimal: value).doubleValue
+  }
+}
+
+private extension HealthWriteAccessStatus {
+  init(healthKitStatus: HKAuthorizationStatus) {
+    switch healthKitStatus {
+    case .notDetermined:
+      self = .notDetermined
+    case .sharingDenied:
+      self = .sharingDenied
+    case .sharingAuthorized:
+      self = .sharingAuthorized
+    @unknown default:
+      self = .notDetermined
+    }
   }
 }
 

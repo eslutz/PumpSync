@@ -4,50 +4,57 @@ struct DashboardView: View {
   @Environment(AppServices.self) private var services
 
   var body: some View {
-    List {
-      Section {
-        statusRow(
+    PumpSyncScreen {
+      GlassSection {
+        GlassStatusRow(
           title: "Apple account",
-          value: services.authService.statusMessage,
+          value: services.authService.isSignedIn ? services.authService.statusMessage : "Not signed in.",
           systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "person.crop.circle.badge.exclamationmark"
         )
 
-        statusRow(
+        GlassDivider()
+
+        GlassStatusRow(
           title: "Tandem",
           value: services.credentialStore.hasStoredCredentials ? "Saved on this device" : "Not configured",
           systemImage: services.credentialStore.hasStoredCredentials ? "key.fill" : "key.slash"
         )
 
-        statusRow(
+        GlassDivider()
+
+        GlassStatusRow(
           title: "Last sync",
           value: formattedDate(services.syncMetadataStore.metadata.lastSuccessfulSyncAt),
           systemImage: "clock.arrow.circlepath"
         )
       }
 
-      Section {
+      GlassEffectContainer(spacing: 16) {
         Button {
           Task {
             await services.syncCoordinator.sync(reason: .manual)
           }
         } label: {
-          Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+          GlassPrimaryLabel(title: services.syncCoordinator.isSyncing ? "Syncing" : "Sync Now", systemImage: "arrow.triangle.2.circlepath")
         }
+        .buttonStyle(.glassProminent)
+        .controlSize(.large)
         .disabled(!services.authService.isSignedIn || services.syncCoordinator.isSyncing)
       }
 
       ForEach(
         Self.dashboardMessages(
           isSignedIn: services.authService.isSignedIn,
-          syncMessage: services.syncCoordinator.lastMessage,
-          authErrorMessage: services.authService.errorMessage,
-          lastSyncErrorMessage: services.syncMetadataStore.metadata.lastErrorMessage
+          hasStoredCredentials: services.credentialStore.hasStoredCredentials,
+          isHealthAuthorized: services.healthKitService.isAuthorized
         ),
         id: \.self
       ) { message in
-        Section {
+        GlassSection {
           Text(message)
+            .font(.body)
             .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
     }
@@ -55,22 +62,6 @@ struct DashboardView: View {
     .refreshable {
       await services.syncCoordinator.sync(reason: .manual)
     }
-  }
-
-  private func statusRow(title: String, value: String, systemImage: String) -> some View {
-    HStack(spacing: 12) {
-      Image(systemName: systemImage)
-        .frame(width: 24)
-        .foregroundStyle(.tint)
-
-      VStack(alignment: .leading) {
-        Text(title)
-        Text(value)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      }
-    }
-    .padding(.vertical, 4)
   }
 
   private func formattedDate(_ date: Date?) -> String {
@@ -83,22 +74,21 @@ struct DashboardView: View {
 
   static func dashboardMessages(
     isSignedIn: Bool,
-    syncMessage: String?,
-    authErrorMessage: String?,
-    lastSyncErrorMessage: String?
+    hasStoredCredentials: Bool,
+    isHealthAuthorized: Bool
   ) -> [String] {
-    if let syncMessage {
-      return [syncMessage]
+    if !isSignedIn {
+      return ["Sign in from Settings before syncing."]
     }
 
-    if let authErrorMessage {
-      return [authErrorMessage]
+    if !hasStoredCredentials {
+      return ["Add Tandem credentials in Settings before syncing."]
     }
 
-    if isSignedIn {
-      return lastSyncErrorMessage.map { [$0] } ?? []
+    if !isHealthAuthorized {
+      return ["Manage Apple Health access in Settings before syncing."]
     }
 
-    return ["Sign in from Settings before syncing."]
+    return []
   }
 }

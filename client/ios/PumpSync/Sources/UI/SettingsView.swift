@@ -4,79 +4,88 @@ struct SettingsView: View {
   @Environment(AppServices.self) private var services
 
   var body: some View {
-    List {
-      Section("Account") {
+    PumpSyncScreen(spacing: 10) {
+      GlassSection("Account") {
         if services.authService.isSignedIn {
+          GlassStatusRow(
+            title: "Apple account",
+            value: services.authService.statusMessage,
+            systemImage: "checkmark.seal.fill",
+            tint: .green
+          )
+
+          GlassDivider()
+
           Button(role: .destructive) {
             services.authService.signOut()
           } label: {
             Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+              .frame(maxWidth: .infinity, alignment: .leading)
           }
+          .buttonStyle(.glass)
         } else {
-          SignInWithAppleButton(isEnabled: !services.authService.isSigningIn) {
-            Task {
-              await services.authService.signIn()
+          VStack(alignment: .leading, spacing: 12) {
+            SignInWithAppleButton(isEnabled: !services.authService.isSigningIn) {
+              Task {
+                await services.authService.signIn()
+              }
+            }
+            .frame(height: 52)
+            .accessibilityIdentifier("settings.signInWithAppleButton")
+
+            HStack(spacing: 8) {
+              if services.authService.isSigningIn {
+                ProgressView()
+              }
+
+              Text(services.authService.errorMessage ?? services.authService.statusMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
           }
-          .frame(height: 52)
-          .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
-          .accessibilityIdentifier("settings.signInWithAppleButton")
-        }
-
-        HStack(spacing: 8) {
-          if services.authService.isSigningIn {
-            ProgressView()
-          }
-
-          Text(services.authService.statusMessage)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-
-        if let message = services.authService.errorMessage {
-          Text(message)
-            .font(.footnote)
-            .foregroundStyle(.red)
         }
       }
 
-      Section("Tandem") {
+      GlassSection("PumpSync") {
         NavigationLink {
           TandemCredentialForm()
         } label: {
-          Label("Credentials", systemImage: "key")
+          GlassNavigationRow("Credentials", subtitle: services.credentialStore.hasStoredCredentials ? "Saved on this device" : "Not configured", systemImage: "key")
         }
+        .buttonStyle(.plain)
 
         if let redactedUsername = services.credentialStore.redactedUsername {
-          LabeledContent("Stored account", value: redactedUsername)
-        }
-      }
+          GlassDivider()
 
-      Section("Apple Health") {
-        Button {
-          Task {
-            do {
-              try await services.healthKitService.requestAuthorization()
-            } catch {
-              services.healthKitService.errorMessage = error.localizedDescription
-            }
-          }
+          GlassStatusRow(title: "Stored account", value: redactedUsername, systemImage: "person.text.rectangle")
+        }
+
+        GlassDivider()
+
+        NavigationLink {
+          HealthAccessView()
         } label: {
-          Label("Authorize Health Writes", systemImage: "heart")
+          GlassNavigationRow("Apple Health Access", subtitle: services.healthKitService.isAuthorized ? "Write access allowed" : "Review write access", systemImage: "heart")
         }
+        .buttonStyle(.plain)
 
-        if let message = services.healthKitService.errorMessage {
-          Text(message)
-            .foregroundStyle(.secondary)
-        }
-      }
+        GlassDivider()
 
-      Section("Privacy") {
         NavigationLink {
           PrivacyView()
         } label: {
-          Label("Data Handling", systemImage: "lock.shield")
+          GlassNavigationRow("Data Handling", systemImage: "lock.shield")
         }
+        .buttonStyle(.plain)
+
+        GlassDivider()
+
+        NavigationLink {
+          DeveloperView()
+        } label: {
+          GlassNavigationRow("Developer", subtitle: "Diagnostics, build, and sync details", systemImage: "hammer")
+        }
+        .buttonStyle(.plain)
       }
     }
     .navigationTitle("Settings")

@@ -32,7 +32,7 @@ enum InitialImportRange: String, CaseIterable, Codable, Identifiable {
     case .pastWeek:
       return now.addingTimeInterval(-7 * 24 * 60 * 60)
     case .pastTwoWeeks:
-      return now.addingTimeInterval(-14 * 24 * 60 * 60)
+      return now.addingTimeInterval(-(14 * 24 * 60 * 60 - 10 * 60))
     }
   }
 }

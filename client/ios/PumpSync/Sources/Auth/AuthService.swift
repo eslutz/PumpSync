@@ -8,13 +8,14 @@ import UIKit
 final class AuthService {
   private let authorizeWithApple: @MainActor () async throws -> AppleAuthorizationPayload
   private let createAppleSession: @MainActor (AppleSessionRequest) async throws -> AppleSessionResponse
+  private let diagnostics: DiagnosticsLogStore?
 
   private(set) var session: AppleSessionResponse?
   private(set) var isSigningIn = false
   private(set) var statusMessage = "Not signed in."
   var errorMessage: String?
 
-  init(apiClient: PumpSyncAPIClient) {
+  init(apiClient: PumpSyncAPIClient, diagnostics: DiagnosticsLogStore? = nil) {
     let authorizationBroker = AppleAuthorizationBroker()
     authorizeWithApple = {
       try await authorizationBroker.requestAuthorization()
@@ -22,14 +23,17 @@ final class AuthService {
     createAppleSession = { request in
       try await apiClient.createAppleSession(request)
     }
+    self.diagnostics = diagnostics
   }
 
   init(
     authorizeWithApple: @escaping @MainActor () async throws -> AppleAuthorizationPayload,
-    createAppleSession: @escaping @MainActor (AppleSessionRequest) async throws -> AppleSessionResponse
+    createAppleSession: @escaping @MainActor (AppleSessionRequest) async throws -> AppleSessionResponse,
+    diagnostics: DiagnosticsLogStore? = nil
   ) {
     self.authorizeWithApple = authorizeWithApple
     self.createAppleSession = createAppleSession
+    self.diagnostics = diagnostics
   }
 
   var isSignedIn: Bool {
@@ -43,11 +47,12 @@ final class AuthService {
   func signIn() async {
     isSigningIn = true
     errorMessage = nil
-    statusMessage = "Waiting for Apple authentication..."
+    statusMessage = "Signing in..."
+    diagnostics?.record(source: .auth, title: "Sign in started")
 
     do {
       let payload = try await authorizeWithApple()
-      statusMessage = "Apple authenticated. Creating PumpSync session..."
+      diagnostics?.record(source: .auth, title: "Apple authorization completed")
       let request = AppleSessionRequest(
         identityToken: payload.identityToken,
         authorizationCode: payload.authorizationCode,
@@ -56,9 +61,12 @@ final class AuthService {
       )
       session = try await createAppleSession(request)
       statusMessage = "Signed in as \(session?.user.email ?? "Apple account")."
+      diagnostics?.record(source: .auth, title: "PumpSync session created")
     } catch {
-      errorMessage = error.localizedDescription
-      statusMessage = "Sign in failed."
+      let userMessage = Self.userMessage(for: error)
+      errorMessage = userMessage
+      statusMessage = userMessage
+      diagnostics?.record(error: error, source: .auth, title: "Sign in failed")
     }
 
     isSigningIn = false
@@ -68,6 +76,19 @@ final class AuthService {
     session = nil
     errorMessage = nil
     statusMessage = "Not signed in."
+    diagnostics?.record(source: .auth, title: "Signed out")
+  }
+
+  static func userMessage(for error: Error) -> String {
+    if let authorizationError = error as? ASAuthorizationError, authorizationError.code == .canceled {
+      return "Sign in was canceled."
+    }
+
+    if let authError = error as? AuthError, authError == .authorizationTimedOut {
+      return "Sign in did not finish. Try again."
+    }
+
+    return "Sign in could not be completed. Try again."
   }
 }
 
@@ -123,10 +144,20 @@ private final class AppleAuthorizationBroker: NSObject, ASAuthorizationControlle
 
   nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
     DispatchQueue.main.sync {
-      UIApplication.shared.connectedScenes
+      let windowScenes = UIApplication.shared.connectedScenes
         .compactMap { $0 as? UIWindowScene }
+
+      if let keyWindow = windowScenes
         .flatMap(\.windows)
-        .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        .first(where: \.isKeyWindow) {
+        return keyWindow
+      }
+
+      if let windowScene = windowScenes.first {
+        return UIWindow(windowScene: windowScene)
+      }
+
+      preconditionFailure("Sign in with Apple requires an active window scene.")
     }
   }
 
@@ -167,7 +198,7 @@ private final class AppleAuthorizationBroker: NSObject, ASAuthorizationControlle
   }
 }
 
-enum AuthError: LocalizedError {
+enum AuthError: LocalizedError, Equatable {
   case invalidCredential
   case missingIdentityToken
   case authorizationTimedOut

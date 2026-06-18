@@ -16,6 +16,7 @@ final class SyncCoordinator {
   private let healthKitService: HealthKitService
   private let importedSampleLedger: ImportedSampleLedger
   private let syncMetadataStore: SyncMetadataStore
+  private let diagnostics: DiagnosticsLogStore?
 
   private(set) var isSyncing = false
   private(set) var lastMessage: String?
@@ -26,7 +27,8 @@ final class SyncCoordinator {
     credentialStore: TandemCredentialStore,
     healthKitService: HealthKitService,
     importedSampleLedger: ImportedSampleLedger,
-    syncMetadataStore: SyncMetadataStore
+    syncMetadataStore: SyncMetadataStore,
+    diagnostics: DiagnosticsLogStore? = nil
   ) {
     self.apiClient = apiClient
     self.authService = authService
@@ -34,6 +36,7 @@ final class SyncCoordinator {
     self.healthKitService = healthKitService
     self.importedSampleLedger = importedSampleLedger
     self.syncMetadataStore = syncMetadataStore
+    self.diagnostics = diagnostics
   }
 
   func refreshIfStale(reason: SyncTriggerReason) async {
@@ -51,17 +54,20 @@ final class SyncCoordinator {
 
     guard let accessToken = authService.accessToken else {
       lastMessage = "Sign in before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing Apple session.")
       return
     }
 
     guard let credentials = try? credentialStore.load() else {
       lastMessage = "Add Tandem credentials before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing Tandem credentials.")
       return
     }
 
     isSyncing = true
     lastMessage = nil
     syncMetadataStore.recordAttempt()
+    diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
 
     do {
       let now = Date()
@@ -78,9 +84,15 @@ final class SyncCoordinator {
       try importedSampleLedger.recordImported(unseenSamples)
       syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount)
       lastMessage = message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
+      diagnostics?.record(
+        source: .sync,
+        title: "Sync completed",
+        message: "Returned \(response.samples.count), imported \(importedCount), reason \(reason.rawValue)."
+      )
     } catch {
       syncMetadataStore.recordFailure(error)
-      lastMessage = error.localizedDescription
+      lastMessage = "Sync could not be completed. Try again."
+      diagnostics?.record(error: error, source: .sync, title: "Sync failed")
     }
 
     isSyncing = false
@@ -91,7 +103,7 @@ final class SyncCoordinator {
   }
 
   func recordDailySyncRequested() {
-    lastMessage = "Daily background sync requested."
+    diagnostics?.record(source: .backgroundSync, title: "Daily background sync requested")
   }
 
   private var shouldRefreshForStaleness: Bool {
@@ -111,6 +123,6 @@ final class SyncCoordinator {
       return "All returned Tandem samples were already imported."
     }
 
-    return "Imported \(importedCount) of \(sampleCount) samples from \(reason.rawValue)."
+    return "Imported \(importedCount) new samples."
   }
 }

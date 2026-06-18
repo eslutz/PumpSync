@@ -2,14 +2,23 @@ import XCTest
 @testable import PumpSync
 
 final class DashboardViewTests: XCTestCase {
-  func testDashboardMessagesShowsOnlyOneUnauthenticatedSyncPrompt() {
+  func testDashboardMessagesShowProductionReadinessPrompts() {
     let messages = DashboardView.dashboardMessages(
       isSignedIn: false,
-      syncMessage: "Sign in before syncing.",
-      authErrorMessage: nil,
-      lastSyncErrorMessage: nil
+      hasStoredCredentials: false,
+      isHealthAuthorized: false
     )
 
-    XCTAssertEqual(messages, ["Sign in before syncing."])
+    XCTAssertEqual(messages, ["Sign in from Settings before syncing."])
+  }
+
+  func testDashboardMessagesHideDeveloperErrorsWhenReady() {
+    let messages = DashboardView.dashboardMessages(
+      isSignedIn: true,
+      hasStoredCredentials: true,
+      isHealthAuthorized: true
+    )
+
+    XCTAssertEqual(messages, [])
   }
 }
