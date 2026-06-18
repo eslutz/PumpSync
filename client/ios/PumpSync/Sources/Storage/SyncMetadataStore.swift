@@ -7,6 +7,42 @@ struct SyncMetadata: Codable, Equatable {
   var lastSampleCount: Int
   var lastImportedCount: Int
   var lastErrorMessage: String?
+  var initialImportRange: InitialImportRange
+
+  private enum CodingKeys: String, CodingKey {
+    case lastAttemptAt
+    case lastSuccessfulSyncAt
+    case lastSampleCount
+    case lastImportedCount
+    case lastErrorMessage
+    case initialImportRange
+  }
+
+  init(
+    lastAttemptAt: Date?,
+    lastSuccessfulSyncAt: Date?,
+    lastSampleCount: Int,
+    lastImportedCount: Int,
+    lastErrorMessage: String?,
+    initialImportRange: InitialImportRange = .default
+  ) {
+    self.lastAttemptAt = lastAttemptAt
+    self.lastSuccessfulSyncAt = lastSuccessfulSyncAt
+    self.lastSampleCount = lastSampleCount
+    self.lastImportedCount = lastImportedCount
+    self.lastErrorMessage = lastErrorMessage
+    self.initialImportRange = initialImportRange
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    lastAttemptAt = try container.decodeIfPresent(Date.self, forKey: .lastAttemptAt)
+    lastSuccessfulSyncAt = try container.decodeIfPresent(Date.self, forKey: .lastSuccessfulSyncAt)
+    lastSampleCount = try container.decode(Int.self, forKey: .lastSampleCount)
+    lastImportedCount = try container.decode(Int.self, forKey: .lastImportedCount)
+    lastErrorMessage = try container.decodeIfPresent(String.self, forKey: .lastErrorMessage)
+    initialImportRange = try container.decodeIfPresent(InitialImportRange.self, forKey: .initialImportRange) ?? .default
+  }
 }
 
 @MainActor
@@ -41,6 +77,11 @@ final class SyncMetadataStore {
     save()
   }
 
+  func setInitialImportRange(_ range: InitialImportRange) {
+    metadata.initialImportRange = range
+    save()
+  }
+
   private func save() {
     if let data = try? JSONEncoder().encode(metadata) {
       defaults.set(data, forKey: Self.defaultsKey)
@@ -57,7 +98,8 @@ final class SyncMetadataStore {
         lastSuccessfulSyncAt: nil,
         lastSampleCount: 0,
         lastImportedCount: 0,
-        lastErrorMessage: nil
+        lastErrorMessage: nil,
+        initialImportRange: .default
       )
     }
 

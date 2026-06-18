@@ -14,21 +14,27 @@ targets:
     platform: iOS
     sources:
       - path: PumpSync/Sources
+      - path: PumpSync/Resources
+        excludes:
+          - Info.plist
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ericslutz.PumpSync
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericslutz.PumpSync
         INFOPLIST_FILE: PumpSync/Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: PumpSync/PumpSync.entitlements
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: QS3GC3CT43
     info:
       path: PumpSync/Resources/Info.plist
       properties:
-        API_BASE_URL: https://localhost:7071
+        API_BASE_URL: https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api
         BGTaskSchedulerPermittedIdentifiers:
-          - com.ericslutz.PumpSync.daily-sync
+          - dev.ericslutz.PumpSync.daily-sync
         CFBundleDevelopmentRegion: en
         CFBundleDisplayName: PumpSync
         CFBundleExecutable: PumpSync
-        CFBundleIdentifier: com.ericslutz.PumpSync
+        CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleInfoDictionaryVersion: "6.0"
         CFBundleName: PumpSync
         CFBundlePackageType: APPL
@@ -48,6 +54,10 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     entitlements:
       path: PumpSync/PumpSync.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
+        com.apple.developer.healthkit: true
   PumpSyncTests:
     type: bundle.unit-test
     platform: iOS
@@ -57,7 +67,7 @@ targets:
       - target: PumpSync
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ericslutz.PumpSyncTests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericslutz.PumpSyncTests
   PumpSyncUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -67,4 +77,4 @@ targets:
       - target: PumpSync
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ericslutz.PumpSyncUITests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericslutz.PumpSyncUITests

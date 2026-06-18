@@ -1,4 +1,3 @@
-import AuthenticationServices
 import SwiftUI
 
 struct DashboardView: View {
@@ -9,7 +8,7 @@ struct DashboardView: View {
       Section {
         statusRow(
           title: "Apple account",
-          value: services.authService.isSignedIn ? "Signed in" : "Not signed in",
+          value: services.authService.statusMessage,
           systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "person.crop.circle.badge.exclamationmark"
         )
 
@@ -29,24 +28,23 @@ struct DashboardView: View {
       Section {
         Button {
           Task {
-            await services.authService.signIn()
-          }
-        } label: {
-          Label(services.authService.isSignedIn ? "Refresh Apple Session" : "Sign in with Apple", systemImage: "apple.logo")
-        }
-        .disabled(services.authService.isSigningIn)
-
-        Button {
-          Task {
             await services.syncCoordinator.sync(reason: .manual)
           }
         } label: {
           Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
         }
-        .disabled(services.syncCoordinator.isSyncing)
+        .disabled(!services.authService.isSignedIn || services.syncCoordinator.isSyncing)
       }
 
-      if let message = services.syncCoordinator.lastMessage ?? services.authService.errorMessage ?? services.syncMetadataStore.metadata.lastErrorMessage {
+      ForEach(
+        Self.dashboardMessages(
+          isSignedIn: services.authService.isSignedIn,
+          syncMessage: services.syncCoordinator.lastMessage,
+          authErrorMessage: services.authService.errorMessage,
+          lastSyncErrorMessage: services.syncMetadataStore.metadata.lastErrorMessage
+        ),
+        id: \.self
+      ) { message in
         Section {
           Text(message)
             .foregroundStyle(.secondary)
@@ -81,5 +79,26 @@ struct DashboardView: View {
     }
 
     return date.formatted(date: .abbreviated, time: .shortened)
+  }
+
+  static func dashboardMessages(
+    isSignedIn: Bool,
+    syncMessage: String?,
+    authErrorMessage: String?,
+    lastSyncErrorMessage: String?
+  ) -> [String] {
+    if let syncMessage {
+      return [syncMessage]
+    }
+
+    if let authErrorMessage {
+      return [authErrorMessage]
+    }
+
+    if isSignedIn {
+      return lastSyncErrorMessage.map { [$0] } ?? []
+    }
+
+    return ["Sign in from Settings before syncing."]
   }
 }

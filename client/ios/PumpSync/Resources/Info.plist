@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>API_BASE_URL</key>
-	<string>https://localhost:7071</string>
+	<string>https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.ericslutz.PumpSync.daily-sync</string>
+		<string>dev.ericslutz.PumpSync.daily-sync</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
@@ -15,7 +15,7 @@
 	<key>CFBundleExecutable</key>
 	<string>PumpSync</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.ericslutz.PumpSync</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

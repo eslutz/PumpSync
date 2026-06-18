@@ -16,7 +16,7 @@ MERGE dbo.Users WITH (HOLDLOCK) AS target
 USING (SELECT @AppleSubject AS AppleSubject) AS source
 ON target.AppleSubject = source.AppleSubject
 WHEN MATCHED THEN
-  UPDATE SET Email = COALESCE(@Email, target.Email), EmailVerified = @EmailVerified, UpdatedAt = SYSUTCDATETIME()
+  UPDATE SET Email = COALESCE(@Email, target.Email), EmailVerified = @EmailVerified, Status = 'Active', UpdatedAt = SYSUTCDATETIME()
 WHEN NOT MATCHED THEN
   INSERT (UserId, AppleSubject, Email, EmailVerified, Status, CreatedAt, UpdatedAt)
   VALUES (@UserId, @AppleSubject, @Email, @EmailVerified, 'Active', SYSUTCDATETIME(), SYSUTCDATETIME())
@@ -48,5 +48,39 @@ OUTPUT inserted.UserId, inserted.Email;
         return await reader.ReadAsync(cancellationToken)
             ? (new UserId(reader.GetGuid(0)), reader.GetString(1))
             : null;
+    }
+
+    public async Task SetAppleEmailForwardingAsync(string appleSubject, string? email, bool enabled, CancellationToken cancellationToken)
+    {
+        await using var connection = await connections.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+UPDATE dbo.Users
+SET Email = COALESCE(@Email, Email),
+    EmailVerified = @EmailVerified,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE AppleSubject = @AppleSubject;
+""";
+        command.Parameters.AddWithValue("@AppleSubject", appleSubject);
+        command.Parameters.AddWithValue("@Email", (object?)email ?? DBNull.Value);
+        command.Parameters.AddWithValue("@EmailVerified", enabled);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task SetAppleUserStatusAsync(string appleSubject, string status, CancellationToken cancellationToken)
+    {
+        await using var connection = await connections.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+UPDATE dbo.Users
+SET Status = @Status,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE AppleSubject = @AppleSubject;
+""";
+        command.Parameters.AddWithValue("@AppleSubject", appleSubject);
+        command.Parameters.AddWithValue("@Status", status);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }

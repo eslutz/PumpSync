@@ -8,6 +8,11 @@ public interface IAppleIdentityValidator
     Task<AppleIdentity> ValidateAsync(string identityToken, CancellationToken cancellationToken);
 }
 
+public interface IAppleServerNotificationValidator
+{
+    Task<AppleServerNotification> ValidateAsync(string payload, CancellationToken cancellationToken);
+}
+
 public interface IServiceTokenIssuer
 {
     string IssueToken(UserId userId, string appleSubject, DateTimeOffset expiresAt);

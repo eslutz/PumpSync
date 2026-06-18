@@ -6,15 +6,30 @@ import UIKit
 @MainActor
 @Observable
 final class AuthService {
-  private let apiClient: PumpSyncAPIClient
-  private let authorizationBroker = AppleAuthorizationBroker()
+  private let authorizeWithApple: @MainActor () async throws -> AppleAuthorizationPayload
+  private let createAppleSession: @MainActor (AppleSessionRequest) async throws -> AppleSessionResponse
 
   private(set) var session: AppleSessionResponse?
   private(set) var isSigningIn = false
+  private(set) var statusMessage = "Not signed in."
   var errorMessage: String?
 
   init(apiClient: PumpSyncAPIClient) {
-    self.apiClient = apiClient
+    let authorizationBroker = AppleAuthorizationBroker()
+    authorizeWithApple = {
+      try await authorizationBroker.requestAuthorization()
+    }
+    createAppleSession = { request in
+      try await apiClient.createAppleSession(request)
+    }
+  }
+
+  init(
+    authorizeWithApple: @escaping @MainActor () async throws -> AppleAuthorizationPayload,
+    createAppleSession: @escaping @MainActor (AppleSessionRequest) async throws -> AppleSessionResponse
+  ) {
+    self.authorizeWithApple = authorizeWithApple
+    self.createAppleSession = createAppleSession
   }
 
   var isSignedIn: Bool {
@@ -28,18 +43,22 @@ final class AuthService {
   func signIn() async {
     isSigningIn = true
     errorMessage = nil
+    statusMessage = "Waiting for Apple authentication..."
 
     do {
-      let payload = try await authorizationBroker.requestAuthorization()
+      let payload = try await authorizeWithApple()
+      statusMessage = "Apple authenticated. Creating PumpSync session..."
       let request = AppleSessionRequest(
         identityToken: payload.identityToken,
         authorizationCode: payload.authorizationCode,
         email: payload.email,
         fullName: payload.fullName
       )
-      session = try await apiClient.createAppleSession(request)
+      session = try await createAppleSession(request)
+      statusMessage = "Signed in as \(session?.user.email ?? "Apple account")."
     } catch {
       errorMessage = error.localizedDescription
+      statusMessage = "Sign in failed."
     }
 
     isSigningIn = false
@@ -48,6 +67,7 @@ final class AuthService {
   func signOut() {
     session = nil
     errorMessage = nil
+    statusMessage = "Not signed in."
   }
 }
 
@@ -61,6 +81,8 @@ struct AppleAuthorizationPayload {
 @MainActor
 private final class AppleAuthorizationBroker: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
   private var continuation: CheckedContinuation<AppleAuthorizationPayload, Error>?
+  private var controller: ASAuthorizationController?
+  private var timeoutTask: Task<Void, Never>?
 
   func requestAuthorization() async throws -> AppleAuthorizationPayload {
     try await withCheckedThrowingContinuation { continuation in
@@ -72,8 +94,31 @@ private final class AppleAuthorizationBroker: NSObject, ASAuthorizationControlle
       let controller = ASAuthorizationController(authorizationRequests: [request])
       controller.delegate = self
       controller.presentationContextProvider = self
+      self.controller = controller
       controller.performRequests()
+
+      timeoutTask = Task { [weak self] in
+        try? await Task.sleep(for: .seconds(45))
+        self?.finish(throwing: AuthError.authorizationTimedOut)
+      }
     }
+  }
+
+  private func finish(returning payload: AppleAuthorizationPayload) {
+    continuation?.resume(returning: payload)
+    clearRequestState()
+  }
+
+  private func finish(throwing error: Error) {
+    continuation?.resume(throwing: error)
+    clearRequestState()
+  }
+
+  private func clearRequestState() {
+    continuation = nil
+    controller = nil
+    timeoutTask?.cancel()
+    timeoutTask = nil
   }
 
   nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
@@ -88,8 +133,7 @@ private final class AppleAuthorizationBroker: NSObject, ASAuthorizationControlle
   nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
     Task { @MainActor in
       guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-        continuation?.resume(throwing: AuthError.invalidCredential)
-        continuation = nil
+        finish(throwing: AuthError.invalidCredential)
         return
       }
 
@@ -97,30 +141,28 @@ private final class AppleAuthorizationBroker: NSObject, ASAuthorizationControlle
         let identityTokenData = credential.identityToken,
         let identityToken = String(data: identityTokenData, encoding: .utf8)
       else {
-        continuation?.resume(throwing: AuthError.missingIdentityToken)
-        continuation = nil
+        finish(throwing: AuthError.missingIdentityToken)
         return
       }
 
       let authorizationCode = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
       let fullName = PersonNameComponentsFormatter().string(from: credential.fullName ?? PersonNameComponents())
 
-      continuation?.resume(
-        returning: AppleAuthorizationPayload(
+      finish(
+        returning:
+        AppleAuthorizationPayload(
           identityToken: identityToken,
           authorizationCode: authorizationCode,
           email: credential.email,
           fullName: fullName.isEmpty ? nil : fullName
         )
       )
-      continuation = nil
     }
   }
 
   nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
     Task { @MainActor in
-      continuation?.resume(throwing: error)
-      continuation = nil
+      finish(throwing: error)
     }
   }
 }
@@ -128,6 +170,7 @@ private final class AppleAuthorizationBroker: NSObject, ASAuthorizationControlle
 enum AuthError: LocalizedError {
   case invalidCredential
   case missingIdentityToken
+  case authorizationTimedOut
 
   var errorDescription: String? {
     switch self {
@@ -135,6 +178,8 @@ enum AuthError: LocalizedError {
       return "Sign in with Apple returned an unsupported credential."
     case .missingIdentityToken:
       return "Sign in with Apple did not return an identity token."
+    case .authorizationTimedOut:
+      return "Sign in with Apple did not finish. Try again."
     }
   }
 }

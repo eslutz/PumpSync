@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -13,7 +14,10 @@ public sealed class AppleIdentityValidator : IAppleIdentityValidator
 {
     private readonly AppleOptions options;
     private readonly ConfigurationManager<OpenIdConnectConfiguration> configurationManager;
-    private readonly JwtSecurityTokenHandler tokenHandler = new();
+    private readonly JwtSecurityTokenHandler tokenHandler = new()
+    {
+        MapInboundClaims = false
+    };
 
     public AppleIdentityValidator(IOptions<AppleOptions> options)
     {
@@ -50,17 +54,24 @@ public sealed class AppleIdentityValidator : IAppleIdentityValidator
             throw new SecurityTokenValidationException("Apple identity token validation failed.", result.Exception);
         }
 
-        var subject = result.ClaimsIdentity.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
-            ?? result.ClaimsIdentity.FindFirst("sub")?.Value
+        return CreateIdentity(result.ClaimsIdentity);
+    }
+
+    internal static AppleIdentity CreateIdentity(ClaimsIdentity claimsIdentity)
+    {
+        var subject = claimsIdentity.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+            ?? claimsIdentity.FindFirst("sub")?.Value
+            ?? claimsIdentity.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? throw new SecurityTokenValidationException("Apple identity token did not include a subject.");
-        var email = result.ClaimsIdentity.FindFirst(JwtRegisteredClaimNames.Email)?.Value
-            ?? result.ClaimsIdentity.FindFirst("email")?.Value;
-        var emailVerifiedRaw = result.ClaimsIdentity.FindFirst("email_verified")?.Value;
+        var email = claimsIdentity.FindFirst(JwtRegisteredClaimNames.Email)?.Value
+            ?? claimsIdentity.FindFirst("email")?.Value
+            ?? claimsIdentity.FindFirst(ClaimTypes.Email)?.Value;
+        var emailVerifiedRaw = claimsIdentity.FindFirst("email_verified")?.Value;
 
         return new AppleIdentity(
             subject,
             email,
             string.Equals(emailVerifiedRaw, "true", StringComparison.OrdinalIgnoreCase),
-            result.ClaimsIdentity.FindFirst("real_user_status")?.Value);
+            claimsIdentity.FindFirst("real_user_status")?.Value);
     }
 }

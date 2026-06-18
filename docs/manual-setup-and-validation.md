@@ -4,8 +4,11 @@ These items require account access, production credentials, a physical Apple dev
 
 ## Apple Developer
 
-- Create the App ID for `com.ericslutz.PumpSync`.
+- Create the App ID for `dev.ericslutz.PumpSync`.
 - Enable HealthKit and Sign in with Apple capabilities.
+- Configure Sign in with Apple as a primary App ID and enter the server-to-server notification endpoint URL:
+  - nonprod: `https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api/v1/auth/apple/notifications`
+  - prod: `https://func-pumpsync-prod-flex-api.azurewebsites.net/api/v1/auth/apple/notifications`
 - Create/configure the Sign in with Apple Services ID used by the backend `Apple__ClientId` setting.
 - Create signing certificates and provisioning profiles for local device testing and App Store/TestFlight builds.
 - Validate the iOS app on a physical iPhone with HealthKit authorization enabled.
@@ -47,10 +50,10 @@ These items require account access, production credentials, a physical Apple dev
 
 ## Product and Legal
 
-- Write and publish the privacy policy.
-- Write terms of use and account/data deletion instructions.
-- Complete App Store privacy nutrition labels.
-- Review HealthKit wording and Tandem credential disclosure text.
+- Publish the privacy policy from `docs/legal/privacy-policy.md` to the public App Store privacy policy URL.
+- Publish the terms of use and account/data deletion instructions from `docs/legal/terms-of-use.md` and `docs/legal/data-deletion.md`.
+- Enter the App Store privacy nutrition labels from `docs/legal/app-store-privacy.md`.
+- Review HealthKit wording and Tandem credential disclosure text against the final shipped build and Tandem terms review.
 
 ## End-to-End Release Gate
 

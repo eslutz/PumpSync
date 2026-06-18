@@ -11,6 +11,10 @@ public interface IUserRepository
     Task<(UserId UserId, string? Email)> UpsertAppleUserAsync(AppleIdentity identity, CancellationToken cancellationToken);
 
     Task<(UserId UserId, string AppleSubject)?> FindByIdAsync(UserId userId, CancellationToken cancellationToken);
+
+    Task SetAppleEmailForwardingAsync(string appleSubject, string? email, bool enabled, CancellationToken cancellationToken);
+
+    Task SetAppleUserStatusAsync(string appleSubject, string status, CancellationToken cancellationToken);
 }
 
 public interface IBillingEntitlementRepository

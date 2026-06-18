@@ -64,11 +64,13 @@ final class SyncCoordinator {
     syncMetadataStore.recordAttempt()
 
     do {
+      let now = Date()
       let request = TandemSyncRequest(
         tandem: credentials,
         deviceId: nil,
-        minDate: syncMetadataStore.metadata.lastSuccessfulSyncAt,
-        maxDate: Date()
+        minDate: syncMetadataStore.metadata.lastSuccessfulSyncAt
+          ?? syncMetadataStore.metadata.initialImportRange.minimumDate(relativeTo: now),
+        maxDate: now
       )
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)

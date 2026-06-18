@@ -9,7 +9,7 @@ struct PumpSyncAPIClient {
     let configuredBaseURL = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String
     let baseURL = configuredBaseURL
       .flatMap(URL.init(string:))
-      ?? URL(string: "https://localhost:7071")!
+      ?? URL(string: "https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api")!
     return PumpSyncAPIClient(baseURL: baseURL, urlSession: .shared)
   }
 

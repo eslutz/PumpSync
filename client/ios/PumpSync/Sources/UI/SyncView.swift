@@ -5,13 +5,26 @@ struct SyncView: View {
 
   var body: some View {
     List {
-      Section("Manual Sync") {
+      if services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil {
+        Section("Initial Import") {
+          Picker("History", selection: initialImportRangeBinding) {
+            ForEach(InitialImportRange.allCases) { range in
+              Text(range.title).tag(range)
+            }
+          }
+
+          Text("PumpSync will import Tandem insulin and carbohydrate history for this range, if available. Then future syncs will only import new data.")
+            .foregroundStyle(.secondary)
+        }
+      }
+
+      Section(services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil ? "Initial Sync" : "Manual Sync") {
         Button {
           Task {
             await services.syncCoordinator.sync(reason: .manual)
           }
         } label: {
-          Label(services.syncCoordinator.isSyncing ? "Syncing" : "Sync Now", systemImage: "arrow.triangle.2.circlepath")
+          Label(syncButtonTitle, systemImage: "arrow.triangle.2.circlepath")
         }
         .disabled(services.syncCoordinator.isSyncing)
       }
@@ -36,6 +49,25 @@ struct SyncView: View {
       }
     }
     .navigationTitle("Sync")
+  }
+
+  private var initialImportRangeBinding: Binding<InitialImportRange> {
+    Binding(
+      get: {
+        services.syncMetadataStore.metadata.initialImportRange
+      },
+      set: { range in
+        services.syncMetadataStore.setInitialImportRange(range)
+      }
+    )
+  }
+
+  private var syncButtonTitle: String {
+    if services.syncCoordinator.isSyncing {
+      return "Syncing"
+    }
+
+    return services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil ? "Start Initial Sync" : "Sync Now"
   }
 
   private func formattedDate(_ date: Date?) -> String {

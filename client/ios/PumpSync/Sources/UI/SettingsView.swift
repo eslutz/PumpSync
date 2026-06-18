@@ -13,13 +13,30 @@ struct SettingsView: View {
             Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
           }
         } else {
-          Button {
+          SignInWithAppleButton(isEnabled: !services.authService.isSigningIn) {
             Task {
               await services.authService.signIn()
             }
-          } label: {
-            Label("Sign in with Apple", systemImage: "apple.logo")
           }
+          .frame(height: 52)
+          .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
+          .accessibilityIdentifier("settings.signInWithAppleButton")
+        }
+
+        HStack(spacing: 8) {
+          if services.authService.isSigningIn {
+            ProgressView()
+          }
+
+          Text(services.authService.statusMessage)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+
+        if let message = services.authService.errorMessage {
+          Text(message)
+            .font(.footnote)
+            .foregroundStyle(.red)
         }
       }
 

@@ -33,8 +33,11 @@ Backend projects:
 API surface:
 
 - `POST /v1/auth/apple/session`
+- `POST /v1/auth/apple/notifications`
 - `POST /v1/sync/tandem`
 - `GET /v1/status`
+
+Register the public Azure Functions URL with Apple as the Sign in with Apple server-to-server notification endpoint. For nonprod, use `https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api/v1/auth/apple/notifications`.
 
 Credential-bearing Tandem sync requests must not use persistent idempotency storage.
 
@@ -63,7 +66,7 @@ PumpSync follows the GifForge-style split between a subscription bootstrap templ
 AZURE_LOCATION=eastus2 \
 AZURE_SQL_SERVER=ericslutz-dev-db.database.windows.net \
 AZURE_SQL_DATABASE=ericslutz.dev.db \
-APPLE_CLIENT_ID=com.ericslutz.PumpSync \
+APPLE_CLIENT_ID=dev.ericslutz.PumpSync \
 PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY=<secret> \
 PUMPSYNC_LOG_DRAIN_SHARED_SECRET=<secret> \
 az deployment sub create \

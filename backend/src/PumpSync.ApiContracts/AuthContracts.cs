@@ -14,3 +14,9 @@ public sealed record AppleSessionResponse(
 public sealed record UserSummary(
     string UserId,
     string? Email);
+
+public sealed record AppleServerNotificationRequest(
+    string Payload);
+
+public sealed record AppleServerNotificationResponse(
+    int ProcessedEvents);

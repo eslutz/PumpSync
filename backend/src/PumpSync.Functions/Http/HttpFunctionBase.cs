@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.IdentityModel.Tokens;
 using PumpSync.ApiContracts;
 using PumpSync.Application.Abstractions;
 using PumpSync.Domain.Auth;
@@ -69,6 +70,14 @@ public abstract class HttpFunctionBase(IServiceTokenValidator tokenValidator)
         catch (UnauthorizedAccessException ex)
         {
             return await ErrorAsync(request, HttpStatusCode.Unauthorized, "unauthorized", ex.Message, request.FunctionContext.CancellationToken);
+        }
+        catch (SecurityTokenException ex)
+        {
+            return await ErrorAsync(request, HttpStatusCode.Unauthorized, "invalid_apple_identity", ex.Message, request.FunctionContext.CancellationToken);
+        }
+        catch (ArgumentException ex)
+        {
+            return await ErrorAsync(request, HttpStatusCode.BadRequest, "invalid_request", ex.Message, request.FunctionContext.CancellationToken);
         }
         catch (InvalidOperationException ex)
         {

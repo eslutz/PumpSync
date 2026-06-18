@@ -35,7 +35,7 @@ final class AppServices {
 
   static func live() -> AppServices {
     let apiClient = PumpSyncAPIClient.live()
-    let keychain = SecureKeychainStore(service: "com.ericslutz.PumpSync")
+    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
     let credentialStore = TandemCredentialStore(keychain: keychain)
     let authService = AuthService(apiClient: apiClient)
     let healthKitService = HealthKitService()

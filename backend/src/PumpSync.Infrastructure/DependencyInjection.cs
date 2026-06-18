@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IRateLimiter, SqlRateLimiter>();
 
         services.AddSingleton<IAppleIdentityValidator, AppleIdentityValidator>();
+        services.AddSingleton<IAppleServerNotificationValidator, AppleServerNotificationValidator>();
         services.AddSingleton<ServiceTokenService>();
         services.AddSingleton<IServiceTokenIssuer>(sp => sp.GetRequiredService<ServiceTokenService>());
         services.AddSingleton<IServiceTokenValidator>(sp => sp.GetRequiredService<ServiceTokenService>());
