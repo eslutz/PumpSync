@@ -83,6 +83,9 @@ var auditEventsTableName = 'AuditEvents'
 var backendPackageContainerName = 'function-packages-backend'
 var logDrainPackageContainerName = 'function-packages-log-drain'
 var modelCostUpdaterPackageContainerName = 'function-packages-model-cost'
+var serviceTokenSigningKeySecretUri = '${keyVault.properties.vaultUri}secrets/PumpSync--ServiceTokenSigningKey'
+var appStorePrivateKeySecretUri = '${keyVault.properties.vaultUri}secrets/AppStore--PrivateKey'
+var logDrainSharedSecretSecretUri = '${keyVault.properties.vaultUri}secrets/LogDrain--SharedSecret'
 
 var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
@@ -238,7 +241,7 @@ resource modelCostUpdaterIdentity 'Microsoft.ManagedIdentity/userAssignedIdentit
   tags: tags
 }
 
-resource serviceTokenSigningKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource serviceTokenSigningKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(serviceTokenSigningKey)) {
   parent: keyVault
   name: 'PumpSync--ServiceTokenSigningKey'
   properties: {
@@ -246,7 +249,7 @@ resource serviceTokenSigningKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07
   }
 }
 
-resource appStorePrivateKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource appStorePrivateKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(appStorePrivateKey)) {
   parent: keyVault
   name: 'AppStore--PrivateKey'
   properties: {
@@ -254,7 +257,7 @@ resource appStorePrivateKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01'
   }
 }
 
-resource logDrainSharedSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource logDrainSharedSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(logDrainSharedSecret)) {
   parent: keyVault
   name: 'LogDrain--SharedSecret'
   properties: {
@@ -409,7 +412,7 @@ resource backendFunctionApp 'Microsoft.Web/sites@2024-04-01' = {
         }
         {
           name: 'PumpSync__ServiceTokenSigningKey'
-          value: '@Microsoft.KeyVault(SecretUri=${serviceTokenSigningKeySecret.properties.secretUri})'
+          value: '@Microsoft.KeyVault(SecretUri=${serviceTokenSigningKeySecretUri})'
         }
         {
           name: 'AppStore__BundleId'
@@ -433,7 +436,7 @@ resource backendFunctionApp 'Microsoft.Web/sites@2024-04-01' = {
         }
         {
           name: 'AppStore__PrivateKey'
-          value: '@Microsoft.KeyVault(SecretUri=${appStorePrivateKeySecret.properties.secretUri})'
+          value: '@Microsoft.KeyVault(SecretUri=${appStorePrivateKeySecretUri})'
         }
         {
           name: 'AppStore__RootCertificatePem'
@@ -524,7 +527,7 @@ resource logDrainFunctionApp 'Microsoft.Web/sites@2024-04-01' = {
         }
         {
           name: 'LogDrain__SharedSecret'
-          value: '@Microsoft.KeyVault(SecretUri=${logDrainSharedSecretSecret.properties.secretUri})'
+          value: '@Microsoft.KeyVault(SecretUri=${logDrainSharedSecretSecretUri})'
         }
       ])
     }
