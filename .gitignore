@@ -7,6 +7,7 @@ local.settings.json
 *.suo
 TestResults/
 coverage/
+**/artifacts/
 client/ios/.DerivedData/
 *.xcresult
 infra/bicep/*.json

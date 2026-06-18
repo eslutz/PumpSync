@@ -24,17 +24,20 @@ These items require account access, production credentials, a physical Apple dev
   - `AZURE_TENANT_ID`
   - `AZURE_SUBSCRIPTION_ID`
 - Add GitHub environment variables:
-  - `AZURE_LOCATION`
-  - `AZURE_RESOURCE_GROUP`
-  - `AZURE_FUNCTION_APP_NAME`
+  - `AZURE_LOCATION` (`eastus2` for the currently deployed nonprod environment)
+  - `AZURE_RESOURCE_GROUP` (`rg-pumpsync-nonprod` or `rg-pumpsync-prod`)
+  - `AZURE_SQL_SERVER` (`ericslutz-dev-db.database.windows.net` for the shared SQL server)
+  - `AZURE_SQL_DATABASE` (`ericslutz.dev.db` for the shared SQL database)
+  - `PUMPSYNC_MODEL_COST_UPDATER_SCHEDULE` if the default daily schedule is not desired
+  - `PUMPSYNC_MODEL_COST_CATALOG_URL` when the updater should call a real catalog
 - Add deployment-time secret values:
   - `APPLE_CLIENT_ID`
   - `PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY`
-  - `AZURE_SQL_ADMIN_LOGIN`
-  - `AZURE_SQL_ADMIN_PASSWORD`
-  - `LogDrain__SharedSecret`
+  - `PUMPSYNC_LOG_DRAIN_SHARED_SECRET`
 - Run the `Deploy Backend` workflow for `nonprod`, then `prod` after validation.
-- Apply `infra/sql/001_initial_schema.sql` to the deployed Azure SQL database.
+- Confirm the deployed Function Apps are the Flex Consumption apps named `func-pumpsync-<environment>-flex-api`, `func-pumpsync-<environment>-flex-log`, and `func-pumpsync-<environment>-flex-cost`; do not recreate the old classic Consumption plan.
+- Apply `infra/sql/001_initial_schema.sql` to the shared Azure SQL database.
+- Create a SQL contained user for the backend managed identity and grant only the schema permissions PumpSync needs.
 
 ## GitHub
 

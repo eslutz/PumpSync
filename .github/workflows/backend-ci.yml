@@ -45,5 +45,8 @@ jobs:
       - name: Build helper services
         run: dotnet build services/services.slnx --no-restore --configuration Release /nr:false
 
-      - name: Validate Bicep syntax
+      - name: Validate resource-group Bicep syntax
         run: az bicep build --file infra/bicep/main.bicep
+
+      - name: Validate subscription Bicep syntax
+        run: az bicep build --file infra/bicep/main.subscription.bicep

@@ -38,6 +38,8 @@ API surface:
 
 Credential-bearing Tandem sync requests must not use persistent idempotency storage.
 
+The deployed backend runs on Azure Functions Flex Consumption using Linux-hosted .NET isolated worker apps. Classic Linux Consumption is intentionally avoided because .NET 10 Functions are not supported there.
+
 ## Local Validation
 
 ```sh
@@ -50,7 +52,34 @@ dotnet test backend/PumpSync.sln
 dotnet restore services/services.slnx
 dotnet build services/services.slnx
 az bicep build --file infra/bicep/main.bicep
+az bicep build --file infra/bicep/main.subscription.bicep
 ```
+
+## Deploy Infrastructure
+
+PumpSync follows the GifForge-style split between a subscription bootstrap template and a resource-group runtime template. Pass `.bicepparam` files without `@`:
+
+```sh
+AZURE_LOCATION=eastus2 \
+AZURE_SQL_SERVER=ericslutz-dev-db.database.windows.net \
+AZURE_SQL_DATABASE=ericslutz.dev.db \
+APPLE_CLIENT_ID=com.ericslutz.PumpSync \
+PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY=<secret> \
+PUMPSYNC_LOG_DRAIN_SHARED_SECRET=<secret> \
+az deployment sub create \
+  --name pumpsync-nonprod-bootstrap \
+  --location eastus2 \
+  --template-file infra/bicep/main.subscription.bicep \
+  --parameters infra/environments/nonprod.bicepparam
+```
+
+The Bicep template creates three Flex Consumption Function Apps:
+
+- `func-pumpsync-<environment>-flex-api`
+- `func-pumpsync-<environment>-flex-log`
+- `func-pumpsync-<environment>-flex-cost`
+
+Each app has its own package container in the shared storage account and uses user-assigned managed identity for Key Vault, package storage, and Functions host storage. The deploy workflow publishes Linux-x64 ReadyToRun packages; Native AOT is deferred until the Functions worker, HTTP extensions, and application dependencies are explicitly audited for trim/AOT compatibility.
 
 ```sh
 cd client/ios

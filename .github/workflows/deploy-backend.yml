@@ -33,25 +33,69 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy infrastructure
+        id: infra
+        env:
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'eastus2' }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || format('rg-pumpsync-{0}', inputs.environment) }}
+          AZURE_SQL_SERVER: ${{ vars.AZURE_SQL_SERVER || 'ericslutz-dev-db.database.windows.net' }}
+          AZURE_SQL_DATABASE: ${{ vars.AZURE_SQL_DATABASE || 'ericslutz.dev.db' }}
+          APPLE_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID || 'com.ericslutz.PumpSync' }}
+          PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY: ${{ secrets.PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY }}
+          PUMPSYNC_LOG_DRAIN_SHARED_SECRET: ${{ secrets.PUMPSYNC_LOG_DRAIN_SHARED_SECRET }}
+          PUMPSYNC_MODEL_COST_UPDATER_SCHEDULE: ${{ vars.PUMPSYNC_MODEL_COST_UPDATER_SCHEDULE || '0 0 4 * * *' }}
+          PUMPSYNC_MODEL_COST_CATALOG_URL: ${{ vars.PUMPSYNC_MODEL_COST_CATALOG_URL }}
         run: |
-          az deployment sub create \
-            --location "${{ vars.AZURE_LOCATION }}" \
-            --template-file infra/bicep/main.bicep \
-            --parameters @infra/environments/${{ inputs.environment }}.bicepparam
+          : "${PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY:?PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY is required}"
+          : "${PUMPSYNC_LOG_DRAIN_SHARED_SECRET:?PUMPSYNC_LOG_DRAIN_SHARED_SECRET is required}"
+
+          outputs="$(az deployment sub create \
+            --location "$AZURE_LOCATION" \
+            --template-file infra/bicep/main.subscription.bicep \
+            --parameters infra/environments/${{ inputs.environment }}.bicepparam \
+            --query properties.outputs \
+            --output json)"
+          echo "AZURE_RESOURCE_GROUP_NAME=$(jq -r '.resourceGroupName.value' <<< "$outputs")" >> "$GITHUB_ENV"
+          echo "BACKEND_FUNCTION_APP_NAME=$(jq -r '.backendFunctionAppName.value' <<< "$outputs")" >> "$GITHUB_ENV"
+          echo "LOG_DRAIN_FUNCTION_APP_NAME=$(jq -r '.logDrainFunctionAppName.value' <<< "$outputs")" >> "$GITHUB_ENV"
+          echo "MODEL_COST_UPDATER_FUNCTION_APP_NAME=$(jq -r '.modelCostUpdaterFunctionAppName.value' <<< "$outputs")" >> "$GITHUB_ENV"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: backend/global.json
 
-      - name: Publish Functions package
-        run: dotnet publish backend/src/PumpSync.Functions/PumpSync.Functions.csproj --configuration Release --output backend/artifacts/functions
+      - name: Publish backend Functions package
+        run: dotnet publish backend/src/PumpSync.Functions/PumpSync.Functions.csproj --configuration Release --runtime linux-x64 --self-contained false -p:PublishReadyToRun=true --output backend/artifacts/functions
 
-      - name: Deploy Functions package
+      - name: Deploy backend Functions package
         run: |
           cd backend/artifacts/functions
           zip -r ../functions.zip .
           az functionapp deployment source config-zip \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.AZURE_FUNCTION_APP_NAME }}" \
+            --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+            --name "$BACKEND_FUNCTION_APP_NAME" \
             --src ../functions.zip
+
+      - name: Publish log drain Functions package
+        run: dotnet publish services/log-drain/src/PumpSync.LogDrain.Functions/PumpSync.LogDrain.Functions.csproj --configuration Release --runtime linux-x64 --self-contained false -p:PublishReadyToRun=true --output services/artifacts/log-drain
+
+      - name: Deploy log drain Functions package
+        run: |
+          cd services/artifacts/log-drain
+          zip -r ../log-drain.zip .
+          az functionapp deployment source config-zip \
+            --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+            --name "$LOG_DRAIN_FUNCTION_APP_NAME" \
+            --src ../log-drain.zip
+
+      - name: Publish model cost updater Functions package
+        run: dotnet publish services/model-cost-updater/src/PumpSync.ModelCostUpdater.Functions/PumpSync.ModelCostUpdater.Functions.csproj --configuration Release --runtime linux-x64 --self-contained false -p:PublishReadyToRun=true --output services/artifacts/model-cost-updater
+
+      - name: Deploy model cost updater Functions package
+        run: |
+          cd services/artifacts/model-cost-updater
+          zip -r ../model-cost-updater.zip .
+          az functionapp deployment source config-zip \
+            --resource-group "$AZURE_RESOURCE_GROUP_NAME" \
+            --name "$MODEL_COST_UPDATER_FUNCTION_APP_NAME" \
+            --src ../model-cost-updater.zip
