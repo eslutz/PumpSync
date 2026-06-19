@@ -139,7 +139,7 @@ struct TandemCredentialForm: View {
 
   private func validateConnection() async {
     guard let accessToken = services.authService.accessToken else {
-      message = "Connect backend access before validating Tandem credentials."
+      message = "Connect PumpSync before validating your Tandem account."
       return
     }
 

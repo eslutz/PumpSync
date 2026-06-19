@@ -12,7 +12,7 @@ struct OnboardingView: View {
           Text("PumpSync")
             .font(.largeTitle.bold())
 
-          Text("Use Settings to connect PumpSync Hosted or a self-hosted backend, add Tandem credentials on this device, and manage Apple Health access to begin syncing.")
+          Text("Use Settings to connect PumpSync or a self-hosted service, add your Tandem account on this device, and allow Apple Health writes to begin syncing.")
             .multilineTextAlignment(.center)
             .foregroundStyle(.secondary)
         }

@@ -11,7 +11,7 @@ enum BackendAccessMode: String, CaseIterable, Identifiable {
   var title: String {
     switch self {
     case .hosted:
-      return "PumpSync Hosted"
+      return "PumpSync"
     case .selfHosted:
       return "Self-hosted"
     }
@@ -88,7 +88,7 @@ final class AuthService {
 
   private(set) var isConnecting = false
   private(set) var session: BackendSessionResponse?
-  private(set) var statusMessage = "Connect to PumpSync Hosted or a self-hosted backend."
+  private(set) var statusMessage = "Connect to PumpSync or a self-hosted service."
   private(set) var errorMessage: String?
 
   init(
@@ -153,23 +153,23 @@ final class AuthService {
 
   func connectSelfHosted() async {
     guard configurationStore.apply(to: apiClient) else {
-      errorMessage = "Enter a valid self-hosted backend URL."
+      errorMessage = "Enter a valid self-hosted service URL."
       statusMessage = errorMessage ?? statusMessage
       return
     }
 
     isConnecting = true
     errorMessage = nil
-    statusMessage = "Connecting to self-hosted backend..."
+    statusMessage = "Connecting to self-hosted service..."
     diagnostics?.record(source: .auth, title: "Self-hosted session started")
 
     do {
       session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
-      statusMessage = "Connected to self-hosted backend."
+      statusMessage = "Connected to self-hosted service."
       diagnostics?.record(source: .auth, title: "Self-hosted session created")
     } catch {
       session = nil
-      let message = safeMessage("Self-hosted backend access could not be established.", error: error)
+      let message = safeMessage("Self-hosted connection could not be established.", error: error)
       errorMessage = message
       statusMessage = message
       diagnostics?.record(error: error, source: .auth, title: "Self-hosted session failed")

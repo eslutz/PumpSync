@@ -18,7 +18,7 @@ struct SettingsView: View {
         case .hosted:
           GlassDivider()
 
-          Text("Sync your pump data using PumpSync's managed cloud service. Subscription includes hosted backend access, secure data sync, and no server setup or maintenance.")
+          Text("PumpSync syncs Tandem pump data to Apple Health using PumpSync's managed cloud service.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
@@ -37,6 +37,12 @@ struct SettingsView: View {
           }
           .buttonStyle(GroupedRowActionButtonStyle())
           .disabled(services.authService.isConnecting)
+
+          Text("Includes hosted connection, secure sync, and no server setup.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 6)
 
           Button {
             Task {
@@ -113,22 +119,16 @@ struct SettingsView: View {
         NavigationLink {
           TandemCredentialForm()
         } label: {
-          GlassNavigationRow("Credentials", subtitle: tandemCredentialStatus, systemImage: "key")
+          GlassNavigationRow("Tandem Account", subtitle: tandemAccountStatus, systemImage: "key")
         }
         .buttonStyle(.plain)
-
-        if let redactedUsername = services.credentialStore.redactedUsername {
-          GlassDivider()
-
-          GlassStatusRow(title: "Stored account", value: redactedUsername, systemImage: "person.text.rectangle")
-        }
 
         GlassDivider()
 
         NavigationLink {
           HealthAccessView()
         } label: {
-          GlassNavigationRow("Apple Health Access", subtitle: healthWriteStatus, systemImage: "heart")
+          GlassNavigationRow("Apple Health", subtitle: "Insulin and carbohydrates", systemImage: "heart")
         }
         .buttonStyle(.plain)
 
@@ -198,15 +198,12 @@ struct SettingsView: View {
     return "Not configured"
   }
 
-  private var healthWriteStatus: String {
-    if services.healthKitService.isAuthorized {
-      return "Write access allowed"
+  private var tandemAccountStatus: String {
+    guard let redactedUsername = services.credentialStore.redactedUsername else {
+      return tandemCredentialStatus
     }
 
-    if services.healthKitService.hasAnyWritePermission {
-      return "Partial write access allowed"
-    }
-
-    return "Review write access"
+    return "\(redactedUsername) - \(tandemCredentialStatus)"
   }
+
 }

@@ -102,7 +102,7 @@ final class AuthServiceTests: XCTestCase {
     await service.connectSelfHosted()
 
     XCTAssertEqual(service.accessToken, "self-hosted-token")
-    XCTAssertEqual(service.statusMessage, "Connected to self-hosted backend.")
+    XCTAssertEqual(service.statusMessage, "Connected to self-hosted service.")
   }
 
   private func makeAPIClient() -> PumpSyncAPIClient {

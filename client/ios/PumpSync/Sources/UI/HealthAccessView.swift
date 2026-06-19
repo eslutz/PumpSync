@@ -5,7 +5,27 @@ struct HealthAccessView: View {
 
   var body: some View {
     PumpSyncScreen {
-      GlassSection("Write Access") {
+      GlassSection("Apple Health") {
+        Text("PumpSync writes Tandem insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.vertical, 6)
+
+        GlassDivider()
+
+        Button {
+          Task {
+            await services.healthKitService.manageWriteAccess()
+          }
+        } label: {
+          Label(healthActionTitle, systemImage: "heart")
+            .font(.body)
+            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+        }
+        .buttonStyle(GroupedInlineButtonStyle())
+      }
+
+      GlassSection("Write Permissions") {
         ForEach(Array(services.healthKitService.writePermissions.enumerated()), id: \.element.id) { index, permission in
           GlassStatusRow(
             title: permission.title,
@@ -18,19 +38,6 @@ struct HealthAccessView: View {
             GlassDivider()
           }
         }
-
-        GlassDivider()
-
-        Button {
-          Task {
-            await services.healthKitService.manageWriteAccess()
-          }
-        } label: {
-          Label("Manage Apple Health Access", systemImage: "heart")
-            .font(.body)
-            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-        }
-        .buttonStyle(GroupedInlineButtonStyle())
       }
 
       if let message = services.healthKitService.errorMessage {
@@ -42,23 +49,25 @@ struct HealthAccessView: View {
       }
 
       if let message = services.healthKitService.managementMessage {
-        GlassSection("Manage Access") {
+        GlassSection("Review in Health") {
           Text(message)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-      } else {
-        GlassSection("Manage Access") {
-          Text("PumpSync writes Tandem insulin delivery and carbohydrate samples to Apple Health. You can review or change these permissions at any time in the Health app.")
-          .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
       }
     }
-    .navigationTitle("Apple Health Access")
+    .navigationTitle("Apple Health")
     .task {
       services.healthKitService.refreshAuthorizationStatus()
     }
+  }
+
+  private var healthActionTitle: String {
+    if services.healthKitService.writePermissions.contains(where: { $0.status == .notDetermined }) {
+      return "Allow Health Writes"
+    }
+
+    return "Review in Health"
   }
 }
 

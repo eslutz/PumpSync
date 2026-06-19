@@ -53,8 +53,8 @@ final class SyncCoordinator {
     }
 
     guard let accessToken = authService.accessToken else {
-      lastMessage = "Connect backend access before syncing."
-      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing backend session.")
+      lastMessage = "Connect PumpSync before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")
       return
     }
 
