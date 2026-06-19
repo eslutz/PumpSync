@@ -59,14 +59,14 @@ final class SyncCoordinator {
     }
 
     guard credentialStore.hasValidatedCredentials else {
-      lastMessage = "Validate Tandem credentials before syncing."
-      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Tandem credentials are not validated.")
+      lastMessage = "Validate your pump account before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Pump account credentials are not validated.")
       return
     }
 
     guard let credentials = try? credentialStore.load() else {
-      lastMessage = "Add Tandem credentials before syncing."
-      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing Tandem credentials.")
+      lastMessage = "Add your pump account before syncing."
+      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing pump account credentials.")
       return
     }
 
@@ -128,11 +128,11 @@ final class SyncCoordinator {
 
   private func message(sampleCount: Int, importedCount: Int, reason: SyncTriggerReason) -> String {
     if sampleCount == 0 {
-      return "No new Tandem samples were returned."
+      return "No new pump samples were returned."
     }
 
     if importedCount == 0 {
-      return "All returned Tandem samples were already imported."
+      return "All returned pump samples were already imported."
     }
 
     return "Imported \(importedCount) new samples."

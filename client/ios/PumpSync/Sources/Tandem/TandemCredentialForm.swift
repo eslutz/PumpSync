@@ -20,7 +20,7 @@ struct TandemCredentialForm: View {
           .autocorrectionDisabled()
           .frame(minHeight: 44)
 
-        GlassDivider()
+        GlassDivider(leadingPadding: 0)
 
         if isShowingPassword {
           TextField("Password", text: $password)
@@ -34,38 +34,49 @@ struct TandemCredentialForm: View {
             .frame(minHeight: 44)
         }
 
-        GlassDivider()
+        GlassDivider(leadingPadding: 0)
 
         Toggle("Show password", isOn: $isShowingPassword)
           .frame(minHeight: 44)
 
-        GlassDivider()
+        GlassDivider(leadingPadding: 0)
 
-        Picker("Region", selection: $region) {
-          ForEach(TandemRegion.allCases) { region in
-            Text(region.title).tag(region)
+        HStack(spacing: 12) {
+          Text("Region")
+            .foregroundStyle(.primary)
+
+          Spacer(minLength: 12)
+
+          Picker("Region", selection: $region) {
+            ForEach(TandemRegion.allCases) { region in
+              Text(region.title).tag(region)
+            }
           }
+          .labelsHidden()
         }
         .frame(minHeight: 44)
       }
 
       Button {
         Task {
-          await validateConnection()
+          if validationMatchesCurrentInput {
+            save()
+          } else {
+            await validateConnection()
+          }
         }
       } label: {
-        GlassPrimaryLabel(title: isValidating ? "Validating" : "Validate Connection", systemImage: "checkmark.shield")
+        GlassPrimaryLabel(title: primaryActionTitle, systemImage: primaryActionSystemImage)
       }
       .buttonStyle(GroupedActionButtonStyle())
-      .disabled(!canValidate)
+      .disabled(!canUsePrimaryAction)
 
-      Button {
-        save()
-      } label: {
-        GlassPrimaryLabel(title: "Save Credentials", systemImage: "key.fill")
+      if let message {
+        GlassSection {
+          Text(message)
+            .foregroundStyle(.secondary)
+        }
       }
-      .buttonStyle(GroupedActionButtonStyle())
-      .disabled(!canSave)
 
       Button(role: .destructive) {
         delete()
@@ -75,13 +86,6 @@ struct TandemCredentialForm: View {
       }
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!services.credentialStore.hasStoredCredentials)
-
-      if let message {
-        GlassSection {
-          Text(message)
-            .foregroundStyle(.secondary)
-        }
-      }
     }
     .navigationTitle("Tandem")
     .onAppear(perform: load)
@@ -113,11 +117,27 @@ struct TandemCredentialForm: View {
   }
 
   private var canValidate: Bool {
-    hasRequiredFields && services.authService.isSignedIn && !isValidating
+    hasRequiredFields && !isValidating
   }
 
   private var canSave: Bool {
     hasRequiredFields && validationMatchesCurrentInput && !isValidating
+  }
+
+  private var canUsePrimaryAction: Bool {
+    validationMatchesCurrentInput ? canSave : canValidate
+  }
+
+  private var primaryActionTitle: String {
+    if isValidating {
+      return "Validating"
+    }
+
+    return validationMatchesCurrentInput ? "Save Credentials" : "Validate Connection"
+  }
+
+  private var primaryActionSystemImage: String {
+    validationMatchesCurrentInput ? "key.fill" : "checkmark.shield"
   }
 
   private func load() {
@@ -139,12 +159,12 @@ struct TandemCredentialForm: View {
 
   private func validateConnection() async {
     guard let accessToken = services.authService.accessToken else {
-      message = "Connect PumpSync before validating your Tandem account."
+      message = "Connect PumpSync before validating this account."
       return
     }
 
     isValidating = true
-    message = "Validating Tandem credentials..."
+    message = "Validating account details..."
 
     do {
       let credentials = currentCredentials
@@ -155,19 +175,19 @@ struct TandemCredentialForm: View {
 
       guard response.validated else {
         validatedCredentials = nil
-        message = "Tandem credentials could not be validated. Check the account details and try again."
+        message = "Account details could not be validated. Check them and try again."
         services.diagnosticsLogStore.record(source: .credential, severity: .warning, title: "Credentials validation rejected")
         isValidating = false
         return
       }
 
       validatedCredentials = credentials
-      message = "Tandem credentials validated. Save them to this device to enable syncing."
+      message = "Account details validated. Save them to this device to enable syncing."
       services.diagnosticsLogStore.record(source: .credential, title: "Credentials validated")
     } catch {
       validatedCredentials = nil
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials validation failed")
-      message = "Tandem credentials could not be validated. Check the account details and try again."
+      message = "Account details could not be validated. Check them and try again."
     }
 
     isValidating = false
@@ -176,15 +196,15 @@ struct TandemCredentialForm: View {
   private func save() {
     do {
       guard validationMatchesCurrentInput else {
-        message = "Validate the Tandem connection before saving credentials."
+        message = "Validate the connection before saving credentials."
         return
       }
 
       try services.credentialStore.saveValidated(currentCredentials)
-      message = "Validated Tandem credentials saved to this device."
+      message = "Validated credentials saved to this device."
     } catch {
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials save failed")
-      message = "Tandem credentials could not be saved. Please try again."
+      message = "Credentials could not be saved. Please try again."
     }
   }
 
@@ -194,10 +214,10 @@ struct TandemCredentialForm: View {
       username = ""
       password = ""
       validatedCredentials = nil
-      message = "Tandem credentials removed from this device."
+      message = "Credentials removed from this device."
     } catch {
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials removal failed")
-      message = "Tandem credentials could not be removed. Please try again."
+      message = "Credentials could not be removed. Please try again."
     }
   }
 

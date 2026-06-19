@@ -9,11 +9,11 @@ struct SyncView: View {
         GlassSection("Initial Import") {
           initialImportMenu
 
-          GlassDivider()
+          GlassDivider(leadingPadding: 0)
 
-          Text("PumpSync will import Tandem insulin and carbohydrate history for this range, if available. Then future syncs will only import new data.")
+          Text("Choose how much pump history to import the first time. Future syncs import new data only.")
             .foregroundStyle(.secondary)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
         }
       }
 
@@ -52,7 +52,7 @@ struct SyncView: View {
         }
       } else {
         GlassSection("Automatic Sync") {
-          Text("After the first sync, PumpSync refreshes stale data when the app opens and schedules daily background updates when iOS grants time.")
+          Text("After the first sync, PumpSync checks for new pump data when the app opens and during daily background updates when iOS grants time.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -75,9 +75,14 @@ struct SyncView: View {
         }
       }
     } label: {
-      HStack(spacing: 0) {
-        VStack(alignment: .leading, spacing: 2) {
-          Text("History")
+      HStack(spacing: 12) {
+        Image(systemName: "calendar.badge.clock")
+          .font(.title3)
+          .frame(width: 28)
+          .foregroundStyle(.tint)
+
+        VStack(alignment: .leading, spacing: 3) {
+          Text("History range")
             .foregroundStyle(.primary)
 
           Text(services.syncMetadataStore.metadata.initialImportRange.title)
@@ -87,9 +92,9 @@ struct SyncView: View {
 
         Spacer(minLength: 12)
 
-        Image(systemName: "chevron.up.chevron.down")
-          .font(.footnote.weight(.semibold))
-          .foregroundStyle(.tertiary)
+        Text("Change")
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(.tint)
       }
       .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
       .contentShape(Rectangle())
@@ -130,7 +135,7 @@ struct SyncView: View {
     }
 
     if !hasValidatedCredentials {
-      return "Validate Tandem credentials in Settings before syncing."
+      return "Validate your pump account in Settings before syncing."
     }
 
     if !hasAnyHealthWritePermission {

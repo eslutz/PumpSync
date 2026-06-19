@@ -6,23 +6,10 @@ struct HealthAccessView: View {
   var body: some View {
     PumpSyncScreen {
       GlassSection("Apple Health") {
-        Text("PumpSync writes Tandem insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
+        Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.vertical, 6)
-
-        GlassDivider()
-
-        Button {
-          Task {
-            await services.healthKitService.manageWriteAccess()
-          }
-        } label: {
-          Label(healthActionTitle, systemImage: "heart")
-            .font(.body)
-            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-        }
-        .buttonStyle(GroupedInlineButtonStyle())
       }
 
       GlassSection("Write Permissions") {
@@ -48,12 +35,10 @@ struct HealthAccessView: View {
         }
       }
 
-      if let message = services.healthKitService.managementMessage {
-        GlassSection("Review in Health") {
-          Text(message)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+      GlassSection("Change Access") {
+        Text(HealthAccessCopy.healthAppInstructions)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
     .navigationTitle("Apple Health")
@@ -62,13 +47,6 @@ struct HealthAccessView: View {
     }
   }
 
-  private var healthActionTitle: String {
-    if services.healthKitService.writePermissions.contains(where: { $0.status == .notDetermined }) {
-      return "Allow Health Writes"
-    }
-
-    return "Review in Health"
-  }
 }
 
 private extension HealthWriteSampleKind {

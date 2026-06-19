@@ -43,7 +43,7 @@ enum AppTab: String, CaseIterable, Identifiable {
   var label: some View {
     switch self {
     case .dashboard:
-      Label("Today", systemImage: "heart.text.square")
+      Label("Status", systemImage: "heart.text.square")
     case .sync:
       Label("Sync", systemImage: "arrow.triangle.2.circlepath")
     case .settings:

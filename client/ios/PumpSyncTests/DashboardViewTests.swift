@@ -19,7 +19,7 @@ final class DashboardViewTests: XCTestCase {
       hasAnyHealthWritePermission: false
     )
 
-    XCTAssertEqual(messages, ["Validate Tandem credentials in Settings before syncing."])
+    XCTAssertEqual(messages, ["Validate your pump account in Settings before syncing."])
   }
 
   func testDashboardMessagesPromptForHealthWriteAccessAfterCredentialsAreValidated() {

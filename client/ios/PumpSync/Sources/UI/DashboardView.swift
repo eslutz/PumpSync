@@ -15,7 +15,7 @@ struct DashboardView: View {
         GlassDivider()
 
         GlassStatusRow(
-          title: "Tandem",
+          title: "Pump data",
           value: tandemStatus,
           systemImage: services.credentialStore.hasValidatedCredentials ? "key.fill" : "key.slash"
         )
@@ -102,7 +102,7 @@ struct DashboardView: View {
     }
 
     if !hasValidatedCredentials {
-      return ["Validate Tandem credentials in Settings before syncing."]
+      return ["Validate your pump account in Settings before syncing."]
     }
 
     if !hasAnyHealthWritePermission {

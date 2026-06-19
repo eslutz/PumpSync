@@ -4,7 +4,7 @@ import Observation
 enum DiagnosticSource: String, CaseIterable, Identifiable {
   case auth = "Sign in"
   case sync = "Sync"
-  case credential = "Tandem Credentials"
+  case credential = "Pump Credentials"
   case health = "Apple Health"
   case backgroundSync = "Background Sync"
   case api = "API"

@@ -16,7 +16,7 @@ struct SettingsView: View {
 
         switch services.backendConfigurationStore.mode {
         case .hosted:
-          Text("Subscribe to sync Tandem pump data to Apple Health with a managed cloud service. Hosted connection, secure sync, and server setup are included.")
+          Text("Subscribe to sync pump data to Apple Health through the PumpSync hosted service. The app sends data only during active sync requests.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
@@ -46,16 +46,22 @@ struct SettingsView: View {
           .disabled(services.authService.isConnecting)
 
         case .selfHosted:
-          Text("Connect your own server to sync Tandem pump data to Apple Health. You manage hosting, security, and maintenance.")
+          Text("Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
 
-          TextField("https://example.com/api", text: selfHostedURLBinding)
-            .textInputAutocapitalization(.never)
-            .keyboardType(.URL)
-            .autocorrectionDisabled()
-            .frame(minHeight: 44)
+          VStack(alignment: .leading, spacing: 6) {
+            Text("Server URL")
+              .font(.subheadline.weight(.semibold))
+              .foregroundStyle(.secondary)
+
+            TextField("https://example.com/api", text: selfHostedURLBinding)
+              .textInputAutocapitalization(.never)
+              .keyboardType(.URL)
+              .autocorrectionDisabled()
+              .frame(minHeight: 44)
+          }
 
           Button {
             Task {
@@ -64,7 +70,7 @@ struct SettingsView: View {
           } label: {
             GlassPrimaryLabel(
               title: services.authService.isConnecting ? "Connecting" : "Connect",
-              systemImage: "server.rack"
+              systemImage: "link"
             )
           }
           .buttonStyle(GroupedRowActionButtonStyle())
@@ -95,7 +101,7 @@ struct SettingsView: View {
         NavigationLink {
           TandemCredentialForm()
         } label: {
-          GlassNavigationRow("Tandem Account", subtitle: tandemAccountStatus, systemImage: "key")
+          GlassNavigationRow("Pump Account", subtitle: tandemAccountStatus, systemImage: "key")
         }
         .buttonStyle(.plain)
 
@@ -111,7 +117,7 @@ struct SettingsView: View {
         GlassDivider()
 
         NavigationLink {
-          PrivacyView()
+          DataHandlingView()
         } label: {
           GlassNavigationRow(
             "Data Handling",

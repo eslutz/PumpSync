@@ -1,28 +1,76 @@
 import SwiftUI
 
-struct PrivacyView: View {
+struct DataHandlingView: View {
   var body: some View {
-    PumpSyncScreen {
-      GlassSection("Tandem Credentials") {
-        Text("Stored only in this device's Keychain with device-only accessibility. They are sent to PumpSync only during an active sync request over HTTPS.")
-          .foregroundStyle(.secondary)
+    PumpSyncScreen(spacing: 16) {
+      GlassSection("Credentials") {
+        DataHandlingRow(
+          title: "Stored on this device",
+          detail: "Pump account credentials are kept in this device's Keychain with device-only accessibility.",
+          systemImage: "key"
+        )
+
+        GlassDivider()
+
+        DataHandlingRow(
+          title: "Sent only for sync",
+          detail: "Credentials are sent over HTTPS only during an active sync request.",
+          systemImage: "lock.shield"
+        )
       }
 
-      GlassSection("Tandem Data") {
-        Text("Raw Tandem records and normalized samples are not saved by the app after Apple Health confirms the write.")
-          .foregroundStyle(.secondary)
-      }
+      GlassSection("Pump Data") {
+        DataHandlingRow(
+          title: "Not retained after write",
+          detail: "Raw records and normalized samples are discarded after Apple Health confirms the write.",
+          systemImage: "externaldrive.badge.checkmark"
+        )
 
-      GlassSection("Duplicate Prevention") {
-        Text("PumpSync keeps a rolling HMAC ledger of imported external IDs. The ledger cannot be used to recover Tandem event IDs without the device-only key.")
-          .foregroundStyle(.secondary)
+        GlassDivider()
+
+        DataHandlingRow(
+          title: "Duplicate prevention",
+          detail: "PumpSync keeps a rolling HMAC ledger of imported external IDs. The ledger cannot recover source event IDs without the device-only key.",
+          systemImage: "checkmark.seal"
+        )
       }
 
       GlassSection("Other Devices") {
-        Text("Tandem credentials are not synced through iCloud in this version. Each device must be configured separately.")
-          .foregroundStyle(.secondary)
+        DataHandlingRow(
+          title: "Configure each device",
+          detail: "Pump account credentials are not synced through iCloud. Each device must be configured separately.",
+          systemImage: "iphone"
+        )
       }
     }
-    .navigationTitle("Privacy")
+    .navigationTitle("Data Handling")
+  }
+}
+
+private struct DataHandlingRow: View {
+  let title: String
+  let detail: String
+  let systemImage: String
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 14) {
+      Image(systemName: systemImage)
+        .font(.title3)
+        .frame(width: 28)
+        .foregroundStyle(.tint)
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text(title)
+          .foregroundStyle(.primary)
+
+        Text(detail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+
+      Spacer(minLength: 0)
+    }
+    .padding(.vertical, 6)
   }
 }

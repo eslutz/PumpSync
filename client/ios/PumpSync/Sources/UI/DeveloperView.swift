@@ -17,7 +17,7 @@ struct DeveloperView: View {
         GlassDivider()
         GlassStatusRow(title: "Mode", value: services.backendConfigurationStore.mode.title, systemImage: "server.rack")
         GlassDivider()
-        GlassStatusRow(title: "Tandem", value: tandemCredentialStatus, systemImage: "key")
+        GlassStatusRow(title: "Pump account", value: tandemCredentialStatus, systemImage: "key")
         GlassDivider()
         GlassStatusRow(title: "Health", value: healthWriteStatus, systemImage: "heart")
       }

@@ -17,7 +17,7 @@ final class SyncViewTests: XCTestCase {
         hasValidatedCredentials: false,
         hasAnyHealthWritePermission: false
       ),
-      "Validate Tandem credentials in Settings before syncing."
+      "Validate your pump account in Settings before syncing."
     )
   }
 

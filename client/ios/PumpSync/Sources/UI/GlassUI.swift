@@ -124,9 +124,11 @@ struct GlassNavigationRow: View {
 }
 
 struct GlassDivider: View {
+  var leadingPadding: CGFloat = 42
+
   var body: some View {
     Divider()
-      .padding(.leading, 42)
+      .padding(.leading, leadingPadding)
   }
 }
 

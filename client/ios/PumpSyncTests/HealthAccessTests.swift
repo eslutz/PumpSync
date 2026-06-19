@@ -14,7 +14,7 @@ final class HealthAccessTests: XCTestCase {
     XCTAssertEqual(permissions.map(\.statusDescription), ["Allowed", "Not allowed"])
     XCTAssertEqual(
       HealthAccessCopy.healthAppInstructions,
-      "To change access, open Health, tap Sharing, tap Apps, choose PumpSync, then update Insulin Delivery and Carbohydrates."
+      "To change access, open iPhone Settings, tap Privacy & Security, tap Health, choose PumpSync, then update Insulin Delivery and Carbohydrates."
     )
   }
 }
