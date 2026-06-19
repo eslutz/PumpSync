@@ -55,6 +55,9 @@ param modelCostUpdaterSchedule string = '0 0 4 * * *'
 @description('Optional model cost catalog URL. The updater is inert when unset.')
 param modelCostUpdaterCatalogUrl string = ''
 
+@description('Whether this deployment should create or update RBAC role assignments. Set false for lower-privilege CI principals when RBAC is pre-provisioned.')
+param manageRoleAssignments bool = true
+
 @description('Tags applied to all resources.')
 param tags object = {
   app: appName
@@ -589,7 +592,7 @@ resource modelCostUpdaterFunctionApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
-resource backendKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource backendKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(keyVault.id, backendIdentity.id, keyVaultSecretsUserRoleId)
   scope: keyVault
   properties: {
@@ -599,7 +602,7 @@ resource backendKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@
   }
 }
 
-resource logDrainKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource logDrainKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(keyVault.id, logDrainIdentity.id, keyVaultSecretsUserRoleId)
   scope: keyVault
   properties: {
@@ -609,7 +612,7 @@ resource logDrainKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments
   }
 }
 
-resource backendBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource backendBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, backendIdentity.id, storageBlobDataOwnerRoleId)
   scope: storage
   properties: {
@@ -619,7 +622,7 @@ resource backendBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
-resource backendQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource backendQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, backendIdentity.id, storageQueueDataContributorRoleId)
   scope: storage
   properties: {
@@ -629,7 +632,7 @@ resource backendQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@202
   }
 }
 
-resource backendTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource backendTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, backendIdentity.id, storageTableDataContributorRoleId)
   scope: storage
   properties: {
@@ -639,7 +642,7 @@ resource backendTableRoleAssignment 'Microsoft.Authorization/roleAssignments@202
   }
 }
 
-resource logDrainBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource logDrainBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, logDrainIdentity.id, storageBlobDataOwnerRoleId)
   scope: storage
   properties: {
@@ -649,7 +652,7 @@ resource logDrainBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@202
   }
 }
 
-resource logDrainQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource logDrainQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, logDrainIdentity.id, storageQueueDataContributorRoleId)
   scope: storage
   properties: {
@@ -659,7 +662,7 @@ resource logDrainQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@20
   }
 }
 
-resource logDrainTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource logDrainTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, logDrainIdentity.id, storageTableDataContributorRoleId)
   scope: storage
   properties: {
@@ -669,7 +672,7 @@ resource logDrainTableRoleAssignment 'Microsoft.Authorization/roleAssignments@20
   }
 }
 
-resource modelCostUpdaterBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource modelCostUpdaterBlobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, modelCostUpdaterIdentity.id, storageBlobDataOwnerRoleId)
   scope: storage
   properties: {
@@ -679,7 +682,7 @@ resource modelCostUpdaterBlobRoleAssignment 'Microsoft.Authorization/roleAssignm
   }
 }
 
-resource modelCostUpdaterQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource modelCostUpdaterQueueRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, modelCostUpdaterIdentity.id, storageQueueDataContributorRoleId)
   scope: storage
   properties: {
@@ -689,7 +692,7 @@ resource modelCostUpdaterQueueRoleAssignment 'Microsoft.Authorization/roleAssign
   }
 }
 
-resource modelCostUpdaterTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource modelCostUpdaterTableRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (manageRoleAssignments) {
   name: guid(storage.id, modelCostUpdaterIdentity.id, storageTableDataContributorRoleId)
   scope: storage
   properties: {

@@ -58,6 +58,9 @@ param modelCostUpdaterSchedule string = '0 0 4 * * *'
 @description('Optional model cost catalog URL. The updater is inert when unset.')
 param modelCostUpdaterCatalogUrl string = ''
 
+@description('Whether this deployment should create or update RBAC role assignments. Set false for lower-privilege CI principals when RBAC is pre-provisioned.')
+param manageRoleAssignments bool = true
+
 @description('Tags applied to all resources.')
 param tags object = {
   app: appName
@@ -88,6 +91,7 @@ module backend './main.bicep' = {
     logDrainSharedSecret: logDrainSharedSecret
     modelCostUpdaterSchedule: modelCostUpdaterSchedule
     modelCostUpdaterCatalogUrl: modelCostUpdaterCatalogUrl
+    manageRoleAssignments: manageRoleAssignments
     tags: tags
   }
 }

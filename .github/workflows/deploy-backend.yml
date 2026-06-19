@@ -52,7 +52,7 @@ jobs:
           outputs="$(az deployment sub create \
             --location "$AZURE_LOCATION" \
             --template-file infra/bicep/main.subscription.bicep \
-            --parameters infra/environments/${{ inputs.environment }}.bicepparam \
+            --parameters infra/environments/${{ inputs.environment }}.bicepparam manageRoleAssignments=false \
             --query properties.outputs \
             --output json)"
           echo "AZURE_RESOURCE_GROUP_NAME=$(jq -r '.resourceGroupName.value' <<< "$outputs")" >> "$GITHUB_ENV"
