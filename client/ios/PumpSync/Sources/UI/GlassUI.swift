@@ -165,6 +165,16 @@ struct GroupedActionButtonStyle: ButtonStyle {
   }
 }
 
+struct GroupedRowActionButtonStyle: ButtonStyle {
+  @Environment(\.isEnabled) private var isEnabled
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .padding(.vertical, 6)
+      .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : 0.45)
+  }
+}
+
 struct GroupedInlineButtonStyle: ButtonStyle {
   @Environment(\.isEnabled) private var isEnabled
 

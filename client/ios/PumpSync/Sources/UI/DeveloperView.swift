@@ -10,8 +10,6 @@ struct DeveloperView: View {
         GlassStatusRow(title: "Version", value: appVersion, systemImage: "number")
         GlassDivider()
         GlassStatusRow(title: "Bundle", value: bundleIdentifier, systemImage: "app.badge")
-        GlassDivider()
-        GlassStatusRow(title: "API", value: services.apiClient.baseURL.absoluteString, systemImage: "network")
       }
 
       GlassSection("State") {
@@ -22,6 +20,18 @@ struct DeveloperView: View {
         GlassStatusRow(title: "Tandem", value: tandemCredentialStatus, systemImage: "key")
         GlassDivider()
         GlassStatusRow(title: "Health", value: healthWriteStatus, systemImage: "heart")
+      }
+
+      GlassSection("Connection Details") {
+        GlassStatusRow(
+          title: "URL",
+          value: services.apiClient.baseURL.absoluteString,
+          systemImage: "network"
+        )
+
+        GlassDivider()
+
+        installationRow
       }
 
       GlassSection("Sync") {
@@ -85,6 +95,30 @@ struct DeveloperView: View {
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
     let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
     return "\(version) (\(build))"
+  }
+
+  private var installationRow: some View {
+    HStack(spacing: 14) {
+      Image(systemName: "iphone")
+        .font(.title3)
+        .frame(width: 28)
+        .foregroundStyle(.tint)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Install")
+          .foregroundStyle(.primary)
+
+        Text(services.backendConfigurationStore.installationId)
+          .font(.subheadline.monospaced())
+          .foregroundStyle(.secondary)
+          .textSelection(.enabled)
+          .lineLimit(2)
+          .minimumScaleFactor(0.75)
+      }
+
+      Spacer(minLength: 0)
+    }
+    .padding(.vertical, 6)
   }
 
   private var bundleIdentifier: String {

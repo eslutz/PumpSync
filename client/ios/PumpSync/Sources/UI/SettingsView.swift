@@ -5,7 +5,7 @@ struct SettingsView: View {
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
-      GlassSection("Backend Access") {
+      GlassSection("Connection") {
         Picker("Mode", selection: backendModeBinding) {
           ForEach(BackendAccessMode.allCases) { mode in
             Text(mode.title).tag(mode)
@@ -39,7 +39,7 @@ struct SettingsView: View {
               systemImage: "creditcard"
             )
           }
-          .buttonStyle(GroupedActionButtonStyle())
+          .buttonStyle(GroupedRowActionButtonStyle())
           .disabled(services.authService.isConnecting)
 
           Button {
@@ -74,7 +74,7 @@ struct SettingsView: View {
               systemImage: "server.rack"
             )
           }
-          .buttonStyle(GroupedActionButtonStyle())
+          .buttonStyle(GroupedRowActionButtonStyle())
           .disabled(services.authService.isConnecting)
         }
 
@@ -100,35 +100,6 @@ struct SettingsView: View {
           }
           .buttonStyle(GroupedInlineButtonStyle())
         }
-      }
-
-      GlassSection("Backend Details") {
-        GlassStatusRow(
-          title: "URL",
-          value: services.apiClient.baseURL.absoluteString,
-          systemImage: "network"
-        )
-
-        GlassDivider()
-
-        HStack(alignment: .top, spacing: 10) {
-          Image(systemName: "iphone")
-            .foregroundStyle(.secondary)
-            .frame(width: 24)
-
-          VStack(alignment: .leading, spacing: 4) {
-            Text("Install")
-              .font(.subheadline.weight(.semibold))
-
-            Text(services.backendConfigurationStore.installationId)
-              .font(.caption.monospaced())
-              .foregroundStyle(.secondary)
-              .textSelection(.enabled)
-              .lineLimit(2)
-              .minimumScaleFactor(0.75)
-          }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
       }
 
       GlassSection("PumpSync") {
@@ -159,7 +130,11 @@ struct SettingsView: View {
         NavigationLink {
           PrivacyView()
         } label: {
-          GlassNavigationRow("Data Handling", systemImage: "lock.shield")
+          GlassNavigationRow(
+            "Data Handling",
+            subtitle: "Privacy, retention, and Health data flow",
+            systemImage: "lock.shield"
+          )
         }
         .buttonStyle(.plain)
 
