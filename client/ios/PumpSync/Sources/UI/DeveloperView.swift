@@ -13,7 +13,7 @@ struct DeveloperView: View {
       }
 
       GlassSection("State") {
-        GlassStatusRow(title: "Backend", value: services.authService.isSignedIn ? "Connected" : "Not connected", systemImage: "network")
+        GlassStatusRow(title: "Connection", value: services.authService.isSignedIn ? "Connected" : "Not connected", systemImage: "network")
         GlassDivider()
         GlassStatusRow(title: "Mode", value: services.backendConfigurationStore.mode.title, systemImage: "server.rack")
         GlassDivider()

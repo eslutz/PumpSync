@@ -7,7 +7,7 @@ struct DashboardView: View {
     PumpSyncScreen {
       GlassSection {
         GlassStatusRow(
-          title: "Backend",
+          title: "Connection",
           value: services.authService.isSignedIn ? services.authService.statusMessage : "Not connected.",
           systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled"
         )

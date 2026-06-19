@@ -14,19 +14,15 @@ struct SettingsView: View {
         .pickerStyle(.segmented)
         .frame(minHeight: 44)
 
-        GlassDivider()
-
-        GlassStatusRow(
-          title: "Session",
-          value: services.authService.isSignedIn
-            ? services.authService.statusMessage
-            : services.authService.errorMessage ?? services.authService.statusMessage,
-          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
-          tint: services.authService.isSignedIn ? .green : .secondary
-        )
-
         switch services.backendConfigurationStore.mode {
         case .hosted:
+          GlassDivider()
+
+          Text("Sync your pump data using PumpSync's managed cloud service. Subscription includes hosted backend access, secure data sync, and no server setup or maintenance.")
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+
           GlassDivider()
 
           Button {
@@ -54,6 +50,17 @@ struct SettingsView: View {
           .disabled(services.authService.isConnecting)
 
         case .selfHosted:
+          GlassDivider()
+
+          GlassStatusRow(
+            title: "Connection",
+            value: services.authService.isSignedIn
+              ? services.authService.statusMessage
+              : services.authService.errorMessage ?? services.authService.statusMessage,
+            systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
+            tint: services.authService.isSignedIn ? .green : .secondary
+          )
+
           GlassDivider()
 
           TextField("https://example.com/api", text: selfHostedURLBinding)

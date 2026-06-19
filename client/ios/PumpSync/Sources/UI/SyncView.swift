@@ -7,12 +7,7 @@ struct SyncView: View {
     PumpSyncScreen {
       if services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil {
         GlassSection("Initial Import") {
-          Picker("History", selection: initialImportRangeBinding) {
-            ForEach(InitialImportRange.allCases) { range in
-              Text(range.title).tag(range)
-            }
-          }
-          .pickerStyle(.menu)
+          initialImportMenu
 
           GlassDivider()
 
@@ -66,15 +61,40 @@ struct SyncView: View {
     .navigationTitle("Sync")
   }
 
-  private var initialImportRangeBinding: Binding<InitialImportRange> {
-    Binding(
-      get: {
-        services.syncMetadataStore.metadata.initialImportRange
-      },
-      set: { range in
-        services.syncMetadataStore.setInitialImportRange(range)
+  private var initialImportMenu: some View {
+    Menu {
+      ForEach(InitialImportRange.allCases) { range in
+        Button {
+          services.syncMetadataStore.setInitialImportRange(range)
+        } label: {
+          if range == services.syncMetadataStore.metadata.initialImportRange {
+            Label(range.title, systemImage: "checkmark")
+          } else {
+            Text(range.title)
+          }
+        }
       }
-    )
+    } label: {
+      HStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text("History")
+            .foregroundStyle(.primary)
+
+          Text(services.syncMetadataStore.metadata.initialImportRange.title)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer(minLength: 12)
+
+        Image(systemName: "chevron.up.chevron.down")
+          .font(.footnote.weight(.semibold))
+          .foregroundStyle(.tertiary)
+      }
+      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
   }
 
   private var canSync: Bool {

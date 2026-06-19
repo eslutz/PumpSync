@@ -11,7 +11,7 @@ enum BackendAccessMode: String, CaseIterable, Identifiable {
   var title: String {
     switch self {
     case .hosted:
-      return "Hosted"
+      return "PumpSync Hosted"
     case .selfHosted:
       return "Self-hosted"
     }
@@ -190,8 +190,8 @@ final class AuthService {
   func signOut() {
     session = nil
     errorMessage = nil
-    statusMessage = "Backend access disconnected."
-    diagnostics?.record(source: .auth, title: "Backend session cleared")
+    statusMessage = "Connection disconnected."
+    diagnostics?.record(source: .auth, title: "Connection cleared")
   }
 
   private func establishHostedSession(
