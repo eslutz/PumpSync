@@ -37,7 +37,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
     XCTAssertFalse(service.isSigningIn)
     XCTAssertNil(service.errorMessage)
-    XCTAssertEqual(service.statusMessage, "Hosted subscription active.")
+    XCTAssertEqual(service.statusMessage, "Hosted subscription active")
     XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription restored", "Hosted session started"])
   }
 
@@ -102,7 +102,7 @@ final class AuthServiceTests: XCTestCase {
     await service.connectSelfHosted()
 
     XCTAssertEqual(service.accessToken, "self-hosted-token")
-    XCTAssertEqual(service.statusMessage, "Connected to self-hosted service.")
+    XCTAssertEqual(service.statusMessage, "Connected to self-hosted service")
   }
 
   private func makeAPIClient() -> PumpSyncAPIClient {

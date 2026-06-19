@@ -8,7 +8,7 @@ struct DashboardView: View {
       GlassSection {
         GlassStatusRow(
           title: "Connection",
-          value: services.authService.isSignedIn ? services.authService.statusMessage : "Not connected.",
+          value: services.authService.isSignedIn ? services.authService.statusMessage : "Not connected",
           systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled"
         )
 

@@ -88,7 +88,7 @@ final class AuthService {
 
   private(set) var isConnecting = false
   private(set) var session: BackendSessionResponse?
-  private(set) var statusMessage = "Connect to PumpSync or a self-hosted service."
+  private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
   private(set) var errorMessage: String?
 
   init(
@@ -165,7 +165,7 @@ final class AuthService {
 
     do {
       session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
-      statusMessage = "Connected to self-hosted service."
+      statusMessage = "Connected to self-hosted service"
       diagnostics?.record(source: .auth, title: "Self-hosted session created")
     } catch {
       session = nil
@@ -190,7 +190,7 @@ final class AuthService {
   func signOut() {
     session = nil
     errorMessage = nil
-    statusMessage = "Connection disconnected."
+    statusMessage = "Connection disconnected"
     diagnostics?.record(source: .auth, title: "Connection cleared")
   }
 
@@ -212,7 +212,7 @@ final class AuthService {
           installationId: configurationStore.installationId
         )
       )
-      statusMessage = "Hosted subscription active."
+      statusMessage = "Hosted subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
       session = nil
