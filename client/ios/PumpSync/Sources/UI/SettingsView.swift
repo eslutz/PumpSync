@@ -16,14 +16,10 @@ struct SettingsView: View {
 
         switch services.backendConfigurationStore.mode {
         case .hosted:
-          GlassDivider()
-
-          Text("PumpSync syncs Tandem pump data to Apple Health using PumpSync's managed cloud service.")
+          Text("Subscribe to sync Tandem pump data to Apple Health with a managed cloud service. Hosted connection, secure sync, and server setup are included.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
-
-          GlassDivider()
 
           Button {
             Task {
@@ -38,12 +34,6 @@ struct SettingsView: View {
           .buttonStyle(GroupedRowActionButtonStyle())
           .disabled(services.authService.isConnecting)
 
-          Text("Includes hosted connection, secure sync, and no server setup.")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 6)
-
           Button {
             Task {
               await services.authService.connectHostedUsingCurrentSubscription()
@@ -56,26 +46,16 @@ struct SettingsView: View {
           .disabled(services.authService.isConnecting)
 
         case .selfHosted:
-          GlassDivider()
-
-          GlassStatusRow(
-            title: "Connection",
-            value: services.authService.isSignedIn
-              ? services.authService.statusMessage
-              : services.authService.errorMessage ?? services.authService.statusMessage,
-            systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
-            tint: services.authService.isSignedIn ? .green : .secondary
-          )
-
-          GlassDivider()
+          Text("Connect your own server to sync Tandem pump data to Apple Health. You manage hosting, security, and maintenance.")
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
 
           TextField("https://example.com/api", text: selfHostedURLBinding)
             .textInputAutocapitalization(.never)
             .keyboardType(.URL)
             .autocorrectionDisabled()
             .frame(minHeight: 44)
-
-          GlassDivider()
 
           Button {
             Task {
@@ -92,8 +72,6 @@ struct SettingsView: View {
         }
 
         if services.authService.isConnecting {
-          GlassDivider()
-
           HStack(spacing: 8) {
             ProgressView()
             Text(services.authService.statusMessage)
@@ -103,8 +81,6 @@ struct SettingsView: View {
         }
 
         if services.authService.isSignedIn {
-          GlassDivider()
-
           Button(role: .destructive) {
             services.authService.signOut()
           } label: {
