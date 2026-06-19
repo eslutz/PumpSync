@@ -49,9 +49,6 @@ jobs:
           PUMPSYNC_MODEL_COST_UPDATER_SCHEDULE: ${{ vars.PUMPSYNC_MODEL_COST_UPDATER_SCHEDULE || '0 0 4 * * *' }}
           PUMPSYNC_MODEL_COST_CATALOG_URL: ${{ vars.PUMPSYNC_MODEL_COST_CATALOG_URL }}
         run: |
-          : "${PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY:?PUMPSYNC_SERVICE_TOKEN_SIGNING_KEY is required}"
-          : "${PUMPSYNC_LOG_DRAIN_SHARED_SECRET:?PUMPSYNC_LOG_DRAIN_SHARED_SECRET is required}"
-
           outputs="$(az deployment sub create \
             --location "$AZURE_LOCATION" \
             --template-file infra/bicep/main.subscription.bicep \
