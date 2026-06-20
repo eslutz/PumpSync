@@ -163,7 +163,7 @@ struct TandemCredentialForm: View {
   private func validateConnection() async {
     isValidating = true
 
-    guard let accessToken = await accessTokenForValidation() else {
+    guard let accessToken = accessTokenForValidation() else {
       isValidating = false
       return
     }
@@ -204,20 +204,14 @@ struct TandemCredentialForm: View {
     isValidating = false
   }
 
-  private func accessTokenForValidation() async -> String? {
-    if let accessToken = services.authService.accessToken {
-      return accessToken
-    }
-
-    await services.authService.signIn()
-
+  private func accessTokenForValidation() -> String? {
     if let accessToken = services.authService.accessToken {
       return accessToken
     }
 
     alert = CredentialAlert(
       title: "Connection Needed",
-      message: services.authService.errorMessage ?? services.authService.statusMessage
+      message: services.authService.connectionRequiredMessage
     )
     return nil
   }

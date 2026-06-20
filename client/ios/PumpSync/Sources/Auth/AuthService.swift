@@ -143,6 +143,19 @@ final class AuthService {
     session?.accessToken
   }
 
+  var connectionRequiredMessage: String {
+    if let errorMessage {
+      return errorMessage
+    }
+
+    switch configurationStore.mode {
+    case .hosted:
+      return StoreKitSubscriptionError.noActiveSubscription.errorDescription ?? statusMessage
+    case .selfHosted:
+      return "Connect to a self-hosted service before validating credentials."
+    }
+  }
+
   func connectHostedUsingCurrentSubscription() async {
     await establishHostedSession(transactionJWS: currentEntitlementJWS, title: "Hosted subscription restored")
   }
@@ -246,7 +259,7 @@ enum StoreKitSubscriptionError: LocalizedError {
     case .productUnavailable:
       return "The hosted subscription is not available from the App Store."
     case .noActiveSubscription:
-      return "No active hosted subscription was found."
+      return "No active hosted service was found."
     case .unverifiedTransaction:
       return "The App Store transaction could not be verified on this device."
     case .purchaseCancelled:

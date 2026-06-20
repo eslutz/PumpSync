@@ -105,6 +105,28 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(service.statusMessage, "Connected to self-hosted service")
   }
 
+  func testHostedConnectionRequiredMessageUsesHostedServiceTerminology() {
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      purchaseEntitlementJWS: {
+        throw StoreKitSubscriptionError.productUnavailable
+      },
+      createSubscriptionSession: { _ in
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      }
+    )
+
+    XCTAssertEqual(service.connectionRequiredMessage, "No active hosted service was found.")
+    XCTAssertEqual(StoreKitSubscriptionError.noActiveSubscription.errorDescription, "No active hosted service was found.")
+  }
+
   private func makeAPIClient() -> PumpSyncAPIClient {
     PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0)
   }
