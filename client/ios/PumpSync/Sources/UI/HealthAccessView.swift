@@ -5,12 +5,10 @@ struct HealthAccessView: View {
 
   var body: some View {
     PumpSyncScreen {
-      GlassSection("Apple Health") {
-        Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(.vertical, 6)
-      }
+      Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
 
       GlassSection("Write Permissions") {
         ForEach(Array(services.healthKitService.writePermissions.enumerated()), id: \.element.id) { index, permission in

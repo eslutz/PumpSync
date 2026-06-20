@@ -6,7 +6,7 @@ struct TandemCredentialForm: View {
   @State private var username = ""
   @State private var password = ""
   @State private var region = TandemRegion.us
-  @State private var message: String?
+  @State private var alert: CredentialAlert?
   @State private var isShowingPassword = false
   @State private var isValidating = false
   @State private var validatedCredentials: TandemCredentials?
@@ -71,18 +71,10 @@ struct TandemCredentialForm: View {
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!canUsePrimaryAction)
 
-      if let message {
-        GlassSection {
-          Text(message)
-            .foregroundStyle(.secondary)
-        }
-      }
-
       Button(role: .destructive) {
         delete()
       } label: {
-        Label("Remove Credentials", systemImage: "trash")
-          .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+        GlassPrimaryLabel(title: "Remove Credentials", systemImage: "trash")
       }
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!services.credentialStore.hasStoredCredentials)
@@ -97,6 +89,13 @@ struct TandemCredentialForm: View {
     }
     .onChange(of: region) { _, _ in
       clearValidationIfNeeded()
+    }
+    .alert(item: $alert) { alert in
+      Alert(
+        title: Text(alert.title),
+        message: Text(alert.message),
+        dismissButton: .default(Text("OK"))
+      )
     }
   }
 
@@ -117,11 +116,11 @@ struct TandemCredentialForm: View {
   }
 
   private var canValidate: Bool {
-    hasRequiredFields && !isValidating
+    hasRequiredFields && !isValidating && !services.authService.isConnecting
   }
 
   private var canSave: Bool {
-    hasRequiredFields && validationMatchesCurrentInput && !isValidating
+    hasRequiredFields && validationMatchesCurrentInput && !isValidating && !services.authService.isConnecting
   }
 
   private var canUsePrimaryAction: Bool {
@@ -131,6 +130,10 @@ struct TandemCredentialForm: View {
   private var primaryActionTitle: String {
     if isValidating {
       return "Validating"
+    }
+
+    if services.authService.isConnecting {
+      return "Connecting"
     }
 
     return validationMatchesCurrentInput ? "Save Credentials" : "Validate Connection"
@@ -158,13 +161,12 @@ struct TandemCredentialForm: View {
   }
 
   private func validateConnection() async {
-    guard let accessToken = services.authService.accessToken else {
-      message = "Connect PumpSync before validating this account."
+    isValidating = true
+
+    guard let accessToken = await accessTokenForValidation() else {
+      isValidating = false
       return
     }
-
-    isValidating = true
-    message = "Validating account details..."
 
     do {
       let credentials = currentCredentials
@@ -175,36 +177,72 @@ struct TandemCredentialForm: View {
 
       guard response.validated else {
         validatedCredentials = nil
-        message = "Account details could not be validated. Check them and try again."
+        alert = CredentialAlert(
+          title: "Validation Failed",
+          message: "Account details could not be validated. Check them and try again."
+        )
         services.diagnosticsLogStore.record(source: .credential, severity: .warning, title: "Credentials validation rejected")
         isValidating = false
         return
       }
 
       validatedCredentials = credentials
-      message = "Account details validated. Save them to this device to enable syncing."
+      alert = CredentialAlert(
+        title: "Connection Validated",
+        message: "Account details validated. Save them to this device to enable syncing."
+      )
       services.diagnosticsLogStore.record(source: .credential, title: "Credentials validated")
     } catch {
       validatedCredentials = nil
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials validation failed")
-      message = "Account details could not be validated. Check them and try again."
+      alert = CredentialAlert(
+        title: "Validation Failed",
+        message: "Account details could not be validated. Check them and try again."
+      )
     }
 
     isValidating = false
   }
 
+  private func accessTokenForValidation() async -> String? {
+    if let accessToken = services.authService.accessToken {
+      return accessToken
+    }
+
+    await services.authService.signIn()
+
+    if let accessToken = services.authService.accessToken {
+      return accessToken
+    }
+
+    alert = CredentialAlert(
+      title: "Connection Needed",
+      message: services.authService.errorMessage ?? services.authService.statusMessage
+    )
+    return nil
+  }
+
   private func save() {
     do {
       guard validationMatchesCurrentInput else {
-        message = "Validate the connection before saving credentials."
+        alert = CredentialAlert(
+          title: "Validation Needed",
+          message: "Validate the connection before saving credentials."
+        )
         return
       }
 
       try services.credentialStore.saveValidated(currentCredentials)
-      message = "Validated credentials saved to this device."
+      alert = CredentialAlert(
+        title: "Credentials Saved",
+        message: "Validated credentials saved to this device."
+      )
     } catch {
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials save failed")
-      message = "Credentials could not be saved. Please try again."
+      alert = CredentialAlert(
+        title: "Save Failed",
+        message: "Credentials could not be saved. Please try again."
+      )
     }
   }
 
@@ -214,10 +252,16 @@ struct TandemCredentialForm: View {
       username = ""
       password = ""
       validatedCredentials = nil
-      message = "Credentials removed from this device."
+      alert = CredentialAlert(
+        title: "Credentials Removed",
+        message: "Credentials removed from this device."
+      )
     } catch {
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials removal failed")
-      message = "Credentials could not be removed. Please try again."
+      alert = CredentialAlert(
+        title: "Remove Failed",
+        message: "Credentials could not be removed. Please try again."
+      )
     }
   }
 
@@ -226,4 +270,10 @@ struct TandemCredentialForm: View {
       validatedCredentials = nil
     }
   }
+}
+
+private struct CredentialAlert: Identifiable {
+  let id = UUID()
+  let title: String
+  let message: String
 }

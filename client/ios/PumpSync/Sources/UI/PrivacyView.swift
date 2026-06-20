@@ -6,7 +6,7 @@ struct DataHandlingView: View {
       GlassSection("Credentials") {
         DataHandlingRow(
           title: "Stored on this device",
-          detail: "Pump account credentials are kept in this device's Keychain with device-only accessibility.",
+          detail: "Pump account credentials are kept on this device in Keychain with device-only accessibility.",
           systemImage: "key"
         )
 
@@ -30,7 +30,7 @@ struct DataHandlingView: View {
 
         DataHandlingRow(
           title: "Duplicate prevention",
-          detail: "PumpSync keeps a rolling HMAC ledger of imported external IDs. The ledger cannot recover source event IDs without the device-only key.",
+          detail: "On this device, PumpSync keeps a rolling HMAC ledger of imported source IDs so repeat syncs do not write duplicates. The server does not store this ledger, and the ledger cannot reveal source event IDs without the device-only key.",
           systemImage: "checkmark.seal"
         )
       }

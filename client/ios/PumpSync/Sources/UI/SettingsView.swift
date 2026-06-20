@@ -16,7 +16,7 @@ struct SettingsView: View {
 
         switch services.backendConfigurationStore.mode {
         case .hosted:
-          Text("Subscribe to sync pump data to Apple Health through the PumpSync hosted service. The app sends data only during active sync requests.")
+          Text("Subscribe to PumpSync Hosted to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
@@ -101,7 +101,7 @@ struct SettingsView: View {
         NavigationLink {
           TandemCredentialForm()
         } label: {
-          GlassNavigationRow("Pump Account", subtitle: tandemAccountStatus, systemImage: "key")
+          GlassNavigationRow("Tandem Account", subtitle: tandemAccountStatus, systemImage: "key")
         }
         .buttonStyle(.plain)
 
