@@ -28,6 +28,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>HOSTED_SUBSCRIPTION_PRODUCT_ID</key>
 	<string>dev.ericslutz.PumpSync.hosted.monthly</string>
+	<key>HOSTED_SUBSCRIPTION_GROUP_ID</key>
+	<string>22168040</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>

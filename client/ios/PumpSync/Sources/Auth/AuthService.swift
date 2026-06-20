@@ -82,7 +82,6 @@ final class AuthService {
   private let configurationStore: BackendConfigurationStore
   private let diagnostics: DiagnosticsLogStore?
   private let currentEntitlementJWS: @MainActor () async throws -> String
-  private let purchaseEntitlementJWS: @MainActor () async throws -> String
   private let createSubscriptionSession: @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse
   private let createSelfHostedSession: @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse
 
@@ -102,9 +101,6 @@ final class AuthService {
     currentEntitlementJWS = {
       try await StoreKitSubscriptionProvider.currentEntitlementJWS(productId: AppConstants.hostedSubscriptionProductId)
     }
-    purchaseEntitlementJWS = {
-      try await StoreKitSubscriptionProvider.purchaseEntitlementJWS(productId: AppConstants.hostedSubscriptionProductId)
-    }
     createSubscriptionSession = { request in
       try await apiClient.createSubscriptionSession(request)
     }
@@ -117,7 +113,6 @@ final class AuthService {
     apiClient: PumpSyncAPIClient,
     configurationStore: BackendConfigurationStore,
     currentEntitlementJWS: @escaping @MainActor () async throws -> String,
-    purchaseEntitlementJWS: @escaping @MainActor () async throws -> String,
     createSubscriptionSession: @escaping @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse,
     createSelfHostedSession: @escaping @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse,
     diagnostics: DiagnosticsLogStore? = nil
@@ -126,7 +121,6 @@ final class AuthService {
     self.configurationStore = configurationStore
     self.diagnostics = diagnostics
     self.currentEntitlementJWS = currentEntitlementJWS
-    self.purchaseEntitlementJWS = purchaseEntitlementJWS
     self.createSubscriptionSession = createSubscriptionSession
     self.createSelfHostedSession = createSelfHostedSession
   }
@@ -157,11 +151,60 @@ final class AuthService {
   }
 
   func connectHostedUsingCurrentSubscription() async {
-    await establishHostedSession(transactionJWS: currentEntitlementJWS, title: "Hosted subscription restored")
+    _ = configurationStore.apply(to: apiClient)
+    isConnecting = true
+    errorMessage = nil
+    statusMessage = "Checking hosted service..."
+    diagnostics?.record(source: .auth, title: "Hosted restore started")
+
+    do {
+      let signedTransactionInfo = try await currentEntitlementJWS()
+      await establishHostedSession(
+        signedTransactionInfo: signedTransactionInfo,
+        activityMessage: "Activating hosted service...",
+        title: "Hosted subscription restored"
+      )
+    } catch {
+      session = nil
+      let message = safeMessage("Hosted subscription access could not be verified.", error: error)
+      errorMessage = message
+      statusMessage = message
+      diagnostics?.record(error: error, source: .auth, title: "Hosted restore failed")
+      isConnecting = false
+    }
   }
 
-  func purchaseHostedSubscription() async {
-    await establishHostedSession(transactionJWS: purchaseEntitlementJWS, title: "Hosted subscription purchased")
+  func activateHostedSubscription(signedTransactionInfo: String) async {
+    await establishHostedSession(
+      signedTransactionInfo: signedTransactionInfo,
+      activityMessage: "Activating hosted service...",
+      title: "Hosted subscription purchased"
+    )
+  }
+
+  func recordHostedSubscriptionPurchaseCancelled() {
+    session = nil
+    errorMessage = nil
+    statusMessage = "Subscription purchase cancelled."
+    isConnecting = false
+    diagnostics?.record(source: .auth, title: "Hosted subscription purchase cancelled")
+  }
+
+  func recordHostedSubscriptionPurchasePending() {
+    session = nil
+    errorMessage = nil
+    statusMessage = "Subscription purchase is pending App Store approval."
+    isConnecting = false
+    diagnostics?.record(source: .auth, title: "Hosted subscription purchase pending")
+  }
+
+  func recordHostedSubscriptionPurchaseFailed(_ error: Error) {
+    session = nil
+    let message = safeMessage("Subscription purchase could not be completed.", error: error)
+    errorMessage = message
+    statusMessage = message
+    isConnecting = false
+    diagnostics?.record(error: error, source: .auth, title: "Hosted subscription purchase failed")
   }
 
   func connectSelfHosted() async {
@@ -208,20 +251,20 @@ final class AuthService {
   }
 
   private func establishHostedSession(
-    transactionJWS: @MainActor () async throws -> String,
+    signedTransactionInfo: String,
+    activityMessage: String,
     title: String
   ) async {
     _ = configurationStore.apply(to: apiClient)
     isConnecting = true
     errorMessage = nil
-    statusMessage = "Checking hosted subscription..."
+    statusMessage = activityMessage
     diagnostics?.record(source: .auth, title: "Hosted session started")
 
     do {
-      let jws = try await transactionJWS()
       session = try await createSubscriptionSession(
         SubscriptionSessionRequest(
-          signedTransactionInfo: jws,
+          signedTransactionInfo: signedTransactionInfo,
           installationId: configurationStore.installationId
         )
       )
@@ -271,28 +314,6 @@ enum StoreKitSubscriptionError: LocalizedError {
 }
 
 private enum StoreKitSubscriptionProvider {
-  static func purchaseEntitlementJWS(productId: String) async throws -> String {
-    let products = try await Product.products(for: [productId])
-    guard let product = products.first else {
-      throw StoreKitSubscriptionError.productUnavailable
-    }
-
-    let result = try await product.purchase()
-    switch result {
-    case .success(let verificationResult):
-      let transaction = try verified(verificationResult)
-      let jwsRepresentation = verificationResult.jwsRepresentation
-      await transaction.finish()
-      return jwsRepresentation
-    case .userCancelled:
-      throw StoreKitSubscriptionError.purchaseCancelled
-    case .pending:
-      throw StoreKitSubscriptionError.purchasePending
-    @unknown default:
-      throw StoreKitSubscriptionError.unverifiedTransaction
-    }
-  }
-
   static func currentEntitlementJWS(productId: String) async throws -> String {
     try? await AppStore.sync()
 

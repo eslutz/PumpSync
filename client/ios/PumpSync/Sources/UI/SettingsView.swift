@@ -1,7 +1,9 @@
+import StoreKit
 import SwiftUI
 
 struct SettingsView: View {
   @Environment(AppServices.self) private var services
+  @State private var isShowingHostedSubscriptionStore = false
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
@@ -22,12 +24,10 @@ struct SettingsView: View {
             .padding(.vertical, 6)
 
           Button {
-            Task {
-              await services.authService.purchaseHostedSubscription()
-            }
+            isShowingHostedSubscriptionStore = true
           } label: {
             GlassPrimaryLabel(
-              title: services.authService.isConnecting ? "Connecting" : "Subscribe",
+              title: "Subscribe",
               systemImage: "creditcard"
             )
           }
@@ -138,6 +138,9 @@ struct SettingsView: View {
       }
     }
     .navigationTitle("Settings")
+    .sheet(isPresented: $isShowingHostedSubscriptionStore) {
+      HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
+    }
   }
 
   private var backendModeBinding: Binding<BackendAccessMode> {
@@ -188,4 +191,60 @@ struct SettingsView: View {
     return "\(redactedUsername) - \(tandemCredentialStatus)"
   }
 
+}
+
+private struct HostedSubscriptionStoreView: View {
+  @Environment(AppServices.self) private var services
+  @Binding var isPresented: Bool
+
+  var body: some View {
+    NavigationStack {
+      SubscriptionStoreView(groupID: AppConstants.hostedSubscriptionGroupId)
+        .subscriptionStoreButtonLabel(.action)
+        .navigationTitle("PumpSync Hosted")
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button("Done") {
+              isPresented = false
+            }
+          }
+        }
+        .onInAppPurchaseCompletion { _, result in
+          await handlePurchaseCompletion(result)
+        }
+    }
+  }
+
+  private func handlePurchaseCompletion(_ result: Result<Product.PurchaseResult, Error>) async {
+    switch result {
+    case .success(.success(let verificationResult)):
+      do {
+        let transaction = try verified(verificationResult)
+        await services.authService.activateHostedSubscription(signedTransactionInfo: verificationResult.jwsRepresentation)
+        await transaction.finish()
+        if services.authService.isSignedIn {
+          isPresented = false
+        }
+      } catch {
+        services.authService.recordHostedSubscriptionPurchaseFailed(error)
+      }
+    case .success(.userCancelled):
+      services.authService.recordHostedSubscriptionPurchaseCancelled()
+    case .success(.pending):
+      services.authService.recordHostedSubscriptionPurchasePending()
+    case .failure(let error):
+      services.authService.recordHostedSubscriptionPurchaseFailed(error)
+    @unknown default:
+      services.authService.recordHostedSubscriptionPurchaseFailed(StoreKitSubscriptionError.unverifiedTransaction)
+    }
+  }
+
+  private func verified<T>(_ result: VerificationResult<T>) throws -> T {
+    switch result {
+    case .verified(let value):
+      return value
+    case .unverified:
+      throw StoreKitSubscriptionError.unverifiedTransaction
+    }
+  }
 }

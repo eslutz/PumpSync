@@ -29,6 +29,7 @@ targets:
       path: PumpSync/Resources/Info.plist
       properties:
         API_BASE_URL: https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api
+        HOSTED_SUBSCRIPTION_GROUP_ID: "22168040"
         HOSTED_SUBSCRIPTION_PRODUCT_ID: dev.ericslutz.PumpSync.hosted.monthly
         BGTaskSchedulerPermittedIdentifiers:
           - dev.ericslutz.PumpSync.daily-sync

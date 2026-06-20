@@ -54,5 +54,5 @@ struct HealthWritePermission: Identifiable, Equatable {
 }
 
 enum HealthAccessCopy {
-  static let healthAppInstructions = "To change access, open iPhone Settings, tap Privacy & Security, tap Health, choose PumpSync, then update Insulin Delivery and Carbohydrates."
+  static let healthAppInstructions = "To change access, open iPhone Settings, tap Privacy & Security, tap Health, choose PumpSync, then update the Insulin Delivery and Carbohydrates permissions."
 }

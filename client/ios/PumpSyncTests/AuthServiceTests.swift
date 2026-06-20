@@ -18,9 +18,6 @@ final class AuthServiceTests: XCTestCase {
       currentEntitlementJWS: {
         "signed-transaction"
       },
-      purchaseEntitlementJWS: {
-        throw StoreKitSubscriptionError.productUnavailable
-      },
       createSubscriptionSession: { request in
         XCTAssertEqual(request.signedTransactionInfo, "signed-transaction")
         XCTAssertEqual(request.installationId, configuration.installationId)
@@ -38,7 +35,42 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSigningIn)
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Hosted subscription active")
-    XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription restored", "Hosted session started"])
+    XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription restored", "Hosted session started", "Hosted restore started"])
+  }
+
+  func testHostedPurchaseCompletionCreatesBackendSession() async {
+    let diagnostics = DiagnosticsLogStore()
+    let configuration = makeConfigurationStore()
+    let session = BackendSessionResponse(
+      accessToken: "token",
+      expiresAt: Date(timeIntervalSince1970: 1_800),
+      entitlementActive: true,
+      serviceMode: "hosted"
+    )
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { request in
+        XCTAssertEqual(request.signedTransactionInfo, "signed-purchase-transaction")
+        XCTAssertEqual(request.installationId, configuration.installationId)
+        return session
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      },
+      diagnostics: diagnostics
+    )
+
+    await service.activateHostedSubscription(signedTransactionInfo: "signed-purchase-transaction")
+
+    XCTAssertTrue(service.isSignedIn)
+    XCTAssertFalse(service.isSigningIn)
+    XCTAssertNil(service.errorMessage)
+    XCTAssertEqual(service.statusMessage, "Hosted subscription active")
+    XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription purchased", "Hosted session started"])
   }
 
   func testHostedRestorePublishesSafeBackendErrorAndDiagnostics() async {
@@ -48,9 +80,6 @@ final class AuthServiceTests: XCTestCase {
       configurationStore: makeConfigurationStore(),
       currentEntitlementJWS: {
         "signed-transaction"
-      },
-      purchaseEntitlementJWS: {
-        throw StoreKitSubscriptionError.productUnavailable
       },
       createSubscriptionSession: { _ in
         throw APIClientError.httpStatus(401, "Subscription validation failed for user@example.com.")
@@ -82,9 +111,6 @@ final class AuthServiceTests: XCTestCase {
       currentEntitlementJWS: {
         throw StoreKitSubscriptionError.noActiveSubscription
       },
-      purchaseEntitlementJWS: {
-        throw StoreKitSubscriptionError.productUnavailable
-      },
       createSubscriptionSession: { _ in
         throw APIClientError.invalidResponse
       },
@@ -111,9 +137,6 @@ final class AuthServiceTests: XCTestCase {
       configurationStore: makeConfigurationStore(),
       currentEntitlementJWS: {
         throw StoreKitSubscriptionError.noActiveSubscription
-      },
-      purchaseEntitlementJWS: {
-        throw StoreKitSubscriptionError.productUnavailable
       },
       createSubscriptionSession: { _ in
         throw APIClientError.invalidResponse
