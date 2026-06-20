@@ -220,7 +220,7 @@ private struct HostedSubscriptionStoreView: View {
 
           HostedSubscriptionBenefitRow(
             title: "Secure Health sync",
-            detail: "Pump data syncs to Apple Health during active sync operations.",
+            detail: "Sync through PumpSync's hosted service. Data is processed only during active sync operations and is not retained on PumpSync servers.",
             systemImage: "heart.text.square"
           )
 
