@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A860106CE1BB55F05ADBF24 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0981ABD17009F7A4A08958B4 /* SettingsView.swift */; };
 		0EC447AEE68669C7C0CEFBF6 /* TandemCredentialForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */; };
+		0ED99E75A53490C4E83A40F0 /* AppLaunchEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */; };
 		1803E330015DA083BB1F1454 /* SecureKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE10C4425E732936246A0BB /* SecureKeychainStore.swift */; };
 		18701BDFE904793BC7E5CEB8 /* AppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E85545B2A7D3EE4285CD12F /* AppView.swift */; };
 		1B03175A1F27037B703EC8D1 /* AuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */; };
@@ -73,6 +74,7 @@
 		1B80BDA0E659F5365FB1C87A /* TandemCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentialStore.swift; sourceTree = "<group>"; };
 		228837A73B88DB4E80B7A957 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		23F29882A2FE266DE552731A /* PumpSyncAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncAPIClient.swift; sourceTree = "<group>"; };
+		25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLaunchEnvironment.swift; sourceTree = "<group>"; };
 		2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMetadataStore.swift; sourceTree = "<group>"; };
 		36ABBE2A707B83D4D4006E57 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		37EB57E1D5975023BD6A12F1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -248,6 +250,7 @@
 			isa = PBXGroup;
 			children = (
 				178ADA56A44AFD519D1ABCA7 /* AppConstants.swift */,
+				25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */,
 				C23E211038A242211F7416AF /* AppServices.swift */,
 				9E85545B2A7D3EE4285CD12F /* AppView.swift */,
 				39EC34B2CD83FB273C8C111B /* DiagnosticsLogStore.swift */,
@@ -378,6 +381,7 @@
 			files = (
 				F96749147D5EC671A85BAF8A /* APIModels.swift in Sources */,
 				9B39CFF910647ED539489752 /* AppConstants.swift in Sources */,
+				0ED99E75A53490C4E83A40F0 /* AppLaunchEnvironment.swift in Sources */,
 				2E581DC0577F1D384651346A /* AppServices.swift in Sources */,
 				18701BDFE904793BC7E5CEB8 /* AppView.swift in Sources */,
 				B071813F6A46DD557EC13A9D /* AuthService.swift in Sources */,

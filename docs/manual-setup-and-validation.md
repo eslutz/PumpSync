@@ -16,6 +16,8 @@ These items require account access, production credentials, a physical Apple dev
 - Configure `AppStore__RootCertificatePem` with the Apple root certificate used to pin signed App Store payload verification.
 - Create signing certificates and provisioning profiles for local device testing and App Store/TestFlight builds.
 - Validate the iOS app on a physical iPhone with HealthKit authorization enabled.
+- Validate iPad layout on the iPad Pro 13-inch simulator in portrait and landscape, including Status, Sync, Settings, Tandem Account, Apple Health, Data Handling, Developer, and hosted subscription presentation.
+- Regenerate iPad App Store listing screenshots with `scripts/ios/capture-ipad-app-store-screenshots.sh` before submission.
 
 ## Tandem
 
@@ -86,3 +88,5 @@ The release gate is not complete until a signed iPhone build:
 - purges raw and normalized Tandem payloads after write;
 - refreshes on app open, manual sync, and a scheduled background task when iOS grants execution;
 - emits no Tandem credentials, tokens, raw events, or normalized samples to backend durable storage or logs.
+
+The iPad release gate is not complete until the iPad simulator layout pass and App Store screenshot capture both pass without clipped text, broken navigation, or missing screenshot assets.

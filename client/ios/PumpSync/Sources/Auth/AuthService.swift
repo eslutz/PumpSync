@@ -338,3 +338,19 @@ private enum StoreKitSubscriptionProvider {
     }
   }
 }
+
+#if DEBUG
+extension AuthService {
+  func applyScreenshotSession(serviceMode: String) {
+    session = BackendSessionResponse(
+      accessToken: "screenshot-access-token",
+      expiresAt: Date().addingTimeInterval(60 * 60),
+      entitlementActive: true,
+      serviceMode: serviceMode
+    )
+    statusMessage = serviceMode == "hosted" ? "Hosted subscription active" : "Connected to self-hosted service"
+    errorMessage = nil
+    isConnecting = false
+  }
+}
+#endif

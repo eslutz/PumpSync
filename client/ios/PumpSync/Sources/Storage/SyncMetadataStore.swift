@@ -106,3 +106,12 @@ final class SyncMetadataStore {
     return metadata
   }
 }
+
+#if DEBUG
+extension SyncMetadataStore {
+  func applyScreenshotMetadata(_ metadata: SyncMetadata) {
+    self.metadata = metadata
+    save()
+  }
+}
+#endif

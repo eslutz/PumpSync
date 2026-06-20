@@ -104,6 +104,7 @@ struct SettingsView: View {
           GlassNavigationRow("Tandem Account", subtitle: tandemAccountStatus, systemImage: "key")
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("TandemAccountLink")
 
         GlassDivider()
 
@@ -113,6 +114,7 @@ struct SettingsView: View {
           GlassNavigationRow("Apple Health", subtitle: "Insulin and carbohydrates", systemImage: "heart")
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("AppleHealthLink")
 
         GlassDivider()
 
@@ -126,6 +128,7 @@ struct SettingsView: View {
           )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("DataHandlingLink")
 
         GlassDivider()
 
@@ -135,11 +138,16 @@ struct SettingsView: View {
           GlassNavigationRow("Developer", subtitle: "Diagnostics, build, and sync details", systemImage: "hammer")
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("DeveloperLink")
       }
     }
     .navigationTitle("Settings")
     .sheet(isPresented: $isShowingHostedSubscriptionStore) {
-      HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
+      if AppLaunchEnvironment.isScreenshotMode {
+        HostedSubscriptionScreenshotView()
+      } else {
+        HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
+      }
     }
   }
 
@@ -191,6 +199,55 @@ struct SettingsView: View {
     return "\(redactedUsername) - \(tandemCredentialStatus)"
   }
 
+}
+
+private struct HostedSubscriptionScreenshotView: View {
+  var body: some View {
+    VStack(alignment: .leading, spacing: 24) {
+      VStack(alignment: .leading, spacing: 8) {
+        Text("PumpSync Hosted")
+          .font(.largeTitle.weight(.bold))
+          .foregroundStyle(.primary)
+
+        Text("Securely sync pump data to Apple Health without managing your own server.")
+          .font(.title3)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+
+      VStack(alignment: .leading, spacing: 16) {
+        HostedSubscriptionBenefitRow(
+          title: "Managed connection",
+          detail: "PumpSync handles hosted service access and server maintenance.",
+          systemImage: "server.rack"
+        )
+
+        HostedSubscriptionBenefitRow(
+          title: "Secure Health sync",
+          detail: "Data is processed only during active sync operations and is not retained on PumpSync servers.",
+          systemImage: "heart.text.square"
+        )
+
+        HostedSubscriptionBenefitRow(
+          title: "No server setup",
+          detail: "Use the hosted service instead of deploying and maintaining your own backend.",
+          systemImage: "checkmark.shield"
+        )
+      }
+
+      Spacer(minLength: 24)
+
+      Button {} label: {
+        Text("Subscribe")
+          .font(.headline)
+          .frame(maxWidth: .infinity, minHeight: 44)
+      }
+      .buttonStyle(.borderedProminent)
+    }
+    .padding(32)
+    .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+    .presentationDetents([.large])
+  }
 }
 
 private struct HostedSubscriptionStoreView: View {

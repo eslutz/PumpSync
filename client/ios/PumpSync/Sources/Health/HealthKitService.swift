@@ -7,6 +7,7 @@ import Observation
 final class HealthKitService {
   private let healthStore = HKHealthStore()
   private let diagnostics: DiagnosticsLogStore?
+  private var usesScreenshotFixture = false
 
   private(set) var isAuthorized = false
   private(set) var writePermissions = HealthWritePermission.defaultWritePermissions()
@@ -22,6 +23,10 @@ final class HealthKitService {
   }
 
   func refreshAuthorizationStatus() {
+    if usesScreenshotFixture {
+      return
+    }
+
     guard HKHealthStore.isHealthDataAvailable() else {
       writePermissions = HealthWritePermission.defaultWritePermissions(
         statuses: Dictionary(
@@ -288,3 +293,19 @@ enum HealthKitError: LocalizedError {
     }
   }
 }
+
+#if DEBUG
+extension HealthKitService {
+  func applyScreenshotAuthorization() {
+    usesScreenshotFixture = true
+    writePermissions = HealthWritePermission.defaultWritePermissions(
+      statuses: Dictionary(
+        uniqueKeysWithValues: HealthWriteSampleKind.allCases.map { ($0, .sharingAuthorized) }
+      )
+    )
+    isAuthorized = true
+    errorMessage = nil
+    managementMessage = HealthAccessCopy.healthAppInstructions
+  }
+}
+#endif

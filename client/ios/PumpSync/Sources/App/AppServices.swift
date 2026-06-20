@@ -74,4 +74,88 @@ final class AppServices {
       backgroundSyncScheduler: backgroundSyncScheduler
     )
   }
+
+#if DEBUG
+  static func screenshotFixture() -> AppServices {
+    let defaultsSuiteName = "dev.ericslutz.PumpSync.screenshots"
+    let defaults = UserDefaults(suiteName: defaultsSuiteName) ?? .standard
+    defaults.removePersistentDomain(forName: defaultsSuiteName)
+
+    let apiClient = PumpSyncAPIClient.live()
+    apiClient.maxRetryCount = 0
+    let backendConfigurationStore = BackendConfigurationStore(defaults: defaults)
+    let diagnosticsLogStore = DiagnosticsLogStore()
+    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync.screenshots")
+    let credentialStore = TandemCredentialStore(keychain: keychain)
+    let healthKitService = HealthKitService(diagnostics: diagnosticsLogStore)
+    let importedSampleLedger = ImportedSampleLedger(keychain: keychain)
+    let syncMetadataStore = SyncMetadataStore(defaults: defaults)
+    let authService = AuthService(
+      apiClient: apiClient,
+      configurationStore: backendConfigurationStore,
+      currentEntitlementJWS: { "screenshot-transaction-jws" },
+      createSubscriptionSession: { _ in
+        BackendSessionResponse(
+          accessToken: "screenshot-access-token",
+          expiresAt: Date().addingTimeInterval(60 * 60),
+          entitlementActive: true,
+          serviceMode: "hosted"
+        )
+      },
+      createSelfHostedSession: { _ in
+        BackendSessionResponse(
+          accessToken: "screenshot-self-hosted-token",
+          expiresAt: Date().addingTimeInterval(60 * 60),
+          entitlementActive: true,
+          serviceMode: "selfHosted"
+        )
+      },
+      diagnostics: diagnosticsLogStore
+    )
+    let syncCoordinator = SyncCoordinator(
+      apiClient: apiClient,
+      authService: authService,
+      credentialStore: credentialStore,
+      healthKitService: healthKitService,
+      importedSampleLedger: importedSampleLedger,
+      syncMetadataStore: syncMetadataStore,
+      diagnostics: diagnosticsLogStore
+    )
+    let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier)
+
+    backendConfigurationStore.mode = .hosted
+    backendConfigurationStore.selfHostedBaseURLString = "https://self-hosted.example.com/api"
+    authService.applyScreenshotSession(serviceMode: "hosted")
+    credentialStore.applyScreenshotStatus(
+      redactedUsername: "demo@pumpsync.app",
+      validatedAt: Date().addingTimeInterval(-60 * 60)
+    )
+    healthKitService.applyScreenshotAuthorization()
+    syncMetadataStore.applyScreenshotMetadata(
+      SyncMetadata(
+        lastAttemptAt: Date().addingTimeInterval(-45 * 60),
+        lastSuccessfulSyncAt: Date().addingTimeInterval(-45 * 60),
+        lastSampleCount: 48,
+        lastImportedCount: 48,
+        lastErrorMessage: nil,
+        initialImportRange: .pastWeek
+      )
+    )
+    diagnosticsLogStore.record(source: .auth, title: "Hosted subscription active")
+    diagnosticsLogStore.record(source: .sync, title: "Sync completed", message: "Returned 48, imported 48.")
+
+    return AppServices(
+      apiClient: apiClient,
+      backendConfigurationStore: backendConfigurationStore,
+      diagnosticsLogStore: diagnosticsLogStore,
+      authService: authService,
+      credentialStore: credentialStore,
+      healthKitService: healthKitService,
+      importedSampleLedger: importedSampleLedger,
+      syncMetadataStore: syncMetadataStore,
+      syncCoordinator: syncCoordinator,
+      backgroundSyncScheduler: backgroundSyncScheduler
+    )
+  }
+#endif
 }

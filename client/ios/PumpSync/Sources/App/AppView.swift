@@ -2,16 +2,41 @@ import SwiftUI
 
 struct AppView: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var selectedTab: AppTab = .dashboard
 
   var body: some View {
-    TabView(selection: $selectedTab) {
-      ForEach(AppTab.allCases) { tab in
-        NavigationStack {
-          tab.content
+    Group {
+      if horizontalSizeClass == .regular {
+        NavigationSplitView {
+          List {
+            ForEach(AppTab.allCases) { tab in
+              Button {
+                selectedTab = tab
+              } label: {
+                Label(tab.title, systemImage: tab.systemImage)
+              }
+              .buttonStyle(.plain)
+              .listRowBackground(selectedTab == tab ? Color(.secondarySystemGroupedBackground) : Color.clear)
+            }
+          }
+          .listStyle(.sidebar)
+          .navigationTitle("PumpSync")
+        } detail: {
+          NavigationStack {
+            selectedTab.content
+          }
         }
-        .tabItem { tab.label }
-        .tag(tab)
+      } else {
+        TabView(selection: $selectedTab) {
+          ForEach(AppTab.allCases) { tab in
+            NavigationStack {
+              tab.content
+            }
+            .tabItem { tab.label }
+            .tag(tab)
+          }
+        }
       }
     }
     .task {
@@ -27,6 +52,28 @@ enum AppTab: String, CaseIterable, Identifiable {
 
   var id: String { rawValue }
 
+  var title: String {
+    switch self {
+    case .dashboard:
+      return "Status"
+    case .sync:
+      return "Sync"
+    case .settings:
+      return "Settings"
+    }
+  }
+
+  var systemImage: String {
+    switch self {
+    case .dashboard:
+      return "heart.text.square"
+    case .sync:
+      return "arrow.triangle.2.circlepath"
+    case .settings:
+      return "gearshape"
+    }
+  }
+
   @ViewBuilder
   var content: some View {
     switch self {
@@ -41,13 +88,6 @@ enum AppTab: String, CaseIterable, Identifiable {
 
   @ViewBuilder
   var label: some View {
-    switch self {
-    case .dashboard:
-      Label("Status", systemImage: "heart.text.square")
-    case .sync:
-      Label("Sync", systemImage: "arrow.triangle.2.circlepath")
-    case .settings:
-      Label("Settings", systemImage: "gearshape")
-    }
+    Label(title, systemImage: systemImage)
   }
 }

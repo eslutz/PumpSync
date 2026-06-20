@@ -10,10 +10,12 @@ struct PumpSyncScreen<Content: View>: View {
   }
 
   var body: some View {
-    ScrollView {
+    ScrollView(.vertical, showsIndicators: false) {
       VStack(alignment: .leading, spacing: spacing) {
         content
       }
+      .frame(maxWidth: 760, alignment: .topLeading)
+      .frame(maxWidth: .infinity, alignment: .top)
       .padding(.horizontal, 20)
       .padding(.top, 12)
       .padding(.bottom, 120)

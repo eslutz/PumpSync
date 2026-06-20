@@ -25,6 +25,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PumpSync/PumpSync.entitlements
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: QS3GC3CT43
+        TARGETED_DEVICE_FAMILY: "1,2"
     info:
       path: PumpSync/Resources/Info.plist
       properties:

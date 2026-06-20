@@ -94,3 +94,14 @@ private struct TandemCredentialValidationRecord: Codable {
   let region: String
   let validatedAt: Date
 }
+
+#if DEBUG
+extension TandemCredentialStore {
+  func applyScreenshotStatus(redactedUsername: String, validatedAt: Date) {
+    hasStoredCredentials = true
+    hasValidatedCredentials = true
+    self.validatedAt = validatedAt
+    self.redactedUsername = redactedUsername
+  }
+}
+#endif
