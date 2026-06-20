@@ -198,20 +198,46 @@ private struct HostedSubscriptionStoreView: View {
   @Binding var isPresented: Bool
 
   var body: some View {
-    NavigationStack {
-      SubscriptionStoreView(groupID: AppConstants.hostedSubscriptionGroupId)
-        .subscriptionStoreButtonLabel(.action)
-        .navigationTitle("PumpSync Hosted")
-        .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button("Done") {
-              isPresented = false
-            }
-          }
+    SubscriptionStoreView(groupID: AppConstants.hostedSubscriptionGroupId) {
+      VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 8) {
+          Text("PumpSync Hosted")
+            .font(.largeTitle.weight(.bold))
+            .foregroundStyle(.primary)
+
+          Text("Subscribe to securely sync pump data to Apple Health without managing your own server.")
+            .font(.title3)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .onInAppPurchaseCompletion { _, result in
-          await handlePurchaseCompletion(result)
+
+        VStack(alignment: .leading, spacing: 12) {
+          HostedSubscriptionBenefitRow(
+            title: "Managed connection",
+            detail: "PumpSync handles hosted service access and server maintenance.",
+            systemImage: "server.rack"
+          )
+
+          HostedSubscriptionBenefitRow(
+            title: "Secure Health sync",
+            detail: "Pump data syncs to Apple Health during active sync operations.",
+            systemImage: "heart.text.square"
+          )
+
+          HostedSubscriptionBenefitRow(
+            title: "No server setup",
+            detail: "Use the hosted service instead of deploying and maintaining your own backend.",
+            systemImage: "checkmark.shield"
+          )
         }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, 24)
+      .padding(.top, 24)
+    }
+    .subscriptionStoreButtonLabel(.action)
+    .onInAppPurchaseCompletion { _, result in
+      await handlePurchaseCompletion(result)
     }
   }
 
@@ -245,6 +271,32 @@ private struct HostedSubscriptionStoreView: View {
       return value
     case .unverified:
       throw StoreKitSubscriptionError.unverifiedTransaction
+    }
+  }
+}
+
+private struct HostedSubscriptionBenefitRow: View {
+  let title: String
+  let detail: String
+  let systemImage: String
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 12) {
+      Image(systemName: systemImage)
+        .font(.title3)
+        .foregroundStyle(.blue)
+        .frame(width: 28)
+
+      VStack(alignment: .leading, spacing: 3) {
+        Text(title)
+          .font(.headline)
+          .foregroundStyle(.primary)
+
+        Text(detail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
     }
   }
 }
