@@ -22,3 +22,23 @@ The iOS app owns Tandem credential storage, sync initiation, and Apple Health wr
 cd client/ios
 xcodegen generate
 ```
+
+## Build Routing
+
+Use these schemes and configurations for hosted subscription builds:
+
+| Purpose | Scheme | Configuration | Backend |
+| --- | --- | --- | --- |
+| Local Xcode install | `PumpSync` | `Debug` | nonprod sandbox backend |
+| TestFlight upload | `PumpSync Beta` | `Beta` archive | nonprod sandbox backend |
+| App Store release | `PumpSync` | `Release` archive | prod production backend |
+
+TestFlight and development-signed purchases use Apple's sandbox and do not charge real money. App Store release builds use the production App Store transaction environment.
+
+## Validation
+
+Use raw `xcodebuild` for local validation. The output is intentionally unfiltered:
+
+```sh
+xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest'
+```

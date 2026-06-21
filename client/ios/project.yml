@@ -1,6 +1,7 @@
 name: PumpSync
 options:
   minimumXcodeGenVersion: 2.40.0
+  defaultConfig: Debug
   deploymentTarget:
     iOS: "26.0"
 settings:
@@ -8,6 +9,43 @@ settings:
     SWIFT_VERSION: "5.9"
     CURRENT_PROJECT_VERSION: "1"
     MARKETING_VERSION: "1.0"
+configs:
+  Debug: debug
+  Beta: release
+  Release: release
+schemes:
+  PumpSync:
+    build:
+      targets:
+        PumpSync: all
+        PumpSyncTests: [test]
+        PumpSyncUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      debugEnabled: false
+      targets:
+        - PumpSyncTests
+        - PumpSyncUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  PumpSync Beta:
+    build:
+      targets:
+        PumpSync: all
+    run:
+      config: Beta
+    profile:
+      config: Beta
+    analyze:
+      config: Beta
+    archive:
+      config: Beta
 targets:
   PumpSync:
     type: application
@@ -26,10 +64,17 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: QS3GC3CT43
         TARGETED_DEVICE_FAMILY: "1,2"
+      configs:
+        Debug:
+          API_BASE_URL: https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api
+        Beta:
+          API_BASE_URL: https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api
+        Release:
+          API_BASE_URL: https://func-pumpsync-prod-flex-api.azurewebsites.net/api
     info:
       path: PumpSync/Resources/Info.plist
       properties:
-        API_BASE_URL: https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api
+        API_BASE_URL: "$(API_BASE_URL)"
         HOSTED_SUBSCRIPTION_GROUP_ID: "22168040"
         HOSTED_SUBSCRIPTION_PRODUCT_ID: dev.ericslutz.PumpSync.hosted.monthly
         ITSAppUsesNonExemptEncryption: false

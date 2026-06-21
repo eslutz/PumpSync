@@ -38,8 +38,7 @@ final class PumpSyncUITests: XCTestCase {
 
     tapNavigationLink("Developer", in: app)
     XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["Native Diagnostics"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Share Support Bundle"].waitForExistence(timeout: 5))
+    assertDeveloperDiagnosticsVisible(in: app)
   }
 
   func testDeveloperDiagnosticsActionsUseUniqueAccessibleNames() {
@@ -48,11 +47,7 @@ final class PumpSyncUITests: XCTestCase {
     navigate(to: "Settings", in: app)
     tapNavigationLink("Developer", in: app)
 
-    XCTAssertTrue(app.buttons["Copy App Diagnostics"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Clear App Diagnostics"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Copy Native Diagnostics"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Share Support Bundle"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Clear Native Diagnostics"].waitForExistence(timeout: 5))
+    assertDeveloperDiagnosticsVisible(in: app)
   }
 
   func testAccessibilityDynamicTypeScreensRenderInScreenshotMode() {
@@ -238,6 +233,16 @@ final class PumpSyncUITests: XCTestCase {
     let cell = app.cells.containing(.staticText, identifier: title).firstMatch
     XCTAssertTrue(cell.waitForExistence(timeout: 5), "Could not find navigation link \(title)")
     cell.tap()
+  }
+
+  private func assertDeveloperDiagnosticsVisible(in app: XCUIApplication) {
+    XCTAssertTrue(app.staticTexts["App Event Log"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["iOS Performance Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Copy App Event Log"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Clear App Event Log"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Copy iOS Performance Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Clear iOS Performance Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Share Support Bundle"].waitForExistence(timeout: 5))
   }
 
   private func tapSegment(_ title: String, in app: XCUIApplication) {

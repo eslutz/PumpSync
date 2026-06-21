@@ -59,6 +59,23 @@ New hosted state is stored in Azure Table Storage tables created by Bicep:
 
 For development and TestFlight, use App Store sandbox testing. Sandbox purchases do not charge real money and still produce signed StoreKit transactions that exercise the hosted subscription path.
 
+## Subscription Testing Matrix
+
+| Build path | Scheme/configuration | App Store transaction environment | Backend URL | Expected payment behavior |
+| --- | --- | --- | --- | --- |
+| Local Xcode install | `PumpSync` / `Debug` | Sandbox | `https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api` | No real charge. A completed purchase normally requires a Sandbox Apple Account. |
+| TestFlight beta | `PumpSync Beta` / `Beta` archive | Sandbox | `https://func-pumpsync-nonprod-flex-api.azurewebsites.net/api` | No real charge. TestFlight subscription renewals are accelerated and expire after Apple's beta-testing renewal window. |
+| App Store release | `PumpSync` / `Release` archive | Production | `https://func-pumpsync-prod-flex-api.azurewebsites.net/api` | Real App Store billing unless access is granted through Apple-supported offers or promotions. |
+| Xcode StoreKit Testing | Xcode StoreKit configuration, if one is added later | Local Xcode test environment | Do not use for hosted backend trust validation unless the backend has an explicit dev-only verifier path. | No real charge. Useful for UI work, not a production App Store Server trust substitute. |
+
+The app uses the same hosted subscription product ID in sandbox and production. The backend must instead enforce the transaction `environment`: nonprod accepts `Sandbox`, and prod accepts `Production`.
+
+Apple references:
+
+- https://developer.apple.com/help/app-store-connect/test-in-app-purchases/overview-of-testing-in-sandbox/
+- https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/
+- https://developer.apple.com/documentation/storekit/testing-in-app-purchases-with-sandbox
+
 For the production App Store build, prefer App Store Connect offer codes or promotional offers for your own Apple ID. That keeps access represented as an App Store subscription transaction, so the backend does not need a hidden creator bypass.
 
 Do not add a production allowlist unless you are willing to own the support and abuse surface. Without Sign in with Apple, a bypass would need to key off installation ID or original transaction ID, which is harder to recover across reinstalls and can create App Review and operational questions.

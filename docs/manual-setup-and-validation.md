@@ -15,6 +15,10 @@ These items require account access, production credentials, a physical Apple dev
 - Create the App Store Server API key used by backend settings `AppStore__IssuerId`, `AppStore__KeyId`, and `AppStore__PrivateKey`.
 - Configure `AppStore__RootCertificatePem` with the Apple root certificate used to pin signed App Store payload verification.
 - Create signing certificates and provisioning profiles for local device testing and App Store/TestFlight builds.
+- Use the iOS build routing matrix:
+  - local Xcode installs: `PumpSync` scheme, `Debug` configuration, nonprod backend, sandbox App Store transactions;
+  - TestFlight uploads: `PumpSync Beta` scheme, `Beta` archive configuration, nonprod backend, sandbox App Store transactions;
+  - App Store releases: `PumpSync` scheme, `Release` archive configuration, prod backend, production App Store transactions.
 - Validate the iOS app on a physical iPhone with HealthKit authorization enabled.
 - Validate iPad layout on the iPad Pro 13-inch simulator in portrait and landscape, including Status, Sync, Settings, Tandem Account, Apple Health, Data Handling, Developer, and hosted subscription presentation.
 - Regenerate iPad App Store listing screenshots with `scripts/ios/capture-ipad-app-store-screenshots.sh` before submission.
@@ -80,7 +84,7 @@ These items require account access, production credentials, a physical Apple dev
 
 The release gate is not complete until a signed iPhone build:
 
-- buys or restores a hosted subscription against the deployed backend, or connects to a self-hosted backend URL;
+- buys or restores a hosted subscription against the deployed backend with a matching App Store environment, or connects to a self-hosted backend URL;
 - saves Tandem credentials only in device Keychain;
 - validates Tandem credentials through the selected backend;
 - fetches real Tandem data over HTTPS;
@@ -90,3 +94,9 @@ The release gate is not complete until a signed iPhone build:
 - emits no Tandem credentials, tokens, raw events, or normalized samples to backend durable storage or logs.
 
 The iPad release gate is not complete until the iPad simulator layout pass and App Store screenshot capture both pass without clipped text, broken navigation, or missing screenshot assets.
+
+For subscription test behavior, use Apple's current guidance:
+
+- Sandbox testing: https://developer.apple.com/help/app-store-connect/test-in-app-purchases/overview-of-testing-in-sandbox/
+- TestFlight in-app purchases and subscriptions: https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/
+- StoreKit Testing in Xcode: https://developer.apple.com/documentation/storekit/testing-in-app-purchases-with-sandbox

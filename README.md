@@ -104,7 +104,7 @@ Each app has its own package container in the shared storage account and uses us
 ```sh
 cd client/ios
 xcodegen generate
-xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest'
 ```
 
 The Azure Functions Core Tools CLI is needed to run the Functions host locally.

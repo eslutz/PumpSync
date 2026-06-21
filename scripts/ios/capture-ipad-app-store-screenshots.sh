@@ -54,7 +54,7 @@ archive_existing_screenshots
 xcodebuild test \
   -project "${ROOT_DIR}/client/ios/PumpSync.xcodeproj" \
   -scheme PumpSync \
-  -destination "platform=iOS Simulator,name=${DEVICE_NAME}" \
+  -destination "platform=iOS Simulator,name=${DEVICE_NAME},OS=latest" \
   -only-testing:PumpSyncUITests/PumpSyncUITests/testIPadAppStoreScreenshots \
   -resultBundlePath "${RESULT_BUNDLE}"
 
