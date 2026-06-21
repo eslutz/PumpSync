@@ -30,6 +30,8 @@
 	<string>dev.ericslutz.PumpSync.hosted.monthly</string>
 	<key>HOSTED_SUBSCRIPTION_GROUP_ID</key>
 	<string>22168040</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
