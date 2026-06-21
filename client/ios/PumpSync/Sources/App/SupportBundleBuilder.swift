@@ -24,7 +24,6 @@ struct SupportBundleContext {
   let systemVersion: String
   let deviceModel: String
   let backendMode: String
-  let connectionHost: String
   let syncMetadata: SyncMetadata
   let appDiagnostics: [DiagnosticEntry]
   let nativeDiagnostics: [NativeDiagnosticEntry]
@@ -37,11 +36,9 @@ enum SupportBundleBuilder {
       "",
       "Generated: \(format(generatedAt))",
       "App Version: \(context.bundleInfo.version) (\(context.bundleInfo.build))",
-      "Bundle Identifier: \(context.bundleInfo.bundleIdentifier)",
       "iOS Version: \(context.systemVersion)",
       "Device Model: \(context.deviceModel)",
       "Connection Mode: \(context.backendMode)",
-      "Connection Host: \(context.connectionHost)",
       "",
       "## Sync",
       "Last Attempt: \(format(context.syncMetadata.lastAttemptAt))",
@@ -51,10 +48,10 @@ enum SupportBundleBuilder {
       "Last Error: \(redacted(context.syncMetadata.lastErrorMessage ?? "None"))",
       "Initial Import Range: \(context.syncMetadata.initialImportRange.rawValue)",
       "",
-      "## App Diagnostics",
+      "## App Event Log",
       diagnosticLines(context.appDiagnostics),
       "",
-      "## Native Diagnostics",
+      "## iOS Performance Diagnostics",
       nativeDiagnosticLines(context.nativeDiagnostics)
     ]
 
@@ -69,7 +66,6 @@ enum SupportBundleBuilder {
         systemVersion: UIDevice.current.systemVersion,
         deviceModel: UIDevice.current.model,
         backendMode: services.backendConfigurationStore.mode.title,
-        connectionHost: services.apiClient.baseURL.host() ?? "Unknown",
         syncMetadata: services.syncMetadataStore.metadata,
         appDiagnostics: Array(services.diagnosticsLogStore.entries.prefix(50)),
         nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50))

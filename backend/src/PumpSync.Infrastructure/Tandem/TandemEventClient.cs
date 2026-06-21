@@ -73,7 +73,7 @@ public sealed class TandemEventClient(
                 continue;
             }
 
-            var id = idElement.GetString();
+            var id = ReadStringCompatible(idElement);
             if (string.IsNullOrWhiteSpace(id))
             {
                 continue;
@@ -209,6 +209,15 @@ public sealed class TandemEventClient(
 
         return DateTimeOffset.TryParse(value.GetString(), out var parsed) ? parsed : null;
     }
+
+    private static string? ReadStringCompatible(JsonElement element) =>
+        element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number when element.TryGetInt64(out var value) => value.ToString(),
+            JsonValueKind.Number => element.GetRawText(),
+            _ => null
+        };
 
     private static DateTimeOffset? TryReadLastUploadDate(JsonElement item)
     {

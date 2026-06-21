@@ -8,30 +8,6 @@ struct DeveloperView: View {
     PumpSyncScreen {
       GlassSection("Build") {
         GlassStatusRow(title: "Version", value: appVersion, systemImage: "number")
-        GlassDivider()
-        GlassStatusRow(title: "Bundle", value: bundleIdentifier, systemImage: "app.badge")
-      }
-
-      GlassSection("State") {
-        GlassStatusRow(title: "Connection", value: services.authService.isSignedIn ? "Connected" : "Not connected", systemImage: "network")
-        GlassDivider()
-        GlassStatusRow(title: "Mode", value: services.backendConfigurationStore.mode.title, systemImage: "server.rack")
-        GlassDivider()
-        GlassStatusRow(title: "Pump account", value: tandemCredentialStatus, systemImage: "key")
-        GlassDivider()
-        GlassStatusRow(title: "Health", value: healthWriteStatus, systemImage: "heart")
-      }
-
-      GlassSection("Connection Details") {
-        GlassStatusRow(
-          title: "URL",
-          value: services.apiClient.baseURL.absoluteString,
-          systemImage: "network"
-        )
-
-        GlassDivider()
-
-        installationRow
       }
 
       GlassSection("Sync") {
@@ -49,83 +25,23 @@ struct DeveloperView: View {
         }
       }
 
-      GlassSection("Background") {
-        GlassStatusRow(title: "Task identifier", value: AppConstants.backgroundTaskIdentifier, systemImage: "calendar.badge.clock")
-      }
-
       GlassSection("Diagnostics") {
-        if services.diagnosticsLogStore.entries.isEmpty {
-          Text("No diagnostics recorded.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
-        } else {
-          VStack(alignment: .leading, spacing: 12) {
-            ForEach(services.diagnosticsLogStore.entries.prefix(50)) { entry in
-              diagnosticRow(entry)
-            }
+        VStack(alignment: .leading, spacing: 18) {
+          diagnosticsSubheading("App Event Log")
+          appEventLogContent
+
+          Divider()
+
+          diagnosticsSubheading("iOS Performance Diagnostics")
+          iosPerformanceDiagnosticsContent
+
+          Divider()
+
+          ShareLink(item: supportBundleText) {
+            Label("Share Support Bundle", systemImage: "square.and.arrow.up")
           }
-
-          GlassDivider()
-
-          VStack(alignment: .leading, spacing: 12) {
-            Button {
-              UIPasteboard.general.string = diagnosticsText
-            } label: {
-              Label("Copy App Diagnostics", systemImage: "doc.on.doc")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-
-            Button(role: .destructive) {
-              services.diagnosticsLogStore.clear()
-            } label: {
-              Label("Clear App Diagnostics", systemImage: "trash")
-            }
-            .buttonStyle(.plain)
-          }
-          .padding(.top, 12)
-        }
-      }
-
-      GlassSection("Native Diagnostics") {
-        if services.nativeDiagnosticsStore.entries.isEmpty {
-          Text("No native diagnostics recorded.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
-        } else {
-          VStack(alignment: .leading, spacing: 12) {
-            ForEach(services.nativeDiagnosticsStore.entries.prefix(50)) { entry in
-              nativeDiagnosticRow(entry)
-            }
-          }
-
-          GlassDivider()
-
-          VStack(alignment: .leading, spacing: 12) {
-            Button {
-              UIPasteboard.general.string = nativeDiagnosticsText
-            } label: {
-              Label("Copy Native Diagnostics", systemImage: "doc.on.doc")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-
-            ShareLink(item: supportBundleText) {
-              Label("Share Support Bundle", systemImage: "square.and.arrow.up")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-
-            Button(role: .destructive) {
-              services.nativeDiagnosticsStore.clear()
-            } label: {
-              Label("Clear Native Diagnostics", systemImage: "trash")
-            }
-            .buttonStyle(.plain)
-          }
-          .padding(.top, 12)
+          .buttonStyle(.plain)
+          .foregroundStyle(.tint)
         }
       }
     }
@@ -136,62 +52,6 @@ struct DeveloperView: View {
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
     let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
     return "\(version) (\(build))"
-  }
-
-  private var installationRow: some View {
-    HStack(spacing: 14) {
-      Image(systemName: "iphone")
-        .font(.title3)
-        .frame(width: 28)
-        .foregroundStyle(.tint)
-        .accessibilityHidden(true)
-
-      VStack(alignment: .leading, spacing: 2) {
-        Text("Install")
-          .foregroundStyle(.primary)
-
-        Text(services.backendConfigurationStore.installationId)
-          .font(.subheadline.monospaced())
-          .foregroundStyle(.secondary)
-          .textSelection(.enabled)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      .layoutPriority(1)
-
-      Spacer(minLength: 0)
-    }
-    .padding(.vertical, 6)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel("Install")
-    .accessibilityValue(services.backendConfigurationStore.installationId)
-  }
-
-  private var bundleIdentifier: String {
-    Bundle.main.bundleIdentifier ?? "Unknown"
-  }
-
-  private var tandemCredentialStatus: String {
-    if services.credentialStore.hasValidatedCredentials {
-      return "Validated"
-    }
-
-    if services.credentialStore.hasStoredCredentials {
-      return "Needs validation"
-    }
-
-    return "Not configured"
-  }
-
-  private var healthWriteStatus: String {
-    if services.healthKitService.isAuthorized {
-      return "All write access allowed"
-    }
-
-    if services.healthKitService.hasAnyWritePermission {
-      return "Partial write access allowed"
-    }
-
-    return "Write access incomplete"
   }
 
   private var diagnosticsText: String {
@@ -227,6 +87,85 @@ struct DeveloperView: View {
 
   private var supportBundleText: String {
     SupportBundleBuilder.build(services: services)
+  }
+
+  @ViewBuilder
+  private var appEventLogContent: some View {
+    if services.diagnosticsLogStore.entries.isEmpty {
+      Text("No app events recorded.")
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+    } else {
+      VStack(alignment: .leading, spacing: 12) {
+        ForEach(services.diagnosticsLogStore.entries.prefix(50)) { entry in
+          diagnosticRow(entry)
+        }
+      }
+
+      GlassDivider()
+
+      VStack(alignment: .leading, spacing: 12) {
+        Button {
+          UIPasteboard.general.string = diagnosticsText
+        } label: {
+          Label("Copy App Event Log", systemImage: "doc.on.doc")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
+
+        Button(role: .destructive) {
+          services.diagnosticsLogStore.clear()
+        } label: {
+          Label("Clear App Event Log", systemImage: "trash")
+        }
+        .buttonStyle(.plain)
+      }
+      .padding(.top, 12)
+    }
+  }
+
+  @ViewBuilder
+  private var iosPerformanceDiagnosticsContent: some View {
+    if services.nativeDiagnosticsStore.entries.isEmpty {
+      Text("No iOS performance diagnostics recorded.")
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+    } else {
+      VStack(alignment: .leading, spacing: 12) {
+        ForEach(services.nativeDiagnosticsStore.entries.prefix(50)) { entry in
+          nativeDiagnosticRow(entry)
+        }
+      }
+
+      GlassDivider()
+
+      VStack(alignment: .leading, spacing: 12) {
+        Button {
+          UIPasteboard.general.string = nativeDiagnosticsText
+        } label: {
+          Label("Copy iOS Performance Diagnostics", systemImage: "doc.on.doc")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
+
+        Button(role: .destructive) {
+          services.nativeDiagnosticsStore.clear()
+        } label: {
+          Label("Clear iOS Performance Diagnostics", systemImage: "trash")
+        }
+        .buttonStyle(.plain)
+      }
+      .padding(.top, 12)
+    }
+  }
+
+  private func diagnosticsSubheading(_ title: String) -> some View {
+    Text(title)
+      .font(.subheadline.weight(.semibold))
+      .foregroundStyle(.primary)
+      .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   private func diagnosticRow(_ entry: DiagnosticEntry) -> some View {

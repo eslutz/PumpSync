@@ -146,8 +146,9 @@ final class AuthServiceTests: XCTestCase {
       }
     )
 
-    XCTAssertEqual(service.connectionRequiredMessage, "No active hosted service was found.")
-    XCTAssertEqual(StoreKitSubscriptionError.noActiveSubscription.errorDescription, "No active hosted service was found.")
+    let expected = "No PumpSync service was found. Please subscribe to PumpSync or set up your own self-hosted PumpSync service."
+    XCTAssertEqual(service.connectionRequiredMessage, expected)
+    XCTAssertEqual(StoreKitSubscriptionError.noActiveSubscription.errorDescription, expected)
   }
 
   private func makeAPIClient() -> PumpSyncAPIClient {

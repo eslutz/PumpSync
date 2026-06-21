@@ -8,7 +8,6 @@ final class SupportBundleBuilderTests: XCTestCase {
       systemVersion: "26.0",
       deviceModel: "iPhone",
       backendMode: "PumpSync",
-      connectionHost: "api.example.com",
       syncMetadata: SyncMetadata(
         lastAttemptAt: Date(timeIntervalSince1970: 10),
         lastSuccessfulSyncAt: Date(timeIntervalSince1970: 20),
@@ -41,8 +40,10 @@ final class SupportBundleBuilderTests: XCTestCase {
     let bundle = SupportBundleBuilder.build(context: context, generatedAt: Date(timeIntervalSince1970: 50))
 
     XCTAssertTrue(bundle.contains("App Version: 1.0 (42)"))
-    XCTAssertTrue(bundle.contains("Bundle Identifier: dev.ericslutz.PumpSync"))
-    XCTAssertTrue(bundle.contains("Connection Host: api.example.com"))
+    XCTAssertFalse(bundle.contains("Bundle Identifier"))
+    XCTAssertFalse(bundle.contains("dev.ericslutz.PumpSync"))
+    XCTAssertFalse(bundle.contains("Connection Host"))
+    XCTAssertFalse(bundle.contains("api.example.com"))
     XCTAssertTrue(bundle.contains("Last Returned Count: 12"))
     XCTAssertTrue(bundle.contains("Performance metrics"))
     XCTAssertFalse(bundle.contains("user@example.com"))

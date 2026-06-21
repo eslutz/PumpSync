@@ -302,7 +302,7 @@ enum StoreKitSubscriptionError: LocalizedError {
     case .productUnavailable:
       return "The hosted subscription is not available from the App Store."
     case .noActiveSubscription:
-      return "No active hosted service was found."
+      return "No PumpSync service was found. Please subscribe to PumpSync or set up your own self-hosted PumpSync service."
     case .unverifiedTransaction:
       return "The App Store transaction could not be verified on this device."
     case .purchaseCancelled:
