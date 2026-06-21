@@ -80,6 +80,7 @@ struct SyncView: View {
           .font(.title3)
           .frame(width: 28)
           .foregroundStyle(.tint)
+          .accessibilityHidden(true)
 
         VStack(alignment: .leading, spacing: 3) {
           Text("History range")
@@ -100,6 +101,9 @@ struct SyncView: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityLabel("History range")
+    .accessibilityValue(services.syncMetadataStore.metadata.initialImportRange.title)
+    .accessibilityHint("Changes how much pump history to import during the first sync")
   }
 
   private var canSync: Bool {

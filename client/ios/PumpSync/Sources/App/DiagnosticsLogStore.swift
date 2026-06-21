@@ -18,6 +18,28 @@ enum DiagnosticSeverity: String {
   case error = "Error"
 }
 
+enum DiagnosticsRedactor {
+  static func redacted(_ message: String) -> String {
+    var result = message
+    let replacements = [
+      #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#: "[redacted email]",
+      #"Bearer\s+[A-Za-z0-9._\-]+"#: "Bearer [redacted token]",
+      #"\beyJ[A-Za-z0-9._\-]{20,}\b"#: "[redacted token]",
+      #"\b[A-Za-z0-9_\-]{32,}\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}\b"#: "[redacted token]"
+    ]
+
+    for (pattern, replacement) in replacements {
+      result = result.replacingOccurrences(
+        of: pattern,
+        with: replacement,
+        options: [.regularExpression, .caseInsensitive]
+      )
+    }
+
+    return result
+  }
+}
+
 struct DiagnosticEntry: Identifiable, Equatable {
   let id: UUID
   let timestamp: Date
@@ -77,23 +99,7 @@ final class DiagnosticsLogStore {
     entries.removeAll()
   }
 
-  static func redacted(_ message: String) -> String {
-    var result = message
-    let replacements = [
-      #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#: "[redacted email]",
-      #"Bearer\s+[A-Za-z0-9._\-]+"#: "Bearer [redacted token]",
-      #"\beyJ[A-Za-z0-9._\-]{20,}\b"#: "[redacted token]",
-      #"\b[A-Za-z0-9_\-]{32,}\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}\b"#: "[redacted token]"
-    ]
-
-    for (pattern, replacement) in replacements {
-      result = result.replacingOccurrences(
-        of: pattern,
-        with: replacement,
-        options: [.regularExpression, .caseInsensitive]
-      )
-    }
-
-    return result
+  nonisolated static func redacted(_ message: String) -> String {
+    DiagnosticsRedactor.redacted(message)
   }
 }

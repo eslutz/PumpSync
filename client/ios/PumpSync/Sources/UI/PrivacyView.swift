@@ -58,6 +58,7 @@ private struct DataHandlingRow: View {
         .font(.title3)
         .frame(width: 28)
         .foregroundStyle(.tint)
+        .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 4) {
         Text(title)
@@ -68,9 +69,13 @@ private struct DataHandlingRow: View {
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
       }
+      .layoutPriority(1)
 
       Spacer(minLength: 0)
     }
     .padding(.vertical, 6)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(detail)
   }
 }

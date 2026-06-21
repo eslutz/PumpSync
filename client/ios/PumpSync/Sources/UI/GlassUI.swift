@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct PumpSyncScreen<Content: View>: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
   private let spacing: CGFloat
   private let content: Content
 
@@ -21,6 +23,11 @@ struct PumpSyncScreen<Content: View>: View {
       .padding(.bottom, 120)
     }
     .background(Color(.systemGroupedBackground))
+    .transaction { transaction in
+      if reduceMotion {
+        transaction.animation = nil
+      }
+    }
   }
 }
 
@@ -68,6 +75,7 @@ struct GlassStatusRow: View {
         .font(.title3)
         .frame(width: 28)
         .foregroundStyle(tint)
+        .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
@@ -75,12 +83,16 @@ struct GlassStatusRow: View {
         Text(value)
           .font(.subheadline)
           .foregroundStyle(.secondary)
-          .lineLimit(2)
+          .fixedSize(horizontal: false, vertical: true)
       }
+      .layoutPriority(1)
 
       Spacer(minLength: 0)
     }
     .padding(.vertical, 6)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(value)
   }
 }
 
@@ -101,6 +113,7 @@ struct GlassNavigationRow: View {
         .font(.title3)
         .frame(width: 28)
         .foregroundStyle(.tint)
+        .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
@@ -110,18 +123,24 @@ struct GlassNavigationRow: View {
           Text(subtitle)
             .font(.subheadline)
             .foregroundStyle(.secondary)
-            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
+      .layoutPriority(1)
 
       Spacer(minLength: 0)
 
       Image(systemName: "chevron.right")
         .font(.footnote.weight(.semibold))
         .foregroundStyle(.tertiary)
+        .accessibilityHidden(true)
     }
     .contentShape(Rectangle())
     .padding(.vertical, 6)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(subtitle ?? "")
+    .accessibilityHint("Opens \(title)")
   }
 }
 
@@ -144,18 +163,24 @@ struct GlassPrimaryLabel: View {
         .font(.title3)
         .frame(width: 28)
         .foregroundStyle(.tint)
+        .accessibilityHidden(true)
 
       Text(title)
         .foregroundStyle(.primary)
+        .fixedSize(horizontal: false, vertical: true)
+        .layoutPriority(1)
 
       Spacer(minLength: 0)
     }
       .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(title)
   }
 }
 
 struct GroupedActionButtonStyle: ButtonStyle {
   @Environment(\.isEnabled) private var isEnabled
+  @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
@@ -165,28 +190,42 @@ struct GroupedActionButtonStyle: ButtonStyle {
         Color(.secondarySystemGroupedBackground),
         in: RoundedRectangle(cornerRadius: 28, style: .continuous)
       )
-      .opacity(isEnabled ? (configuration.isPressed ? 0.65 : 1) : 0.45)
+      .opacity(isEnabled ? (configuration.isPressed ? 0.65 : 1) : disabledOpacity)
+  }
+
+  private var disabledOpacity: Double {
+    colorSchemeContrast == .increased ? 0.7 : 0.55
   }
 }
 
 struct GroupedRowActionButtonStyle: ButtonStyle {
   @Environment(\.isEnabled) private var isEnabled
+  @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .padding(.vertical, 6)
-      .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : 0.45)
+      .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : disabledOpacity)
+  }
+
+  private var disabledOpacity: Double {
+    colorSchemeContrast == .increased ? 0.7 : 0.55
   }
 }
 
 struct GroupedInlineButtonStyle: ButtonStyle {
   @Environment(\.isEnabled) private var isEnabled
+  @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .foregroundStyle(.tint)
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(.vertical, 6)
-      .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : 0.45)
+      .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : disabledOpacity)
+  }
+
+  private var disabledOpacity: Double {
+    colorSchemeContrast == .increased ? 0.7 : 0.55
   }
 }

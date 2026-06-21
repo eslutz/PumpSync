@@ -3,18 +3,14 @@ import SwiftUI
 
 struct SettingsView: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isShowingHostedSubscriptionStore = false
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
       GlassSection("Connection") {
-        Picker("Mode", selection: backendModeBinding) {
-          ForEach(BackendAccessMode.allCases) { mode in
-            Text(mode.title).tag(mode)
-          }
-        }
-        .pickerStyle(.segmented)
-        .frame(minHeight: 44)
+        connectionModeSelector
 
         switch services.backendConfigurationStore.mode {
         case .hosted:
@@ -33,6 +29,7 @@ struct SettingsView: View {
           }
           .buttonStyle(GroupedRowActionButtonStyle())
           .disabled(services.authService.isConnecting)
+          .accessibilityHint("Opens the PumpSync Hosted subscription options")
 
           Button {
             Task {
@@ -44,6 +41,7 @@ struct SettingsView: View {
           }
           .buttonStyle(GroupedInlineButtonStyle())
           .disabled(services.authService.isConnecting)
+          .accessibilityHint("Checks your current App Store subscription and reconnects hosted service access")
 
         case .selfHosted:
           Text("Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.")
@@ -51,17 +49,13 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
 
-          VStack(alignment: .leading, spacing: 6) {
-            Text("Server URL")
-              .font(.subheadline.weight(.semibold))
-              .foregroundStyle(.secondary)
-
-            TextField("https://example.com/api", text: selfHostedURLBinding)
-              .textInputAutocapitalization(.never)
-              .keyboardType(.URL)
-              .autocorrectionDisabled()
-              .frame(minHeight: 44)
-          }
+          TextField("Server URL", text: selfHostedURLBinding)
+            .textInputAutocapitalization(.never)
+            .keyboardType(.URL)
+            .autocorrectionDisabled()
+            .frame(minHeight: 44)
+            .accessibilityLabel("Server URL")
+            .accessibilityHint("Enter the base API URL for your self-hosted PumpSync server")
 
           Button {
             Task {
@@ -75,25 +69,23 @@ struct SettingsView: View {
           }
           .buttonStyle(GroupedRowActionButtonStyle())
           .disabled(services.authService.isConnecting)
+          .accessibilityHint("Connects to the self-hosted server URL")
         }
 
         if services.authService.isConnecting {
           HStack(spacing: 8) {
-            ProgressView()
+            if reduceMotion {
+              Image(systemName: "hourglass")
+                .accessibilityHidden(true)
+            } else {
+              ProgressView()
+                .accessibilityHidden(true)
+            }
             Text(services.authService.statusMessage)
               .font(.footnote)
               .foregroundStyle(.secondary)
           }
-        }
-
-        if services.authService.isSignedIn {
-          Button(role: .destructive) {
-            services.authService.signOut()
-          } label: {
-            Label("Disconnect", systemImage: "rectangle.portrait.and.arrow.right")
-              .frame(maxWidth: .infinity, alignment: .leading)
-          }
-          .buttonStyle(GroupedInlineButtonStyle())
+          .accessibilityElement(children: .combine)
         }
       }
 
@@ -151,6 +143,42 @@ struct SettingsView: View {
     }
   }
 
+  @ViewBuilder
+  private var connectionModeSelector: some View {
+    if dynamicTypeSize.isAccessibilitySize {
+      VStack(alignment: .leading, spacing: 8) {
+        Text("Connection mode")
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(.secondary)
+
+        ForEach(BackendAccessMode.allCases) { mode in
+          let isSelected = services.backendConfigurationStore.mode == mode
+
+          Button {
+            backendModeBinding.wrappedValue = mode
+          } label: {
+            ConnectionModeButtonLabel(mode: mode, isSelected: isSelected)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(mode.title)
+          .accessibilityValue(isSelected ? "Selected" : "Not selected")
+          .accessibilityHint("Sets the connection mode to \(mode.title)")
+        }
+      }
+      .padding(.bottom, 4)
+    } else {
+      Picker("Connection mode", selection: backendModeBinding) {
+        ForEach(BackendAccessMode.allCases) { mode in
+          Text(mode.title).tag(mode)
+        }
+      }
+      .pickerStyle(.segmented)
+      .frame(minHeight: 44)
+      .accessibilityLabel("Connection mode")
+      .accessibilityValue(services.backendConfigurationStore.mode.title)
+    }
+  }
+
   private var backendModeBinding: Binding<BackendAccessMode> {
     Binding(
       get: {
@@ -158,7 +186,7 @@ struct SettingsView: View {
       },
       set: { mode in
         services.backendConfigurationStore.mode = mode
-        services.authService.signOut()
+        services.authService.clearSessionForConnectionChange()
         _ = services.backendConfigurationStore.apply(to: services.apiClient)
       }
     )
@@ -172,7 +200,7 @@ struct SettingsView: View {
       set: { value in
         services.backendConfigurationStore.selfHostedBaseURLString = value
         if services.backendConfigurationStore.mode == .selfHosted {
-          services.authService.signOut()
+          services.authService.clearSessionForConnectionChange()
           _ = services.backendConfigurationStore.apply(to: services.apiClient)
         }
       }
@@ -199,6 +227,25 @@ struct SettingsView: View {
     return "\(redactedUsername) - \(tandemCredentialStatus)"
   }
 
+}
+
+private struct ConnectionModeButtonLabel: View {
+  let mode: BackendAccessMode
+  let isSelected: Bool
+
+  var body: some View {
+    HStack(spacing: 12) {
+      Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+        .accessibilityHidden(true)
+
+      Text(mode.title)
+        .foregroundStyle(.primary)
+
+      Spacer(minLength: 0)
+    }
+    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+  }
 }
 
 private struct HostedSubscriptionScreenshotView: View {
@@ -343,6 +390,7 @@ private struct HostedSubscriptionBenefitRow: View {
         .font(.title3)
         .foregroundStyle(.blue)
         .frame(width: 28)
+        .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 3) {
         Text(title)
@@ -355,5 +403,8 @@ private struct HostedSubscriptionBenefitRow: View {
           .fixedSize(horizontal: false, vertical: true)
       }
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(detail)
   }
 }

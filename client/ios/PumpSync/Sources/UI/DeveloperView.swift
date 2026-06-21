@@ -68,11 +68,11 @@ struct DeveloperView: View {
 
           GlassDivider()
 
-          HStack {
+          VStack(alignment: .leading, spacing: 12) {
             Button {
               UIPasteboard.general.string = diagnosticsText
             } label: {
-              Label("Copy", systemImage: "doc.on.doc")
+              Label("Copy App Diagnostics", systemImage: "doc.on.doc")
             }
             .buttonStyle(.plain)
             .foregroundStyle(.tint)
@@ -80,7 +80,48 @@ struct DeveloperView: View {
             Button(role: .destructive) {
               services.diagnosticsLogStore.clear()
             } label: {
-              Label("Clear", systemImage: "trash")
+              Label("Clear App Diagnostics", systemImage: "trash")
+            }
+            .buttonStyle(.plain)
+          }
+          .padding(.top, 12)
+        }
+      }
+
+      GlassSection("Native Diagnostics") {
+        if services.nativeDiagnosticsStore.entries.isEmpty {
+          Text("No native diagnostics recorded.")
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 8)
+        } else {
+          VStack(alignment: .leading, spacing: 12) {
+            ForEach(services.nativeDiagnosticsStore.entries.prefix(50)) { entry in
+              nativeDiagnosticRow(entry)
+            }
+          }
+
+          GlassDivider()
+
+          VStack(alignment: .leading, spacing: 12) {
+            Button {
+              UIPasteboard.general.string = nativeDiagnosticsText
+            } label: {
+              Label("Copy Native Diagnostics", systemImage: "doc.on.doc")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+
+            ShareLink(item: supportBundleText) {
+              Label("Share Support Bundle", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+
+            Button(role: .destructive) {
+              services.nativeDiagnosticsStore.clear()
+            } label: {
+              Label("Clear Native Diagnostics", systemImage: "trash")
             }
             .buttonStyle(.plain)
           }
@@ -103,6 +144,7 @@ struct DeveloperView: View {
         .font(.title3)
         .frame(width: 28)
         .foregroundStyle(.tint)
+        .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 2) {
         Text("Install")
@@ -112,13 +154,16 @@ struct DeveloperView: View {
           .font(.subheadline.monospaced())
           .foregroundStyle(.secondary)
           .textSelection(.enabled)
-          .lineLimit(2)
-          .minimumScaleFactor(0.75)
+          .fixedSize(horizontal: false, vertical: true)
       }
+      .layoutPriority(1)
 
       Spacer(minLength: 0)
     }
     .padding(.vertical, 6)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Install")
+    .accessibilityValue(services.backendConfigurationStore.installationId)
   }
 
   private var bundleIdentifier: String {
@@ -165,6 +210,25 @@ struct DeveloperView: View {
       .joined(separator: "\n")
   }
 
+  private var nativeDiagnosticsText: String {
+    services.nativeDiagnosticsStore.entries
+      .map { entry in
+        [
+          entry.timestamp.formatted(date: .abbreviated, time: .standard),
+          entry.kind.rawValue,
+          entry.title,
+          "App \(entry.appVersion) (\(entry.buildNumber))",
+          entry.summary.replacingOccurrences(of: "\n", with: " ; ")
+        ]
+        .joined(separator: " | ")
+      }
+      .joined(separator: "\n")
+  }
+
+  private var supportBundleText: String {
+    SupportBundleBuilder.build(services: services)
+  }
+
   private func diagnosticRow(_ entry: DiagnosticEntry) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       HStack(spacing: 8) {
@@ -194,6 +258,49 @@ struct DeveloperView: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(entry.title)
+    .accessibilityValue([
+      entry.source.rawValue,
+      entry.severity.rawValue,
+      entry.message ?? ""
+    ].filter { !$0.isEmpty }.joined(separator: ", "))
+  }
+
+  private func nativeDiagnosticRow(_ entry: NativeDiagnosticEntry) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(spacing: 8) {
+        Text(entry.kind.rawValue)
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.secondary)
+
+        Text("App \(entry.appVersion) (\(entry.buildNumber))")
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+
+        Spacer(minLength: 0)
+
+        Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+      }
+
+      Text(entry.title)
+        .font(.subheadline.weight(.semibold))
+
+      Text(entry.summary)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .textSelection(.enabled)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(entry.title)
+    .accessibilityValue([
+      entry.kind.rawValue,
+      "App \(entry.appVersion) build \(entry.buildNumber)",
+      entry.summary
+    ].joined(separator: ", "))
   }
 
   private func formattedDate(_ date: Date?) -> String {

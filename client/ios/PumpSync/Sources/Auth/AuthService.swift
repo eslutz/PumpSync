@@ -243,11 +243,11 @@ final class AuthService {
     }
   }
 
-  func signOut() {
+  func clearSessionForConnectionChange() {
     session = nil
     errorMessage = nil
-    statusMessage = "Connection disconnected"
-    diagnostics?.record(source: .auth, title: "Connection cleared")
+    statusMessage = "Connect to PumpSync or a self-hosted service"
+    diagnostics?.record(source: .auth, title: "Connection session reset")
   }
 
   private func establishHostedSession(

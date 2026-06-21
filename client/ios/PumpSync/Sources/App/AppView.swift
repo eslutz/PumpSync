@@ -18,6 +18,8 @@ struct AppView: View {
               }
               .buttonStyle(.plain)
               .listRowBackground(selectedTab == tab ? Color(.secondarySystemGroupedBackground) : Color.clear)
+              .accessibilityValue(selectedTab == tab ? "Selected" : "")
+              .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
             }
           }
           .listStyle(.sidebar)

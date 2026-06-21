@@ -19,6 +19,8 @@ struct TandemCredentialForm: View {
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
           .frame(minHeight: 44)
+          .accessibilityLabel("Tandem username")
+          .accessibilityHint("Enter the username for your pump account")
 
         GlassDivider(leadingPadding: 0)
 
@@ -28,16 +30,21 @@ struct TandemCredentialForm: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .frame(minHeight: 44)
+            .accessibilityLabel("Tandem password")
+            .accessibilityHint("Enter the password for your pump account")
         } else {
           SecureField("Password", text: $password)
             .textContentType(.password)
             .frame(minHeight: 44)
+            .accessibilityLabel("Tandem password")
+            .accessibilityHint("Enter the password for your pump account")
         }
 
         GlassDivider(leadingPadding: 0)
 
         Toggle("Show password", isOn: $isShowingPassword)
           .frame(minHeight: 44)
+          .accessibilityHint("Shows or hides the Tandem password text")
 
         GlassDivider(leadingPadding: 0)
 
@@ -53,8 +60,11 @@ struct TandemCredentialForm: View {
             }
           }
           .labelsHidden()
+          .accessibilityLabel("Tandem region")
+          .accessibilityValue(region.title)
         }
         .frame(minHeight: 44)
+        .accessibilityElement(children: .contain)
       }
 
       Button {
@@ -70,6 +80,7 @@ struct TandemCredentialForm: View {
       }
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!canUsePrimaryAction)
+      .accessibilityHint(primaryActionHint)
 
       Button(role: .destructive) {
         delete()
@@ -78,6 +89,7 @@ struct TandemCredentialForm: View {
       }
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!services.credentialStore.hasStoredCredentials)
+      .accessibilityHint("Removes the saved pump account credentials from this device")
     }
     .navigationTitle("Tandem")
     .onAppear(perform: load)
@@ -141,6 +153,14 @@ struct TandemCredentialForm: View {
 
   private var primaryActionSystemImage: String {
     validationMatchesCurrentInput ? "key.fill" : "checkmark.shield"
+  }
+
+  private var primaryActionHint: String {
+    if validationMatchesCurrentInput {
+      return "Saves the validated pump account credentials on this device"
+    }
+
+    return "Validates the pump account credentials using the current PumpSync connection"
   }
 
   private func load() {

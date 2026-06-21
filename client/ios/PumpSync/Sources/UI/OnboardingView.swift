@@ -8,6 +8,7 @@ struct OnboardingView: View {
           Image(systemName: "heart.text.square")
             .font(.system(size: 48))
             .foregroundStyle(.tint)
+            .accessibilityHidden(true)
 
           Text("PumpSync")
             .font(.largeTitle.bold())

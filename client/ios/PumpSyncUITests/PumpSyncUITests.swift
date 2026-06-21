@@ -38,6 +38,54 @@ final class PumpSyncUITests: XCTestCase {
 
     tapNavigationLink("Developer", in: app)
     XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Native Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Share Support Bundle"].waitForExistence(timeout: 5))
+  }
+
+  func testDeveloperDiagnosticsActionsUseUniqueAccessibleNames() {
+    let app = launchScreenshotFixture()
+
+    navigate(to: "Settings", in: app)
+    tapNavigationLink("Developer", in: app)
+
+    XCTAssertTrue(app.buttons["Copy App Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Clear App Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Copy Native Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Share Support Bundle"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Clear Native Diagnostics"].waitForExistence(timeout: 5))
+  }
+
+  func testAccessibilityDynamicTypeScreensRenderInScreenshotMode() {
+    let app = launchScreenshotFixture(
+      launchEnvironment: [
+        "UIPreferredContentSizeCategoryName": "UICTContentSizeCategoryAccessibilityXXXL"
+      ]
+    )
+
+    XCTAssertTrue(app.staticTexts["PumpSync"].waitForExistence(timeout: 5))
+
+    navigate(to: "Sync", in: app)
+    XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 5))
+
+    navigate(to: "Settings", in: app)
+    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Subscribe"].waitForExistence(timeout: 5))
+
+    tapNavigationLink("Developer", in: app)
+    XCTAssertTrue(app.buttons["Share Support Bundle"].waitForExistence(timeout: 5))
+  }
+
+  func testDarkModeCoreScreensRenderInScreenshotMode() {
+    let app = launchScreenshotFixture(launchArguments: ["-AppleInterfaceStyle", "Dark"])
+
+    XCTAssertTrue(app.staticTexts["PumpSync"].waitForExistence(timeout: 5))
+
+    navigate(to: "Settings", in: app)
+    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+
+    tapNavigationLink("Apple Health", in: app)
+    XCTAssertTrue(app.staticTexts["Write Permissions"].waitForExistence(timeout: 5))
   }
 
   func testIPadAppStoreScreenshots() {
@@ -55,43 +103,95 @@ final class PumpSyncUITests: XCTestCase {
     attachScreenshot(named: "ipad-pro-13-app-store-listing-03-settings-pumpsync-hosted.png", from: app)
 
     tapSegment("Self-hosted", in: app)
-    XCTAssertTrue(app.textFields["https://example.com/api"].waitForExistence(timeout: 5))
-    attachScreenshot(named: "ipad-pro-13-app-store-listing-04-settings-self-hosted-connection.png", from: app)
+    assertSelfHostedServerURLField(in: app)
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-05-settings-self-hosted-connection.png", from: app)
 
     tapSegment("PumpSync", in: app)
-    app.buttons["Subscribe"].firstMatch.tap()
-    XCTAssertTrue(app.staticTexts["PumpSync Hosted"].waitForExistence(timeout: 5))
-    attachScreenshot(named: "ipad-pro-13-app-store-listing-05-hosted-subscription-benefits.png", from: app)
-  }
 
-  func testIPadSpecificScreenshots() {
-    let app = launchScreenshotFixture()
-
-    XCTAssertTrue(app.staticTexts["PumpSync"].waitForExistence(timeout: 5))
-    navigate(to: "Settings", in: app)
-    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+    tapNavigationLink("Tandem Account", in: app)
+    XCTAssertTrue(app.staticTexts["Tandem Source"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-06-tandem-account.png", from: app)
+    app.navigationBars.buttons.firstMatch.tap()
 
     tapNavigationLink("Apple Health", in: app)
     XCTAssertTrue(app.staticTexts["Write Permissions"].waitForExistence(timeout: 5))
-    attachScreenshot(named: "ipad-pro-13-ipad-specific-01-health-detail-sidebar.png", from: app)
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-07-apple-health.png", from: app)
 
     app.navigationBars.buttons.firstMatch.tap()
     tapNavigationLink("Data Handling", in: app)
     XCTAssertTrue(app.staticTexts["Pump Data"].waitForExistence(timeout: 5))
-    attachScreenshot(named: "ipad-pro-13-ipad-specific-02-data-handling-detail-sidebar.png", from: app)
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-08-data-handling.png", from: app)
 
     app.navigationBars.buttons.firstMatch.tap()
     tapNavigationLink("Developer", in: app)
     XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 5))
-    attachScreenshot(named: "ipad-pro-13-ipad-specific-03-developer-detail-sidebar.png", from: app)
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-09-developer.png", from: app)
+
+    app.navigationBars.buttons.firstMatch.tap()
+    tapSegment("PumpSync", in: app)
+    app.buttons["Subscribe"].firstMatch.tap()
+    XCTAssertTrue(app.staticTexts["PumpSync Hosted"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-04-hosted-subscription-benefits.png", from: app)
   }
 
-  private func launchScreenshotFixture(orientation: UIDeviceOrientation = .portrait) -> XCUIApplication {
+  func testIPhoneAppStoreScreenshots() {
+    let app = launchScreenshotFixture()
+
+    attachScreenshot(named: "iphone-6-7-app-store-listing-01-status-overview.png", from: app)
+
+    navigate(to: "Sync", in: app)
+    XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-02-sync-workflow.png", from: app)
+
+    navigate(to: "Settings", in: app)
+    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+    tapSegment("PumpSync", in: app)
+    attachScreenshot(named: "iphone-6-7-app-store-listing-03-settings-pumpsync-hosted.png", from: app)
+
+    tapSegment("Self-hosted", in: app)
+    assertSelfHostedServerURLField(in: app)
+    attachScreenshot(named: "iphone-6-7-app-store-listing-05-settings-self-hosted-connection.png", from: app)
+
+    tapSegment("PumpSync", in: app)
+
+    tapNavigationLink("Tandem Account", in: app)
+    XCTAssertTrue(app.staticTexts["Tandem Source"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-06-tandem-account.png", from: app)
+    app.navigationBars.buttons.firstMatch.tap()
+
+    tapNavigationLink("Apple Health", in: app)
+    XCTAssertTrue(app.staticTexts["Write Permissions"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-07-apple-health.png", from: app)
+    app.navigationBars.buttons.firstMatch.tap()
+
+    tapNavigationLink("Data Handling", in: app)
+    XCTAssertTrue(app.staticTexts["Pump Data"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-08-data-handling.png", from: app)
+    app.navigationBars.buttons.firstMatch.tap()
+
+    tapNavigationLink("Developer", in: app)
+    XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-09-developer.png", from: app)
+
+    app.navigationBars.buttons.firstMatch.tap()
+    app.buttons["Subscribe"].firstMatch.tap()
+    XCTAssertTrue(app.staticTexts["PumpSync Hosted"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-04-hosted-subscription-benefits.png", from: app)
+  }
+
+  private func launchScreenshotFixture(
+    orientation: UIDeviceOrientation = .portrait,
+    launchArguments: [String] = [],
+    launchEnvironment: [String: String] = [:]
+  ) -> XCUIApplication {
     XCUIDevice.shared.orientation = orientation
 
     let app = XCUIApplication()
-    app.launchArguments = ["--pumpsync-screenshot-mode"]
+    app.launchArguments = ["--pumpsync-screenshot-mode"] + launchArguments
     app.launchEnvironment["PUMPSYNC_SCREENSHOT_MODE"] = "1"
+    for (key, value) in launchEnvironment {
+      app.launchEnvironment[key] = value
+    }
     app.launch()
     return app
   }
@@ -150,6 +250,14 @@ final class PumpSyncUITests: XCTestCase {
     let button = app.buttons[title]
     XCTAssertTrue(button.waitForExistence(timeout: 5), "Could not find segment \(title)")
     button.tap()
+  }
+
+  private func assertSelfHostedServerURLField(in app: XCUIApplication) {
+    let field = app.textFields["Server URL"]
+
+    XCTAssertTrue(field.waitForExistence(timeout: 5))
+    XCTAssertEqual(field.placeholderValue, "Server URL")
+    XCTAssertFalse(app.staticTexts["Server URL"].exists)
   }
 
   private func attachScreenshot(named name: String, from app: XCUIApplication) {
