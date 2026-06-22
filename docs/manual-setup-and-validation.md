@@ -76,7 +76,7 @@ These items require account access, production credentials, a physical Apple dev
 ## Product and Legal
 
 - Publish the privacy policy from `docs/legal/privacy-policy.md` to the public App Store privacy policy URL.
-- Publish the terms of use and account/data deletion instructions from `docs/legal/terms-of-use.md` and `docs/legal/data-deletion.md`.
+- Publish the terms of use and account/data deletion instructions from `docs/legal/terms-of-use.md` and `docs/legal/data-deletion-request.md`.
 - Enter the App Store privacy nutrition labels from `docs/legal/app-store-privacy.md`.
 - Review HealthKit wording and Tandem credential disclosure text against the final shipped build and Tandem terms review.
 

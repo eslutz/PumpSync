@@ -61,7 +61,7 @@ Do not declare these unless the implementation changes:
 
 Use the public URL for `docs/legal/privacy-policy.md` as the required Privacy Policy URL after it is published on the product website or another public support page.
 
-Use the public URL for `docs/legal/data-deletion.md` as the optional Privacy Choices URL after it is published.
+Use the public URL for `docs/legal/data-deletion-request.md` as the optional Privacy Choices URL after it is published.
 
 ## HealthKit Submission Wording
 

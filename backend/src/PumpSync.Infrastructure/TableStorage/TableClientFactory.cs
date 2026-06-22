@@ -1,4 +1,5 @@
 using Azure.Data.Tables;
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.Options;
 using PumpSync.Infrastructure.Options;
@@ -21,6 +22,10 @@ public sealed class TableClientFactory(IOptions<AzureStorageOptions> options)
             throw new InvalidOperationException("AzureStorage AccountName or ConnectionString configuration is required.");
         }
 
-        return new TableClient(new Uri($"https://{options.AccountName}.table.core.windows.net"), tableName, new DefaultAzureCredential());
+        TokenCredential credential = string.Equals(options.Credential, "AzureCli", StringComparison.OrdinalIgnoreCase)
+            ? new AzureCliCredential()
+            : new DefaultAzureCredential();
+
+        return new TableClient(new Uri($"https://{options.AccountName}.table.core.windows.net"), tableName, credential);
     }
 }

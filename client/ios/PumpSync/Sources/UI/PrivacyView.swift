@@ -59,7 +59,17 @@ struct DataHandlingView: View {
         Button {
           openURL(dataDeletionRequestURL)
         } label: {
-          Label("Delete Data Request", systemImage: "trash")
+          HStack(spacing: 14) {
+            Image(systemName: "trash")
+              .font(.title3)
+              .frame(width: 28)
+              .accessibilityHidden(true)
+
+            Text("Delete Data Request")
+              .layoutPriority(1)
+
+            Spacer(minLength: 0)
+          }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
         }

@@ -74,6 +74,9 @@ struct SyncView: View {
       }
     }
     .navigationTitle("Sync")
+    .onAppear {
+      services.healthKitService.refreshAuthorizationStatus()
+    }
   }
 
   private var initialImportMenu: some View {

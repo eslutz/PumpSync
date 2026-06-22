@@ -16,7 +16,18 @@ struct DeveloperView: View {
           UIPasteboard.general.string = services.backendConfigurationStore.installationId
           showCopiedFeedback(for: .installationId)
         } label: {
-          Label(copiedItem == .installationId ? "Copied Installation ID" : "Copy Installation ID", systemImage: copiedItem == .installationId ? "checkmark.circle" : "doc.on.doc")
+          HStack(spacing: 14) {
+            Image(systemName: copiedItem == .installationId ? "checkmark.circle" : "doc.on.doc")
+              .font(.title3)
+              .frame(width: 28)
+              .accessibilityHidden(true)
+
+            Text(copiedItem == .installationId ? "Copied Installation ID" : "Copy Installation ID")
+              .layoutPriority(1)
+
+            Spacer(minLength: 0)
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
         .foregroundStyle(.tint)

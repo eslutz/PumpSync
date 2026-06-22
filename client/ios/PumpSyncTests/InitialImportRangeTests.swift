@@ -3,12 +3,14 @@ import XCTest
 
 final class InitialImportRangeTests: XCTestCase {
   func testMinimumDateUsesSelectedRangeForInitialSync() {
-    let now = Date(timeIntervalSince1970: 1_800_000)
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let now = ISO8601DateFormatter().date(from: "2026-06-22T12:34:56Z")!
 
-    XCTAssertEqual(InitialImportRange.startFromNow.minimumDate(relativeTo: now), now)
-    XCTAssertEqual(InitialImportRange.pastTwoDays.minimumDate(relativeTo: now), now.addingTimeInterval(-2 * 24 * 60 * 60))
-    XCTAssertEqual(InitialImportRange.pastWeek.minimumDate(relativeTo: now), now.addingTimeInterval(-7 * 24 * 60 * 60))
-    XCTAssertEqual(InitialImportRange.pastTwoWeeks.minimumDate(relativeTo: now), now.addingTimeInterval(-(14 * 24 * 60 * 60 - 10 * 60)))
+    XCTAssertEqual(InitialImportRange.startFromNow.minimumDate(relativeTo: now, calendar: calendar), now)
+    XCTAssertEqual(InitialImportRange.pastTwoDays.minimumDate(relativeTo: now, calendar: calendar), ISO8601DateFormatter().date(from: "2026-06-20T00:00:00Z"))
+    XCTAssertEqual(InitialImportRange.pastWeek.minimumDate(relativeTo: now, calendar: calendar), ISO8601DateFormatter().date(from: "2026-06-15T00:00:00Z"))
+    XCTAssertEqual(InitialImportRange.pastTwoWeeks.minimumDate(relativeTo: now, calendar: calendar), ISO8601DateFormatter().date(from: "2026-06-08T00:00:00Z"))
   }
 
   func testDefaultInitialImportRangeIsPastWeek() {

@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<CreateSubscriptionSessionUseCase>();
         services.AddScoped<CreateSelfHostedSessionUseCase>();
         services.AddScoped<HandleAppStoreNotificationUseCase>();
+        services.AddScoped<DataDeletionRequestUseCase>();
         services.AddScoped<BackendAccessGuard>();
         services.AddScoped<SyncTandemUseCase>();
         services.AddScoped<ValidateTandemCredentialsUseCase>();

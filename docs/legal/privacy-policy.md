@@ -66,7 +66,7 @@ Raw Tandem events and normalized Tandem samples are discarded by the backend aft
 
 ## Deletion
 
-Users may delete Tandem credentials in the app. Users may also request deletion of PumpSync hosted server-side metadata using the account and data deletion instructions in `docs/legal/data-deletion.md`.
+Users may delete Tandem credentials in the app. Users may also request deletion of PumpSync hosted server-side metadata using the account and data deletion instructions in `docs/legal/data-deletion-request.md`.
 
 Deleting PumpSync does not automatically delete samples already written to Apple Health. Users can manage Apple Health records in the Apple Health app.
 

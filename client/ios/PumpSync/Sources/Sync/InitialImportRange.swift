@@ -23,16 +23,21 @@ enum InitialImportRange: String, CaseIterable, Codable, Identifiable {
     }
   }
 
-  func minimumDate(relativeTo now: Date) -> Date {
+  func minimumDate(relativeTo now: Date, calendar: Calendar = .current) -> Date {
     switch self {
     case .startFromNow:
       return now
     case .pastTwoDays:
-      return now.addingTimeInterval(-2 * 24 * 60 * 60)
+      return startOfDay(daysBeforeNow: 2, relativeTo: now, calendar: calendar)
     case .pastWeek:
-      return now.addingTimeInterval(-7 * 24 * 60 * 60)
+      return startOfDay(daysBeforeNow: 7, relativeTo: now, calendar: calendar)
     case .pastTwoWeeks:
-      return now.addingTimeInterval(-(14 * 24 * 60 * 60 - 10 * 60))
+      return startOfDay(daysBeforeNow: 14, relativeTo: now, calendar: calendar)
     }
+  }
+
+  private func startOfDay(daysBeforeNow days: Int, relativeTo now: Date, calendar: Calendar) -> Date {
+    let startOfToday = calendar.startOfDay(for: now)
+    return calendar.date(byAdding: .day, value: -days, to: startOfToday) ?? startOfToday
   }
 }

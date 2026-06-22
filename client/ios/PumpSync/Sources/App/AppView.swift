@@ -42,6 +42,7 @@ struct AppView: View {
       }
     }
     .task {
+      services.healthKitService.refreshAuthorizationStatus()
       await services.syncCoordinator.refreshIfStale(reason: .appOpen)
     }
   }

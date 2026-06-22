@@ -1,6 +1,6 @@
-# PumpSync Account And Data Deletion
+# PumpSync Account And Data Deletion Request
 
-Effective date: 2026-06-18
+Effective date: 2026-06-22
 
 PumpSync stores minimal hosted subscription and installation metadata and does not persist Tandem credentials, Tandem tokens, raw Tandem events, or normalized Tandem samples on the backend.
 
@@ -28,9 +28,19 @@ Samples already written to Apple Health are controlled by Apple Health. Deleting
 
 ## Delete PumpSync Hosted Metadata
 
-To request deletion of PumpSync hosted backend metadata, contact PumpSync support using the support contact listed on the App Store product page or TestFlight invitation.
+The preferred way to request deletion is from the PumpSync app:
 
-Include the PumpSync installation ID shown in Settings, the App Store subscription original transaction ID if available from Apple purchase history, or the Apple ID receipt details needed to locate the subscription through App Store support tooling. Do not include Tandem passwords, Tandem tokens, screenshots containing health data, or other sensitive medical details in the request.
+1. Open PumpSync.
+2. Open Settings.
+3. Open Data Handling.
+4. Tap Delete Data Request.
+5. Send the prefilled email. The app includes the PumpSync installation ID needed to locate hosted metadata associated with that app install.
+
+If you cannot send the request from the app, contact PumpSync support using the support contact listed on the App Store product page or TestFlight invitation.
+
+Include your PumpSync installation ID. To find it in the app, open Settings, then Developer, then copy the Installation ID.
+
+Do not include Tandem passwords, Tandem tokens, screenshots containing health data, or other sensitive medical details in the request.
 
 Deletion covers PumpSync hosted server-side metadata associated with the subscription or installation, subject to records PumpSync must retain for security, fraud prevention, legal compliance, billing, dispute handling, or service integrity.
 

@@ -34,6 +34,8 @@ public sealed class AzureStorageOptions
 
     public string AccountName { get; set; } = string.Empty;
 
+    public string Credential { get; set; } = string.Empty;
+
     public string SubscriptionEntitlementsTableName { get; set; } = "SubscriptionEntitlements";
 
     public string InstallationsTableName { get; set; } = "Installations";
@@ -47,6 +49,11 @@ public sealed class AzureStorageOptions
     public string AppStoreNotificationIdempotencyTableName { get; set; } = "AppleNotificationIdempotency";
 
     public string AuditEventsTableName { get; set; } = "AuditEvents";
+}
+
+public sealed class DataDeletionOptions
+{
+    public string AuditHashSalt { get; set; } = string.Empty;
 }
 
 public sealed class TandemSourceOptions
