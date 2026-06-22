@@ -1,5 +1,10 @@
 # PumpSync Agent Notes
 
+## Repo Scope
+
+- This repository is frontend-only. Do not add backend API projects, backend infrastructure, backend deploy workflows, log drains, model-cost updaters, or data-deletion tooling here.
+- Backend implementation and operations belong in the PumpSync Backend repository.
+
 ## Hosted Subscription Builds
 
 - Local Xcode installs use the `PumpSync` scheme with the `Debug` configuration. They must point at the nonprod backend and use Apple's sandbox App Store transaction environment.
@@ -10,6 +15,7 @@
 
 ## iOS Validation
 
+- `project.yml` is the XcodeGen source of truth.
+- Regenerate the project with `xcodegen generate` after editing `project.yml`.
 - Prefer destination strings that include `OS=latest`, for example `platform=iOS Simulator,name=iPhone 17,OS=latest`, to avoid ambiguous-destination warnings.
-- Regenerate the project with `xcodegen generate` after editing `client/ios/project.yml`; do not hand-edit generated scheme or project files unless XcodeGen cannot represent a setting.
 - Keep validation output unfiltered. Raw `xcodebuild` may print Xcode/simulator runtime warnings such as `IDELaunchParametersSnapshot`, AppIntents metadata extraction notices, CA event messages, or duplicate `UIAccessibilityLoaderWebShared` messages during simulator UI tests.

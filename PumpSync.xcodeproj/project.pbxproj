@@ -1,0 +1,860 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A860106CE1BB55F05ADBF24 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0981ABD17009F7A4A08958B4 /* SettingsView.swift */; };
+		0EC447AEE68669C7C0CEFBF6 /* TandemCredentialForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */; };
+		0ED99E75A53490C4E83A40F0 /* AppLaunchEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */; };
+		1803E330015DA083BB1F1454 /* SecureKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE10C4425E732936246A0BB /* SecureKeychainStore.swift */; };
+		18701BDFE904793BC7E5CEB8 /* AppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E85545B2A7D3EE4285CD12F /* AppView.swift */; };
+		1B03175A1F27037B703EC8D1 /* AuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */; };
+		1F1F4F0E1826A0A2BDB7D4FF /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B8ED0AEB98A53C1A0C48F8 /* SyncView.swift */; };
+		2E581DC0577F1D384651346A /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23E211038A242211F7416AF /* AppServices.swift */; };
+		36AA12257E2352EA32E4F1C8 /* SyncViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57320D50B3E96C71BB07264 /* SyncViewTests.swift */; };
+		37A4BAFC543C37CBA529B650 /* HostedSubscriptionPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C60DA92B8B6702D644F8C5 /* HostedSubscriptionPresentationTests.swift */; };
+		38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */; };
+		421C997A67F2E8CD8C267776 /* PumpSyncShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */; };
+		4BA9367AC56377C9CD9B15FB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36ABBE2A707B83D4D4006E57 /* Assets.xcassets */; };
+		4D208B7D49A8858765E583E9 /* BackgroundSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */; };
+		562C2A1D6E9BE2F7A5ACFB89 /* MetricKitDiagnosticsCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */; };
+		59F4523649C67CC80D72AFBE /* PrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BE8DF10D82A15535948164 /* PrivacyView.swift */; };
+		64F8658EBAE60271076F2524 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F320DEB00E61B6A6E1DA31C /* SyncCoordinator.swift */; };
+		66714B017B0839A88FD59778 /* BackendSessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD435C541AB9259458F31EF /* BackendSessionStoreTests.swift */; };
+		6ED107DF74FEB8E5ED6CD3A4 /* NativeDiagnosticsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94CE75F06E77B7E64182EFBE /* NativeDiagnosticsStoreTests.swift */; };
+		6F4EEF9FC56DD8621F9830F3 /* SupportBundleBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3256EF7EB4927D3CF3BD72A0 /* SupportBundleBuilderTests.swift */; };
+		733AE6ECD6F1441AF7175875 /* PumpSyncUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1058E698BFD805B107CB7B99 /* PumpSyncUITests.swift */; };
+		76E2553C94E3222BE53E42C3 /* DiagnosticsLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EC34B2CD83FB273C8C111B /* DiagnosticsLogStore.swift */; };
+		7D8239130474C55B9925A4C7 /* ImportedSampleLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2841227766770EA92688A77 /* ImportedSampleLedger.swift */; };
+		7EFE319F32AC57F0B583ABF3 /* HealthWritePermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11202C1156E9340275B6872B /* HealthWritePermission.swift */; };
+		882B07661FC363D0C5D80733 /* DiagnosticsLogStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */; };
+		88F96EF33B6403E384A8CC21 /* PumpSyncApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90FA12541E4E2A95DA61AC93 /* PumpSyncApp.swift */; };
+		8E691048B5B3682731B288BC /* DeveloperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F3A6A77F4F6DCA618C40B84 /* DeveloperView.swift */; };
+		9B39CFF910647ED539489752 /* AppConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178ADA56A44AFD519D1ABCA7 /* AppConstants.swift */; };
+		ACD785D0C4B6F769575C5128 /* PumpSyncAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F29882A2FE266DE552731A /* PumpSyncAPIClient.swift */; };
+		AE379769E7346E02086C3A63 /* HealthAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */; };
+		AFE1EEA207C7E7440827049F /* NativeDiagnosticsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E117802C7DE65061DABF6727 /* NativeDiagnosticsStore.swift */; };
+		B071813F6A46DD557EC13A9D /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490EE136418A1B6AE164F633 /* AuthService.swift */; };
+		B2749195783155E5333CF70E /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6DA5FED28D70A119E7A56B /* HealthKitService.swift */; };
+		B65BEA4308E67124A51FC987 /* InitialImportRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */; };
+		C4B65866DE4A307C249B6057 /* InitialImportRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6510518C8E49577BD3F362F /* InitialImportRange.swift */; };
+		CED29C776F51918B0EE77A47 /* SupportBundleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550211DC80206514571F2CA4 /* SupportBundleBuilder.swift */; };
+		D038B9BF745207A4396D81BC /* HealthAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */; };
+		DB5B3E47304BB73A55880A3A /* JSONCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16DD953874B39F8C31C11399 /* JSONCodecTests.swift */; };
+		E50DD11D29F2DF76A6100256 /* TandemCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1542F6BF77ACFAA77DE2EEA9 /* TandemCredentials.swift */; };
+		E51C48749D481E9DCB3C15BE /* BackendSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */; };
+		E8CC720BD78B563749D717A6 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E4EAAEA23A6B7BBE581672 /* OnboardingView.swift */; };
+		EB193DD271B48CD0448A9F14 /* GlassUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C572BC95D8A1228661865AC4 /* GlassUI.swift */; };
+		F96749147D5EC671A85BAF8A /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 228837A73B88DB4E80B7A957 /* APIModels.swift */; };
+		FF558BD17D2F7FFB5762840B /* TandemCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B80BDA0E659F5365FB1C87A /* TandemCredentialStore.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		59BF8A954B2E06C544F2266D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 889D9982450411096A951D6F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 12B6492876CABC709893A971;
+			remoteInfo = PumpSync;
+		};
+		640C94C530CAADA94CBD0227 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 889D9982450411096A951D6F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 12B6492876CABC709893A971;
+			remoteInfo = PumpSync;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0981ABD17009F7A4A08958B4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthServiceTests.swift; sourceTree = "<group>"; };
+		1058E698BFD805B107CB7B99 /* PumpSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncUITests.swift; sourceTree = "<group>"; };
+		11202C1156E9340275B6872B /* HealthWritePermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthWritePermission.swift; sourceTree = "<group>"; };
+		1542F6BF77ACFAA77DE2EEA9 /* TandemCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentials.swift; sourceTree = "<group>"; };
+		16DD953874B39F8C31C11399 /* JSONCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONCodecTests.swift; sourceTree = "<group>"; };
+		178ADA56A44AFD519D1ABCA7 /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
+		1B80BDA0E659F5365FB1C87A /* TandemCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentialStore.swift; sourceTree = "<group>"; };
+		228837A73B88DB4E80B7A957 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
+		23F29882A2FE266DE552731A /* PumpSyncAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncAPIClient.swift; sourceTree = "<group>"; };
+		25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLaunchEnvironment.swift; sourceTree = "<group>"; };
+		2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMetadataStore.swift; sourceTree = "<group>"; };
+		3256EF7EB4927D3CF3BD72A0 /* SupportBundleBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportBundleBuilderTests.swift; sourceTree = "<group>"; };
+		36ABBE2A707B83D4D4006E57 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		39EC34B2CD83FB273C8C111B /* DiagnosticsLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsLogStore.swift; sourceTree = "<group>"; };
+		3DD435C541AB9259458F31EF /* BackendSessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendSessionStoreTests.swift; sourceTree = "<group>"; };
+		3E6DA5FED28D70A119E7A56B /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
+		479A925ED4D07C6CBF465383 /* PumpSyncUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PumpSyncUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		490EE136418A1B6AE164F633 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAccessView.swift; sourceTree = "<group>"; };
+		550211DC80206514571F2CA4 /* SupportBundleBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportBundleBuilder.swift; sourceTree = "<group>"; };
+		58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialImportRangeTests.swift; sourceTree = "<group>"; };
+		5DA7EAD49918D98ADBDB09F8 /* PumpSyncTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PumpSyncTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5F320DEB00E61B6A6E1DA31C /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
+		5F3A6A77F4F6DCA618C40B84 /* DeveloperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperView.swift; sourceTree = "<group>"; };
+		69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentialForm.swift; sourceTree = "<group>"; };
+		6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsLogStoreTests.swift; sourceTree = "<group>"; };
+		70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendSessionStore.swift; sourceTree = "<group>"; };
+		88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncScheduler.swift; sourceTree = "<group>"; };
+		90FA12541E4E2A95DA61AC93 /* PumpSyncApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncApp.swift; sourceTree = "<group>"; };
+		94CE75F06E77B7E64182EFBE /* NativeDiagnosticsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDiagnosticsStoreTests.swift; sourceTree = "<group>"; };
+		99C60DA92B8B6702D644F8C5 /* HostedSubscriptionPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostedSubscriptionPresentationTests.swift; sourceTree = "<group>"; };
+		9E85545B2A7D3EE4285CD12F /* AppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppView.swift; sourceTree = "<group>"; };
+		A0E4EAAEA23A6B7BBE581672 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		A6510518C8E49577BD3F362F /* InitialImportRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialImportRange.swift; sourceTree = "<group>"; };
+		C23E211038A242211F7416AF /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
+		C572BC95D8A1228661865AC4 /* GlassUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassUI.swift; sourceTree = "<group>"; };
+		C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncShortcuts.swift; sourceTree = "<group>"; };
+		CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAccessTests.swift; sourceTree = "<group>"; };
+		CFE10C4425E732936246A0BB /* SecureKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureKeychainStore.swift; sourceTree = "<group>"; };
+		D2841227766770EA92688A77 /* ImportedSampleLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedSampleLedger.swift; sourceTree = "<group>"; };
+		D44CF3B882908F6F5CFE8234 /* PumpSync.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PumpSync.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8B8ED0AEB98A53C1A0C48F8 /* SyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncView.swift; sourceTree = "<group>"; };
+		E117802C7DE65061DABF6727 /* NativeDiagnosticsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDiagnosticsStore.swift; sourceTree = "<group>"; };
+		E9BE8DF10D82A15535948164 /* PrivacyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyView.swift; sourceTree = "<group>"; };
+		F57320D50B3E96C71BB07264 /* SyncViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncViewTests.swift; sourceTree = "<group>"; };
+		FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitDiagnosticsCollector.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		168039F7BAF11C99D016419B /* Health */ = {
+			isa = PBXGroup;
+			children = (
+				3E6DA5FED28D70A119E7A56B /* HealthKitService.swift */,
+				11202C1156E9340275B6872B /* HealthWritePermission.swift */,
+			);
+			path = Health;
+			sourceTree = "<group>";
+		};
+		3B8511E83EC492DD71F1B554 /* PumpSyncUITests */ = {
+			isa = PBXGroup;
+			children = (
+				1058E698BFD805B107CB7B99 /* PumpSyncUITests.swift */,
+			);
+			path = PumpSyncUITests;
+			sourceTree = "<group>";
+		};
+		74EFBA5EBE7694C930308027 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				36ABBE2A707B83D4D4006E57 /* Assets.xcassets */,
+			);
+			name = Resources;
+			path = PumpSync/Resources;
+			sourceTree = "<group>";
+		};
+		7D28DB041DC286E57103C334 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */,
+				A6510518C8E49577BD3F362F /* InitialImportRange.swift */,
+				5F320DEB00E61B6A6E1DA31C /* SyncCoordinator.swift */,
+			);
+			path = Sync;
+			sourceTree = "<group>";
+		};
+		7E501ABF2C89EA3284BBE720 = {
+			isa = PBXGroup;
+			children = (
+				EBF375154B453367C53646BB /* PumpSyncTests */,
+				3B8511E83EC492DD71F1B554 /* PumpSyncUITests */,
+				74EFBA5EBE7694C930308027 /* Resources */,
+				F0A2DAD6A8A856D588705D18 /* Sources */,
+				8655E0EBC888673CC179B8AB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8655E0EBC888673CC179B8AB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D44CF3B882908F6F5CFE8234 /* PumpSync.app */,
+				5DA7EAD49918D98ADBDB09F8 /* PumpSyncTests.xctest */,
+				479A925ED4D07C6CBF465383 /* PumpSyncUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9ECF001E67EBC659BA396833 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				228837A73B88DB4E80B7A957 /* APIModels.swift */,
+				23F29882A2FE266DE552731A /* PumpSyncAPIClient.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		B86B5C7243558E584673E2E2 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				D2841227766770EA92688A77 /* ImportedSampleLedger.swift */,
+				CFE10C4425E732936246A0BB /* SecureKeychainStore.swift */,
+				2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		DD29A9645B6740BF00A379D7 /* Tandem */ = {
+			isa = PBXGroup;
+			children = (
+				69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */,
+				1542F6BF77ACFAA77DE2EEA9 /* TandemCredentials.swift */,
+				1B80BDA0E659F5365FB1C87A /* TandemCredentialStore.swift */,
+			);
+			path = Tandem;
+			sourceTree = "<group>";
+		};
+		DEB95B48B91FCB6507BD1843 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				5F3A6A77F4F6DCA618C40B84 /* DeveloperView.swift */,
+				C572BC95D8A1228661865AC4 /* GlassUI.swift */,
+				52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */,
+				A0E4EAAEA23A6B7BBE581672 /* OnboardingView.swift */,
+				E9BE8DF10D82A15535948164 /* PrivacyView.swift */,
+				0981ABD17009F7A4A08958B4 /* SettingsView.swift */,
+				D8B8ED0AEB98A53C1A0C48F8 /* SyncView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		EBF375154B453367C53646BB /* PumpSyncTests */ = {
+			isa = PBXGroup;
+			children = (
+				09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */,
+				3DD435C541AB9259458F31EF /* BackendSessionStoreTests.swift */,
+				6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */,
+				CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */,
+				99C60DA92B8B6702D644F8C5 /* HostedSubscriptionPresentationTests.swift */,
+				58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */,
+				16DD953874B39F8C31C11399 /* JSONCodecTests.swift */,
+				94CE75F06E77B7E64182EFBE /* NativeDiagnosticsStoreTests.swift */,
+				3256EF7EB4927D3CF3BD72A0 /* SupportBundleBuilderTests.swift */,
+				F57320D50B3E96C71BB07264 /* SyncViewTests.swift */,
+			);
+			path = PumpSyncTests;
+			sourceTree = "<group>";
+		};
+		ECF7705B3123F56BD81DF6A2 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				490EE136418A1B6AE164F633 /* AuthService.swift */,
+				70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		F0A2DAD6A8A856D588705D18 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				FC1B0294C0FBDCC20D78CEE8 /* App */,
+				ECF7705B3123F56BD81DF6A2 /* Auth */,
+				168039F7BAF11C99D016419B /* Health */,
+				9ECF001E67EBC659BA396833 /* Networking */,
+				B86B5C7243558E584673E2E2 /* Storage */,
+				7D28DB041DC286E57103C334 /* Sync */,
+				DD29A9645B6740BF00A379D7 /* Tandem */,
+				DEB95B48B91FCB6507BD1843 /* UI */,
+			);
+			name = Sources;
+			path = PumpSync/Sources;
+			sourceTree = "<group>";
+		};
+		FC1B0294C0FBDCC20D78CEE8 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				178ADA56A44AFD519D1ABCA7 /* AppConstants.swift */,
+				25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */,
+				C23E211038A242211F7416AF /* AppServices.swift */,
+				9E85545B2A7D3EE4285CD12F /* AppView.swift */,
+				39EC34B2CD83FB273C8C111B /* DiagnosticsLogStore.swift */,
+				FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */,
+				E117802C7DE65061DABF6727 /* NativeDiagnosticsStore.swift */,
+				90FA12541E4E2A95DA61AC93 /* PumpSyncApp.swift */,
+				C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */,
+				550211DC80206514571F2CA4 /* SupportBundleBuilder.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		12B6492876CABC709893A971 /* PumpSync */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 700157D78BF0C565F210CD02 /* Build configuration list for PBXNativeTarget "PumpSync" */;
+			buildPhases = (
+				8D526243DC42736EF0F920BA /* Sources */,
+				1F595F95C958A009041F1D1F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PumpSync;
+			packageProductDependencies = (
+			);
+			productName = PumpSync;
+			productReference = D44CF3B882908F6F5CFE8234 /* PumpSync.app */;
+			productType = "com.apple.product-type.application";
+		};
+		8A547F524290E97867B6CFD7 /* PumpSyncTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F6A69505311D1A692E83E298 /* Build configuration list for PBXNativeTarget "PumpSyncTests" */;
+			buildPhases = (
+				DAD28F28A747930C93F03977 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D9B34BA74F5692F1BD7B7549 /* PBXTargetDependency */,
+			);
+			name = PumpSyncTests;
+			packageProductDependencies = (
+			);
+			productName = PumpSyncTests;
+			productReference = 5DA7EAD49918D98ADBDB09F8 /* PumpSyncTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		AE8266051FE15BDC77FEBDEC /* PumpSyncUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 50FEACB1FF981748EFEFD0C6 /* Build configuration list for PBXNativeTarget "PumpSyncUITests" */;
+			buildPhases = (
+				069AAF85CE5B6E8ADDD7DE7D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F8A2C1DEFF7FD66B181D186D /* PBXTargetDependency */,
+			);
+			name = PumpSyncUITests;
+			packageProductDependencies = (
+			);
+			productName = PumpSyncUITests;
+			productReference = 479A925ED4D07C6CBF465383 /* PumpSyncUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		889D9982450411096A951D6F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					12B6492876CABC709893A971 = {
+						DevelopmentTeam = QS3GC3CT43;
+						ProvisioningStyle = Automatic;
+					};
+					AE8266051FE15BDC77FEBDEC = {
+						TestTargetID = 12B6492876CABC709893A971;
+					};
+				};
+			};
+			buildConfigurationList = 64408D236DF9B27B3013493F /* Build configuration list for PBXProject "PumpSync" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7E501ABF2C89EA3284BBE720;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8655E0EBC888673CC179B8AB /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				12B6492876CABC709893A971 /* PumpSync */,
+				8A547F524290E97867B6CFD7 /* PumpSyncTests */,
+				AE8266051FE15BDC77FEBDEC /* PumpSyncUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1F595F95C958A009041F1D1F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4BA9367AC56377C9CD9B15FB /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		069AAF85CE5B6E8ADDD7DE7D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				733AE6ECD6F1441AF7175875 /* PumpSyncUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8D526243DC42736EF0F920BA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F96749147D5EC671A85BAF8A /* APIModels.swift in Sources */,
+				9B39CFF910647ED539489752 /* AppConstants.swift in Sources */,
+				0ED99E75A53490C4E83A40F0 /* AppLaunchEnvironment.swift in Sources */,
+				2E581DC0577F1D384651346A /* AppServices.swift in Sources */,
+				18701BDFE904793BC7E5CEB8 /* AppView.swift in Sources */,
+				B071813F6A46DD557EC13A9D /* AuthService.swift in Sources */,
+				E51C48749D481E9DCB3C15BE /* BackendSessionStore.swift in Sources */,
+				4D208B7D49A8858765E583E9 /* BackgroundSyncScheduler.swift in Sources */,
+				8E691048B5B3682731B288BC /* DeveloperView.swift in Sources */,
+				76E2553C94E3222BE53E42C3 /* DiagnosticsLogStore.swift in Sources */,
+				EB193DD271B48CD0448A9F14 /* GlassUI.swift in Sources */,
+				D038B9BF745207A4396D81BC /* HealthAccessView.swift in Sources */,
+				B2749195783155E5333CF70E /* HealthKitService.swift in Sources */,
+				7EFE319F32AC57F0B583ABF3 /* HealthWritePermission.swift in Sources */,
+				7D8239130474C55B9925A4C7 /* ImportedSampleLedger.swift in Sources */,
+				C4B65866DE4A307C249B6057 /* InitialImportRange.swift in Sources */,
+				562C2A1D6E9BE2F7A5ACFB89 /* MetricKitDiagnosticsCollector.swift in Sources */,
+				AFE1EEA207C7E7440827049F /* NativeDiagnosticsStore.swift in Sources */,
+				E8CC720BD78B563749D717A6 /* OnboardingView.swift in Sources */,
+				59F4523649C67CC80D72AFBE /* PrivacyView.swift in Sources */,
+				ACD785D0C4B6F769575C5128 /* PumpSyncAPIClient.swift in Sources */,
+				88F96EF33B6403E384A8CC21 /* PumpSyncApp.swift in Sources */,
+				421C997A67F2E8CD8C267776 /* PumpSyncShortcuts.swift in Sources */,
+				1803E330015DA083BB1F1454 /* SecureKeychainStore.swift in Sources */,
+				0A860106CE1BB55F05ADBF24 /* SettingsView.swift in Sources */,
+				CED29C776F51918B0EE77A47 /* SupportBundleBuilder.swift in Sources */,
+				64F8658EBAE60271076F2524 /* SyncCoordinator.swift in Sources */,
+				38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */,
+				1F1F4F0E1826A0A2BDB7D4FF /* SyncView.swift in Sources */,
+				0EC447AEE68669C7C0CEFBF6 /* TandemCredentialForm.swift in Sources */,
+				FF558BD17D2F7FFB5762840B /* TandemCredentialStore.swift in Sources */,
+				E50DD11D29F2DF76A6100256 /* TandemCredentials.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DAD28F28A747930C93F03977 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1B03175A1F27037B703EC8D1 /* AuthServiceTests.swift in Sources */,
+				66714B017B0839A88FD59778 /* BackendSessionStoreTests.swift in Sources */,
+				882B07661FC363D0C5D80733 /* DiagnosticsLogStoreTests.swift in Sources */,
+				AE379769E7346E02086C3A63 /* HealthAccessTests.swift in Sources */,
+				37A4BAFC543C37CBA529B650 /* HostedSubscriptionPresentationTests.swift in Sources */,
+				B65BEA4308E67124A51FC987 /* InitialImportRangeTests.swift in Sources */,
+				DB5B3E47304BB73A55880A3A /* JSONCodecTests.swift in Sources */,
+				6ED107DF74FEB8E5ED6CD3A4 /* NativeDiagnosticsStoreTests.swift in Sources */,
+				6F4EEF9FC56DD8621F9830F3 /* SupportBundleBuilderTests.swift in Sources */,
+				36AA12257E2352EA32E4F1C8 /* SyncViewTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D9B34BA74F5692F1BD7B7549 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 12B6492876CABC709893A971 /* PumpSync */;
+			targetProxy = 59BF8A954B2E06C544F2266D /* PBXContainerItemProxy */;
+		};
+		F8A2C1DEFF7FD66B181D186D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 12B6492876CABC709893A971 /* PumpSync */;
+			targetProxy = 640C94C530CAADA94CBD0227 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		09143368CEC2A066C7248AA6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSyncUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PumpSync;
+			};
+			name = Debug;
+		};
+		266AEB1A180E3E881A0D3601 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Beta;
+		};
+		26879C9B00732C41E10F8F10 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSyncUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PumpSync;
+			};
+			name = Release;
+		};
+		6EF35ED5DCF27E2EB04320FE /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSyncTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PumpSync.app/PumpSync";
+			};
+			name = Beta;
+		};
+		7C59FD7AA20FDD7B46B78964 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				API_BASE_URL = "https://api.pumpsync.ericslutz.dev/api";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PumpSync/PumpSync.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = QS3GC3CT43;
+				INFOPLIST_FILE = PumpSync/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSync;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9EE5C85241A59020DA395EF9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		B0F1E46540C154973416B07A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				API_BASE_URL = "https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PumpSync/PumpSync.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = QS3GC3CT43;
+				INFOPLIST_FILE = PumpSync/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSync;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CB47F81CFDCEB4547AE34165 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSyncTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PumpSync.app/PumpSync";
+			};
+			name = Release;
+		};
+		D33A64033F5C0FBC95EBAD28 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		E51858CE3912ED4E0970694F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSyncTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PumpSync.app/PumpSync";
+			};
+			name = Debug;
+		};
+		F188B279F20959029357E2F4 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSyncUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PumpSync;
+			};
+			name = Beta;
+		};
+		FC727FDCDBAB80C1B0DCA0A0 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				API_BASE_URL = "https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PumpSync/PumpSync.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = QS3GC3CT43;
+				INFOPLIST_FILE = PumpSync/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericslutz.PumpSync;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		50FEACB1FF981748EFEFD0C6 /* Build configuration list for PBXNativeTarget "PumpSyncUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F188B279F20959029357E2F4 /* Beta */,
+				09143368CEC2A066C7248AA6 /* Debug */,
+				26879C9B00732C41E10F8F10 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		64408D236DF9B27B3013493F /* Build configuration list for PBXProject "PumpSync" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				266AEB1A180E3E881A0D3601 /* Beta */,
+				9EE5C85241A59020DA395EF9 /* Debug */,
+				D33A64033F5C0FBC95EBAD28 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		700157D78BF0C565F210CD02 /* Build configuration list for PBXNativeTarget "PumpSync" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC727FDCDBAB80C1B0DCA0A0 /* Beta */,
+				B0F1E46540C154973416B07A /* Debug */,
+				7C59FD7AA20FDD7B46B78964 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F6A69505311D1A692E83E298 /* Build configuration list for PBXNativeTarget "PumpSyncTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6EF35ED5DCF27E2EB04320FE /* Beta */,
+				E51858CE3912ED4E0970694F /* Debug */,
+				CB47F81CFDCEB4547AE34165 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 889D9982450411096A951D6F /* Project object */;
+}
