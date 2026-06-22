@@ -125,6 +125,15 @@ enum APIClientError: LocalizedError {
   case invalidResponse
   case httpStatus(Int, String?)
 
+  var isAuthenticationFailure: Bool {
+    switch self {
+    case .invalidResponse:
+      return false
+    case .httpStatus(let status, _):
+      return status == 401 || status == 403
+    }
+  }
+
   var isTransient: Bool {
     switch self {
     case .invalidResponse:

@@ -178,6 +178,9 @@ struct TandemCredentialForm: View {
       )
       services.diagnosticsLogStore.record(source: .credential, title: "Credentials saved")
     } catch {
+      if (error as? APIClientError)?.isAuthenticationFailure == true {
+        services.authService.clearSessionForAuthenticationFailure()
+      }
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials save failed")
       alert = CredentialAlert(
         title: "Save Failed",

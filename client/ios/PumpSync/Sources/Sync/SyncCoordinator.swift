@@ -102,6 +102,9 @@ final class SyncCoordinator {
         message: "Returned \(response.samples.count), imported \(importedCount), reason \(reason.rawValue)."
       )
     } catch {
+      if (error as? APIClientError)?.isAuthenticationFailure == true {
+        authService.clearSessionForAuthenticationFailure()
+      }
       syncMetadataStore.recordFailure(error)
       lastMessage = "Sync could not be completed. Try again."
       diagnostics?.record(error: error, source: .sync, title: "Sync failed")

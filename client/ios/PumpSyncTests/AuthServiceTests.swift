@@ -3,9 +3,44 @@ import XCTest
 
 @MainActor
 final class AuthServiceTests: XCTestCase {
+  func testLoadsValidCachedSessionWithoutCallingStoreKitOrBackend() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let cachedSession = BackendSessionResponse(
+      accessToken: "cached-token",
+      expiresAt: Date(timeIntervalSince1970: 2_000),
+      entitlementActive: true,
+      serviceMode: "hosted"
+    )
+    try sessionStore.save(cachedSession)
+
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        XCTFail("StoreKit should not be called when a cached session is valid")
+        return "unexpected"
+      },
+      createSubscriptionSession: { _ in
+        XCTFail("Backend should not be called when a cached session is valid")
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in
+        XCTFail("Backend should not be called when a cached session is valid")
+        throw APIClientError.invalidResponse
+      }
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertEqual(service.accessToken, "cached-token")
+    XCTAssertTrue(service.isSignedIn)
+  }
+
   func testHostedRestoreCreatesBackendSession() async {
     let diagnostics = DiagnosticsLogStore()
     let configuration = makeConfigurationStore()
+    let sessionStore = makeSessionStore()
     let session = BackendSessionResponse(
       accessToken: "token",
       expiresAt: Date(timeIntervalSince1970: 1_800),
@@ -15,6 +50,7 @@ final class AuthServiceTests: XCTestCase {
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: configuration,
+      sessionStore: sessionStore,
       currentEntitlementJWS: {
         "signed-transaction"
       },
@@ -35,12 +71,14 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSigningIn)
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Hosted subscription active")
+    XCTAssertEqual(sessionStore.loadValidSession(), session)
     XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription restored", "Hosted session started", "Hosted restore started"])
   }
 
   func testHostedPurchaseCompletionCreatesBackendSession() async {
     let diagnostics = DiagnosticsLogStore()
     let configuration = makeConfigurationStore()
+    let sessionStore = makeSessionStore()
     let session = BackendSessionResponse(
       accessToken: "token",
       expiresAt: Date(timeIntervalSince1970: 1_800),
@@ -50,6 +88,7 @@ final class AuthServiceTests: XCTestCase {
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: configuration,
+      sessionStore: sessionStore,
       currentEntitlementJWS: {
         throw StoreKitSubscriptionError.noActiveSubscription
       },
@@ -70,6 +109,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSigningIn)
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Hosted subscription active")
+    XCTAssertEqual(sessionStore.loadValidSession(), session)
     XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription purchased", "Hosted session started"])
   }
 
@@ -78,6 +118,7 @@ final class AuthServiceTests: XCTestCase {
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
       currentEntitlementJWS: {
         "signed-transaction"
       },
@@ -102,14 +143,77 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(diagnostics.entries.first?.message, "Subscription validation failed for [redacted email].")
   }
 
+  func testSilentHostedRecoveryCreatesBackendSessionWhenNoCachedSessionExists() async {
+    let configuration = makeConfigurationStore()
+    let sessionStore = makeSessionStore()
+    let session = BackendSessionResponse(
+      accessToken: "recovered-token",
+      expiresAt: Date(timeIntervalSince1970: 1_800),
+      entitlementActive: true,
+      serviceMode: "hosted"
+    )
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        "signed-transaction"
+      },
+      createSubscriptionSession: { request in
+        XCTAssertEqual(request.signedTransactionInfo, "signed-transaction")
+        XCTAssertEqual(request.installationId, configuration.installationId)
+        return session
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      }
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertEqual(service.accessToken, "recovered-token")
+    XCTAssertNil(service.errorMessage)
+    XCTAssertEqual(sessionStore.loadValidSession(), session)
+  }
+
+  func testSilentHostedRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
+    let diagnostics = DiagnosticsLogStore()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in
+        XCTFail("Backend should not be called without StoreKit entitlement")
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      },
+      diagnostics: diagnostics
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertNil(service.errorMessage)
+    XCTAssertEqual(service.statusMessage, "Connect to PumpSync or a self-hosted service")
+    XCTAssertEqual(diagnostics.entries.first?.title, "Hosted recovery skipped")
+    XCTAssertEqual(diagnostics.entries.first?.message, "No current StoreKit entitlement was available for hosted recovery.")
+  }
+
   func testSelfHostedCreatesBackendSession() async {
     let configuration = makeConfigurationStore()
     configuration.mode = .selfHosted
     configuration.selfHostedBaseURLString = "https://self-host.example/api"
+    let sessionStore = makeSessionStore()
 
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: configuration,
+      sessionStore: sessionStore,
       currentEntitlementJWS: {
         throw StoreKitSubscriptionError.noActiveSubscription
       },
@@ -131,12 +235,82 @@ final class AuthServiceTests: XCTestCase {
 
     XCTAssertEqual(service.accessToken, "self-hosted-token")
     XCTAssertEqual(service.statusMessage, "Connected to self-hosted service")
+    XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "self-hosted-token")
+  }
+
+  func testConnectionChangeClearsCachedSession() throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
+    try sessionStore.save(
+      BackendSessionResponse(
+        accessToken: "cached-token",
+        expiresAt: Date(timeIntervalSince1970: 2_000),
+        entitlementActive: true,
+        serviceMode: "hosted"
+      )
+    )
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      }
+    )
+
+    service.clearSessionForConnectionChange()
+
+    XCTAssertNil(sessionStore.loadValidSession())
+    XCTAssertFalse(service.isSignedIn)
+  }
+
+  func testExpiredCachedSessionTriggersHostedRecovery() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(
+      BackendSessionResponse(
+        accessToken: "expired-token",
+        expiresAt: Date(timeIntervalSince1970: 1_999),
+        entitlementActive: true,
+        serviceMode: "hosted"
+      )
+    )
+    let recoveredSession = BackendSessionResponse(
+      accessToken: "recovered-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      entitlementActive: true,
+      serviceMode: "hosted"
+    )
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        "signed-transaction"
+      },
+      createSubscriptionSession: { _ in
+        recoveredSession
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      }
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertEqual(service.accessToken, "recovered-token")
+    XCTAssertEqual(sessionStore.loadValidSession(), recoveredSession)
   }
 
   func testHostedConnectionRequiredMessageUsesHostedServiceTerminology() {
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
       currentEntitlementJWS: {
         throw StoreKitSubscriptionError.noActiveSubscription
       },
@@ -160,5 +334,12 @@ final class AuthServiceTests: XCTestCase {
   private func makeConfigurationStore() -> BackendConfigurationStore {
     let defaults = UserDefaults(suiteName: "AuthServiceTests-\(UUID().uuidString)")!
     return BackendConfigurationStore(defaults: defaults)
+  }
+
+  private func makeSessionStore(now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_000) }) -> BackendSessionStore {
+    BackendSessionStore(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)"),
+      now: now
+    )
   }
 }
