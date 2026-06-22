@@ -287,14 +287,6 @@ private struct InsulinConcentrationView: View {
 
       GlassSection("Details") {
         InsulinConcentrationDetailRow(
-          title: "Apple Health only",
-          detail: "PumpSync uses this setting only when writing insulin delivery data to Apple Health.",
-          systemImage: "heart"
-        )
-
-        GlassDivider()
-
-        InsulinConcentrationDetailRow(
           title: "Match your insulin",
           detail: "Most rapid-acting insulin is U-100. Some people use more concentrated insulin, such as U-200 or U-500, where each pump-reported unit represents more insulin.",
           systemImage: "drop"
@@ -306,6 +298,14 @@ private struct InsulinConcentrationView: View {
           title: "Conversion only",
           detail: "This changes how PumpSync converts pump-reported insulin amounts before saving them to Apple Health. It does not change your pump data, pump account, or pump settings.",
           systemImage: "arrow.triangle.2.circlepath"
+        )
+
+        GlassDivider()
+
+        InsulinConcentrationDetailRow(
+          title: "Apple Health only",
+          detail: "PumpSync uses this setting only when writing insulin delivery data to Apple Health.",
+          systemImage: "heart"
         )
 
         GlassDivider()
