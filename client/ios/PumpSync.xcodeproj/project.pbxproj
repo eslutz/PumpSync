@@ -19,7 +19,6 @@
 		38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */; };
 		4BA9367AC56377C9CD9B15FB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36ABBE2A707B83D4D4006E57 /* Assets.xcassets */; };
 		4D208B7D49A8858765E583E9 /* BackgroundSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */; };
-		4F5934478CD544ADCF23B80B /* DashboardViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39CB0A0E104486F78B9529BF /* DashboardViewTests.swift */; };
 		562C2A1D6E9BE2F7A5ACFB89 /* MetricKitDiagnosticsCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */; };
 		59F4523649C67CC80D72AFBE /* PrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BE8DF10D82A15535948164 /* PrivacyView.swift */; };
 		64F8658EBAE60271076F2524 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F320DEB00E61B6A6E1DA31C /* SyncCoordinator.swift */; };
@@ -47,7 +46,6 @@
 		E8CC720BD78B563749D717A6 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E4EAAEA23A6B7BBE581672 /* OnboardingView.swift */; };
 		EB193DD271B48CD0448A9F14 /* GlassUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C572BC95D8A1228661865AC4 /* GlassUI.swift */; };
 		F96749147D5EC671A85BAF8A /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 228837A73B88DB4E80B7A957 /* APIModels.swift */; };
-		FC80ACC01C3A2A4AA6F1077F /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37EB57E1D5975023BD6A12F1 /* DashboardView.swift */; };
 		FF558BD17D2F7FFB5762840B /* TandemCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B80BDA0E659F5365FB1C87A /* TandemCredentialStore.swift */; };
 /* End PBXBuildFile section */
 
@@ -83,8 +81,6 @@
 		2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMetadataStore.swift; sourceTree = "<group>"; };
 		3256EF7EB4927D3CF3BD72A0 /* SupportBundleBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportBundleBuilderTests.swift; sourceTree = "<group>"; };
 		36ABBE2A707B83D4D4006E57 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		37EB57E1D5975023BD6A12F1 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
-		39CB0A0E104486F78B9529BF /* DashboardViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewTests.swift; sourceTree = "<group>"; };
 		39EC34B2CD83FB273C8C111B /* DiagnosticsLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsLogStore.swift; sourceTree = "<group>"; };
 		3E6DA5FED28D70A119E7A56B /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		479A925ED4D07C6CBF465383 /* PumpSyncUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PumpSyncUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -206,7 +202,6 @@
 		DEB95B48B91FCB6507BD1843 /* UI */ = {
 			isa = PBXGroup;
 			children = (
-				37EB57E1D5975023BD6A12F1 /* DashboardView.swift */,
 				5F3A6A77F4F6DCA618C40B84 /* DeveloperView.swift */,
 				C572BC95D8A1228661865AC4 /* GlassUI.swift */,
 				52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */,
@@ -222,7 +217,6 @@
 			isa = PBXGroup;
 			children = (
 				09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */,
-				39CB0A0E104486F78B9529BF /* DashboardViewTests.swift */,
 				6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */,
 				CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */,
 				58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */,
@@ -401,7 +395,6 @@
 				18701BDFE904793BC7E5CEB8 /* AppView.swift in Sources */,
 				B071813F6A46DD557EC13A9D /* AuthService.swift in Sources */,
 				4D208B7D49A8858765E583E9 /* BackgroundSyncScheduler.swift in Sources */,
-				FC80ACC01C3A2A4AA6F1077F /* DashboardView.swift in Sources */,
 				8E691048B5B3682731B288BC /* DeveloperView.swift in Sources */,
 				76E2553C94E3222BE53E42C3 /* DiagnosticsLogStore.swift in Sources */,
 				EB193DD271B48CD0448A9F14 /* GlassUI.swift in Sources */,
@@ -433,7 +426,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				1B03175A1F27037B703EC8D1 /* AuthServiceTests.swift in Sources */,
-				4F5934478CD544ADCF23B80B /* DashboardViewTests.swift in Sources */,
 				882B07661FC363D0C5D80733 /* DiagnosticsLogStoreTests.swift in Sources */,
 				AE379769E7346E02086C3A63 /* HealthAccessTests.swift in Sources */,
 				B65BEA4308E67124A51FC987 /* InitialImportRangeTests.swift in Sources */,

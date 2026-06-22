@@ -10,14 +10,14 @@ final class SyncViewTests: XCTestCase {
     ))
   }
 
-  func testReadinessMessagePromptsForValidatedCredentialsAfterSignIn() {
+  func testReadinessMessagePromptsForSavedCredentialsAfterSignIn() {
     XCTAssertEqual(
       SyncView.readinessMessage(
         isBackendConnected: true,
         hasValidatedCredentials: false,
         hasAnyHealthWritePermission: false
       ),
-      "Validate your pump account in Settings before syncing."
+      "Save your pump account credentials in Settings before syncing."
     )
   }
 

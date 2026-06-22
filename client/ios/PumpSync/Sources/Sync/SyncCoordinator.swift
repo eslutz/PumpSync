@@ -59,7 +59,7 @@ final class SyncCoordinator {
     }
 
     guard credentialStore.hasValidatedCredentials else {
-      lastMessage = "Validate your pump account before syncing."
+      lastMessage = "Save your pump account credentials before syncing."
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Pump account credentials are not validated.")
       return
     }

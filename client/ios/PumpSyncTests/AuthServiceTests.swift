@@ -73,7 +73,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription purchased", "Hosted session started"])
   }
 
-  func testHostedRestorePublishesSafeBackendErrorAndDiagnostics() async {
+  func testHostedRestorePublishesUserSafeErrorAndDiagnostics() async {
     let diagnostics = DiagnosticsLogStore()
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -92,10 +92,12 @@ final class AuthServiceTests: XCTestCase {
 
     await service.connectHostedUsingCurrentSubscription()
 
+    let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
     XCTAssertFalse(service.isSignedIn)
     XCTAssertFalse(service.isSigningIn)
-    XCTAssertEqual(service.statusMessage, "Subscription validation failed for [redacted email].")
-    XCTAssertEqual(service.errorMessage, "Subscription validation failed for [redacted email].")
+    XCTAssertEqual(service.statusMessage, expectedMessage)
+    XCTAssertEqual(service.errorMessage, expectedMessage)
+    XCTAssertEqual(service.connectionRequiredMessage, expectedMessage)
     XCTAssertEqual(diagnostics.entries.first?.title, "Hosted session failed")
     XCTAssertEqual(diagnostics.entries.first?.message, "Subscription validation failed for [redacted email].")
   }

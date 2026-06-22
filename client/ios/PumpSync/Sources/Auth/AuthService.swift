@@ -139,7 +139,7 @@ final class AuthService {
 
   var connectionRequiredMessage: String {
     if let errorMessage {
-      return errorMessage
+      return hostedConnectionMessage(for: errorMessage)
     }
 
     switch configurationStore.mode {
@@ -166,7 +166,7 @@ final class AuthService {
       )
     } catch {
       session = nil
-      let message = safeMessage("Hosted subscription access could not be verified.", error: error)
+      let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
       errorMessage = message
       statusMessage = message
       diagnostics?.record(error: error, source: .auth, title: "Hosted restore failed")
@@ -272,7 +272,7 @@ final class AuthService {
       diagnostics?.record(source: .auth, title: title)
     } catch {
       session = nil
-      let message = safeMessage("Hosted subscription access could not be verified.", error: error)
+      let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
       errorMessage = message
       statusMessage = message
       diagnostics?.record(error: error, source: .auth, title: "Hosted session failed")
@@ -287,6 +287,15 @@ final class AuthService {
     }
 
     return DiagnosticsLogStore.redacted(description)
+  }
+
+  private func hostedConnectionMessage(for message: String) -> String {
+    switch configurationStore.mode {
+    case .hosted:
+      return "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
+    case .selfHosted:
+      return message
+    }
   }
 }
 

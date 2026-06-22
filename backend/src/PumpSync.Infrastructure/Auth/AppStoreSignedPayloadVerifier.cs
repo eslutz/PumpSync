@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -72,13 +73,16 @@ public sealed class AppStoreSignedPayloadVerifier(IOptions<AppStoreOptions> opti
             throw new SecurityTokenValidationException("Signed App Store payload certificate chain is not pinned to the configured Apple root.");
         }
 
+        using var publicKey = certificate.GetECDsaPublicKey()
+            ?? throw new SecurityTokenValidationException("Signed App Store payload certificate does not contain an ECDSA public key.");
+        var signingKey = new ECDsaSecurityKey(publicKey);
         var result = await new JsonWebTokenHandler().ValidateTokenAsync(jws, new TokenValidationParameters
         {
             ValidateAudience = false,
             ValidateIssuer = false,
             ValidateLifetime = false,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new X509SecurityKey(certificate)
+            IssuerSigningKeyResolver = (_, _, _, _) => [signingKey]
         });
 
         if (!result.IsValid)

@@ -3,7 +3,7 @@ import SwiftUI
 struct AppView: View {
   @Environment(AppServices.self) private var services
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @State private var selectedTab: AppTab = .dashboard
+  @State private var selectedTab: AppTab = .sync
 
   var body: some View {
     Group {
@@ -48,7 +48,6 @@ struct AppView: View {
 }
 
 enum AppTab: String, CaseIterable, Identifiable {
-  case dashboard
   case sync
   case settings
 
@@ -56,8 +55,6 @@ enum AppTab: String, CaseIterable, Identifiable {
 
   var title: String {
     switch self {
-    case .dashboard:
-      return "Status"
     case .sync:
       return "Sync"
     case .settings:
@@ -67,8 +64,6 @@ enum AppTab: String, CaseIterable, Identifiable {
 
   var systemImage: String {
     switch self {
-    case .dashboard:
-      return "heart.text.square"
     case .sync:
       return "arrow.triangle.2.circlepath"
     case .settings:
@@ -79,8 +74,6 @@ enum AppTab: String, CaseIterable, Identifiable {
   @ViewBuilder
   var content: some View {
     switch self {
-    case .dashboard:
-      DashboardView()
     case .sync:
       SyncView()
     case .settings:

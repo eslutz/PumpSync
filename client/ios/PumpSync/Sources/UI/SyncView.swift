@@ -5,6 +5,22 @@ struct SyncView: View {
 
   var body: some View {
     PumpSyncScreen {
+      GlassSection {
+        GlassStatusRow(
+          title: "Connection",
+          value: connectionStatus,
+          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled"
+        )
+
+        GlassDivider()
+
+        GlassStatusRow(
+          title: "Pump data",
+          value: tandemStatus,
+          systemImage: services.credentialStore.hasValidatedCredentials ? "key.fill" : "key.slash"
+        )
+      }
+
       if services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil {
         GlassSection("Initial Import") {
           initialImportMenu
@@ -113,6 +129,22 @@ struct SyncView: View {
       && !services.syncCoordinator.isSyncing
   }
 
+  private var connectionStatus: String {
+    services.authService.isSignedIn ? "Connected" : "Not connected"
+  }
+
+  private var tandemStatus: String {
+    if services.credentialStore.hasValidatedCredentials {
+      return "Ready"
+    }
+
+    if services.credentialStore.hasStoredCredentials {
+      return "Needs validation"
+    }
+
+    return "Not configured"
+  }
+
   private var syncButtonTitle: String {
     if services.syncCoordinator.isSyncing {
       return "Syncing"
@@ -139,7 +171,7 @@ struct SyncView: View {
     }
 
     if !hasValidatedCredentials {
-      return "Validate your pump account in Settings before syncing."
+      return "Save your pump account credentials in Settings before syncing."
     }
 
     if !hasAnyHealthWritePermission {

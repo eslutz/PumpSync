@@ -17,7 +17,7 @@ final class PumpSyncUITests: XCTestCase {
   func testCoreScreensRenderInScreenshotMode() {
     let app = launchScreenshotFixture()
 
-    XCTAssertTrue(app.staticTexts["PumpSync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
     navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
 
@@ -57,7 +57,7 @@ final class PumpSyncUITests: XCTestCase {
       ]
     )
 
-    XCTAssertTrue(app.staticTexts["PumpSync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
 
     navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
@@ -74,7 +74,7 @@ final class PumpSyncUITests: XCTestCase {
   func testDarkModeCoreScreensRenderInScreenshotMode() {
     let app = launchScreenshotFixture(launchArguments: ["-AppleInterfaceStyle", "Dark"])
 
-    XCTAssertTrue(app.staticTexts["PumpSync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
 
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
@@ -86,7 +86,7 @@ final class PumpSyncUITests: XCTestCase {
   func testIPadAppStoreScreenshots() {
     let app = launchScreenshotFixture()
 
-    attachScreenshot(named: "ipad-pro-13-app-store-listing-01-status-overview.png", from: app)
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-01-sync-overview.png", from: app)
 
     navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
@@ -132,7 +132,7 @@ final class PumpSyncUITests: XCTestCase {
   func testIPhoneAppStoreScreenshots() {
     let app = launchScreenshotFixture()
 
-    attachScreenshot(named: "iphone-6-7-app-store-listing-01-status-overview.png", from: app)
+    attachScreenshot(named: "iphone-6-7-app-store-listing-01-sync-overview.png", from: app)
 
     navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))

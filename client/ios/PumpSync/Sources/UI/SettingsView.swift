@@ -6,6 +6,7 @@ struct SettingsView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isShowingHostedSubscriptionStore = false
+  @State private var connectionAlert: ConnectionAlert?
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
@@ -28,19 +29,20 @@ struct SettingsView: View {
             )
           }
           .buttonStyle(GroupedRowActionButtonStyle())
-          .disabled(services.authService.isConnecting)
+          .disabled(hostedSubscriptionActionsDisabled)
           .accessibilityHint("Opens the PumpSync Hosted subscription options")
 
           Button {
             Task {
               await services.authService.connectHostedUsingCurrentSubscription()
+              connectionAlert = restoreConnectionAlert
             }
           } label: {
             Label("Restore Subscription", systemImage: "arrow.clockwise")
               .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
           }
           .buttonStyle(GroupedInlineButtonStyle())
-          .disabled(services.authService.isConnecting)
+          .disabled(hostedSubscriptionActionsDisabled)
           .accessibilityHint("Checks your current App Store subscription and reconnects hosted service access")
 
         case .selfHosted:
@@ -141,6 +143,13 @@ struct SettingsView: View {
         HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
       }
     }
+    .alert(item: $connectionAlert) { alert in
+      Alert(
+        title: Text(alert.title),
+        message: Text(alert.message),
+        dismissButton: .default(Text("OK"))
+      )
+    }
   }
 
   @ViewBuilder
@@ -207,6 +216,24 @@ struct SettingsView: View {
     )
   }
 
+  private var restoreConnectionAlert: ConnectionAlert {
+    if services.authService.isSignedIn {
+      return ConnectionAlert(
+        title: "Subscription Restored",
+        message: "PumpSync Hosted is connected. You can now save your Tandem account."
+      )
+    }
+
+    return ConnectionAlert(
+      title: "Restore Failed",
+      message: services.authService.connectionRequiredMessage
+    )
+  }
+
+  private var hostedSubscriptionActionsDisabled: Bool {
+    services.authService.isConnecting
+  }
+
   private var tandemCredentialStatus: String {
     if services.credentialStore.hasValidatedCredentials {
       return "Validated"
@@ -224,9 +251,15 @@ struct SettingsView: View {
       return tandemCredentialStatus
     }
 
-    return "\(redactedUsername) - \(tandemCredentialStatus)"
+    return redactedUsername
   }
 
+}
+
+private struct ConnectionAlert: Identifiable {
+  let id = UUID()
+  let title: String
+  let message: String
 }
 
 private struct ConnectionModeButtonLabel: View {
@@ -300,6 +333,7 @@ private struct HostedSubscriptionScreenshotView: View {
 private struct HostedSubscriptionStoreView: View {
   @Environment(AppServices.self) private var services
   @Binding var isPresented: Bool
+  @State private var purchaseAlert: ConnectionAlert?
 
   var body: some View {
     SubscriptionStoreView(groupID: AppConstants.hostedSubscriptionGroupId) {
@@ -343,6 +377,13 @@ private struct HostedSubscriptionStoreView: View {
     .onInAppPurchaseCompletion { _, result in
       await handlePurchaseCompletion(result)
     }
+    .alert(item: $purchaseAlert) { alert in
+      Alert(
+        title: Text(alert.title),
+        message: Text(alert.message),
+        dismissButton: .default(Text("OK"))
+      )
+    }
   }
 
   private func handlePurchaseCompletion(_ result: Result<Product.PurchaseResult, Error>) async {
@@ -354,18 +395,39 @@ private struct HostedSubscriptionStoreView: View {
         await transaction.finish()
         if services.authService.isSignedIn {
           isPresented = false
+        } else {
+          purchaseAlert = ConnectionAlert(
+            title: "Subscription Verification Failed",
+            message: services.authService.connectionRequiredMessage
+          )
         }
       } catch {
         services.authService.recordHostedSubscriptionPurchaseFailed(error)
+        purchaseAlert = ConnectionAlert(
+          title: "Subscription Verification Failed",
+          message: services.authService.connectionRequiredMessage
+        )
       }
     case .success(.userCancelled):
       services.authService.recordHostedSubscriptionPurchaseCancelled()
     case .success(.pending):
       services.authService.recordHostedSubscriptionPurchasePending()
+      purchaseAlert = ConnectionAlert(
+        title: "Subscription Pending",
+        message: services.authService.statusMessage
+      )
     case .failure(let error):
       services.authService.recordHostedSubscriptionPurchaseFailed(error)
+      purchaseAlert = ConnectionAlert(
+        title: "Subscription Failed",
+        message: services.authService.connectionRequiredMessage
+      )
     @unknown default:
       services.authService.recordHostedSubscriptionPurchaseFailed(StoreKitSubscriptionError.unverifiedTransaction)
+      purchaseAlert = ConnectionAlert(
+        title: "Subscription Failed",
+        message: services.authService.connectionRequiredMessage
+      )
     }
   }
 
