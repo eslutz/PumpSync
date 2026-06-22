@@ -219,7 +219,6 @@ struct GroupedInlineButtonStyle: ButtonStyle {
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
-      .foregroundStyle(.tint)
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(.vertical, 6)
       .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : disabledOpacity)

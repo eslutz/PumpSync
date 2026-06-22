@@ -27,9 +27,14 @@ struct SyncView: View {
 
           GlassDivider(leadingPadding: 0)
 
-          Text("Choose how much pump history to import the first time. Future syncs import new data only.")
-            .foregroundStyle(.secondary)
-            .padding(.vertical, 8)
+          VStack(alignment: .leading, spacing: 10) {
+            Text("Choose how much pump history to import the first time. Future syncs import new data only.")
+
+            Text("After the first sync, PumpSync checks for new pump data when the app opens and during daily background updates when iOS grants time.")
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .foregroundStyle(.secondary)
+          .padding(.vertical, 8)
         }
       }
 
@@ -65,12 +70,6 @@ struct SyncView: View {
             systemImage: "checkmark.circle.fill",
             tint: .green
           )
-        }
-      } else {
-        GlassSection("Automatic Sync") {
-          Text("After the first sync, PumpSync checks for new pump data when the app opens and during daily background updates when iOS grants time.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
     }

@@ -114,7 +114,17 @@ struct SettingsView: View {
 
         GlassDivider()
 
-        concentrationPicker
+        NavigationLink {
+          InsulinConcentrationView()
+        } label: {
+          GlassNavigationRow(
+            "Insulin Concentration",
+            subtitle: services.insulinConcentrationStore.concentration.title,
+            systemImage: "drop.fill"
+          )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("InsulinConcentrationLink")
 
         GlassDivider()
 
@@ -156,35 +166,6 @@ struct SettingsView: View {
         dismissButton: .default(Text("OK"))
       )
     }
-  }
-
-  private var concentrationPicker: some View {
-    HStack(spacing: 14) {
-      Image(systemName: "drop.fill")
-        .font(.title3)
-        .frame(width: 28)
-        .foregroundStyle(.tint)
-        .accessibilityHidden(true)
-
-      VStack(alignment: .leading, spacing: 2) {
-        Text("Insulin Concentration")
-          .foregroundStyle(.primary)
-      }
-      .layoutPriority(1)
-
-      Spacer(minLength: 12)
-
-      Picker("Insulin Concentration", selection: insulinConcentrationBinding) {
-        ForEach(InsulinConcentration.allCases) { concentration in
-          Text(concentration.title).tag(concentration)
-        }
-      }
-      .pickerStyle(.menu)
-      .labelsHidden()
-      .frame(minWidth: 88, alignment: .trailing)
-      .accessibilityIdentifier("InsulinConcentrationPicker")
-    }
-    .padding(.vertical, 6)
   }
 
   @ViewBuilder
@@ -251,17 +232,6 @@ struct SettingsView: View {
     )
   }
 
-  private var insulinConcentrationBinding: Binding<InsulinConcentration> {
-    Binding(
-      get: {
-        services.insulinConcentrationStore.concentration
-      },
-      set: { concentration in
-        services.insulinConcentrationStore.concentration = concentration
-      }
-    )
-  }
-
   private var restoreConnectionAlert: ConnectionAlert {
     if services.authService.isSignedIn {
       return ConnectionAlert(
@@ -300,6 +270,56 @@ struct SettingsView: View {
     return redactedUsername
   }
 
+}
+
+private struct InsulinConcentrationView: View {
+  @Environment(AppServices.self) private var services
+
+  var body: some View {
+    PumpSyncScreen(spacing: 16) {
+      GlassSection("Current Setting") {
+        Picker("Insulin Concentration", selection: insulinConcentrationBinding) {
+          ForEach(InsulinConcentration.allCases) { concentration in
+            Text(concentration.title).tag(concentration)
+          }
+        }
+        .pickerStyle(.inline)
+        .accessibilityIdentifier("InsulinConcentrationPicker")
+      }
+
+      GlassSection("Details") {
+        VStack(alignment: .leading, spacing: 12) {
+          Text("PumpSync uses this setting only when writing insulin delivery data to Apple Health.")
+
+          Text("Most rapid-acting insulin is U-100. Some people use more concentrated insulin, such as U-200 or U-500, where each pump-reported unit represents more insulin. Choose the concentration that matches the insulin used in your pump.")
+
+          Text("This setting changes how PumpSync converts pump-reported insulin amounts before saving them to Apple Health. It does not change your pump data, pump account, or pump settings.")
+        }
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 6)
+      }
+
+      GlassSection {
+        Text("If you are not sure which concentration you use, leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.")
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(.vertical, 6)
+      }
+    }
+    .navigationTitle("Insulin Concentration")
+  }
+
+  private var insulinConcentrationBinding: Binding<InsulinConcentration> {
+    Binding(
+      get: {
+        services.insulinConcentrationStore.concentration
+      },
+      set: { concentration in
+        services.insulinConcentrationStore.concentration = concentration
+      }
+    )
+  }
 }
 
 private struct ConnectionAlert: Identifiable {
