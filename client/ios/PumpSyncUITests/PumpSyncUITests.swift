@@ -50,6 +50,15 @@ final class PumpSyncUITests: XCTestCase {
     assertDeveloperDiagnosticsVisible(in: app)
   }
 
+  func testSettingsShowsCompactInsulinConcentrationRow() {
+    let app = launchScreenshotFixture()
+
+    navigate(to: "Settings", in: app)
+
+    XCTAssertTrue(app.staticTexts["Insulin Concentration"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.staticTexts["Apple Health records 1x pump units"].exists)
+  }
+
   func testAccessibilityDynamicTypeScreensRenderInScreenshotMode() {
     let app = launchScreenshotFixture(
       launchEnvironment: [

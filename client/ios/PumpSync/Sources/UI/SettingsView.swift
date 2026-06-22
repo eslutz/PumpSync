@@ -38,8 +38,10 @@ struct SettingsView: View {
               connectionAlert = restoreConnectionAlert
             }
           } label: {
-            Label("Restore Subscription", systemImage: "arrow.clockwise")
-              .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+            GlassPrimaryLabel(
+              title: "Restore Subscription",
+              systemImage: "arrow.clockwise"
+            )
           }
           .buttonStyle(GroupedInlineButtonStyle())
           .disabled(hostedSubscriptionActionsDisabled)
@@ -112,6 +114,10 @@ struct SettingsView: View {
 
         GlassDivider()
 
+        concentrationPicker
+
+        GlassDivider()
+
         NavigationLink {
           DataHandlingView()
         } label: {
@@ -150,6 +156,35 @@ struct SettingsView: View {
         dismissButton: .default(Text("OK"))
       )
     }
+  }
+
+  private var concentrationPicker: some View {
+    HStack(spacing: 14) {
+      Image(systemName: "drop.fill")
+        .font(.title3)
+        .frame(width: 28)
+        .foregroundStyle(.tint)
+        .accessibilityHidden(true)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Insulin Concentration")
+          .foregroundStyle(.primary)
+      }
+      .layoutPriority(1)
+
+      Spacer(minLength: 12)
+
+      Picker("Insulin Concentration", selection: insulinConcentrationBinding) {
+        ForEach(InsulinConcentration.allCases) { concentration in
+          Text(concentration.title).tag(concentration)
+        }
+      }
+      .pickerStyle(.menu)
+      .labelsHidden()
+      .frame(minWidth: 88, alignment: .trailing)
+      .accessibilityIdentifier("InsulinConcentrationPicker")
+    }
+    .padding(.vertical, 6)
   }
 
   @ViewBuilder
@@ -212,6 +247,17 @@ struct SettingsView: View {
           services.authService.clearSessionForConnectionChange()
           _ = services.backendConfigurationStore.apply(to: services.apiClient)
         }
+      }
+    )
+  }
+
+  private var insulinConcentrationBinding: Binding<InsulinConcentration> {
+    Binding(
+      get: {
+        services.insulinConcentrationStore.concentration
+      },
+      set: { concentration in
+        services.insulinConcentrationStore.concentration = concentration
       }
     )
   }

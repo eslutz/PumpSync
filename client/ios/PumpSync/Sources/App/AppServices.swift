@@ -10,6 +10,7 @@ final class AppServices {
   let nativeDiagnosticsStore: NativeDiagnosticsStore
   let authService: AuthService
   let credentialStore: TandemCredentialStore
+  let insulinConcentrationStore: InsulinConcentrationStore
   let healthKitService: HealthKitService
   let importedSampleLedger: ImportedSampleLedger
   let syncMetadataStore: SyncMetadataStore
@@ -24,6 +25,7 @@ final class AppServices {
     nativeDiagnosticsStore: NativeDiagnosticsStore,
     authService: AuthService,
     credentialStore: TandemCredentialStore,
+    insulinConcentrationStore: InsulinConcentrationStore,
     healthKitService: HealthKitService,
     importedSampleLedger: ImportedSampleLedger,
     syncMetadataStore: SyncMetadataStore,
@@ -37,6 +39,7 @@ final class AppServices {
     self.nativeDiagnosticsStore = nativeDiagnosticsStore
     self.authService = authService
     self.credentialStore = credentialStore
+    self.insulinConcentrationStore = insulinConcentrationStore
     self.healthKitService = healthKitService
     self.importedSampleLedger = importedSampleLedger
     self.syncMetadataStore = syncMetadataStore
@@ -54,7 +57,11 @@ final class AppServices {
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
     let credentialStore = TandemCredentialStore(keychain: keychain)
     let authService = AuthService(apiClient: apiClient, configurationStore: backendConfigurationStore, diagnostics: diagnosticsLogStore)
-    let healthKitService = HealthKitService(diagnostics: diagnosticsLogStore)
+    let insulinConcentrationStore = InsulinConcentrationStore()
+    let healthKitService = HealthKitService(
+      insulinConcentrationStore: insulinConcentrationStore,
+      diagnostics: diagnosticsLogStore
+    )
     let importedSampleLedger = ImportedSampleLedger(keychain: keychain)
     let syncMetadataStore = SyncMetadataStore()
     let syncCoordinator = SyncCoordinator(
@@ -76,6 +83,7 @@ final class AppServices {
       nativeDiagnosticsStore: nativeDiagnosticsStore,
       authService: authService,
       credentialStore: credentialStore,
+      insulinConcentrationStore: insulinConcentrationStore,
       healthKitService: healthKitService,
       importedSampleLedger: importedSampleLedger,
       syncMetadataStore: syncMetadataStore,
@@ -98,7 +106,11 @@ final class AppServices {
     let nativeDiagnosticsStore = NativeDiagnosticsStore(defaults: defaults)
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync.screenshots")
     let credentialStore = TandemCredentialStore(keychain: keychain)
-    let healthKitService = HealthKitService(diagnostics: diagnosticsLogStore)
+    let insulinConcentrationStore = InsulinConcentrationStore(defaults: defaults)
+    let healthKitService = HealthKitService(
+      insulinConcentrationStore: insulinConcentrationStore,
+      diagnostics: diagnosticsLogStore
+    )
     let importedSampleLedger = ImportedSampleLedger(keychain: keychain)
     let syncMetadataStore = SyncMetadataStore(defaults: defaults)
     let authService = AuthService(
@@ -173,6 +185,7 @@ final class AppServices {
       nativeDiagnosticsStore: nativeDiagnosticsStore,
       authService: authService,
       credentialStore: credentialStore,
+      insulinConcentrationStore: insulinConcentrationStore,
       healthKitService: healthKitService,
       importedSampleLedger: importedSampleLedger,
       syncMetadataStore: syncMetadataStore,

@@ -2,10 +2,75 @@ import Foundation
 import HealthKit
 import Observation
 
+enum InsulinConcentration: String, CaseIterable, Identifiable {
+  case u100
+  case u200
+  case u500
+
+  var id: String { rawValue }
+
+  var title: String {
+    switch self {
+    case .u100:
+      return "U-100"
+    case .u200:
+      return "U-200"
+    case .u500:
+      return "U-500"
+    }
+  }
+
+  var healthMultiplierFactor: Int {
+    switch self {
+    case .u100:
+      return 1
+    case .u200:
+      return 2
+    case .u500:
+      return 5
+    }
+  }
+
+  var healthMultiplier: Decimal {
+    Decimal(healthMultiplierFactor)
+  }
+
+  func appleHealthValue(forPumpReportedValue value: Decimal) -> Decimal {
+    value * healthMultiplier
+  }
+}
+
+@Observable
+final class InsulinConcentrationStore {
+  private static let defaultsKey = "insulinConcentration"
+
+  private let defaults: UserDefaults
+
+  var concentration: InsulinConcentration {
+    didSet {
+      defaults.set(concentration.rawValue, forKey: Self.defaultsKey)
+    }
+  }
+
+  init(defaults: UserDefaults = .standard) {
+    self.defaults = defaults
+
+    if
+      let rawValue = defaults.string(forKey: Self.defaultsKey),
+      let concentration = InsulinConcentration(rawValue: rawValue)
+    {
+      self.concentration = concentration
+    } else {
+      self.concentration = .u100
+    }
+  }
+}
+
 @MainActor
 @Observable
 final class HealthKitService {
   private let healthStore = HKHealthStore()
+  private let insulinConcentrationStore: InsulinConcentrationStore
   private let diagnostics: DiagnosticsLogStore?
   private var usesScreenshotFixture = false
 
@@ -18,7 +83,11 @@ final class HealthKitService {
     writePermissions.contains { $0.status == .sharingAuthorized }
   }
 
-  init(diagnostics: DiagnosticsLogStore? = nil) {
+  init(
+    insulinConcentrationStore: InsulinConcentrationStore = InsulinConcentrationStore(),
+    diagnostics: DiagnosticsLogStore? = nil
+  ) {
+    self.insulinConcentrationStore = insulinConcentrationStore
     self.diagnostics = diagnostics
   }
 
@@ -211,7 +280,8 @@ final class HealthKitService {
       return nil
     }
 
-    let quantity = HKQuantity(unit: .internationalUnit(), doubleValue: decimalToDouble(sample.value))
+    let healthValue = insulinConcentrationStore.concentration.appleHealthValue(forPumpReportedValue: sample.value)
+    let quantity = HKQuantity(unit: .internationalUnit(), doubleValue: decimalToDouble(healthValue))
     var metadata = healthKitMetadata(for: sample)
     metadata[HKMetadataKeyInsulinDeliveryReason] = reason.rawValue
 
