@@ -151,7 +151,7 @@ struct TandemCredentialForm: View {
     isValidating = true
     defer { isValidating = false }
 
-    guard let accessToken = accessTokenForValidation() else {
+    guard let accessToken = await accessTokenForValidation() else {
       return
     }
 
@@ -189,8 +189,8 @@ struct TandemCredentialForm: View {
     }
   }
 
-  private func accessTokenForValidation() -> String? {
-    if let accessToken = services.authService.accessToken {
+  private func accessTokenForValidation() async -> String? {
+    if let accessToken = await services.authService.accessTokenRecoveringIfNeeded() {
       return accessToken
     }
 

@@ -83,6 +83,7 @@ final class AuthService {
   private let sessionStore: BackendSessionStore?
   private let diagnostics: DiagnosticsLogStore?
   private let currentEntitlementJWS: @MainActor () async throws -> String
+  private let syncedCurrentEntitlementJWS: @MainActor () async throws -> String
   private let createSubscriptionSession: @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse
   private let createSelfHostedSession: @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse
 
@@ -102,7 +103,16 @@ final class AuthService {
     self.sessionStore = sessionStore
     self.diagnostics = diagnostics
     currentEntitlementJWS = {
-      try await StoreKitSubscriptionProvider.currentEntitlementJWS(productId: AppConstants.hostedSubscriptionProductId)
+      try await StoreKitSubscriptionProvider.currentEntitlementJWS(
+        productId: AppConstants.hostedSubscriptionProductId,
+        syncWithAppStore: false
+      )
+    }
+    syncedCurrentEntitlementJWS = {
+      try await StoreKitSubscriptionProvider.currentEntitlementJWS(
+        productId: AppConstants.hostedSubscriptionProductId,
+        syncWithAppStore: true
+      )
     }
     createSubscriptionSession = { request in
       try await apiClient.createSubscriptionSession(request)
@@ -118,6 +128,7 @@ final class AuthService {
     configurationStore: BackendConfigurationStore,
     sessionStore: BackendSessionStore? = nil,
     currentEntitlementJWS: @escaping @MainActor () async throws -> String,
+    syncedCurrentEntitlementJWS: (@MainActor () async throws -> String)? = nil,
     createSubscriptionSession: @escaping @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse,
     createSelfHostedSession: @escaping @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse,
     diagnostics: DiagnosticsLogStore? = nil
@@ -127,6 +138,7 @@ final class AuthService {
     self.sessionStore = sessionStore
     self.diagnostics = diagnostics
     self.currentEntitlementJWS = currentEntitlementJWS
+    self.syncedCurrentEntitlementJWS = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
     self.createSubscriptionSession = createSubscriptionSession
     self.createSelfHostedSession = createSelfHostedSession
     session = sessionStore?.loadValidSession()
@@ -156,6 +168,11 @@ final class AuthService {
     return session?.accessToken
   }
 
+  func accessTokenRecoveringIfNeeded() async -> String? {
+    await recoverSessionIfNeeded()
+    return accessToken
+  }
+
   var connectionRequiredMessage: String {
     if let errorMessage {
       return hostedConnectionMessage(for: errorMessage)
@@ -177,7 +194,7 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Hosted restore started")
 
     do {
-      let signedTransactionInfo = try await currentEntitlementJWS()
+      let signedTransactionInfo = try await syncedCurrentEntitlementJWS()
       await establishHostedSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Activating hosted service...",
@@ -478,8 +495,10 @@ enum StoreKitSubscriptionError: LocalizedError {
 }
 
 private enum StoreKitSubscriptionProvider {
-  static func currentEntitlementJWS(productId: String) async throws -> String {
-    try? await AppStore.sync()
+  static func currentEntitlementJWS(productId: String, syncWithAppStore: Bool) async throws -> String {
+    if syncWithAppStore {
+      try? await AppStore.sync()
+    }
 
     for await result in Transaction.currentEntitlements {
       let transaction = try verified(result)

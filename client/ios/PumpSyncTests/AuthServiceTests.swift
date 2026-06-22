@@ -52,6 +52,10 @@ final class AuthServiceTests: XCTestCase {
       configurationStore: configuration,
       sessionStore: sessionStore,
       currentEntitlementJWS: {
+        XCTFail("Silent entitlement reads should not be used for explicit restore")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      syncedCurrentEntitlementJWS: {
         "signed-transaction"
       },
       createSubscriptionSession: { request in
@@ -90,6 +94,10 @@ final class AuthServiceTests: XCTestCase {
       configurationStore: configuration,
       sessionStore: sessionStore,
       currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      syncedCurrentEntitlementJWS: {
+        XCTFail("Purchase completion should use the signed transaction returned by StoreKit")
         throw StoreKitSubscriptionError.noActiveSubscription
       },
       createSubscriptionSession: { request in
@@ -159,6 +167,10 @@ final class AuthServiceTests: XCTestCase {
       currentEntitlementJWS: {
         "signed-transaction"
       },
+      syncedCurrentEntitlementJWS: {
+        XCTFail("Silent recovery should not call AppStore.sync")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
       createSubscriptionSession: { request in
         XCTAssertEqual(request.signedTransactionInfo, "signed-transaction")
         XCTAssertEqual(request.installationId, configuration.installationId)
@@ -176,6 +188,51 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), session)
   }
 
+  func testAccessTokenRecoveringIfNeededRefreshesStaleInMemorySession() async throws {
+    var now = Date(timeIntervalSince1970: 1_000)
+    let sessionStore = makeSessionStore(now: { now })
+    try sessionStore.save(
+      BackendSessionResponse(
+        accessToken: "stale-token",
+        expiresAt: Date(timeIntervalSince1970: 2_000),
+        entitlementActive: true,
+        serviceMode: "hosted"
+      )
+    )
+    let recoveredSession = BackendSessionResponse(
+      accessToken: "recovered-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      entitlementActive: true,
+      serviceMode: "hosted"
+    )
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        "signed-transaction"
+      },
+      syncedCurrentEntitlementJWS: {
+        XCTFail("Stale token recovery during sync should not call AppStore.sync")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in
+        recoveredSession
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      }
+    )
+
+    XCTAssertEqual(service.accessToken, "stale-token")
+
+    now = Date(timeIntervalSince1970: 1_800)
+    let accessToken = await service.accessTokenRecoveringIfNeeded()
+
+    XCTAssertEqual(accessToken, "recovered-token")
+    XCTAssertEqual(sessionStore.loadValidSession(), recoveredSession)
+  }
+
   func testSilentHostedRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
     let diagnostics = DiagnosticsLogStore()
     let service = AuthService(
@@ -183,6 +240,10 @@ final class AuthServiceTests: XCTestCase {
       configurationStore: makeConfigurationStore(),
       sessionStore: makeSessionStore(),
       currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      syncedCurrentEntitlementJWS: {
+        XCTFail("Silent recovery should not call AppStore.sync")
         throw StoreKitSubscriptionError.noActiveSubscription
       },
       createSubscriptionSession: { _ in
