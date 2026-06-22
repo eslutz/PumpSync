@@ -2,7 +2,16 @@
 
 PumpSync is the iOS app that syncs Tandem Source insulin and carbohydrate data into Apple Health.
 
-This repository is now frontend-only. Backend API code, infrastructure, backend workflows, and data-deletion tooling live in the PumpSync Backend repository.
+This repository is frontend-only. Backend API code, infrastructure, backend workflows, data-deletion tooling, Docker images, and Azure operations live in [eslutz/PumpSync-Backend](https://github.com/eslutz/PumpSync-Backend).
+
+## Associated Repositories
+
+| Repository | Owns | Notes |
+| --- | --- | --- |
+| [eslutz/PumpSync](https://github.com/eslutz/PumpSync) | iOS app, App Store/TestFlight metadata, iOS CI, screenshots, app legal docs | This repo. Do not add backend code, backend infrastructure, or backend deploy workflows here. |
+| [eslutz/PumpSync-Backend](https://github.com/eslutz/PumpSync-Backend) | ASP.NET Core backend, Docker/Compose self-hosting, Azure Container Apps infrastructure, backend deploy workflows, data deletion tooling | Canonical backend for hosted service, real self-hosting, and synthetic demo/App Review mode. |
+
+Hosted production/nonprod backend images are intended to stay private in Azure Container Registry. Public self-host/demo images are published from the backend repo to GitHub Container Registry so users can run the backend without Azure access. The iOS app does not build, publish, or select container images; it only points at a backend base URL.
 
 ## Repository Layout
 
@@ -44,6 +53,8 @@ Sign in with Apple is intentionally not part of this flow.
 The `/api` path segment is part of the base URL for hosted builds. The app appends `/v1/...` endpoint paths.
 
 Self-hosted users enter their own backend base URL in app settings. They should include `/api` unless their reverse proxy intentionally maps the backend API at the domain root.
+
+The nonprod Container Apps URL above is the current live backend for local Debug installs and TestFlight/Beta builds. The production custom domain is the intended Release base URL and depends on the backend repo's production Container Apps/custom-domain cutover.
 
 ## Generate Project
 
