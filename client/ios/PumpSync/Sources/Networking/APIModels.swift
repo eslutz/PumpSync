@@ -17,7 +17,7 @@ struct SelfHostedSessionRequest: Encodable {
   let installationId: String
 }
 
-struct BackendSessionResponse: Decodable, Equatable {
+struct BackendSessionResponse: Codable, Equatable {
   let accessToken: String
   let expiresAt: Date
   let entitlementActive: Bool

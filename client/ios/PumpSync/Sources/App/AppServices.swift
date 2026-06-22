@@ -55,8 +55,14 @@ final class AppServices {
     let diagnosticsLogStore = DiagnosticsLogStore()
     let nativeDiagnosticsStore = NativeDiagnosticsStore()
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
+    let sessionStore = BackendSessionStore(keychain: keychain)
     let credentialStore = TandemCredentialStore(keychain: keychain)
-    let authService = AuthService(apiClient: apiClient, configurationStore: backendConfigurationStore, diagnostics: diagnosticsLogStore)
+    let authService = AuthService(
+      apiClient: apiClient,
+      configurationStore: backendConfigurationStore,
+      sessionStore: sessionStore,
+      diagnostics: diagnosticsLogStore
+    )
     let insulinConcentrationStore = InsulinConcentrationStore()
     let healthKitService = HealthKitService(
       insulinConcentrationStore: insulinConcentrationStore,
@@ -105,6 +111,7 @@ final class AppServices {
     let diagnosticsLogStore = DiagnosticsLogStore()
     let nativeDiagnosticsStore = NativeDiagnosticsStore(defaults: defaults)
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync.screenshots")
+    let sessionStore = BackendSessionStore(keychain: keychain)
     let credentialStore = TandemCredentialStore(keychain: keychain)
     let insulinConcentrationStore = InsulinConcentrationStore(defaults: defaults)
     let healthKitService = HealthKitService(
@@ -116,6 +123,7 @@ final class AppServices {
     let authService = AuthService(
       apiClient: apiClient,
       configurationStore: backendConfigurationStore,
+      sessionStore: sessionStore,
       currentEntitlementJWS: { "screenshot-transaction-jws" },
       createSubscriptionSession: { _ in
         BackendSessionResponse(

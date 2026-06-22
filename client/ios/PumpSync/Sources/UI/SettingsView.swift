@@ -416,6 +416,12 @@ private enum ConnectionAlertAction {
   case manageSubscription
 }
 
+enum HostedSubscriptionPresentation {
+  static func shouldDismissAfterManageSubscriptions(isSignedIn: Bool) -> Bool {
+    isSignedIn
+  }
+}
+
 private extension UIApplication {
   var foregroundWindowScene: UIWindowScene? {
     let scenes = connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -650,6 +656,10 @@ private struct HostedSubscriptionStoreView: View {
 
     do {
       try await AppStore.showManageSubscriptions(in: scene, subscriptionGroupID: AppConstants.hostedSubscriptionGroupId)
+      await services.authService.recoverSessionIfNeeded()
+      if HostedSubscriptionPresentation.shouldDismissAfterManageSubscriptions(isSignedIn: services.authService.isSignedIn) {
+        isPresented = false
+      }
     } catch {
       services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
       purchaseAlert = ConnectionAlert(

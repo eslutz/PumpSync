@@ -151,7 +151,7 @@ struct TandemCredentialForm: View {
     isValidating = true
     defer { isValidating = false }
 
-    guard let accessToken = accessTokenForValidation() else {
+    guard let accessToken = await accessTokenForValidation() else {
       return
     }
 
@@ -178,6 +178,9 @@ struct TandemCredentialForm: View {
       )
       services.diagnosticsLogStore.record(source: .credential, title: "Credentials saved")
     } catch {
+      if (error as? APIClientError)?.isAuthenticationFailure == true {
+        services.authService.clearSessionForAuthenticationFailure()
+      }
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials save failed")
       alert = CredentialAlert(
         title: "Save Failed",
@@ -186,8 +189,8 @@ struct TandemCredentialForm: View {
     }
   }
 
-  private func accessTokenForValidation() -> String? {
-    if let accessToken = services.authService.accessToken {
+  private func accessTokenForValidation() async -> String? {
+    if let accessToken = await services.authService.accessTokenRecoveringIfNeeded() {
       return accessToken
     }
 

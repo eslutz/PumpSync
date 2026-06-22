@@ -80,8 +80,10 @@ final class BackendConfigurationStore {
 final class AuthService {
   private let apiClient: PumpSyncAPIClient
   private let configurationStore: BackendConfigurationStore
+  private let sessionStore: BackendSessionStore?
   private let diagnostics: DiagnosticsLogStore?
   private let currentEntitlementJWS: @MainActor () async throws -> String
+  private let syncedCurrentEntitlementJWS: @MainActor () async throws -> String
   private let createSubscriptionSession: @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse
   private let createSelfHostedSession: @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse
 
@@ -93,13 +95,24 @@ final class AuthService {
   init(
     apiClient: PumpSyncAPIClient,
     configurationStore: BackendConfigurationStore,
+    sessionStore: BackendSessionStore? = nil,
     diagnostics: DiagnosticsLogStore? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
+    self.sessionStore = sessionStore
     self.diagnostics = diagnostics
     currentEntitlementJWS = {
-      try await StoreKitSubscriptionProvider.currentEntitlementJWS(productId: AppConstants.hostedSubscriptionProductId)
+      try await StoreKitSubscriptionProvider.currentEntitlementJWS(
+        productId: AppConstants.hostedSubscriptionProductId,
+        syncWithAppStore: false
+      )
+    }
+    syncedCurrentEntitlementJWS = {
+      try await StoreKitSubscriptionProvider.currentEntitlementJWS(
+        productId: AppConstants.hostedSubscriptionProductId,
+        syncWithAppStore: true
+      )
     }
     createSubscriptionSession = { request in
       try await apiClient.createSubscriptionSession(request)
@@ -107,26 +120,40 @@ final class AuthService {
     createSelfHostedSession = { request in
       try await apiClient.createSelfHostedSession(request)
     }
+    session = sessionStore?.loadValidSession()
   }
 
   init(
     apiClient: PumpSyncAPIClient,
     configurationStore: BackendConfigurationStore,
+    sessionStore: BackendSessionStore? = nil,
     currentEntitlementJWS: @escaping @MainActor () async throws -> String,
+    syncedCurrentEntitlementJWS: (@MainActor () async throws -> String)? = nil,
     createSubscriptionSession: @escaping @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse,
     createSelfHostedSession: @escaping @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse,
     diagnostics: DiagnosticsLogStore? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
+    self.sessionStore = sessionStore
     self.diagnostics = diagnostics
     self.currentEntitlementJWS = currentEntitlementJWS
+    self.syncedCurrentEntitlementJWS = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
     self.createSubscriptionSession = createSubscriptionSession
     self.createSelfHostedSession = createSelfHostedSession
+    session = sessionStore?.loadValidSession()
   }
 
   var isSignedIn: Bool {
-    session?.accessToken.isEmpty == false
+    guard let session else {
+      return false
+    }
+
+    if let sessionStore {
+      return sessionStore.isValid(session)
+    }
+
+    return !session.accessToken.isEmpty
   }
 
   var isSigningIn: Bool {
@@ -134,7 +161,16 @@ final class AuthService {
   }
 
   var accessToken: String? {
-    session?.accessToken
+    guard isSignedIn else {
+      return nil
+    }
+
+    return session?.accessToken
+  }
+
+  func accessTokenRecoveringIfNeeded() async -> String? {
+    await recoverSessionIfNeeded()
+    return accessToken
   }
 
   var connectionRequiredMessage: String {
@@ -158,14 +194,29 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Hosted restore started")
 
     do {
-      let signedTransactionInfo = try await currentEntitlementJWS()
+      let signedTransactionInfo = try await syncedCurrentEntitlementJWS()
       await establishHostedSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Activating hosted service...",
-        title: "Hosted subscription restored"
+        title: "Hosted subscription restored",
+        publishesErrors: true
       )
+    } catch StoreKitSubscriptionError.noActiveSubscription {
+      session = nil
+      try? sessionStore?.delete()
+      let message = hostedConnectionMessage(for: StoreKitSubscriptionError.noActiveSubscription.errorDescription ?? "No active subscription was found.")
+      errorMessage = message
+      statusMessage = message
+      diagnostics?.record(
+        source: .auth,
+        severity: .error,
+        title: "Hosted restore failed",
+        message: "No current StoreKit entitlement was available for hosted restore."
+      )
+      isConnecting = false
     } catch {
       session = nil
+      try? sessionStore?.delete()
       let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
       errorMessage = message
       statusMessage = message
@@ -178,12 +229,14 @@ final class AuthService {
     await establishHostedSession(
       signedTransactionInfo: signedTransactionInfo,
       activityMessage: "Activating hosted service...",
-      title: "Hosted subscription purchased"
+      title: "Hosted subscription purchased",
+      publishesErrors: true
     )
   }
 
   func recordHostedSubscriptionPurchaseCancelled() {
     session = nil
+    try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Subscription purchase cancelled."
     isConnecting = false
@@ -192,6 +245,7 @@ final class AuthService {
 
   func recordHostedSubscriptionPurchasePending() {
     session = nil
+    try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Subscription purchase is pending App Store approval."
     isConnecting = false
@@ -200,6 +254,7 @@ final class AuthService {
 
   func recordHostedSubscriptionPurchaseFailed(_ error: Error) {
     session = nil
+    try? sessionStore?.delete()
     let message = safeMessage("Subscription purchase could not be completed.", error: error)
     errorMessage = message
     statusMessage = message
@@ -221,10 +276,14 @@ final class AuthService {
 
     do {
       session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
+      if let session {
+        try? sessionStore?.save(session)
+      }
       statusMessage = "Connected to self-hosted service"
       diagnostics?.record(source: .auth, title: "Self-hosted session created")
     } catch {
       session = nil
+      try? sessionStore?.delete()
       let message = safeMessage("Self-hosted connection could not be established.", error: error)
       errorMessage = message
       statusMessage = message
@@ -243,17 +302,54 @@ final class AuthService {
     }
   }
 
+  func recoverSessionIfNeeded() async {
+    guard !isConnecting else {
+      return
+    }
+
+    if let session, sessionStore?.isValid(session) ?? !session.accessToken.isEmpty {
+      return
+    }
+
+    if let restoredSession = sessionStore?.loadValidSession() {
+      session = restoredSession
+      errorMessage = nil
+      statusMessage = restoredSession.serviceMode == "selfHosted" ? "Connected to self-hosted service" : "Hosted subscription active"
+      diagnostics?.record(source: .auth, title: "Connection session restored")
+      return
+    }
+
+    session = nil
+
+    switch configurationStore.mode {
+    case .hosted:
+      await recoverHostedSession()
+    case .selfHosted:
+      await recoverSelfHostedSession()
+    }
+  }
+
   func clearSessionForConnectionChange() {
     session = nil
+    try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Connect to PumpSync or a self-hosted service"
     diagnostics?.record(source: .auth, title: "Connection session reset")
   }
 
+  func clearSessionForAuthenticationFailure() {
+    session = nil
+    try? sessionStore?.delete()
+    errorMessage = nil
+    statusMessage = "Connect to PumpSync or a self-hosted service"
+    diagnostics?.record(source: .auth, severity: .warning, title: "Connection session expired")
+  }
+
   private func establishHostedSession(
     signedTransactionInfo: String,
     activityMessage: String,
-    title: String
+    title: String,
+    publishesErrors: Bool
   ) async {
     _ = configurationStore.apply(to: apiClient)
     isConnecting = true
@@ -268,17 +364,87 @@ final class AuthService {
           installationId: configurationStore.installationId
         )
       )
+      if let session {
+        try? sessionStore?.save(session)
+      }
       statusMessage = "Hosted subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
       session = nil
-      let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
-      errorMessage = message
-      statusMessage = message
+      try? sessionStore?.delete()
+      if publishesErrors {
+        let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
+        errorMessage = message
+        statusMessage = message
+      } else {
+        resetDisconnectedStatus()
+      }
       diagnostics?.record(error: error, source: .auth, title: "Hosted session failed")
     }
 
     isConnecting = false
+  }
+
+  private func recoverHostedSession() async {
+    diagnostics?.record(source: .auth, title: "Hosted recovery started")
+
+    do {
+      let signedTransactionInfo = try await currentEntitlementJWS()
+      await establishHostedSession(
+        signedTransactionInfo: signedTransactionInfo,
+        activityMessage: "Restoring hosted service...",
+        title: "Hosted subscription recovered",
+        publishesErrors: false
+      )
+    } catch StoreKitSubscriptionError.noActiveSubscription {
+      session = nil
+      try? sessionStore?.delete()
+      resetDisconnectedStatus()
+      diagnostics?.record(
+        source: .auth,
+        severity: .warning,
+        title: "Hosted recovery skipped",
+        message: "No current StoreKit entitlement was available for hosted recovery."
+      )
+    } catch {
+      session = nil
+      try? sessionStore?.delete()
+      resetDisconnectedStatus()
+      diagnostics?.record(error: error, source: .auth, title: "Hosted recovery failed")
+    }
+  }
+
+  private func recoverSelfHostedSession() async {
+    guard configurationStore.apply(to: apiClient) else {
+      diagnostics?.record(source: .auth, severity: .warning, title: "Self-hosted recovery skipped", message: "No valid self-hosted service URL is configured.")
+      return
+    }
+
+    isConnecting = true
+    errorMessage = nil
+    statusMessage = "Connecting to self-hosted service..."
+    diagnostics?.record(source: .auth, title: "Self-hosted recovery started")
+
+    do {
+      session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
+      if let session {
+        try? sessionStore?.save(session)
+      }
+      statusMessage = "Connected to self-hosted service"
+      diagnostics?.record(source: .auth, title: "Self-hosted session recovered")
+    } catch {
+      session = nil
+      try? sessionStore?.delete()
+      resetDisconnectedStatus()
+      diagnostics?.record(error: error, source: .auth, title: "Self-hosted recovery failed")
+    }
+
+    isConnecting = false
+  }
+
+  private func resetDisconnectedStatus() {
+    errorMessage = nil
+    statusMessage = "Connect to PumpSync or a self-hosted service"
   }
 
   private func safeMessage(_ fallback: String, error: Error) -> String {
@@ -329,8 +495,10 @@ enum StoreKitSubscriptionError: LocalizedError {
 }
 
 private enum StoreKitSubscriptionProvider {
-  static func currentEntitlementJWS(productId: String) async throws -> String {
-    try? await AppStore.sync()
+  static func currentEntitlementJWS(productId: String, syncWithAppStore: Bool) async throws -> String {
+    if syncWithAppStore {
+      try? await AppStore.sync()
+    }
 
     for await result in Transaction.currentEntitlements {
       let transaction = try verified(result)
