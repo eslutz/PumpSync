@@ -77,18 +77,22 @@ struct SettingsView: View {
         }
 
         if services.authService.isConnecting {
-          HStack(spacing: 8) {
+          HStack(spacing: 14) {
             if reduceMotion {
               Image(systemName: "hourglass")
+                .font(.title3)
+                .frame(width: 28)
                 .accessibilityHidden(true)
             } else {
               ProgressView()
+                .frame(width: 28)
                 .accessibilityHidden(true)
             }
             Text(services.authService.statusMessage)
               .font(.footnote)
               .foregroundStyle(.secondary)
           }
+          .padding(.vertical, 6)
           .accessibilityElement(children: .combine)
         }
       }
@@ -278,47 +282,125 @@ private struct InsulinConcentrationView: View {
   var body: some View {
     PumpSyncScreen(spacing: 16) {
       GlassSection("Current Setting") {
-        Picker("Insulin Concentration", selection: insulinConcentrationBinding) {
-          ForEach(InsulinConcentration.allCases) { concentration in
-            Text(concentration.title).tag(concentration)
-          }
-        }
-        .pickerStyle(.inline)
-        .accessibilityIdentifier("InsulinConcentrationPicker")
+        concentrationMenu
       }
 
       GlassSection("Details") {
-        VStack(alignment: .leading, spacing: 12) {
-          Text("PumpSync uses this setting only when writing insulin delivery data to Apple Health.")
+        InsulinConcentrationDetailRow(
+          title: "Apple Health only",
+          detail: "PumpSync uses this setting only when writing insulin delivery data to Apple Health.",
+          systemImage: "heart"
+        )
 
-          Text("Most rapid-acting insulin is U-100. Some people use more concentrated insulin, such as U-200 or U-500, where each pump-reported unit represents more insulin. Choose the concentration that matches the insulin used in your pump.")
+        GlassDivider()
 
-          Text("This setting changes how PumpSync converts pump-reported insulin amounts before saving them to Apple Health. It does not change your pump data, pump account, or pump settings.")
-        }
-        .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.vertical, 6)
-      }
+        InsulinConcentrationDetailRow(
+          title: "Match your insulin",
+          detail: "Most rapid-acting insulin is U-100. Some people use more concentrated insulin, such as U-200 or U-500, where each pump-reported unit represents more insulin.",
+          systemImage: "drop"
+        )
 
-      GlassSection {
-        Text("If you are not sure which concentration you use, leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.")
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-          .padding(.vertical, 6)
+        GlassDivider()
+
+        InsulinConcentrationDetailRow(
+          title: "Conversion only",
+          detail: "This changes how PumpSync converts pump-reported insulin amounts before saving them to Apple Health. It does not change your pump data, pump account, or pump settings.",
+          systemImage: "arrow.triangle.2.circlepath"
+        )
+
+        GlassDivider()
+
+        InsulinConcentrationDetailRow(
+          title: "Not sure?",
+          detail: "Leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.",
+          systemImage: "exclamationmark.triangle.fill",
+          tint: .orange
+        )
       }
     }
     .navigationTitle("Insulin Concentration")
   }
 
-  private var insulinConcentrationBinding: Binding<InsulinConcentration> {
-    Binding(
-      get: {
-        services.insulinConcentrationStore.concentration
-      },
-      set: { concentration in
-        services.insulinConcentrationStore.concentration = concentration
+  private var concentrationMenu: some View {
+    Menu {
+      ForEach(InsulinConcentration.allCases) { concentration in
+        Button {
+          services.insulinConcentrationStore.concentration = concentration
+        } label: {
+          if concentration == services.insulinConcentrationStore.concentration {
+            Label(concentration.title, systemImage: "checkmark")
+          } else {
+            Text(concentration.title)
+          }
+        }
       }
-    )
+    } label: {
+      HStack(spacing: 14) {
+        Image(systemName: "drop.fill")
+          .font(.title3)
+          .frame(width: 28)
+          .foregroundStyle(.tint)
+          .accessibilityHidden(true)
+
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Insulin Concentration")
+            .foregroundStyle(.primary)
+
+          Text(services.insulinConcentrationStore.concentration.title)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        .layoutPriority(1)
+
+        Spacer(minLength: 12)
+
+        Text("Change")
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(.tint)
+      }
+      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("InsulinConcentrationPicker")
+    .accessibilityLabel("Insulin Concentration")
+    .accessibilityValue(services.insulinConcentrationStore.concentration.title)
+    .accessibilityHint("Opens a menu to choose the insulin concentration")
+  }
+
+}
+
+private struct InsulinConcentrationDetailRow: View {
+  let title: String
+  let detail: String
+  let systemImage: String
+  var tint: Color = .accentColor
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 14) {
+      Image(systemName: systemImage)
+        .font(.title3)
+        .frame(width: 28)
+        .foregroundStyle(tint)
+        .accessibilityHidden(true)
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text(title)
+          .foregroundStyle(.primary)
+
+        Text(detail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      .layoutPriority(1)
+
+      Spacer(minLength: 0)
+    }
+    .padding(.vertical, 6)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(detail)
   }
 }
 
