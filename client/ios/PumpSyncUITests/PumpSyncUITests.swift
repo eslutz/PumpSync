@@ -246,11 +246,11 @@ final class PumpSyncUITests: XCTestCase {
 
   private func assertDeveloperDiagnosticsVisible(in app: XCUIApplication) {
     XCTAssertTrue(app.staticTexts["App Event Log"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["iOS Performance Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Device Performance Diagnostics"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.buttons["Copy App Event Log"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.buttons["Clear App Event Log"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Copy iOS Performance Diagnostics"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.buttons["Clear iOS Performance Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Copy Device Performance Diagnostics"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Clear Device Performance Diagnostics"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.buttons["Share Support Bundle"].waitForExistence(timeout: 5))
   }
 

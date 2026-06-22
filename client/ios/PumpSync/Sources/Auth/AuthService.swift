@@ -302,6 +302,8 @@ final class AuthService {
 enum StoreKitSubscriptionError: LocalizedError {
   case productUnavailable
   case noActiveSubscription
+  case inactiveSubscriptionTransaction
+  case subscriptionManagementUnavailable
   case unverifiedTransaction
   case purchaseCancelled
   case purchasePending
@@ -312,6 +314,10 @@ enum StoreKitSubscriptionError: LocalizedError {
       return "The hosted subscription is not available from the App Store."
     case .noActiveSubscription:
       return "No PumpSync service was found. Please subscribe to PumpSync or set up your own self-hosted PumpSync service."
+    case .inactiveSubscriptionTransaction:
+      return "The App Store returned an inactive subscription transaction. Try subscribing again, or use a fresh sandbox tester if you recently reset purchase history."
+    case .subscriptionManagementUnavailable:
+      return "Apple subscription management is not available right now."
     case .unverifiedTransaction:
       return "The App Store transaction could not be verified on this device."
     case .purchaseCancelled:
@@ -332,6 +338,11 @@ private enum StoreKitSubscriptionProvider {
         continue
       }
 
+      guard transaction.isActiveSubscriptionEntitlement else {
+        await transaction.finish()
+        continue
+      }
+
       return result.jwsRepresentation
     }
 
@@ -345,6 +356,38 @@ private enum StoreKitSubscriptionProvider {
     case .unverified:
       throw StoreKitSubscriptionError.unverifiedTransaction
     }
+  }
+}
+
+extension Transaction {
+  var isActiveSubscriptionEntitlement: Bool {
+    if revocationDate != nil {
+      return false
+    }
+
+    if let expirationDate, expirationDate <= Date() {
+      return false
+    }
+
+    return true
+  }
+
+  func diagnosticSummary(active: Bool) -> String {
+    [
+      "productID=\(productID)",
+      "id=\(id)",
+      "originalID=\(originalID)",
+      "purchaseDate=\(purchaseDate.storeKitDiagnosticDate)",
+      "expirationDate=\(expirationDate?.storeKitDiagnosticDate ?? "none")",
+      "revocationDate=\(revocationDate?.storeKitDiagnosticDate ?? "none")",
+      "active=\(active)"
+    ].joined(separator: ", ")
+  }
+}
+
+private extension Date {
+  var storeKitDiagnosticDate: String {
+    formatted(date: .abbreviated, time: .standard)
   }
 }
 

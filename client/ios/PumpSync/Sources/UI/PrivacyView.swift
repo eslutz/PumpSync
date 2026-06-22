@@ -1,6 +1,10 @@
+import Foundation
 import SwiftUI
 
 struct DataHandlingView: View {
+  @Environment(AppServices.self) private var services
+  @Environment(\.openURL) private var openURL
+
   var body: some View {
     PumpSyncScreen(spacing: 16) {
       GlassSection("Credentials") {
@@ -42,8 +46,52 @@ struct DataHandlingView: View {
           systemImage: "iphone"
         )
       }
+
+      GlassSection("Data Deletion") {
+        DataHandlingRow(
+          title: "Request hosted metadata deletion",
+          detail: "PumpSync can prepare a support email with the installation ID needed to locate hosted metadata associated with this app install.",
+          systemImage: "envelope"
+        )
+
+        GlassDivider()
+
+        Button {
+          openURL(dataDeletionRequestURL)
+        } label: {
+          Label("Delete Data Request", systemImage: "trash")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.red)
+        .accessibilityHint("Opens a prefilled email to PumpSync support with this installation ID")
+      }
     }
     .navigationTitle("Data Handling")
+  }
+
+  private var dataDeletionRequestURL: URL {
+    var components = URLComponents()
+    components.scheme = "mailto"
+    components.path = "support@ericslutz.dev"
+    components.queryItems = [
+      URLQueryItem(name: "subject", value: "DELETION REQUEST - PumpSync Support"),
+      URLQueryItem(name: "body", value: dataDeletionRequestBody)
+    ]
+
+    return components.url ?? URL(string: "mailto:support@ericslutz.dev")!
+  }
+
+  private var dataDeletionRequestBody: String {
+    """
+    Please delete PumpSync hosted backend metadata associated with this installation.
+
+    PumpSync installation ID:
+    \(services.backendConfigurationStore.installationId)
+
+    Do not include Tandem passwords, Tandem tokens, screenshots containing health data, or other sensitive medical details in this request.
+    """
   }
 }
 

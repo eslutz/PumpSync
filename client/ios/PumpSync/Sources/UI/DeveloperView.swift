@@ -3,11 +3,25 @@ import UIKit
 
 struct DeveloperView: View {
   @Environment(AppServices.self) private var services
+  @State private var copiedItem: CopiedDiagnosticsItem?
 
   var body: some View {
     PumpSyncScreen {
       GlassSection("Build") {
         GlassStatusRow(title: "Version", value: appVersion, systemImage: "number")
+        GlassDivider()
+        GlassStatusRow(title: "Installation ID", value: services.backendConfigurationStore.installationId, systemImage: "number.square")
+        GlassDivider()
+        Button {
+          UIPasteboard.general.string = services.backendConfigurationStore.installationId
+          showCopiedFeedback(for: .installationId)
+        } label: {
+          Label(copiedItem == .installationId ? "Copied Installation ID" : "Copy Installation ID", systemImage: copiedItem == .installationId ? "checkmark.circle" : "doc.on.doc")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
+        .padding(.vertical, 6)
+        .accessibilityHint("Copies the PumpSync installation ID used for support and data deletion requests")
       }
 
       GlassSection("Sync") {
@@ -25,23 +39,29 @@ struct DeveloperView: View {
         }
       }
 
-      GlassSection("Diagnostics") {
-        VStack(alignment: .leading, spacing: 18) {
-          diagnosticsSubheading("App Event Log")
-          appEventLogContent
+      VStack(alignment: .leading, spacing: 8) {
+        diagnosticsSectionHeading("Diagnostics")
 
-          Divider()
-
-          diagnosticsSubheading("iOS Performance Diagnostics")
-          iosPerformanceDiagnosticsContent
-
-          Divider()
-
+        GlassSection {
           ShareLink(item: supportBundleText) {
             Label("Share Support Bundle", systemImage: "square.and.arrow.up")
           }
           .buttonStyle(.plain)
           .foregroundStyle(.tint)
+        }
+
+        GlassSection {
+          VStack(alignment: .leading, spacing: 18) {
+            diagnosticsSubheading("App Event Log")
+            appEventLogContent
+          }
+        }
+
+        GlassSection {
+          VStack(alignment: .leading, spacing: 18) {
+            diagnosticsSubheading("Device Performance Diagnostics")
+            devicePerformanceDiagnosticsContent
+          }
         }
       }
     }
@@ -105,30 +125,20 @@ struct DeveloperView: View {
 
       GlassDivider()
 
-      VStack(alignment: .leading, spacing: 12) {
-        Button {
-          UIPasteboard.general.string = diagnosticsText
-        } label: {
-          Label("Copy App Event Log", systemImage: "doc.on.doc")
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.tint)
-
-        Button(role: .destructive) {
-          services.diagnosticsLogStore.clear()
-        } label: {
-          Label("Clear App Event Log", systemImage: "trash")
-        }
-        .buttonStyle(.plain)
-      }
-      .padding(.top, 12)
+      diagnosticsActions(
+        copyTitle: "Copy App Event Log",
+        clearTitle: "Clear App Event Log",
+        copiedItem: .appEventLog,
+        copy: { diagnosticsText },
+        clear: { services.diagnosticsLogStore.clear() }
+      )
     }
   }
 
   @ViewBuilder
-  private var iosPerformanceDiagnosticsContent: some View {
+  private var devicePerformanceDiagnosticsContent: some View {
     if services.nativeDiagnosticsStore.entries.isEmpty {
-      Text("No iOS performance diagnostics recorded.")
+      Text("No device performance diagnostics recorded.")
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 8)
@@ -141,23 +151,52 @@ struct DeveloperView: View {
 
       GlassDivider()
 
-      VStack(alignment: .leading, spacing: 12) {
-        Button {
-          UIPasteboard.general.string = nativeDiagnosticsText
-        } label: {
-          Label("Copy iOS Performance Diagnostics", systemImage: "doc.on.doc")
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.tint)
+      diagnosticsActions(
+        copyTitle: "Copy Device Performance Diagnostics",
+        clearTitle: "Clear Device Performance Diagnostics",
+        copiedItem: .devicePerformanceDiagnostics,
+        copy: { nativeDiagnosticsText },
+        clear: { services.nativeDiagnosticsStore.clear() }
+      )
+    }
+  }
 
-        Button(role: .destructive) {
-          services.nativeDiagnosticsStore.clear()
-        } label: {
-          Label("Clear iOS Performance Diagnostics", systemImage: "trash")
-        }
-        .buttonStyle(.plain)
+  private func diagnosticsActions(
+    copyTitle: String,
+    clearTitle: String,
+    copiedItem item: CopiedDiagnosticsItem,
+    copy: @escaping () -> String,
+    clear: @escaping () -> Void
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
+      Button {
+        UIPasteboard.general.string = copy()
+        showCopiedFeedback(for: item)
+      } label: {
+        Label(copiedItem == item ? "Copied" : copyTitle, systemImage: copiedItem == item ? "checkmark.circle" : "doc.on.doc")
       }
-      .padding(.top, 12)
+      .buttonStyle(.plain)
+      .foregroundStyle(.tint)
+      .accessibilityHint("Copies diagnostics to the clipboard")
+
+      Button(role: .destructive) {
+        clear()
+      } label: {
+        Label(clearTitle, systemImage: "trash")
+      }
+      .buttonStyle(.plain)
+    }
+    .padding(.top, 6)
+    .padding(.bottom, 2)
+  }
+
+  private func showCopiedFeedback(for item: CopiedDiagnosticsItem) {
+    copiedItem = item
+    Task {
+      try? await Task.sleep(for: .seconds(1.8))
+      if copiedItem == item {
+        copiedItem = nil
+      }
     }
   }
 
@@ -166,6 +205,13 @@ struct DeveloperView: View {
       .font(.subheadline.weight(.semibold))
       .foregroundStyle(.primary)
       .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func diagnosticsSectionHeading(_ title: String) -> some View {
+    Text(title)
+      .font(.headline)
+      .foregroundStyle(.secondary)
+      .padding(.horizontal, 4)
   }
 
   private func diagnosticRow(_ entry: DiagnosticEntry) -> some View {
@@ -260,4 +306,10 @@ struct DeveloperView: View {
       return .red
     }
   }
+}
+
+private enum CopiedDiagnosticsItem {
+  case installationId
+  case appEventLog
+  case devicePerformanceDiagnostics
 }

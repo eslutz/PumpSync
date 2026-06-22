@@ -1,5 +1,6 @@
 import StoreKit
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
   @Environment(AppServices.self) private var services
@@ -408,6 +409,19 @@ private struct ConnectionAlert: Identifiable {
   let id = UUID()
   let title: String
   let message: String
+  var action: ConnectionAlertAction?
+}
+
+private enum ConnectionAlertAction {
+  case manageSubscription
+}
+
+private extension UIApplication {
+  var foregroundWindowScene: UIWindowScene? {
+    let scenes = connectedScenes.compactMap { $0 as? UIWindowScene }
+    return scenes.first { $0.activationState == .foregroundActive }
+      ?? scenes.first { $0.activationState == .foregroundInactive }
+  }
 }
 
 private struct ConnectionModeButtonLabel: View {
@@ -526,11 +540,25 @@ private struct HostedSubscriptionStoreView: View {
       await handlePurchaseCompletion(result)
     }
     .alert(item: $purchaseAlert) { alert in
-      Alert(
-        title: Text(alert.title),
-        message: Text(alert.message),
-        dismissButton: .default(Text("OK"))
-      )
+      switch alert.action {
+      case .manageSubscription:
+        Alert(
+          title: Text(alert.title),
+          message: Text(alert.message),
+          primaryButton: .default(Text("Manage Subscription")) {
+            Task {
+              await presentManageSubscriptions()
+            }
+          },
+          secondaryButton: .default(Text("OK"))
+        )
+      case nil:
+        Alert(
+          title: Text(alert.title),
+          message: Text(alert.message),
+          dismissButton: .default(Text("OK"))
+        )
+      }
     }
   }
 
@@ -539,6 +567,27 @@ private struct HostedSubscriptionStoreView: View {
     case .success(.success(let verificationResult)):
       do {
         let transaction = try verified(verificationResult)
+        guard transaction.isActiveSubscriptionEntitlement else {
+          services.diagnosticsLogStore.record(
+            source: .auth,
+            severity: .warning,
+            title: "Inactive subscription transaction returned",
+            message: transaction.diagnosticSummary(active: false)
+          )
+          await transaction.finish()
+          purchaseAlert = ConnectionAlert(
+            title: "Subscription Inactive",
+            message: "This subscription is inactive. Manage your Apple subscription, then return to PumpSync and tap Restore Subscription.",
+            action: .manageSubscription
+          )
+          return
+        }
+
+        services.diagnosticsLogStore.record(
+          source: .auth,
+          title: "Active subscription transaction returned",
+          message: transaction.diagnosticSummary(active: true)
+        )
         await services.authService.activateHostedSubscription(signedTransactionInfo: verificationResult.jwsRepresentation)
         await transaction.finish()
         if services.authService.isSignedIn {
@@ -585,6 +634,28 @@ private struct HostedSubscriptionStoreView: View {
       return value
     case .unverified:
       throw StoreKitSubscriptionError.unverifiedTransaction
+    }
+  }
+
+  private func presentManageSubscriptions() async {
+    guard let scene = UIApplication.shared.foregroundWindowScene else {
+      let error = StoreKitSubscriptionError.subscriptionManagementUnavailable
+      services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
+      purchaseAlert = ConnectionAlert(
+        title: "Manage Subscription Unavailable",
+        message: "PumpSync could not open Apple subscription management. Try again from the Settings app."
+      )
+      return
+    }
+
+    do {
+      try await AppStore.showManageSubscriptions(in: scene, subscriptionGroupID: AppConstants.hostedSubscriptionGroupId)
+    } catch {
+      services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
+      purchaseAlert = ConnectionAlert(
+        title: "Manage Subscription Failed",
+        message: "PumpSync could not open Apple subscription management. Try again from the Settings app."
+      )
     }
   }
 }
