@@ -17,6 +17,7 @@
 		2E581DC0577F1D384651346A /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23E211038A242211F7416AF /* AppServices.swift */; };
 		36AA12257E2352EA32E4F1C8 /* SyncViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57320D50B3E96C71BB07264 /* SyncViewTests.swift */; };
 		38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */; };
+		421C997A67F2E8CD8C267776 /* PumpSyncShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */; };
 		4BA9367AC56377C9CD9B15FB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 36ABBE2A707B83D4D4006E57 /* Assets.xcassets */; };
 		4D208B7D49A8858765E583E9 /* BackgroundSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */; };
 		562C2A1D6E9BE2F7A5ACFB89 /* MetricKitDiagnosticsCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */; };
@@ -101,6 +102,7 @@
 		A6510518C8E49577BD3F362F /* InitialImportRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialImportRange.swift; sourceTree = "<group>"; };
 		C23E211038A242211F7416AF /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
 		C572BC95D8A1228661865AC4 /* GlassUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassUI.swift; sourceTree = "<group>"; };
+		C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncShortcuts.swift; sourceTree = "<group>"; };
 		CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAccessTests.swift; sourceTree = "<group>"; };
 		CFE10C4425E732936246A0BB /* SecureKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureKeychainStore.swift; sourceTree = "<group>"; };
 		D2841227766770EA92688A77 /* ImportedSampleLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedSampleLedger.swift; sourceTree = "<group>"; };
@@ -263,6 +265,7 @@
 				FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */,
 				E117802C7DE65061DABF6727 /* NativeDiagnosticsStore.swift */,
 				90FA12541E4E2A95DA61AC93 /* PumpSyncApp.swift */,
+				C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */,
 				550211DC80206514571F2CA4 /* SupportBundleBuilder.swift */,
 			);
 			path = App;
@@ -409,6 +412,7 @@
 				59F4523649C67CC80D72AFBE /* PrivacyView.swift in Sources */,
 				ACD785D0C4B6F769575C5128 /* PumpSyncAPIClient.swift in Sources */,
 				88F96EF33B6403E384A8CC21 /* PumpSyncApp.swift in Sources */,
+				421C997A67F2E8CD8C267776 /* PumpSyncShortcuts.swift in Sources */,
 				1803E330015DA083BB1F1454 /* SecureKeychainStore.swift in Sources */,
 				0A860106CE1BB55F05ADBF24 /* SettingsView.swift in Sources */,
 				CED29C776F51918B0EE77A47 /* SupportBundleBuilder.swift in Sources */,
