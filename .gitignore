@@ -8,7 +8,6 @@ local.settings.json
 TestResults/
 coverage/
 **/artifacts/
-client/ios/.DerivedData/
+.DerivedData*/
 **/xcuserdata/
 *.xcresult
-infra/bicep/*.json
