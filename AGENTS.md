@@ -4,7 +4,7 @@
 
 - This repository is frontend-only. Do not add backend API projects, backend infrastructure, backend deploy workflows, log drains, model-cost updaters, or data-deletion tooling here.
 - Backend implementation and operations belong in `eslutz/PumpSync-Backend`.
-- Hosted backend container images and Azure Container Apps infrastructure are owned by `eslutz/PumpSync-Backend`. The current direction is private Azure Container Registry images for the hosted backend and public GitHub Container Registry images for self-host/demo use.
+- Hosted backend container images and Azure Container Apps infrastructure are owned by `eslutz/PumpSync-Backend`. The current direction is private GitHub Container Registry images for the hosted backend, pulled by Azure Container Apps with a backend Key Vault-stored read-only package token, and public GitHub Container Registry images for self-host/demo use.
 - Do not add Dockerfiles, container publishing, Azure Bicep, data deletion CLI code, or backend runbooks to this repo. If an iOS change requires backend behavior or URL changes, update the backend repo and then update `project.yml`/docs here with the resulting base URL.
 
 ## Hosted Subscription Builds

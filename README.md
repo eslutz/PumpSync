@@ -11,7 +11,7 @@ This repository is frontend-only. Backend API code, infrastructure, backend work
 | [eslutz/PumpSync](https://github.com/eslutz/PumpSync) | iOS app, App Store/TestFlight metadata, iOS CI, screenshots, app legal docs | This repo. Do not add backend code, backend infrastructure, or backend deploy workflows here. |
 | [eslutz/PumpSync-Backend](https://github.com/eslutz/PumpSync-Backend) | ASP.NET Core backend, Docker/Compose self-hosting, Azure Container Apps infrastructure, backend deploy workflows, data deletion tooling | Canonical backend for hosted service, real self-hosting, and synthetic demo/App Review mode. |
 
-Hosted production/nonprod backend images are intended to stay private in Azure Container Registry. Public self-host/demo images are published from the backend repo to GitHub Container Registry so users can run the backend without Azure access. The iOS app does not build, publish, or select container images; it only points at a backend base URL.
+Hosted production/nonprod backend images are private GitHub Container Registry images pulled by Azure Container Apps with a backend Key Vault-stored read-only package token. Public self-host/demo images are also published from the backend repo to GitHub Container Registry so users can run the backend without Azure access. The iOS app does not build, publish, or select container images; it only points at a backend base URL.
 
 ## Repository Layout
 
