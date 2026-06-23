@@ -47,7 +47,7 @@ jobs:
           ]
           if not runtimes:
               raise SystemExit("No available iOS simulator runtimes found")
-          runtimes.sort(key=lambda runtime: [int(part) for part in re.findall(r"\\d+", runtime.get("version", ""))])
+          runtimes.sort(key=lambda runtime: [int(part) for part in re.findall(r"\d+", runtime.get("version", ""))])
           print(runtimes[-1]["identifier"])
           ')"
           device_type="$(xcrun simctl list devicetypes --json | python3 -c '
