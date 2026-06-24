@@ -7,6 +7,10 @@
 - Hosted backend container images and Azure Container Apps infrastructure are owned by `eslutz/PumpSync-Backend`. The current direction is private GitHub Container Registry images for the hosted backend, pulled by Azure Container Apps with a backend Key Vault-stored read-only package token, and public GitHub Container Registry images for self-host/demo use.
 - Do not add Dockerfiles, container publishing, Azure Bicep, data deletion CLI code, or backend runbooks to this repo. If an iOS change requires backend behavior or URL changes, update the backend repo and then update `project.yml`/docs here with the resulting base URL.
 
+## Documentation
+
+- The shared PumpSync wiki at https://github.com/eslutz/PumpSync/wiki is the single source of truth for project documentation. Documentation changes, updates, and additions for this iOS project should be made in the wiki project, with this repository retaining only app-owned source docs and links back to the wiki.
+
 ## Hosted Subscription Builds
 
 - Local Xcode installs use the `PumpSync` scheme with the `Debug` configuration. They must point at the nonprod backend and use Apple's sandbox App Store transaction environment.
