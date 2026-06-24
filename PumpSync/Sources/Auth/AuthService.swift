@@ -458,7 +458,7 @@ final class AuthService {
   private func hostedConnectionMessage(for message: String) -> String {
     switch configurationStore.mode {
     case .hosted:
-      return "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
+      return "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore purchases again."
     case .selfHosted:
       return message
     }

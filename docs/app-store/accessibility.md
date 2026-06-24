@@ -17,7 +17,7 @@ PumpSync should not claim Captions or Audio Descriptions because the app does no
 Validate each claimed feature against these common tasks on iPhone compact tab layout and iPad regular split-view layout:
 
 - First launch and status: launch the app, understand connection state, pump credential state, last sync state, and switch between Status, Sync, and Settings.
-- Hosted connection: choose PumpSync mode, read hosted service copy, open the subscription sheet, review benefits, subscribe or cancel, and restore a subscription.
+- Hosted connection: choose PumpSync mode, read hosted service copy, open the subscription sheet, review benefits, subscribe or cancel, and restore purchases.
 - Self-hosted connection: switch to Self-hosted, enter a server URL, connect, and disconnect.
 - Pump account: enter username and password, toggle password visibility, choose region, validate connection, save credentials, and remove credentials.
 - Health access: review write permission status and understand instructions for changing Health permissions.

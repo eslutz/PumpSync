@@ -141,7 +141,7 @@ final class AuthServiceTests: XCTestCase {
 
     await service.connectHostedUsingCurrentSubscription()
 
-    let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
+    let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore purchases again."
     XCTAssertFalse(service.isSignedIn)
     XCTAssertFalse(service.isSigningIn)
     XCTAssertEqual(service.statusMessage, expectedMessage)

@@ -40,7 +40,7 @@ struct SettingsView: View {
             }
           } label: {
             GlassPrimaryLabel(
-              title: "Restore Subscription",
+              title: "Restore purchases",
               systemImage: "arrow.clockwise"
             )
           }
@@ -583,7 +583,7 @@ private struct HostedSubscriptionStoreView: View {
           await transaction.finish()
           purchaseAlert = ConnectionAlert(
             title: "Subscription Inactive",
-            message: "This subscription is inactive. Manage your Apple subscription, then return to PumpSync and tap Restore Subscription.",
+            message: "This subscription is inactive. Manage your Apple subscription, then return to PumpSync and tap Restore purchases.",
             action: .manageSubscription
           )
           return
