@@ -3,6 +3,8 @@ import Foundation
 enum AppConstants {
   static let backgroundTaskIdentifier = "dev.ericslutz.PumpSync.daily-sync"
   static let staleSyncInterval: TimeInterval = 20 * 60 * 60
+  static let tandemSyncWindowDayCount = 14
+  static let tandemSyncWindowInterval: TimeInterval = 14 * 24 * 60 * 60
   static let hostedSubscriptionProductId =
     Bundle.main.object(forInfoDictionaryKey: "HOSTED_SUBSCRIPTION_PRODUCT_ID") as? String
       ?? "dev.ericslutz.PumpSync.hosted.monthly"

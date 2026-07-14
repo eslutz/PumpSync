@@ -83,12 +83,17 @@ final class SyncCoordinator {
 
     do {
       let now = Date()
+      let syncWindow = Self.syncWindow(
+        lastSuccessfulSyncAt: syncMetadataStore.metadata.lastSuccessfulSyncAt,
+        initialImportDate: syncMetadataStore.metadata.initialImportRange.minimumDate(relativeTo: now),
+        now: now,
+        calendar: .current
+      )
       let request = TandemSyncRequest(
         tandem: credentials,
         deviceId: nil,
-        minDate: syncMetadataStore.metadata.lastSuccessfulSyncAt
-          ?? syncMetadataStore.metadata.initialImportRange.minimumDate(relativeTo: now),
-        maxDate: now
+        minDate: syncWindow.minDate,
+        maxDate: syncWindow.maxDate
       )
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
@@ -127,6 +132,28 @@ final class SyncCoordinator {
     }
 
     return Date().timeIntervalSince(lastSuccessfulSyncAt) >= AppConstants.staleSyncInterval
+  }
+
+  static func syncWindow(
+    lastSuccessfulSyncAt: Date?,
+    initialImportDate: Date,
+    now: Date,
+    calendar: Calendar = .current
+  ) -> (minDate: Date, maxDate: Date) {
+    let requestedMinimumDate = lastSuccessfulSyncAt ?? initialImportDate
+    let startOfToday = calendar.startOfDay(for: now)
+    let endOfLastCompleteDay = startOfToday.addingTimeInterval(-1)
+    let earliestFullDayStartAllowedByRollingLookback = calendar.date(
+      byAdding: .day,
+      value: -(AppConstants.tandemSyncWindowDayCount - 1),
+      to: startOfToday
+    ) ?? startOfToday.addingTimeInterval(-AppConstants.tandemSyncWindowInterval)
+
+    if requestedMinimumDate < earliestFullDayStartAllowedByRollingLookback {
+      return (minDate: earliestFullDayStartAllowedByRollingLookback, maxDate: endOfLastCompleteDay)
+    }
+
+    return (minDate: requestedMinimumDate, maxDate: now)
   }
 
   private func message(sampleCount: Int, importedCount: Int, reason: SyncTriggerReason) -> String {

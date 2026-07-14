@@ -72,4 +72,26 @@ final class JSONCodecTests: XCTestCase {
     XCTAssertFalse(APIClientError.httpStatus(400, nil).isTransient)
     XCTAssertFalse(APIClientError.httpStatus(401, nil).isTransient)
   }
+
+  func testEncodesTandemSyncRequestWithBoundedDateWindow() throws {
+    let maxDate = Date(timeIntervalSince1970: 1_000_000)
+    let minDate = maxDate.addingTimeInterval(-AppConstants.tandemSyncWindowInterval)
+    let request = TandemSyncRequest(
+      tandem: TandemCredentials(username: "user@example.com", password: "secret", region: TandemRegion.us.rawValue),
+      deviceId: nil,
+      minDate: minDate,
+      maxDate: maxDate
+    )
+
+    let data = try JSONCodec.encoder.encode(request)
+    let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let encodedMinDate = try XCTUnwrap(payload["minDate"] as? String)
+    let encodedMaxDate = try XCTUnwrap(payload["maxDate"] as? String)
+
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    let decodedMinDate = try XCTUnwrap(formatter.date(from: encodedMinDate))
+    let decodedMaxDate = try XCTUnwrap(formatter.date(from: encodedMaxDate))
+    XCTAssertLessThanOrEqual(decodedMaxDate.timeIntervalSince(decodedMinDate), AppConstants.tandemSyncWindowInterval)
+  }
 }
