@@ -80,18 +80,32 @@ final class JSONCodecTests: XCTestCase {
       tandem: TandemCredentials(username: "user@example.com", password: "secret", region: TandemRegion.us.rawValue),
       deviceId: nil,
       minDate: minDate,
-      maxDate: maxDate
+      maxDate: maxDate,
+      timeZoneIdentifier: "America/New_York"
     )
 
     let data = try JSONCodec.encoder.encode(request)
     let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
     let encodedMinDate = try XCTUnwrap(payload["minDate"] as? String)
     let encodedMaxDate = try XCTUnwrap(payload["maxDate"] as? String)
+    XCTAssertEqual(payload["timeZoneIdentifier"] as? String, "America/New_York")
 
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime]
     let decodedMinDate = try XCTUnwrap(formatter.date(from: encodedMinDate))
     let decodedMaxDate = try XCTUnwrap(formatter.date(from: encodedMaxDate))
     XCTAssertLessThanOrEqual(decodedMaxDate.timeIntervalSince(decodedMinDate), AppConstants.tandemSyncWindowInterval)
+  }
+
+  func testEncodesTandemCredentialValidationTimeZone() throws {
+    let request = TandemCredentialValidationRequest(
+      tandem: TandemCredentials(username: "user@example.com", password: "secret", region: TandemRegion.us.rawValue),
+      timeZoneIdentifier: "America/New_York"
+    )
+
+    let data = try JSONCodec.encoder.encode(request)
+    let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+    XCTAssertEqual(payload["timeZoneIdentifier"] as? String, "America/New_York")
   }
 }

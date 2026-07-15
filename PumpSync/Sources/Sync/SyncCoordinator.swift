@@ -93,7 +93,8 @@ final class SyncCoordinator {
         tandem: credentials,
         deviceId: nil,
         minDate: syncWindow.minDate,
-        maxDate: syncWindow.maxDate
+        maxDate: syncWindow.maxDate,
+        timeZoneIdentifier: TimeZone.current.identifier
       )
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)

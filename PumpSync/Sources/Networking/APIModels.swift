@@ -36,10 +36,12 @@ struct TandemSyncRequest: Encodable {
   let deviceId: String?
   let minDate: Date?
   let maxDate: Date?
+  let timeZoneIdentifier: String
 }
 
 struct TandemCredentialValidationRequest: Encodable {
   let tandem: TandemCredentials
+  let timeZoneIdentifier: String
 }
 
 struct TandemCredentialValidationResponse: Decodable, Equatable {

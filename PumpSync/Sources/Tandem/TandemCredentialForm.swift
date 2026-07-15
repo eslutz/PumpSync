@@ -158,7 +158,10 @@ struct TandemCredentialForm: View {
     do {
       let credentials = currentCredentials
       let response = try await services.apiClient.validateTandemCredentials(
-        TandemCredentialValidationRequest(tandem: credentials),
+        TandemCredentialValidationRequest(
+          tandem: credentials,
+          timeZoneIdentifier: TimeZone.current.identifier
+        ),
         accessToken: accessToken
       )
 
