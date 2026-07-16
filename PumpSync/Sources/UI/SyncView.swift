@@ -45,7 +45,7 @@ struct SyncView: View {
           }
         }
       } label: {
-        GlassPrimaryLabel(title: syncButtonTitle, systemImage: "arrow.triangle.2.circlepath")
+        SyncButtonLabel(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing)
       }
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!canSync)
@@ -181,5 +181,68 @@ struct SyncView: View {
     }
 
     return nil
+  }
+}
+
+enum SyncButtonIconRotation {
+  static func angle(
+    isSyncing: Bool,
+    startDate: Date?,
+    currentDate: Date,
+    revolutionDuration: TimeInterval = 0.8
+  ) -> Double {
+    guard isSyncing, let startDate, revolutionDuration > 0 else {
+      return 0
+    }
+
+    let elapsed = max(0, currentDate.timeIntervalSince(startDate))
+    let progress = elapsed.truncatingRemainder(dividingBy: revolutionDuration) / revolutionDuration
+    return progress * 360
+  }
+}
+
+private struct SyncButtonLabel: View {
+  @State private var animationStartDate: Date?
+
+  let title: String
+  let isSyncing: Bool
+
+  var body: some View {
+    TimelineView(.animation) { context in
+      HStack(spacing: 14) {
+        Image(systemName: "arrow.triangle.2.circlepath")
+          .font(.title3)
+          .frame(width: 28)
+          .foregroundStyle(.tint)
+          .rotationEffect(.degrees(
+            SyncButtonIconRotation.angle(
+              isSyncing: isSyncing,
+              startDate: animationStartDate,
+              currentDate: context.date
+            )
+          ))
+          .accessibilityHidden(true)
+
+        Text(title)
+          .foregroundStyle(.primary)
+          .fixedSize(horizontal: false, vertical: true)
+          .layoutPriority(1)
+
+        Spacer(minLength: 0)
+      }
+      .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(title)
+    }
+    .onAppear {
+      updateAnimationStartDate(isSyncing: isSyncing)
+    }
+    .onChange(of: isSyncing) { _, newValue in
+      updateAnimationStartDate(isSyncing: newValue)
+    }
+  }
+
+  private func updateAnimationStartDate(isSyncing: Bool) {
+    animationStartDate = isSyncing ? Date() : nil
   }
 }
