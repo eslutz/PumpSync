@@ -151,6 +151,49 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(diagnostics.entries.first?.message, "Subscription validation failed for [redacted email].")
   }
 
+  func testHostedRestoreFailurePreservesExistingSession() async throws {
+    let diagnostics = DiagnosticsLogStore()
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let existingSession = BackendSessionResponse(
+      accessToken: "existing-token",
+      expiresAt: Date(timeIntervalSince1970: 1_800),
+      entitlementActive: true,
+      serviceMode: "hosted"
+    )
+    try sessionStore.save(existingSession)
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      syncedCurrentEntitlementJWS: {
+        "signed-transaction"
+      },
+      createSubscriptionSession: { _ in
+        throw APIClientError.httpStatus(401, "Signed App Store payload validation failed.")
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      },
+      diagnostics: diagnostics
+    )
+
+    XCTAssertEqual(service.accessToken, "existing-token")
+
+    await service.connectHostedUsingCurrentSubscription()
+
+    let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore purchases again."
+    XCTAssertTrue(service.isSignedIn)
+    XCTAssertFalse(service.isSigningIn)
+    XCTAssertEqual(service.accessToken, "existing-token")
+    XCTAssertEqual(service.statusMessage, expectedMessage)
+    XCTAssertEqual(service.errorMessage, expectedMessage)
+    XCTAssertEqual(sessionStore.loadValidSession(), existingSession)
+    XCTAssertEqual(diagnostics.entries.first?.title, "Hosted session failed")
+  }
+
   func testSilentHostedRecoveryCreatesBackendSessionWhenNoCachedSessionExists() async {
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
