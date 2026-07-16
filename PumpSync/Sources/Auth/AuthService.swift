@@ -352,6 +352,8 @@ final class AuthService {
     publishesErrors: Bool
   ) async {
     _ = configurationStore.apply(to: apiClient)
+    let previousSession = session
+    let hasValidPreviousSession = previousSession.map { sessionStore?.isValid($0) ?? !$0.accessToken.isEmpty } ?? false
     isConnecting = true
     errorMessage = nil
     statusMessage = activityMessage
@@ -370,14 +372,22 @@ final class AuthService {
       statusMessage = "Hosted subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
-      session = nil
-      try? sessionStore?.delete()
+      if hasValidPreviousSession {
+        session = previousSession
+      } else {
+        session = nil
+        try? sessionStore?.delete()
+      }
       if publishesErrors {
         let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
         errorMessage = message
         statusMessage = message
       } else {
-        resetDisconnectedStatus()
+        if hasValidPreviousSession {
+          statusMessage = previousSession?.serviceMode == "selfHosted" ? "Connected to self-hosted service" : "Hosted subscription active"
+        } else {
+          resetDisconnectedStatus()
+        }
       }
       diagnostics?.record(error: error, source: .auth, title: "Hosted session failed")
     }
