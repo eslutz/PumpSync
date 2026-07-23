@@ -52,6 +52,10 @@ final class SyncCoordinator {
       return
     }
 
+    // A background launch has no view lifecycle to refresh permission state,
+    // so refresh it here rather than relying on a view's .task/.onAppear.
+    healthKitService.refreshAuthorizationStatus()
+
     guard let accessToken = await authService.accessTokenRecoveringIfNeeded() else {
       lastMessage = "Connect PumpSync before syncing."
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")

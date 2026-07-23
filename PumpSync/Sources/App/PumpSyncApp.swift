@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct PumpSyncApp: App {
   @State private var services: AppServices
+  @Environment(\.scenePhase) private var scenePhase
 
   init() {
 #if DEBUG
@@ -20,9 +21,11 @@ struct PumpSyncApp: App {
     WindowGroup {
       AppView()
         .environment(services)
-        .task {
-          services.backgroundSyncScheduler.scheduleDailySync()
-        }
+    }
+    .onChange(of: scenePhase) { _, newPhase in
+      if newPhase == .background {
+        services.backgroundSyncScheduler.scheduleDailySync()
+      }
     }
   }
 }

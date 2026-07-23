@@ -26,24 +26,44 @@ final class BackgroundSyncScheduler {
   }
 
   func scheduleDailySync() {
-    let request = BGProcessingTaskRequest(identifier: identifier)
-    request.requiresNetworkConnectivity = true
-    request.requiresExternalPower = false
-    request.earliestBeginDate = Date(timeIntervalSinceNow: 24 * 60 * 60)
+    let identifier = identifier
+    BGTaskScheduler.shared.getPendingTaskRequests { requests in
+      guard !requests.contains(where: { $0.identifier == identifier }) else {
+        return
+      }
 
-    try? BGTaskScheduler.shared.submit(request)
+      let request = BGProcessingTaskRequest(identifier: identifier)
+      request.requiresNetworkConnectivity = true
+      request.requiresExternalPower = false
+      request.earliestBeginDate = Date(timeIntervalSinceNow: 24 * 60 * 60)
+
+      try? BGTaskScheduler.shared.submit(request)
+    }
   }
 
   private func handle(task: BGTask, handler: @escaping @Sendable () async -> Void) {
     scheduleDailySync()
 
+    let completionLock = NSLock()
+    var hasCompleted = false
+    func complete(success: Bool) {
+      completionLock.lock()
+      defer { completionLock.unlock() }
+      guard !hasCompleted else {
+        return
+      }
+      hasCompleted = true
+      task.setTaskCompleted(success: success)
+    }
+
     let work = Task {
       await handler()
-      task.setTaskCompleted(success: !Task.isCancelled)
+      complete(success: !Task.isCancelled)
     }
 
     task.expirationHandler = {
       work.cancel()
+      complete(success: false)
     }
   }
 }
