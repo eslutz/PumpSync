@@ -39,6 +39,13 @@ struct TandemCredentialForm: View {
             .accessibilityHint("Enter the password for your pump account")
         }
 
+        if services.credentialStore.hasStoredCredentials {
+          Text("A password is already saved on this device. Enter it again to change your username, password, or region.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
         GlassDivider(leadingPadding: 0)
 
         Toggle("Show password", isOn: $isShowingPassword)
@@ -65,6 +72,7 @@ struct TandemCredentialForm: View {
         .frame(minHeight: 44)
         .accessibilityElement(children: .contain)
       }
+      .privacySensitive()
 
       Button {
         Task {
@@ -139,8 +147,12 @@ struct TandemCredentialForm: View {
         return
       }
 
+      // The password is intentionally not loaded into view state: doing so
+      // put the plaintext password one tap ("Show password") away from
+      // anyone with momentary access to an unlocked device. Changing any
+      // field, including just the username or region, requires re-entering
+      // the password.
       username = credentials.username
-      password = credentials.password
       region = TandemRegion(rawValue: credentials.region) ?? .us
     } catch {
       services.diagnosticsLogStore.record(source: .credential, severity: .error, title: "Credentials unavailable", message: error.localizedDescription)
