@@ -2,45 +2,25 @@ import SwiftUI
 
 struct AppView: View {
   @Environment(AppServices.self) private var services
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var selectedTab: AppTab = .sync
 
   var body: some View {
-    Group {
-      if horizontalSizeClass == .regular {
-        NavigationSplitView {
-          List {
-            ForEach(AppTab.allCases) { tab in
-              Button {
-                selectedTab = tab
-              } label: {
-                Label(tab.title, systemImage: tab.systemImage)
-              }
-              .buttonStyle(.plain)
-              .listRowBackground(selectedTab == tab ? Color(.secondarySystemGroupedBackground) : Color.clear)
-              .accessibilityValue(selectedTab == tab ? "Selected" : "")
-              .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
-            }
-          }
-          .listStyle(.sidebar)
-          .navigationTitle("PumpSync")
-        } detail: {
+    // A single TabView hierarchy adapts between a tab bar (iPhone/compact) and
+    // a sidebar (iPad/regular) on its own. The previous horizontalSizeClass
+    // branch rebuilt the entire view hierarchy on every size-class change
+    // (e.g. iPad Split View resize, Stage Manager), discarding any in-progress
+    // navigation or form state; this keeps one NavigationStack per tab across
+    // size-class transitions.
+    TabView(selection: $selectedTab) {
+      ForEach(AppTab.allCases) { tab in
+        Tab(tab.title, systemImage: tab.systemImage, value: tab) {
           NavigationStack {
-            selectedTab.content
-          }
-        }
-      } else {
-        TabView(selection: $selectedTab) {
-          ForEach(AppTab.allCases) { tab in
-            NavigationStack {
-              tab.content
-            }
-            .tabItem { tab.label }
-            .tag(tab)
+            tab.content
           }
         }
       }
     }
+    .tabViewStyle(.sidebarAdaptable)
     .task {
       services.healthKitService.refreshAuthorizationStatus()
       await services.authService.recoverSessionIfNeeded()
@@ -81,10 +61,5 @@ enum AppTab: String, CaseIterable, Identifiable {
     case .settings:
       SettingsView()
     }
-  }
-
-  @ViewBuilder
-  var label: some View {
-    Label(title, systemImage: systemImage)
   }
 }

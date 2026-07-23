@@ -96,12 +96,21 @@ struct TandemCredentialForm: View {
     }
     .navigationTitle("Tandem")
     .onAppear(perform: load)
-    .alert(item: $alert) { alert in
-      Alert(
-        title: Text(alert.title),
-        message: Text(alert.message),
-        dismissButton: .default(Text("OK"))
-      )
+    .alert(
+      alert?.title ?? "",
+      isPresented: Binding(
+        get: { alert != nil },
+        set: { isPresented in
+          if !isPresented {
+            alert = nil
+          }
+        }
+      ),
+      presenting: alert
+    ) { _ in
+      Button("OK", role: .cancel) {}
+    } message: { alert in
+      Text(alert.message)
     }
   }
 
