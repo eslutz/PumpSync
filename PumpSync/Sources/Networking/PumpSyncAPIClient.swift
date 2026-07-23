@@ -169,13 +169,16 @@ enum JSONCodec {
     return decoder
   }()
 
-  private static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+  // ISO8601DateFormatter isn't Sendable, but these are configured once here
+  // and only ever used for read-only `.date(from:)` calls afterward, which is
+  // safe to share across threads in practice.
+  private nonisolated(unsafe) static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter
   }()
 
-  private static let iso8601: ISO8601DateFormatter = {
+  private nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime]
     return formatter

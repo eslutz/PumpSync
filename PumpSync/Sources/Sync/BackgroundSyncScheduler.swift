@@ -1,5 +1,6 @@
 import BackgroundTasks
 import Foundation
+import Synchronization
 
 final class BackgroundSyncScheduler {
   private let identifier: String
@@ -44,26 +45,41 @@ final class BackgroundSyncScheduler {
   private func handle(task: BGTask, handler: @escaping @Sendable () async -> Void) {
     scheduleDailySync()
 
-    let completionLock = NSLock()
-    var hasCompleted = false
-    func complete(success: Bool) {
-      completionLock.lock()
-      defer { completionLock.unlock() }
-      guard !hasCompleted else {
-        return
+    // BGTask isn't Sendable, but setTaskCompleted(success:) is documented as
+    // safe to call from any thread — that's the whole point of the method.
+    // Box it so it can cross into the unstructured Task below without the
+    // compiler needing (and being unable) to verify BGTask's own safety.
+    let taskBox = UncheckedSendableBox(value: task)
+    let hasCompleted = Mutex(false)
+    // A local nested func isn't inferred @Sendable even when its captures
+    // are, so this is called from both the Task body and expirationHandler
+    // below as an explicitly @Sendable closure instead.
+    let complete: @Sendable (Bool) -> Void = { success in
+      let shouldComplete = hasCompleted.withLock { completed in
+        guard !completed else {
+          return false
+        }
+        completed = true
+        return true
       }
-      hasCompleted = true
-      task.setTaskCompleted(success: success)
+
+      if shouldComplete {
+        taskBox.value.setTaskCompleted(success: success)
+      }
     }
 
     let work = Task {
       await handler()
-      complete(success: !Task.isCancelled)
+      complete(!Task.isCancelled)
     }
 
     task.expirationHandler = {
       work.cancel()
-      complete(success: false)
+      complete(false)
     }
   }
+}
+
+private struct UncheckedSendableBox<Value>: @unchecked Sendable {
+  let value: Value
 }

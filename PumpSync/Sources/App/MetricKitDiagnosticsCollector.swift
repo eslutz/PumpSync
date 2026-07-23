@@ -31,7 +31,7 @@ final class MetricKitDiagnosticsCollector: NSObject, MXMetricManagerSubscriber {
         timestamp: payload.timeStampEnd,
         summary: Self.summary(from: payload, preferredKeys: Self.performanceSummaryKeys)
       )
-      Task { @MainActor in
+      Task { @MainActor [store] in
         store.record(entry)
       }
     }
@@ -49,7 +49,7 @@ final class MetricKitDiagnosticsCollector: NSObject, MXMetricManagerSubscriber {
           fallback: "MetricKit delivered a native diagnostic payload."
         )
       )
-      Task { @MainActor in
+      Task { @MainActor [store] in
         store.record(entry)
       }
     }
