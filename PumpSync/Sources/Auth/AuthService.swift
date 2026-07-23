@@ -91,6 +91,7 @@ final class AuthService {
   private(set) var session: BackendSessionResponse?
   private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
   private(set) var errorMessage: String?
+  private var transactionUpdatesTask: Task<Void, Never>?
 
   init(
     apiClient: PumpSyncAPIClient,
@@ -232,6 +233,46 @@ final class AuthService {
       title: "Hosted subscription purchased",
       publishesErrors: true
     )
+  }
+
+  /// Starts listening for StoreKit transaction updates that arrive outside the
+  /// purchase sheet: Ask-to-Buy approvals, renewals after a billing retry, and
+  /// refunds/revocations. Without this, those transactions are never observed
+  /// or finished, and StoreKit keeps redelivering them on every launch.
+  func startObservingTransactionUpdates() {
+    guard transactionUpdatesTask == nil else {
+      return
+    }
+
+    transactionUpdatesTask = Task { [weak self] in
+      for await result in Transaction.updates {
+        await self?.handleTransactionUpdate(result)
+      }
+    }
+  }
+
+  func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
+    guard case .verified(let transaction) = result else {
+      diagnostics?.record(source: .auth, severity: .warning, title: "Unverified subscription transaction update ignored")
+      return
+    }
+
+    guard transaction.productID == AppConstants.hostedSubscriptionProductId else {
+      await transaction.finish()
+      return
+    }
+
+    if transaction.isActiveSubscriptionEntitlement {
+      await activateHostedSubscription(signedTransactionInfo: result.jwsRepresentation)
+    } else {
+      diagnostics?.record(
+        source: .auth,
+        title: "Inactive hosted subscription transaction update",
+        message: transaction.diagnosticSummary(active: false)
+      )
+    }
+
+    await transaction.finish()
   }
 
   func recordHostedSubscriptionPurchaseCancelled() {

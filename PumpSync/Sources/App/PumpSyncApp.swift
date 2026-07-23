@@ -14,6 +14,7 @@ struct PumpSyncApp: App {
     services.backgroundSyncScheduler.register {
       await services.syncCoordinator.performBackgroundSync()
     }
+    services.authService.startObservingTransactionUpdates()
     _services = State(initialValue: services)
   }
 
