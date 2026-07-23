@@ -362,15 +362,6 @@ final class AuthService {
     isConnecting = false
   }
 
-  func signIn() async {
-    switch configurationStore.mode {
-    case .hosted:
-      await connectHostedUsingCurrentSubscription()
-    case .selfHosted:
-      await connectSelfHosted()
-    }
-  }
-
   func recoverSessionIfNeeded() async {
     guard !isConnecting else {
       return

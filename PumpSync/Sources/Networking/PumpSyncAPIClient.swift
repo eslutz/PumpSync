@@ -23,20 +23,12 @@ final class PumpSyncAPIClient {
     self.baseURL = baseURL
   }
 
-  func getCapabilities() async throws -> CapabilitiesResponse {
-    try await send(path: "/v1/capabilities", method: "GET", body: EmptyRequest(), accessToken: nil)
-  }
-
   func createSubscriptionSession(_ request: SubscriptionSessionRequest) async throws -> BackendSessionResponse {
     try await send(path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil)
   }
 
   func createSelfHostedSession(_ request: SelfHostedSessionRequest) async throws -> BackendSessionResponse {
     try await send(path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil)
-  }
-
-  func getStatus(accessToken: String) async throws -> StatusResponse {
-    try await send(path: "/v1/status", method: "GET", body: EmptyRequest(), accessToken: accessToken)
   }
 
   func syncTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
@@ -112,8 +104,6 @@ final class PumpSyncAPIClient {
     return nsError.domain == NSURLErrorDomain
   }
 }
-
-private struct EmptyRequest: Encodable {}
 
 private struct ErrorResponse: Decodable {
   let code: String

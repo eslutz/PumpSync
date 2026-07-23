@@ -1,13 +1,5 @@
 import Foundation
 
-struct CapabilitiesResponse: Decodable, Equatable {
-  let apiVersion: String
-  let serviceMode: String
-  let billingMode: String
-  let tandemCredentialStorage: String
-  let tandemDataRetention: String
-}
-
 struct SubscriptionSessionRequest: Encodable {
   let signedTransactionInfo: String
   let installationId: String
@@ -22,13 +14,6 @@ struct BackendSessionResponse: Codable, Equatable {
   let expiresAt: Date
   let entitlementActive: Bool
   let serviceMode: String
-}
-
-struct StatusResponse: Decodable, Equatable {
-  let entitlementActive: Bool
-  let serviceMode: String
-  let tandemCredentialStorage: String
-  let tandemDataRetention: String
 }
 
 struct TandemSyncRequest: Encodable {
