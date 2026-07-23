@@ -10,6 +10,12 @@ enum SyncTriggerReason: String {
 @MainActor
 @Observable
 final class SyncCoordinator {
+  /// Subtracted from the server-reported effective sync window's end before
+  /// recording the watermark, so a slow request or a late-arriving Tandem
+  /// upload near the boundary is still covered by the next sync. Re-fetched
+  /// samples are deduplicated by ImportedSampleLedger, so this is safe.
+  private static let watermarkOverlap: TimeInterval = 24 * 60 * 60
+
   private let apiClient: PumpSyncAPIClient
   private let authService: AuthService
   private let credentialStore: TandemCredentialStore
@@ -98,7 +104,8 @@ final class SyncCoordinator {
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
       let importedCount = try await healthKitService.save(samples: unseenSamples)
       try importedSampleLedger.recordImported(unseenSamples)
-      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount)
+      let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
+      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, watermark: watermark)
       lastMessage = message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
       diagnostics?.record(
         source: .sync,

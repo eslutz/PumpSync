@@ -342,6 +342,45 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "self-hosted-token")
   }
 
+  func testSelfHostedBaseURLRequiresHttpsForNonLoopbackHosts() {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+
+    configuration.selfHostedBaseURLString = "http://192.168.1.50:8080"
+    XCTAssertNil(configuration.selectedBaseURL, "a plain-HTTP IP-literal self-host URL must be rejected")
+
+    configuration.selfHostedBaseURLString = "http://backend.example.com"
+    XCTAssertNil(configuration.selectedBaseURL, "a plain-HTTP hostname self-host URL must be rejected")
+
+    configuration.selfHostedBaseURLString = "https://192.168.1.50:8080"
+    XCTAssertNotNil(configuration.selectedBaseURL, "an HTTPS self-host URL must be accepted")
+  }
+
+  func testSelfHostedBaseURLAllowsHttpForLoopbackOnly() {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+
+    configuration.selfHostedBaseURLString = "http://localhost:8080"
+    XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to localhost must be allowed for local development")
+
+    configuration.selfHostedBaseURLString = "http://127.0.0.1:8080"
+    XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to 127.0.0.1 must be allowed for local development")
+  }
+
+  func testSelfHostedBaseURLRejectsMalformedOrEmptyInput() {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+
+    configuration.selfHostedBaseURLString = ""
+    XCTAssertNil(configuration.selectedBaseURL)
+
+    configuration.selfHostedBaseURLString = "not a url"
+    XCTAssertNil(configuration.selectedBaseURL)
+
+    configuration.selfHostedBaseURLString = "ftp://backend.example.com"
+    XCTAssertNil(configuration.selectedBaseURL, "non-http(s) schemes must be rejected")
+  }
+
   func testConnectionChangeClearsCachedSession() throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
     try sessionStore.save(

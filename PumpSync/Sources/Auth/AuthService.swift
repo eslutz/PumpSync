@@ -61,8 +61,36 @@ final class BackendConfigurationStore {
     case .hosted:
       return AppConstants.defaultAPIBaseURL
     case .selfHosted:
-      return URL(string: selfHostedBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
+      return Self.validatedSelfHostedURL(from: selfHostedBaseURLString)
     }
+  }
+
+  /// ATS does not block cleartext HTTP to IP-address literals or unqualified
+  /// hostnames — exactly what a self-hosted URL typically looks like — so this
+  /// requires HTTPS explicitly rather than relying on ATS alone. Loopback is
+  /// allowed over HTTP for local development against a backend run on the
+  /// same machine.
+  private static let loopbackHosts: Set<String> = ["localhost", "127.0.0.1", "::1"]
+
+  private static func validatedSelfHostedURL(from rawValue: String) -> URL? {
+    guard
+      let url = URL(string: rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),
+      let scheme = url.scheme?.lowercased(),
+      let host = url.host,
+      !host.isEmpty
+    else {
+      return nil
+    }
+
+    if scheme == "https" {
+      return url
+    }
+
+    if scheme == "http" && loopbackHosts.contains(host.lowercased()) {
+      return url
+    }
+
+    return nil
   }
 
   func apply(to apiClient: PumpSyncAPIClient) -> Bool {
@@ -305,7 +333,7 @@ final class AuthService {
 
   func connectSelfHosted() async {
     guard configurationStore.apply(to: apiClient) else {
-      errorMessage = "Enter a valid self-hosted service URL."
+      errorMessage = "Enter a valid self-hosted service URL starting with https:// (http:// is only allowed for localhost)."
       statusMessage = errorMessage ?? statusMessage
       return
     }

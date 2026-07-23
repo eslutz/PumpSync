@@ -49,21 +49,29 @@ struct TandemCredentialValidationResponse: Decodable, Equatable {
 struct TandemSyncResponse: Decodable {
   let cursor: String?
   let samples: [SampleDTO]
+  let effectiveMinDate: Date
+  let effectiveMaxDate: Date
 
   enum CodingKeys: String, CodingKey {
     case cursor
     case samples
+    case effectiveMinDate
+    case effectiveMaxDate
   }
 
-  init(cursor: String?, samples: [SampleDTO]) {
+  init(cursor: String?, samples: [SampleDTO], effectiveMinDate: Date, effectiveMaxDate: Date) {
     self.cursor = cursor
     self.samples = samples
+    self.effectiveMinDate = effectiveMinDate
+    self.effectiveMaxDate = effectiveMaxDate
   }
 
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     cursor = try container.decodeIfPresent(FlexibleString.self, forKey: .cursor)?.value
     samples = try container.decode([SampleDTO].self, forKey: .samples)
+    effectiveMinDate = try container.decode(Date.self, forKey: .effectiveMinDate)
+    effectiveMaxDate = try container.decode(Date.self, forKey: .effectiveMaxDate)
   }
 }
 

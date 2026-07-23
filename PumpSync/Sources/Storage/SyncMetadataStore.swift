@@ -64,8 +64,14 @@ final class SyncMetadataStore {
     save()
   }
 
-  func recordSuccess(sampleCount: Int, importedCount: Int) {
-    metadata.lastSuccessfulSyncAt = Date()
+  /// - Parameter watermark: The point up to which data is now known to be
+  ///   imported. Callers should pass the server-reported effective sync
+  ///   window's end (minus a safety overlap), not a client-side `Date()` taken
+  ///   after the request completes — using a later, locally-captured timestamp
+  ///   here would create a permanent gap between what was actually requested
+  ///   and what the next sync resumes from.
+  func recordSuccess(sampleCount: Int, importedCount: Int, watermark: Date) {
+    metadata.lastSuccessfulSyncAt = watermark
     metadata.lastSampleCount = sampleCount
     metadata.lastImportedCount = importedCount
     metadata.lastErrorMessage = nil

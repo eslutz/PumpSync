@@ -20,7 +20,9 @@ final class JSONCodecTests: XCTestCase {
             "eventIds": ["3"]
           }
         }
-      ]
+      ],
+      "effectiveMinDate": "2026-06-16T12:00:00Z",
+      "effectiveMaxDate": "2026-06-17T12:01:00.123Z"
     }
     """.utf8)
 
@@ -51,7 +53,9 @@ final class JSONCodecTests: XCTestCase {
             "eventIds": [456, "789"]
           }
         }
-      ]
+      ],
+      "effectiveMinDate": "2026-06-17T12:00:00Z",
+      "effectiveMaxDate": "2026-06-17T12:05:00Z"
     }
     """.utf8)
 
