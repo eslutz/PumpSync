@@ -7,6 +7,19 @@ enum SyncTriggerReason: String {
   case background
 }
 
+/// The slice of HealthKitService's surface SyncCoordinator depends on,
+/// extracted as a seam so tests can substitute a fake — real HealthKit
+/// authorization/writes require device interaction and aren't something a
+/// unit test can drive deterministically.
+@MainActor
+protocol SyncHealthWriting {
+  func refreshAuthorizationStatus()
+  var hasAnyWritePermission: Bool { get }
+  func save(samples: [SampleDTO]) async throws -> Int
+}
+
+extension HealthKitService: SyncHealthWriting {}
+
 @MainActor
 @Observable
 final class SyncCoordinator {
@@ -19,7 +32,7 @@ final class SyncCoordinator {
   private let apiClient: PumpSyncAPIClient
   private let authService: AuthService
   private let credentialStore: TandemCredentialStore
-  private let healthKitService: HealthKitService
+  private let healthKitService: SyncHealthWriting
   private let importedSampleLedger: ImportedSampleLedger
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
@@ -31,7 +44,7 @@ final class SyncCoordinator {
     apiClient: PumpSyncAPIClient,
     authService: AuthService,
     credentialStore: TandemCredentialStore,
-    healthKitService: HealthKitService,
+    healthKitService: SyncHealthWriting,
     importedSampleLedger: ImportedSampleLedger,
     syncMetadataStore: SyncMetadataStore,
     diagnostics: DiagnosticsLogStore? = nil
