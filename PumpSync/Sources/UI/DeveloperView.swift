@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct DeveloperView: View {
   @Environment(AppServices.self) private var services
@@ -13,7 +14,7 @@ struct DeveloperView: View {
         GlassStatusRow(title: "Installation ID", value: services.backendConfigurationStore.installationId, systemImage: "number.square")
         GlassDivider()
         Button {
-          UIPasteboard.general.string = services.backendConfigurationStore.installationId
+          copyToClipboard(services.backendConfigurationStore.installationId)
           showCopiedFeedback(for: .installationId)
         } label: {
           HStack(spacing: 14) {
@@ -181,7 +182,7 @@ struct DeveloperView: View {
   ) -> some View {
     VStack(alignment: .leading, spacing: 10) {
       Button {
-        UIPasteboard.general.string = copy()
+        copyToClipboard(copy())
         showCopiedFeedback(for: item)
       } label: {
         Label(copiedItem == item ? "Copied" : copyTitle, systemImage: copiedItem == item ? "checkmark.circle" : "doc.on.doc")
@@ -199,6 +200,18 @@ struct DeveloperView: View {
     }
     .padding(.top, 6)
     .padding(.bottom, 2)
+  }
+
+  /// Diagnostics and the installation ID are only meant for a one-off paste
+  /// into a support message, not indefinite storage — .localOnly keeps them
+  /// out of Universal Clipboard sync to other devices, and expirationDate
+  /// clears the pasteboard entry automatically rather than leaving it
+  /// sitting there until overwritten.
+  private func copyToClipboard(_ string: String) {
+    UIPasteboard.general.setItems(
+      [[UTType.plainText.identifier: string]],
+      options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(2 * 60)]
+    )
   }
 
   private func showCopiedFeedback(for item: CopiedDiagnosticsItem) {
