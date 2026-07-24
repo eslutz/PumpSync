@@ -38,7 +38,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedRestoreCreatesBackendSession() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
     let session = BackendSessionResponse(
@@ -80,7 +80,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedPurchaseCompletionCreatesBackendSession() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
     let session = BackendSessionResponse(
@@ -122,7 +122,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedRestorePublishesUserSafeErrorAndDiagnostics() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
@@ -152,7 +152,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedRestoreFailurePreservesExistingSession() async throws {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
     let existingSession = BackendSessionResponse(
       accessToken: "existing-token",
@@ -277,7 +277,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testSilentHostedRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
@@ -484,5 +484,9 @@ final class AuthServiceTests: XCTestCase {
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)"),
       now: now
     )
+  }
+
+  private func makeDiagnostics() -> DiagnosticsLogStore {
+    DiagnosticsLogStore(defaults: UserDefaults(suiteName: "AuthServiceTests-\(UUID().uuidString)")!)
   }
 }

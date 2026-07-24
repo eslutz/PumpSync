@@ -37,7 +37,7 @@ final class SyncCoordinatorTests: XCTestCase {
   }
 
   func testSyncBlockedWhenNotAuthenticated() async throws {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let coordinator = makeCoordinator(
       authService: makeSignedOutAuthService(),
       credentialStore: try makeValidatedCredentialStore(),
@@ -80,7 +80,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
     fakeHealthKit.saveResult = .success(2)
     let syncMetadataStore = makeSyncMetadataStore()
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let samples = [sample(externalId: "sample-1"), sample(externalId: "sample-2")]
     let effectiveMinDate = Date(timeIntervalSince1970: 1_000_000)
     let effectiveMaxDate = Date(timeIntervalSince1970: 1_100_000)
@@ -263,6 +263,10 @@ final class SyncCoordinatorTests: XCTestCase {
 
   private func makeSyncMetadataStore() -> SyncMetadataStore {
     SyncMetadataStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!)
+  }
+
+  private func makeDiagnostics() -> DiagnosticsLogStore {
+    DiagnosticsLogStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!)
   }
 
   private func sample(externalId: String) -> SampleDTO {
