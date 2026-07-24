@@ -169,6 +169,11 @@ struct TandemCredentialForm: View {
   }
 
   private func validateAndSave() async {
+    // Known follow-up (not implemented here): every save re-validates the
+    // full credential set against Tandem, even when only the region changed
+    // and the username/password are untouched. Distinguishing changed vs.
+    // unchanged fields would save an unnecessary Tandem login round trip,
+    // but requires tracking the loaded baseline against current field state.
     isValidating = true
     defer { isValidating = false }
 
