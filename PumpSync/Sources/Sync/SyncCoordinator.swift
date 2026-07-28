@@ -109,7 +109,7 @@ final class SyncCoordinator {
       let request = TandemSyncRequest(
         tandem: credentials,
         deviceId: nil,
-        minDate: syncMetadataStore.metadata.lastSuccessfulSyncAt
+        minDate: syncMetadataStore.metadata.syncWatermark
           ?? syncMetadataStore.metadata.initialImportRange.minimumDate(relativeTo: now),
         maxDate: now
       )
@@ -118,7 +118,7 @@ final class SyncCoordinator {
       let importedCount = try await healthKitService.save(samples: unseenSamples)
       try importedSampleLedger.recordImported(unseenSamples)
       let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
-      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, watermark: watermark)
+      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark)
       lastMessage = message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
       diagnostics?.record(
         source: .sync,

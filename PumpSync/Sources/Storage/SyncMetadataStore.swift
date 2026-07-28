@@ -3,11 +3,23 @@ import Observation
 
 struct SyncMetadata: Codable, Equatable {
   var lastAttemptAt: Date?
+  /// The actual wall-clock time the last sync completed successfully — used
+  /// for staleness checks and "last synced" UI display. Deliberately
+  /// separate from `syncWatermark`: that field is intentionally set earlier
+  /// than "now" (see its doc comment), and reusing it here made every sync
+  /// look ~24h stale the instant it finished, triggering an immediate
+  /// re-sync on every subsequent cold launch.
   var lastSuccessfulSyncAt: Date?
   var lastSampleCount: Int
   var lastImportedCount: Int
   var lastErrorMessage: String?
   var initialImportRange: InitialImportRange
+  /// The point up to which data is known to be imported, used as the next
+  /// sync's `minDate`. Set from the server's effective sync window end minus
+  /// a safety overlap (see `SyncCoordinator.watermarkOverlap`), not from
+  /// `lastSuccessfulSyncAt` — the two serve different purposes and must not
+  /// share a value.
+  var syncWatermark: Date?
 
   private enum CodingKeys: String, CodingKey {
     case lastAttemptAt
@@ -16,6 +28,7 @@ struct SyncMetadata: Codable, Equatable {
     case lastImportedCount
     case lastErrorMessage
     case initialImportRange
+    case syncWatermark
   }
 
   init(
@@ -24,7 +37,8 @@ struct SyncMetadata: Codable, Equatable {
     lastSampleCount: Int,
     lastImportedCount: Int,
     lastErrorMessage: String?,
-    initialImportRange: InitialImportRange = .default
+    initialImportRange: InitialImportRange = .default,
+    syncWatermark: Date? = nil
   ) {
     self.lastAttemptAt = lastAttemptAt
     self.lastSuccessfulSyncAt = lastSuccessfulSyncAt
@@ -32,6 +46,7 @@ struct SyncMetadata: Codable, Equatable {
     self.lastImportedCount = lastImportedCount
     self.lastErrorMessage = lastErrorMessage
     self.initialImportRange = initialImportRange
+    self.syncWatermark = syncWatermark ?? lastSuccessfulSyncAt
   }
 
   init(from decoder: Decoder) throws {
@@ -42,6 +57,11 @@ struct SyncMetadata: Codable, Equatable {
     lastImportedCount = try container.decode(Int.self, forKey: .lastImportedCount)
     lastErrorMessage = try container.decodeIfPresent(String.self, forKey: .lastErrorMessage)
     initialImportRange = try container.decodeIfPresent(InitialImportRange.self, forKey: .initialImportRange) ?? .default
+    // Data persisted before this field existed has no syncWatermark key.
+    // Falling back to lastSuccessfulSyncAt (the old, dual-purpose value) is
+    // the correct one-time migration: it's exactly what the watermark would
+    // already have been under the old behavior this field replaces.
+    syncWatermark = try container.decodeIfPresent(Date.self, forKey: .syncWatermark) ?? lastSuccessfulSyncAt
   }
 }
 
@@ -64,14 +84,19 @@ final class SyncMetadataStore {
     save()
   }
 
+  /// - Parameter completedAt: The actual wall-clock time this sync
+  ///   completed. Drives staleness checks and "last synced" UI display —
+  ///   pass a real `Date()`, not the watermark.
   /// - Parameter watermark: The point up to which data is now known to be
-  ///   imported. Callers should pass the server-reported effective sync
-  ///   window's end (minus a safety overlap), not a client-side `Date()` taken
-  ///   after the request completes — using a later, locally-captured timestamp
-  ///   here would create a permanent gap between what was actually requested
-  ///   and what the next sync resumes from.
-  func recordSuccess(sampleCount: Int, importedCount: Int, watermark: Date) {
-    metadata.lastSuccessfulSyncAt = watermark
+  ///   imported, used as the next sync's `minDate`. Callers should pass the
+  ///   server-reported effective sync window's end (minus a safety overlap),
+  ///   not a client-side `Date()` taken after the request completes — using
+  ///   a later, locally-captured timestamp here would create a permanent gap
+  ///   between what was actually requested and what the next sync resumes
+  ///   from.
+  func recordSuccess(sampleCount: Int, importedCount: Int, completedAt: Date, watermark: Date) {
+    metadata.lastSuccessfulSyncAt = completedAt
+    metadata.syncWatermark = watermark
     metadata.lastSampleCount = sampleCount
     metadata.lastImportedCount = importedCount
     metadata.lastErrorMessage = nil

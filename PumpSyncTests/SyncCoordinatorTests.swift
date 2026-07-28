@@ -99,9 +99,15 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.lastMessage, "Imported 2 new samples.")
     XCTAssertFalse(coordinator.isSyncing)
     XCTAssertEqual(fakeHealthKit.savedSamples.map(\.externalId), ["sample-1", "sample-2"])
-    // The watermark must come from the server's reported effective window,
-    // minus the overlap, not a client-side Date() — this is the I4 fix.
-    XCTAssertEqual(syncMetadataStore.metadata.lastSuccessfulSyncAt, effectiveMaxDate.addingTimeInterval(-24 * 60 * 60))
+    // The next request's minDate watermark must come from the server's
+    // reported effective window, minus the overlap, not a client-side
+    // Date() — this is the I4 fix.
+    XCTAssertEqual(syncMetadataStore.metadata.syncWatermark, effectiveMaxDate.addingTimeInterval(-24 * 60 * 60))
+    // lastSuccessfulSyncAt is a separate field driving staleness checks and
+    // "last synced" UI display — it must be the real completion time, not
+    // the watermark (which is deliberately ~24h earlier). Reusing the
+    // watermark here made every sync look immediately stale.
+    XCTAssertEqual(syncMetadataStore.metadata.lastSuccessfulSyncAt?.timeIntervalSinceNow ?? -.infinity, 0, accuracy: 5)
     XCTAssertEqual(diagnostics.entries.first?.title, "Sync completed")
   }
 
@@ -154,7 +160,7 @@ final class SyncCoordinatorTests: XCTestCase {
 
   func testRefreshIfStaleSkipsSyncWhenRecentlySuccessful() async throws {
     let syncMetadataStore = makeSyncMetadataStore()
-    syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, watermark: Date())
+    syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date())
     // No requestHandler installed: if sync() were reached, the client would
     // fail with badServerResponse instead of silently succeeding, so a
     // non-nil lastMessage here would prove the guard didn't hold.
@@ -167,6 +173,40 @@ final class SyncCoordinatorTests: XCTestCase {
     await coordinator.refreshIfStale(reason: .appOpen)
 
     XCTAssertNil(coordinator.lastMessage)
+  }
+
+  func testRefreshIfStaleDoesNotImmediatelyReSyncAfterARealSyncCompletes() async throws {
+    // Regression test: recording the watermark (~24h before "now") into
+    // lastSuccessfulSyncAt instead of the real completion time made every
+    // sync look already-stale the instant it finished, forcing an
+    // unnecessary re-sync on the very next staleness check.
+    let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
+    fakeHealthKit.saveResult = .success(0)
+    let syncMetadataStore = makeSyncMetadataStore()
+    URLProtocolStub.requestHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date()
+    )
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: fakeHealthKit,
+      syncMetadataStore: syncMetadataStore
+    )
+    await coordinator.sync(reason: .manual)
+    XCTAssertNotNil(syncMetadataStore.metadata.lastSuccessfulSyncAt)
+
+    // A second staleness check right after should not reach the network at
+    // all. Removing the handler means a request that does escape the
+    // staleness guard fails with .badServerResponse instead of silently
+    // succeeding, which would surface as a changed lastMessage below.
+    URLProtocolStub.requestHandler = nil
+    let messageBeforeSecondCheck = coordinator.lastMessage
+
+    await coordinator.refreshIfStale(reason: .appOpen)
+
+    XCTAssertEqual(coordinator.lastMessage, messageBeforeSecondCheck, "a sync that just completed should not look stale enough to trigger another one immediately")
   }
 
   func testRefreshIfStaleSyncsWhenNoPriorSuccessfulSync() async throws {

@@ -290,12 +290,38 @@ final class AuthService {
       return
     }
 
+    // These updates can arrive at any time, independent of which connection
+    // mode is currently selected. Acting on a hosted transaction while
+    // self-hosted mode is active would apply the self-hosted base URL,
+    // then post a hosted-session request there — at best a wasted/rejected
+    // request, at worst overwriting the self-hosted session with a
+    // mismatched one if that URL happens to accept it. Only hosted mode
+    // should ever be touched by these updates.
+    guard configurationStore.mode == .hosted else {
+      diagnostics?.record(
+        source: .auth,
+        title: "Hosted subscription transaction update skipped",
+        message: "Self-hosted mode is active; not touching the current session. \(transaction.diagnosticSummary(active: transaction.isActiveSubscriptionEntitlement))"
+      )
+      await transaction.finish()
+      return
+    }
+
     if transaction.isActiveSubscriptionEntitlement {
       await activateHostedSubscription(signedTransactionInfo: result.jwsRepresentation)
     } else {
+      // Without this, a revoked or expired subscription left isSignedIn
+      // true until the token's own expiry or a later rejected API request —
+      // StoreKit's transaction stream exists precisely to react to this
+      // promptly instead of waiting for that.
+      session = nil
+      try? sessionStore?.delete()
+      errorMessage = nil
+      statusMessage = "Connect to PumpSync or a self-hosted service"
       diagnostics?.record(
         source: .auth,
-        title: "Inactive hosted subscription transaction update",
+        severity: .warning,
+        title: "Hosted subscription revoked or expired",
         message: transaction.diagnosticSummary(active: false)
       )
     }
