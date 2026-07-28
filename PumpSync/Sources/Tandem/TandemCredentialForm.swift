@@ -9,6 +9,7 @@ struct TandemCredentialForm: View {
   @State private var alert: CredentialAlert?
   @State private var isShowingPassword = false
   @State private var isValidating = false
+  @State private var lastValidatedCredentials: TandemCredentials?
 
   var body: some View {
     PumpSyncScreen {
@@ -150,6 +151,14 @@ struct TandemCredentialForm: View {
     "Validates the pump account credentials using the current PumpSync connection, then saves them on this device"
   }
 
+  static func shouldSkipRevalidation(current: TandemCredentials, lastValidated: TandemCredentials?) -> Bool {
+    guard let lastValidated else {
+      return false
+    }
+
+    return current == lastValidated
+  }
+
   private func load() {
     do {
       guard let credentials = try services.credentialStore.load() else {
@@ -169,11 +178,26 @@ struct TandemCredentialForm: View {
   }
 
   private func validateAndSave() async {
-    // Known follow-up (not implemented here): every save re-validates the
-    // full credential set against Tandem, even when only the region changed
-    // and the username/password are untouched. Distinguishing changed vs.
-    // unchanged fields would save an unnecessary Tandem login round trip,
-    // but requires tracking the loaded baseline against current field state.
+    let credentials = currentCredentials
+
+    // Region determines a different Tandem login endpoint (see the backend's
+    // TandemSourceOptions Us/Eu configs), so a region change always needs a
+    // fresh validation call, and the stored password is intentionally never
+    // loaded into view state (see load()), so there's no way to detect an
+    // unchanged password against the persisted baseline without holding
+    // that plaintext again. The one case that's safe to skip without either
+    // of those: an exact repeat of the form state that was just
+    // successfully validated and saved in this same screen session, e.g.
+    // tapping Save again after dismissing the confirmation.
+    guard !Self.shouldSkipRevalidation(current: credentials, lastValidated: lastValidatedCredentials) else {
+      alert = CredentialAlert(
+        title: "Credentials Saved",
+        message: "Credentials validated and saved to this device."
+      )
+      services.diagnosticsLogStore.record(source: .credential, title: "Credentials save skipped", message: "Form matches the last successfully validated save; no Tandem revalidation was needed.")
+      return
+    }
+
     isValidating = true
     defer { isValidating = false }
 
@@ -182,7 +206,6 @@ struct TandemCredentialForm: View {
     }
 
     do {
-      let credentials = currentCredentials
       let response = try await services.apiClient.validateTandemCredentials(
         TandemCredentialValidationRequest(tandem: credentials),
         accessToken: accessToken
@@ -198,6 +221,7 @@ struct TandemCredentialForm: View {
       }
 
       try services.credentialStore.saveValidated(credentials)
+      lastValidatedCredentials = credentials
       alert = CredentialAlert(
         title: "Credentials Saved",
         message: "Credentials validated and saved to this device."
@@ -232,6 +256,7 @@ struct TandemCredentialForm: View {
       try services.credentialStore.delete()
       username = ""
       password = ""
+      lastValidatedCredentials = nil
       alert = CredentialAlert(
         title: "Credentials Removed",
         message: "Credentials removed from this device."
