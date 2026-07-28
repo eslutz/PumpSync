@@ -1,6 +1,7 @@
 import XCTest
 @testable import PumpSync
 
+@MainActor
 final class TandemCredentialFormTests: XCTestCase {
   func testSkipsRevalidationWhenCredentialsExactlyMatchLastValidatedSave() {
     let credentials = TandemCredentials(username: "demo@pumpsync.app", password: "hunter2", region: "us")
