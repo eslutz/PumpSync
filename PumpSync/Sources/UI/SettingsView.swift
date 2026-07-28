@@ -8,6 +8,7 @@ struct SettingsView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isShowingHostedSubscriptionStore = false
   @State private var connectionAlert: ConnectionAlert?
+  @State private var selfHostedURLDraft = ""
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
@@ -54,15 +55,19 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
 
-          TextField("Server URL", text: selfHostedURLBinding)
+          TextField("Server URL", text: $selfHostedURLDraft)
             .textInputAutocapitalization(.never)
             .keyboardType(.URL)
             .autocorrectionDisabled()
             .frame(minHeight: 44)
             .accessibilityLabel("Server URL")
             .accessibilityHint("Enter the base API URL for your self-hosted PumpSync server")
+            .onSubmit {
+              commitSelfHostedURL()
+            }
 
           Button {
+            commitSelfHostedURL()
             Task {
               await services.authService.connectSelfHosted()
             }
@@ -157,6 +162,9 @@ struct SettingsView: View {
       }
     }
     .navigationTitle("Settings")
+    .onAppear {
+      selfHostedURLDraft = services.backendConfigurationStore.selfHostedBaseURLString
+    }
     .sheet(isPresented: $isShowingHostedSubscriptionStore) {
       if AppLaunchEnvironment.isScreenshotMode {
         HostedSubscriptionScreenshotView()
@@ -164,12 +172,21 @@ struct SettingsView: View {
         HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
       }
     }
-    .alert(item: $connectionAlert) { alert in
-      Alert(
-        title: Text(alert.title),
-        message: Text(alert.message),
-        dismissButton: .default(Text("OK"))
-      )
+    .alert(
+      connectionAlert?.title ?? "",
+      isPresented: Binding(
+        get: { connectionAlert != nil },
+        set: { isPresented in
+          if !isPresented {
+            connectionAlert = nil
+          }
+        }
+      ),
+      presenting: connectionAlert
+    ) { _ in
+      Button("OK", role: .cancel) {}
+    } message: { alert in
+      Text(alert.message)
     }
   }
 
@@ -222,19 +239,16 @@ struct SettingsView: View {
     )
   }
 
-  private var selfHostedURLBinding: Binding<String> {
-    Binding(
-      get: {
-        services.backendConfigurationStore.selfHostedBaseURLString
-      },
-      set: { value in
-        services.backendConfigurationStore.selfHostedBaseURLString = value
-        if services.backendConfigurationStore.mode == .selfHosted {
-          services.authService.clearSessionForConnectionChange()
-          _ = services.backendConfigurationStore.apply(to: services.apiClient)
-        }
-      }
-    )
+  private func commitSelfHostedURL() {
+    guard services.backendConfigurationStore.selfHostedBaseURLString != selfHostedURLDraft else {
+      return
+    }
+
+    services.backendConfigurationStore.selfHostedBaseURLString = selfHostedURLDraft
+    if services.backendConfigurationStore.mode == .selfHosted {
+      services.authService.clearSessionForConnectionChange()
+      _ = services.backendConfigurationStore.apply(to: services.apiClient)
+    }
   }
 
   private var restoreConnectionAlert: ConnectionAlert {
@@ -545,26 +559,31 @@ private struct HostedSubscriptionStoreView: View {
     .onInAppPurchaseCompletion { _, result in
       await handlePurchaseCompletion(result)
     }
-    .alert(item: $purchaseAlert) { alert in
+    .alert(
+      purchaseAlert?.title ?? "",
+      isPresented: Binding(
+        get: { purchaseAlert != nil },
+        set: { isPresented in
+          if !isPresented {
+            purchaseAlert = nil
+          }
+        }
+      ),
+      presenting: purchaseAlert
+    ) { alert in
       switch alert.action {
       case .manageSubscription:
-        Alert(
-          title: Text(alert.title),
-          message: Text(alert.message),
-          primaryButton: .default(Text("Manage Subscription")) {
-            Task {
-              await presentManageSubscriptions()
-            }
-          },
-          secondaryButton: .default(Text("OK"))
-        )
+        Button("Manage Subscription") {
+          Task {
+            await presentManageSubscriptions()
+          }
+        }
+        Button("OK", role: .cancel) {}
       case nil:
-        Alert(
-          title: Text(alert.title),
-          message: Text(alert.message),
-          dismissButton: .default(Text("OK"))
-        )
+        Button("OK", role: .cancel) {}
       }
+    } message: { alert in
+      Text(alert.message)
     }
   }
 

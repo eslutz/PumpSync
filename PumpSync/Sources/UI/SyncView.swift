@@ -208,7 +208,7 @@ private struct SyncButtonLabel: View {
   let isSyncing: Bool
 
   var body: some View {
-    TimelineView(.animation) { context in
+    TimelineView(.animation(paused: !isSyncing)) { context in
       HStack(spacing: 14) {
         Image(systemName: "arrow.triangle.2.circlepath")
           .font(.title3)

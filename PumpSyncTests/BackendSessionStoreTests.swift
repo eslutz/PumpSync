@@ -59,6 +59,15 @@ final class BackendSessionStoreTests: XCTestCase {
     XCTAssertNil(store.loadValidSession())
   }
 
+  func testDiscardsCorruptedStoredData() throws {
+    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)")
+    try keychain.writeData(Data("not valid json".utf8), account: "backend.session.v1")
+    let store = BackendSessionStore(keychain: keychain, now: { Date(timeIntervalSince1970: 1_000) })
+
+    XCTAssertNil(store.loadValidSession())
+    XCTAssertNil(try keychain.readData(account: "backend.session.v1"))
+  }
+
   func testDeleteRemovesStoredSession() throws {
     let store = makeStore(now: { Date(timeIntervalSince1970: 1_000) })
     try store.save(

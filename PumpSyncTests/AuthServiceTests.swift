@@ -38,7 +38,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedRestoreCreatesBackendSession() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
     let session = BackendSessionResponse(
@@ -80,7 +80,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedPurchaseCompletionCreatesBackendSession() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
     let session = BackendSessionResponse(
@@ -122,7 +122,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedRestorePublishesUserSafeErrorAndDiagnostics() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
@@ -152,7 +152,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testHostedRestoreFailurePreservesExistingSession() async throws {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
     let existingSession = BackendSessionResponse(
       accessToken: "existing-token",
@@ -184,7 +184,7 @@ final class AuthServiceTests: XCTestCase {
 
     await service.connectHostedUsingCurrentSubscription()
 
-    let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore purchases again."
+    let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
     XCTAssertTrue(service.isSignedIn)
     XCTAssertFalse(service.isSigningIn)
     XCTAssertEqual(service.accessToken, "existing-token")
@@ -277,7 +277,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   func testSilentHostedRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
-    let diagnostics = DiagnosticsLogStore()
+    let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
@@ -340,6 +340,45 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(service.accessToken, "self-hosted-token")
     XCTAssertEqual(service.statusMessage, "Connected to self-hosted service")
     XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "self-hosted-token")
+  }
+
+  func testSelfHostedBaseURLRequiresHttpsForNonLoopbackHosts() {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+
+    configuration.selfHostedBaseURLString = "http://192.168.1.50:8080"
+    XCTAssertNil(configuration.selectedBaseURL, "a plain-HTTP IP-literal self-host URL must be rejected")
+
+    configuration.selfHostedBaseURLString = "http://backend.example.com"
+    XCTAssertNil(configuration.selectedBaseURL, "a plain-HTTP hostname self-host URL must be rejected")
+
+    configuration.selfHostedBaseURLString = "https://192.168.1.50:8080"
+    XCTAssertNotNil(configuration.selectedBaseURL, "an HTTPS self-host URL must be accepted")
+  }
+
+  func testSelfHostedBaseURLAllowsHttpForLoopbackOnly() {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+
+    configuration.selfHostedBaseURLString = "http://localhost:8080"
+    XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to localhost must be allowed for local development")
+
+    configuration.selfHostedBaseURLString = "http://127.0.0.1:8080"
+    XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to 127.0.0.1 must be allowed for local development")
+  }
+
+  func testSelfHostedBaseURLRejectsMalformedOrEmptyInput() {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+
+    configuration.selfHostedBaseURLString = ""
+    XCTAssertNil(configuration.selectedBaseURL)
+
+    configuration.selfHostedBaseURLString = "not a url"
+    XCTAssertNil(configuration.selectedBaseURL)
+
+    configuration.selfHostedBaseURLString = "ftp://backend.example.com"
+    XCTAssertNil(configuration.selectedBaseURL, "non-http(s) schemes must be rejected")
   }
 
   func testConnectionChangeClearsCachedSession() throws {
@@ -445,5 +484,9 @@ final class AuthServiceTests: XCTestCase {
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)"),
       now: now
     )
+  }
+
+  private func makeDiagnostics() -> DiagnosticsLogStore {
+    DiagnosticsLogStore(defaults: UserDefaults(suiteName: "AuthServiceTests-\(UUID().uuidString)")!)
   }
 }

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum DiagnosticSource: String, CaseIterable, Identifiable {
+enum DiagnosticSource: String, CaseIterable, Identifiable, Codable {
   case auth = "Sign in"
   case sync = "Sync"
   case credential = "Pump Credentials"
@@ -12,7 +12,7 @@ enum DiagnosticSource: String, CaseIterable, Identifiable {
   var id: String { rawValue }
 }
 
-enum DiagnosticSeverity: String {
+enum DiagnosticSeverity: String, Codable {
   case info = "Info"
   case warning = "Warning"
   case error = "Error"
@@ -40,7 +40,7 @@ enum DiagnosticsRedactor {
   }
 }
 
-struct DiagnosticEntry: Identifiable, Equatable {
+struct DiagnosticEntry: Identifiable, Equatable, Codable {
   let id: UUID
   let timestamp: Date
   let source: DiagnosticSource
@@ -69,8 +69,15 @@ struct DiagnosticEntry: Identifiable, Equatable {
 @Observable
 final class DiagnosticsLogStore {
   private static let maxEntries = 200
+  private static let defaultsKey = "diagnostics-log"
 
-  private(set) var entries: [DiagnosticEntry] = []
+  private let defaults: UserDefaults
+  private(set) var entries: [DiagnosticEntry]
+
+  init(defaults: UserDefaults = .standard) {
+    self.defaults = defaults
+    self.entries = Self.load(defaults: defaults)
+  }
 
   func record(
     source: DiagnosticSource,
@@ -78,6 +85,10 @@ final class DiagnosticsLogStore {
     title: String,
     message: String? = nil
   ) {
+    // message is redacted here, before the entry is ever constructed, so the
+    // persisted copy below carries the exact same redaction as what's held
+    // in memory — there's no separate persistence-time redaction step to
+    // keep in sync.
     let entry = DiagnosticEntry(
       source: source,
       severity: severity,
@@ -89,6 +100,8 @@ final class DiagnosticsLogStore {
     if entries.count > Self.maxEntries {
       entries.removeLast(entries.count - Self.maxEntries)
     }
+
+    save()
   }
 
   func record(error: Error, source: DiagnosticSource, title: String) {
@@ -97,9 +110,27 @@ final class DiagnosticsLogStore {
 
   func clear() {
     entries.removeAll()
+    defaults.removeObject(forKey: Self.defaultsKey)
   }
 
   nonisolated static func redacted(_ message: String) -> String {
     DiagnosticsRedactor.redacted(message)
+  }
+
+  private func save() {
+    if let data = try? JSONEncoder().encode(entries) {
+      defaults.set(data, forKey: Self.defaultsKey)
+    }
+  }
+
+  private static func load(defaults: UserDefaults) -> [DiagnosticEntry] {
+    guard
+      let data = defaults.data(forKey: defaultsKey),
+      let entries = try? JSONDecoder().decode([DiagnosticEntry].self, from: data)
+    else {
+      return []
+    }
+
+    return Array(entries.prefix(maxEntries))
   }
 }

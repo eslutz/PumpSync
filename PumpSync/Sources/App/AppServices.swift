@@ -108,7 +108,7 @@ final class AppServices {
     let apiClient = PumpSyncAPIClient.live()
     apiClient.maxRetryCount = 0
     let backendConfigurationStore = BackendConfigurationStore(defaults: defaults)
-    let diagnosticsLogStore = DiagnosticsLogStore()
+    let diagnosticsLogStore = DiagnosticsLogStore(defaults: defaults)
     let nativeDiagnosticsStore = NativeDiagnosticsStore(defaults: defaults)
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync.screenshots")
     let sessionStore = BackendSessionStore(keychain: keychain)

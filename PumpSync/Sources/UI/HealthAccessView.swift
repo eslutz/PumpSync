@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HealthAccessView: View {
   @Environment(AppServices.self) private var services
+  @State private var isRequestingAccess = false
 
   var body: some View {
     PumpSyncScreen {
@@ -25,6 +26,28 @@ struct HealthAccessView: View {
         }
       }
 
+      if !services.healthKitService.hasAnyWritePermission {
+        Button {
+          Task {
+            isRequestingAccess = true
+            await services.healthKitService.manageWriteAccess()
+            isRequestingAccess = false
+          }
+        } label: {
+          HStack {
+            Spacer()
+            if isRequestingAccess {
+              ProgressView()
+            } else {
+              Text("Allow Health Access")
+            }
+            Spacer()
+          }
+        }
+        .buttonStyle(GroupedActionButtonStyle())
+        .disabled(isRequestingAccess)
+      }
+
       if let message = services.healthKitService.errorMessage {
         GlassSection {
           Text(message)
@@ -34,7 +57,7 @@ struct HealthAccessView: View {
       }
 
       GlassSection("Change Access") {
-        Text(HealthAccessCopy.healthAppInstructions)
+        Text(services.healthKitService.managementMessage ?? HealthAccessCopy.healthAppInstructions)
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, alignment: .leading)
       }

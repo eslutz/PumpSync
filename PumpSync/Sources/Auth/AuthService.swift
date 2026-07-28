@@ -61,8 +61,36 @@ final class BackendConfigurationStore {
     case .hosted:
       return AppConstants.defaultAPIBaseURL
     case .selfHosted:
-      return URL(string: selfHostedBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
+      return Self.validatedSelfHostedURL(from: selfHostedBaseURLString)
     }
+  }
+
+  /// ATS does not block cleartext HTTP to IP-address literals or unqualified
+  /// hostnames — exactly what a self-hosted URL typically looks like — so this
+  /// requires HTTPS explicitly rather than relying on ATS alone. Loopback is
+  /// allowed over HTTP for local development against a backend run on the
+  /// same machine.
+  private static let loopbackHosts: Set<String> = ["localhost", "127.0.0.1", "::1"]
+
+  private static func validatedSelfHostedURL(from rawValue: String) -> URL? {
+    guard
+      let url = URL(string: rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),
+      let scheme = url.scheme?.lowercased(),
+      let host = url.host,
+      !host.isEmpty
+    else {
+      return nil
+    }
+
+    if scheme == "https" {
+      return url
+    }
+
+    if scheme == "http" && loopbackHosts.contains(host.lowercased()) {
+      return url
+    }
+
+    return nil
   }
 
   func apply(to apiClient: PumpSyncAPIClient) -> Bool {
@@ -91,6 +119,7 @@ final class AuthService {
   private(set) var session: BackendSessionResponse?
   private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
   private(set) var errorMessage: String?
+  private var transactionUpdatesTask: Task<Void, Never>?
 
   init(
     apiClient: PumpSyncAPIClient,
@@ -234,6 +263,72 @@ final class AuthService {
     )
   }
 
+  /// Starts listening for StoreKit transaction updates that arrive outside the
+  /// purchase sheet: Ask-to-Buy approvals, renewals after a billing retry, and
+  /// refunds/revocations. Without this, those transactions are never observed
+  /// or finished, and StoreKit keeps redelivering them on every launch.
+  func startObservingTransactionUpdates() {
+    guard transactionUpdatesTask == nil else {
+      return
+    }
+
+    transactionUpdatesTask = Task { [weak self] in
+      for await result in Transaction.updates {
+        await self?.handleTransactionUpdate(result)
+      }
+    }
+  }
+
+  func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
+    guard case .verified(let transaction) = result else {
+      diagnostics?.record(source: .auth, severity: .warning, title: "Unverified subscription transaction update ignored")
+      return
+    }
+
+    guard transaction.productID == AppConstants.hostedSubscriptionProductId else {
+      await transaction.finish()
+      return
+    }
+
+    // These updates can arrive at any time, independent of which connection
+    // mode is currently selected. Acting on a hosted transaction while
+    // self-hosted mode is active would apply the self-hosted base URL,
+    // then post a hosted-session request there — at best a wasted/rejected
+    // request, at worst overwriting the self-hosted session with a
+    // mismatched one if that URL happens to accept it. Only hosted mode
+    // should ever be touched by these updates.
+    guard configurationStore.mode == .hosted else {
+      diagnostics?.record(
+        source: .auth,
+        title: "Hosted subscription transaction update skipped",
+        message: "Self-hosted mode is active; not touching the current session. \(transaction.diagnosticSummary(active: transaction.isActiveSubscriptionEntitlement))"
+      )
+      await transaction.finish()
+      return
+    }
+
+    if transaction.isActiveSubscriptionEntitlement {
+      await activateHostedSubscription(signedTransactionInfo: result.jwsRepresentation)
+    } else {
+      // Without this, a revoked or expired subscription left isSignedIn
+      // true until the token's own expiry or a later rejected API request —
+      // StoreKit's transaction stream exists precisely to react to this
+      // promptly instead of waiting for that.
+      session = nil
+      try? sessionStore?.delete()
+      errorMessage = nil
+      statusMessage = "Connect to PumpSync or a self-hosted service"
+      diagnostics?.record(
+        source: .auth,
+        severity: .warning,
+        title: "Hosted subscription revoked or expired",
+        message: transaction.diagnosticSummary(active: false)
+      )
+    }
+
+    await transaction.finish()
+  }
+
   func recordHostedSubscriptionPurchaseCancelled() {
     session = nil
     try? sessionStore?.delete()
@@ -264,7 +359,7 @@ final class AuthService {
 
   func connectSelfHosted() async {
     guard configurationStore.apply(to: apiClient) else {
-      errorMessage = "Enter a valid self-hosted service URL."
+      errorMessage = "Enter a valid self-hosted service URL starting with https:// (http:// is only allowed for localhost)."
       statusMessage = errorMessage ?? statusMessage
       return
     }
@@ -291,15 +386,6 @@ final class AuthService {
     }
 
     isConnecting = false
-  }
-
-  func signIn() async {
-    switch configurationStore.mode {
-    case .hosted:
-      await connectHostedUsingCurrentSubscription()
-    case .selfHosted:
-      await connectSelfHosted()
-    }
   }
 
   func recoverSessionIfNeeded() async {

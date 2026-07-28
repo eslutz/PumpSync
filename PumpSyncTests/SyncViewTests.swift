@@ -1,6 +1,7 @@
 import XCTest
 @testable import PumpSync
 
+@MainActor
 final class SyncViewTests: XCTestCase {
   func testSyncIconRotationStaysAtZeroWhenNotSyncing() {
     let startDate = Date(timeIntervalSince1970: 100)

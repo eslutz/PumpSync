@@ -14,11 +14,21 @@ final class BackendSessionStore {
   }
 
   func loadValidSession() -> BackendSessionResponse? {
+    let data: Data?
     do {
-      guard let data = try keychain.readData(account: Self.account) else {
-        return nil
-      }
+      data = try keychain.readData(account: Self.account)
+    } catch {
+      // A Keychain read failure (for example, the device has not been unlocked
+      // since restart) is transient, not evidence of a corrupted session. Do not
+      // delete the stored session — it may still be readable and valid later.
+      return nil
+    }
 
+    guard let data else {
+      return nil
+    }
+
+    do {
       let session = try JSONCodec.decoder.decode(BackendSessionResponse.self, from: data)
       guard isValid(session) else {
         try? delete()
@@ -27,6 +37,8 @@ final class BackendSessionStore {
 
       return session
     } catch {
+      // A decode failure means the stored data is corrupted or from an
+      // incompatible format, so it is safe to discard.
       try? delete()
       return nil
     }

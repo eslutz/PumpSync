@@ -32,7 +32,7 @@ struct SecureKeychainStore {
 
     var query = baseQuery(account: account)
     query[kSecValueData as String] = data
-    query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
     let status = SecItemAdd(query as CFDictionary, nil)
     guard status == errSecSuccess else {
