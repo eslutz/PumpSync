@@ -309,11 +309,18 @@ final class AuthService {
 
     if transaction.isActiveSubscriptionEntitlement {
       await activateHostedSubscription(signedTransactionInfo: result.jwsRepresentation)
-    } else {
-      // Without this, a revoked or expired subscription left isSignedIn
-      // true until the token's own expiry or a later rejected API request —
-      // StoreKit's transaction stream exists precisely to react to this
-      // promptly instead of waiting for that.
+    } else if session != nil {
+      // Guarded on session != nil: the first time an app observes
+      // Transaction.updates, StoreKit replays every transaction that's
+      // never been finish()ed, not just new ones — for a long-running
+      // sandbox tester (5-minute renewal cycles), that can be hundreds of
+      // historical, already-superseded transactions delivered in a burst.
+      // Without this guard, each one redundantly cleared a session that
+      // was either already nil or about to be re-set by a later, more
+      // current transaction later in the same burst — flooding the
+      // diagnostics log and briefly leaving the app looking disconnected
+      // mid-replay. Only the transition from "had a session" to "don't
+      // anymore" is actually informative.
       session = nil
       try? sessionStore?.delete()
       errorMessage = nil
