@@ -89,11 +89,23 @@ final class PumpSyncAPIClient {
 
     guard (200..<300).contains(httpResponse.statusCode) else {
       let errorResponse = try? JSONCodec.decoder.decode(ErrorResponse.self, from: data)
-      throw APIClientError.httpStatus(httpResponse.statusCode, errorResponse?.message)
+      throw APIClientError.httpStatus(httpResponse.statusCode, code: errorResponse?.code, message: errorResponse?.message)
     }
 
     return try JSONCodec.decoder.decode(Response.self, from: data)
   }
+
+  /// Every request this client sends is a POST, and two of them carry the
+  /// user's Tandem credentials — a retry re-transmits those and can trigger a
+  /// second backend Tandem login. Retry only URL errors where the request
+  /// clearly never reached the server; notably NOT `.timedOut`, where the
+  /// original request may already have been delivered and processed.
+  private static let retryableURLErrorCodes: Set<Int> = [
+    NSURLErrorCannotConnectToHost,
+    NSURLErrorCannotFindHost,
+    NSURLErrorDNSLookupFailed,
+    NSURLErrorNetworkConnectionLost
+  ]
 
   private func shouldRetry(error: Error) -> Bool {
     if let apiError = error as? APIClientError {
@@ -101,7 +113,7 @@ final class PumpSyncAPIClient {
     }
 
     let nsError = error as NSError
-    return nsError.domain == NSURLErrorDomain
+    return nsError.domain == NSURLErrorDomain && Self.retryableURLErrorCodes.contains(nsError.code)
   }
 }
 
@@ -113,23 +125,45 @@ private struct ErrorResponse: Decodable {
 
 enum APIClientError: LocalizedError {
   case invalidResponse
-  case httpStatus(Int, String?)
+  case httpStatus(Int, code: String?, message: String?)
 
   var isAuthenticationFailure: Bool {
     switch self {
     case .invalidResponse:
       return false
-    case .httpStatus(let status, _):
+    case .httpStatus(let status, _, _):
       return status == 401 || status == 403
     }
+  }
+
+  /// 424: the backend reached Tandem Source but Tandem rejected the stored
+  /// pump credentials — the remedy is re-saving the Tandem account, not
+  /// retrying or reconnecting PumpSync.
+  var isTandemCredentialFailure: Bool {
+    if case .httpStatus(424, _, _) = self {
+      return true
+    }
+
+    return false
+  }
+
+  var isRateLimited: Bool {
+    if case .httpStatus(429, _, _) = self {
+      return true
+    }
+
+    return false
   }
 
   var isTransient: Bool {
     switch self {
     case .invalidResponse:
       return true
-    case .httpStatus(let status, _):
-      return status == 408 || status == 429 || (500..<600).contains(status)
+    case .httpStatus(let status, _, _):
+      // 429 is deliberately NOT transient: the backend's rate-limit windows
+      // are minutes to an hour, so a sub-second retry is guaranteed to fail
+      // and just consumes more budget. Callers surface a wait message.
+      return status == 408 || (500..<600).contains(status)
     }
   }
 
@@ -137,7 +171,7 @@ enum APIClientError: LocalizedError {
     switch self {
     case .invalidResponse:
       return "The server returned an invalid response."
-    case .httpStatus(let status, let message):
+    case .httpStatus(let status, _, let message):
       return message ?? "The server returned HTTP \(status)."
     }
   }

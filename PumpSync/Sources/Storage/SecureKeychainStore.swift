@@ -28,15 +28,31 @@ struct SecureKeychainStore {
   }
 
   func writeData(_ data: Data, account: String) throws {
-    try delete(account: account)
+    // Upsert (add, then update on duplicate) instead of delete-then-add: a
+    // crash between a delete and the following add would lose the item, and
+    // for the sample-ledger HMAC key that silently orphans the entire dedupe
+    // ledger — re-fetched samples would be re-imported into Apple Health as
+    // duplicates.
+    var addQuery = baseQuery(account: account)
+    addQuery[kSecValueData as String] = data
+    addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
-    var query = baseQuery(account: account)
-    query[kSecValueData as String] = data
-    query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+    if addStatus == errSecSuccess {
+      return
+    }
 
-    let status = SecItemAdd(query as CFDictionary, nil)
-    guard status == errSecSuccess else {
-      throw KeychainStoreError.unexpectedStatus(status)
+    guard addStatus == errSecDuplicateItem else {
+      throw KeychainStoreError.unexpectedStatus(addStatus)
+    }
+
+    let updateAttributes: [String: Any] = [
+      kSecValueData as String: data,
+      kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    ]
+    let updateStatus = SecItemUpdate(baseQuery(account: account) as CFDictionary, updateAttributes as CFDictionary)
+    guard updateStatus == errSecSuccess else {
+      throw KeychainStoreError.unexpectedStatus(updateStatus)
     }
   }
 

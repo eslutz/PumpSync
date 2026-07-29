@@ -1,15 +1,11 @@
 import Foundation
 import Observation
 
-enum DiagnosticSource: String, CaseIterable, Identifiable, Codable {
+enum DiagnosticSource: String, Codable {
   case auth = "Sign in"
   case sync = "Sync"
   case credential = "Pump Credentials"
   case health = "Apple Health"
-  case backgroundSync = "Background Sync"
-  case api = "API"
-
-  var id: String { rawValue }
 }
 
 enum DiagnosticSeverity: String, Codable {

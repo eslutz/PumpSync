@@ -8,8 +8,8 @@ final class AuthServiceTests: XCTestCase {
     let cachedSession = BackendSessionResponse(
       accessToken: "cached-token",
       expiresAt: Date(timeIntervalSince1970: 2_000),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
     try sessionStore.save(cachedSession)
 
@@ -44,8 +44,8 @@ final class AuthServiceTests: XCTestCase {
     let session = BackendSessionResponse(
       accessToken: "token",
       expiresAt: Date(timeIntervalSince1970: 1_800),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -72,7 +72,7 @@ final class AuthServiceTests: XCTestCase {
     await service.connectHostedUsingCurrentSubscription()
 
     XCTAssertTrue(service.isSignedIn)
-    XCTAssertFalse(service.isSigningIn)
+    XCTAssertFalse(service.isConnecting)
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Hosted subscription active")
     XCTAssertEqual(sessionStore.loadValidSession(), session)
@@ -86,8 +86,8 @@ final class AuthServiceTests: XCTestCase {
     let session = BackendSessionResponse(
       accessToken: "token",
       expiresAt: Date(timeIntervalSince1970: 1_800),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -114,7 +114,7 @@ final class AuthServiceTests: XCTestCase {
     await service.activateHostedSubscription(signedTransactionInfo: "signed-purchase-transaction")
 
     XCTAssertTrue(service.isSignedIn)
-    XCTAssertFalse(service.isSigningIn)
+    XCTAssertFalse(service.isConnecting)
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Hosted subscription active")
     XCTAssertEqual(sessionStore.loadValidSession(), session)
@@ -131,7 +131,7 @@ final class AuthServiceTests: XCTestCase {
         "signed-transaction"
       },
       createSubscriptionSession: { _ in
-        throw APIClientError.httpStatus(401, "Subscription validation failed for user@example.com.")
+        throw APIClientError.httpStatus(401, code: "invalid_token", message: "Subscription validation failed for user@example.com.")
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
@@ -143,7 +143,7 @@ final class AuthServiceTests: XCTestCase {
 
     let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
     XCTAssertFalse(service.isSignedIn)
-    XCTAssertFalse(service.isSigningIn)
+    XCTAssertFalse(service.isConnecting)
     XCTAssertEqual(service.statusMessage, expectedMessage)
     XCTAssertEqual(service.errorMessage, expectedMessage)
     XCTAssertEqual(service.connectionRequiredMessage, expectedMessage)
@@ -157,8 +157,8 @@ final class AuthServiceTests: XCTestCase {
     let existingSession = BackendSessionResponse(
       accessToken: "existing-token",
       expiresAt: Date(timeIntervalSince1970: 1_800),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
     try sessionStore.save(existingSession)
     let service = AuthService(
@@ -172,7 +172,7 @@ final class AuthServiceTests: XCTestCase {
         "signed-transaction"
       },
       createSubscriptionSession: { _ in
-        throw APIClientError.httpStatus(401, "Signed App Store payload validation failed.")
+        throw APIClientError.httpStatus(401, code: "invalid_token", message: "Signed App Store payload validation failed.")
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
@@ -186,7 +186,7 @@ final class AuthServiceTests: XCTestCase {
 
     let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
     XCTAssertTrue(service.isSignedIn)
-    XCTAssertFalse(service.isSigningIn)
+    XCTAssertFalse(service.isConnecting)
     XCTAssertEqual(service.accessToken, "existing-token")
     XCTAssertEqual(service.statusMessage, expectedMessage)
     XCTAssertEqual(service.errorMessage, expectedMessage)
@@ -200,8 +200,8 @@ final class AuthServiceTests: XCTestCase {
     let session = BackendSessionResponse(
       accessToken: "recovered-token",
       expiresAt: Date(timeIntervalSince1970: 1_800),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -238,15 +238,15 @@ final class AuthServiceTests: XCTestCase {
       BackendSessionResponse(
         accessToken: "stale-token",
         expiresAt: Date(timeIntervalSince1970: 2_000),
-        entitlementActive: true,
-        serviceMode: "hosted"
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource"
       )
     )
     let recoveredSession = BackendSessionResponse(
       accessToken: "recovered-token",
       expiresAt: Date(timeIntervalSince1970: 3_000),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -329,8 +329,8 @@ final class AuthServiceTests: XCTestCase {
         return BackendSessionResponse(
           accessToken: "self-hosted-token",
           expiresAt: Date(timeIntervalSince1970: 1_800),
-          entitlementActive: true,
-          serviceMode: "selfHosted"
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
         )
       }
     )
@@ -387,8 +387,8 @@ final class AuthServiceTests: XCTestCase {
       BackendSessionResponse(
         accessToken: "cached-token",
         expiresAt: Date(timeIntervalSince1970: 2_000),
-        entitlementActive: true,
-        serviceMode: "hosted"
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource"
       )
     )
     let service = AuthService(
@@ -418,15 +418,15 @@ final class AuthServiceTests: XCTestCase {
       BackendSessionResponse(
         accessToken: "expired-token",
         expiresAt: Date(timeIntervalSince1970: 1_999),
-        entitlementActive: true,
-        serviceMode: "hosted"
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource"
       )
     )
     let recoveredSession = BackendSessionResponse(
       accessToken: "recovered-token",
       expiresAt: Date(timeIntervalSince1970: 3_000),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
     let service = AuthService(
       apiClient: makeAPIClient(),

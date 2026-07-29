@@ -4,7 +4,7 @@ import XCTest
 final class SupportBundleBuilderTests: XCTestCase {
   func testSupportBundleIncludesExpectedMetadataAndRedactsSensitiveValues() {
     let context = SupportBundleContext(
-      bundleInfo: AppBundleInfo(bundleIdentifier: "dev.ericslutz.PumpSync", version: "1.0", build: "42"),
+      bundleInfo: AppBundleInfo(version: "1.0", build: "42"),
       systemVersion: "26.0",
       deviceModel: "iPhone",
       backendMode: "PumpSync",

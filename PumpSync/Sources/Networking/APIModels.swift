@@ -12,19 +12,29 @@ struct SelfHostedSessionRequest: Encodable {
 struct BackendSessionResponse: Codable, Equatable {
   let accessToken: String
   let expiresAt: Date
-  let entitlementActive: Bool
   let serviceMode: String
+  /// "tandemSource" or "syntheticDemo". Optional so sessions from backends
+  /// predating the field (and previously persisted sessions) still decode.
+  let dataSourceMode: String?
+
+  var isSyntheticDemo: Bool {
+    dataSourceMode == "syntheticDemo"
+  }
 }
 
 struct TandemSyncRequest: Encodable {
   let tandem: TandemCredentials
-  let deviceId: String?
   let minDate: Date?
   let maxDate: Date?
+  /// IANA identifier of the device's time zone. Tandem reports pump-local
+  /// wall-clock timestamps; without this the backend assumes UTC and every
+  /// sample lands hours off in Apple Health.
+  let timeZoneIdentifier: String?
 }
 
 struct TandemCredentialValidationRequest: Encodable {
   let tandem: TandemCredentials
+  let timeZoneIdentifier: String?
 }
 
 struct TandemCredentialValidationResponse: Decodable, Equatable {
@@ -32,35 +42,12 @@ struct TandemCredentialValidationResponse: Decodable, Equatable {
 }
 
 struct TandemSyncResponse: Decodable {
-  let cursor: String?
   let samples: [SampleDTO]
   let effectiveMinDate: Date
   let effectiveMaxDate: Date
-
-  enum CodingKeys: String, CodingKey {
-    case cursor
-    case samples
-    case effectiveMinDate
-    case effectiveMaxDate
-  }
-
-  init(cursor: String?, samples: [SampleDTO], effectiveMinDate: Date, effectiveMaxDate: Date) {
-    self.cursor = cursor
-    self.samples = samples
-    self.effectiveMinDate = effectiveMinDate
-    self.effectiveMaxDate = effectiveMaxDate
-  }
-
-  init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    cursor = try container.decodeIfPresent(FlexibleString.self, forKey: .cursor)?.value
-    samples = try container.decode([SampleDTO].self, forKey: .samples)
-    effectiveMinDate = try container.decode(Date.self, forKey: .effectiveMinDate)
-    effectiveMaxDate = try container.decode(Date.self, forKey: .effectiveMaxDate)
-  }
 }
 
-struct SampleDTO: Codable, Identifiable, Equatable {
+struct SampleDTO: Codable, Equatable {
   let externalId: String
   let type: String
   let value: Decimal
@@ -69,8 +56,6 @@ struct SampleDTO: Codable, Identifiable, Equatable {
   let endAt: Date
   let metadata: [String: String]
   let source: SourceDTO
-
-  var id: String { externalId }
 
   enum CodingKeys: String, CodingKey {
     case externalId

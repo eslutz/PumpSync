@@ -104,7 +104,10 @@ final class SyncMetadataStore {
   }
 
   func recordFailure(_ error: Error) {
-    metadata.lastErrorMessage = error.localizedDescription
+    // Redact at persist time, matching the discipline of every other
+    // persisted diagnostics path — the message can contain server-supplied
+    // text, and this copy lands unencrypted in UserDefaults and backups.
+    metadata.lastErrorMessage = DiagnosticsLogStore.redacted(error.localizedDescription)
     save()
   }
 

@@ -40,6 +40,7 @@ enum InsulinConcentration: String, CaseIterable, Identifiable {
   }
 }
 
+@MainActor
 @Observable
 final class InsulinConcentrationStore {
   private static let defaultsKey = "insulinConcentration"
@@ -193,22 +194,34 @@ final class HealthKitService {
     }
   }
 
-  func save(samples: [SampleDTO]) async throws -> Int {
+  /// Returns the subset of `samples` actually written to Apple Health.
+  /// Samples skipped for a missing per-type permission (or an unknown type)
+  /// are NOT in the returned array, so callers must not mark them imported —
+  /// they need to remain importable after the user later grants that
+  /// permission. Authorization prompting deliberately does not happen here:
+  /// this runs inside the sync path, including background syncs where system
+  /// UI cannot be presented; prompting belongs to the explicit
+  /// HealthAccessView flow.
+  func save(samples: [SampleDTO]) async throws -> [SampleDTO] {
     guard !samples.isEmpty else {
-      return 0
-    }
-
-    if !hasAnyWritePermission {
-      try await requestAuthorization()
+      return []
     }
 
     guard hasAnyWritePermission else {
       throw HealthKitError.authorizationDenied
     }
 
-    let objects = samples.compactMap(makeHealthKitSample)
+    var objects: [HKQuantitySample] = []
+    var writtenSamples: [SampleDTO] = []
+    for sample in samples {
+      if let object = makeHealthKitSample(from: sample) {
+        objects.append(object)
+        writtenSamples.append(sample)
+      }
+    }
+
     guard !objects.isEmpty else {
-      return 0
+      return []
     }
 
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -223,7 +236,7 @@ final class HealthKitService {
       }
     }
 
-    return objects.count
+    return writtenSamples
   }
 
   private func writableTypes() throws -> Set<HKSampleType> {

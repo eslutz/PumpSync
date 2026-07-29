@@ -42,19 +42,17 @@ Sign in with Apple is intentionally not part of this flow.
 
 ## Backend URL Routing
 
-`project.yml` defines hosted API base URLs:
+`project.yml` defines the hosted API base URL per configuration (the `API_BASE_URL` build setting, injected into Info.plist). Public docs intentionally avoid repeating live hosted endpoint values — `project.yml` is the source of truth:
 
-| Purpose | Scheme | Configuration | Backend URL |
+| Purpose | Scheme | Configuration | Backend environment |
 | --- | --- | --- | --- |
-| Local Xcode install | `PumpSync` | `Debug` | `https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api` |
-| TestFlight upload | `PumpSync Beta` | `Beta` | `https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api` |
-| App Store release | `PumpSync` | `Release` | `https://api.pumpsync.ericslutz.dev/api` |
+| Local Xcode install | `PumpSync` | `Debug` | Nonprod hosted API |
+| TestFlight upload | `PumpSync Beta` | `Beta` | Nonprod hosted API |
+| App Store release | `PumpSync` | `Release` | Production hosted API (custom domain) |
 
-The `/api` path segment is part of the base URL for hosted builds. The app appends `/v1/...` endpoint paths.
+The `/api` path segment is part of the base URL for hosted builds. The app appends `/v1/...` endpoint paths. A build whose Info.plist is missing `API_BASE_URL` fails fast at launch rather than falling back to a hardcoded environment.
 
 Self-hosted users enter their own backend base URL in app settings. They should include `/api` unless their reverse proxy intentionally maps the backend API at the domain root.
-
-The nonprod Container Apps URL above is the current live backend for local Debug installs and TestFlight/Beta builds. The production custom domain is the intended Release base URL and depends on the backend repo's production Container Apps/custom-domain cutover.
 
 ## Generate Project
 

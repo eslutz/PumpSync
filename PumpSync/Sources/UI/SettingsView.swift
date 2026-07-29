@@ -9,6 +9,7 @@ struct SettingsView: View {
   @State private var isShowingHostedSubscriptionStore = false
   @State private var connectionAlert: ConnectionAlert?
   @State private var selfHostedURLDraft = ""
+  @State private var hasLoadedSelfHostedURLDraft = false
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
@@ -163,14 +164,26 @@ struct SettingsView: View {
     }
     .navigationTitle("Settings")
     .onAppear {
+      // Seed the draft only once: onAppear fires again when popping back
+      // from any pushed child screen, and re-seeding there would wipe a URL
+      // the user typed but had not yet committed via Connect/submit.
+      guard !hasLoadedSelfHostedURLDraft else {
+        return
+      }
+
+      hasLoadedSelfHostedURLDraft = true
       selfHostedURLDraft = services.backendConfigurationStore.selfHostedBaseURLString
     }
     .sheet(isPresented: $isShowingHostedSubscriptionStore) {
+#if DEBUG
       if AppLaunchEnvironment.isScreenshotMode {
         HostedSubscriptionScreenshotView()
       } else {
         HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
       }
+#else
+      HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
+#endif
     }
     .alert(
       connectionAlert?.title ?? "",

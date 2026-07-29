@@ -79,7 +79,11 @@ final class AppServices {
       syncMetadataStore: syncMetadataStore,
       diagnostics: diagnosticsLogStore
     )
-    let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier)
+    let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier) { error in
+      Task { @MainActor in
+        diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync scheduling failed")
+      }
+    }
     let metricKitDiagnosticsCollector = MetricKitDiagnosticsCollector(store: nativeDiagnosticsStore)
 
     return AppServices(
@@ -129,16 +133,16 @@ final class AppServices {
         BackendSessionResponse(
           accessToken: "screenshot-access-token",
           expiresAt: Date().addingTimeInterval(60 * 60),
-          entitlementActive: true,
-          serviceMode: "hosted"
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
         )
       },
       createSelfHostedSession: { _ in
         BackendSessionResponse(
           accessToken: "screenshot-self-hosted-token",
           expiresAt: Date().addingTimeInterval(60 * 60),
-          entitlementActive: true,
-          serviceMode: "selfHosted"
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
         )
       },
       diagnostics: diagnosticsLogStore

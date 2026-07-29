@@ -2,18 +2,15 @@ import Foundation
 import UIKit
 
 struct AppBundleInfo {
-  let bundleIdentifier: String
   let version: String
   let build: String
 
-  init(bundleIdentifier: String, version: String, build: String) {
-    self.bundleIdentifier = bundleIdentifier
+  init(version: String, build: String) {
     self.version = version
     self.build = build
   }
 
   init(bundle: Bundle = .main) {
-    bundleIdentifier = bundle.bundleIdentifier ?? "Unknown"
     version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
     build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
   }

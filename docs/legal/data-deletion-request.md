@@ -9,8 +9,8 @@ PumpSync stores minimal hosted subscription and installation metadata and does n
 In the PumpSync app:
 
 1. Open Settings.
-2. Open the Tandem section.
-3. Delete the saved Tandem credentials.
+2. Open Tandem Account (in the PumpSync section).
+3. Tap Remove Credentials.
 
 Deleting Tandem credentials prevents future syncs until credentials are added again.
 

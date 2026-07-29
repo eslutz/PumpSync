@@ -185,10 +185,6 @@ final class AuthService {
     return !session.accessToken.isEmpty
   }
 
-  var isSigningIn: Bool {
-    isConnecting
-  }
-
   var accessToken: String? {
     guard isSignedIn else {
       return nil
@@ -380,8 +376,9 @@ final class AuthService {
       session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
       if let session {
         try? sessionStore?.save(session)
+        recordDemoModeIfNeeded(session)
       }
-      statusMessage = "Connected to self-hosted service"
+      statusMessage = session.map(Self.connectedStatusMessage(for:)) ?? "Connected to self-hosted service"
       diagnostics?.record(source: .auth, title: "Self-hosted session created")
     } catch {
       session = nil
@@ -407,7 +404,7 @@ final class AuthService {
     if let restoredSession = sessionStore?.loadValidSession() {
       session = restoredSession
       errorMessage = nil
-      statusMessage = restoredSession.serviceMode == "selfHosted" ? "Connected to self-hosted service" : "Hosted subscription active"
+      statusMessage = Self.connectedStatusMessage(for: restoredSession)
       diagnostics?.record(source: .auth, title: "Connection session restored")
       return
     }
@@ -476,8 +473,8 @@ final class AuthService {
         errorMessage = message
         statusMessage = message
       } else {
-        if hasValidPreviousSession {
-          statusMessage = previousSession?.serviceMode == "selfHosted" ? "Connected to self-hosted service" : "Hosted subscription active"
+        if hasValidPreviousSession, let previousSession {
+          statusMessage = Self.connectedStatusMessage(for: previousSession)
         } else {
           resetDisconnectedStatus()
         }
@@ -532,8 +529,9 @@ final class AuthService {
       session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
       if let session {
         try? sessionStore?.save(session)
+        recordDemoModeIfNeeded(session)
       }
-      statusMessage = "Connected to self-hosted service"
+      statusMessage = session.map(Self.connectedStatusMessage(for:)) ?? "Connected to self-hosted service"
       diagnostics?.record(source: .auth, title: "Self-hosted session recovered")
     } catch {
       session = nil
@@ -548,6 +546,32 @@ final class AuthService {
   private func resetDisconnectedStatus() {
     errorMessage = nil
     statusMessage = "Connect to PumpSync or a self-hosted service"
+  }
+
+  /// The backend reports its data source on the session so a user who points
+  /// the app at a demo deployment can tell before fabricated insulin/carb
+  /// samples are written into their real Apple Health store.
+  static func connectedStatusMessage(for session: BackendSessionResponse) -> String {
+    guard session.serviceMode == "selfHosted" else {
+      return "Hosted subscription active"
+    }
+
+    return session.isSyntheticDemo
+      ? "Connected to a demo service — data is synthetic, not from your pump"
+      : "Connected to self-hosted service"
+  }
+
+  private func recordDemoModeIfNeeded(_ session: BackendSessionResponse) {
+    guard session.isSyntheticDemo else {
+      return
+    }
+
+    diagnostics?.record(
+      source: .auth,
+      severity: .warning,
+      title: "Connected to a synthetic demo backend",
+      message: "This service returns deterministic demo data; samples written to Apple Health will not reflect the pump."
+    )
   }
 
   private func safeMessage(_ fallback: String, error: Error) -> String {
@@ -643,11 +667,15 @@ extension Transaction {
     return true
   }
 
+  /// Transaction identifiers are truncated: the full values are pseudonymous
+  /// purchase identifiers that persist into the diagnostics log, support
+  /// bundle, and clipboard — the suffix is enough to correlate entries
+  /// without handing the complete identifier to support channels.
   func diagnosticSummary(active: Bool) -> String {
     [
       "productID=\(productID)",
-      "id=\(id)",
-      "originalID=\(originalID)",
+      "id=…\(String(String(id).suffix(4)))",
+      "originalID=…\(String(String(originalID).suffix(4)))",
       "purchaseDate=\(purchaseDate.storeKitDiagnosticDate)",
       "expirationDate=\(expirationDate?.storeKitDiagnosticDate ?? "none")",
       "revocationDate=\(revocationDate?.storeKitDiagnosticDate ?? "none")",
@@ -668,8 +696,8 @@ extension AuthService {
     session = BackendSessionResponse(
       accessToken: "screenshot-access-token",
       expiresAt: Date().addingTimeInterval(60 * 60),
-      entitlementActive: true,
-      serviceMode: serviceMode
+      serviceMode: serviceMode,
+      dataSourceMode: "tandemSource"
     )
     statusMessage = serviceMode == "hosted" ? "Hosted subscription active" : "Connected to self-hosted service"
     errorMessage = nil

@@ -1,6 +1,7 @@
 import XCTest
 @testable import PumpSync
 
+@MainActor
 final class HealthAccessTests: XCTestCase {
   func testInsulinConcentrationDefaultsToU100() {
     let suiteName = "InsulinConcentrationTests-\(UUID().uuidString)"

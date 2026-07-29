@@ -5,9 +5,11 @@ import Synchronization
 final class BackgroundSyncScheduler {
   private let identifier: String
   private var isRegistered = false
+  private let onScheduleFailure: (@Sendable (any Error) -> Void)?
 
-  init(identifier: String) {
+  init(identifier: String, onScheduleFailure: (@Sendable (any Error) -> Void)? = nil) {
     self.identifier = identifier
+    self.onScheduleFailure = onScheduleFailure
   }
 
   func register(handler: @escaping @Sendable () async -> Void) {
@@ -28,6 +30,7 @@ final class BackgroundSyncScheduler {
 
   func scheduleDailySync() {
     let identifier = identifier
+    let onScheduleFailure = onScheduleFailure
     BGTaskScheduler.shared.getPendingTaskRequests { requests in
       guard !requests.contains(where: { $0.identifier == identifier }) else {
         return
@@ -38,7 +41,14 @@ final class BackgroundSyncScheduler {
       request.requiresExternalPower = false
       request.earliestBeginDate = Date(timeIntervalSinceNow: 24 * 60 * 60)
 
-      try? BGTaskScheduler.shared.submit(request)
+      do {
+        try BGTaskScheduler.shared.submit(request)
+      } catch {
+        // A swallowed submit failure (unregistered identifier, simulator
+        // restrictions, too many pending requests) makes background sync
+        // silently never run — surface it to diagnostics.
+        onScheduleFailure?(error)
+      }
     }
   }
 

@@ -8,8 +8,8 @@ final class BackendSessionStoreTests: XCTestCase {
     let session = BackendSessionResponse(
       accessToken: "token",
       expiresAt: Date(timeIntervalSince1970: 2_000),
-      entitlementActive: true,
-      serviceMode: "hosted"
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
     )
 
     try store.save(session)
@@ -23,8 +23,8 @@ final class BackendSessionStoreTests: XCTestCase {
       BackendSessionResponse(
         accessToken: "token",
         expiresAt: Date(timeIntervalSince1970: 1_999),
-        entitlementActive: true,
-        serviceMode: "hosted"
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource"
       )
     )
 
@@ -37,8 +37,8 @@ final class BackendSessionStoreTests: XCTestCase {
       BackendSessionResponse(
         accessToken: "token",
         expiresAt: Date(timeIntervalSince1970: 1_299),
-        entitlementActive: true,
-        serviceMode: "hosted"
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource"
       )
     )
 
@@ -51,8 +51,8 @@ final class BackendSessionStoreTests: XCTestCase {
       BackendSessionResponse(
         accessToken: "",
         expiresAt: Date(timeIntervalSince1970: 2_000),
-        entitlementActive: true,
-        serviceMode: "hosted"
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource"
       )
     )
 
@@ -74,8 +74,8 @@ final class BackendSessionStoreTests: XCTestCase {
       BackendSessionResponse(
         accessToken: "token",
         expiresAt: Date(timeIntervalSince1970: 2_000),
-        entitlementActive: true,
-        serviceMode: "hosted"
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource"
       )
     )
 

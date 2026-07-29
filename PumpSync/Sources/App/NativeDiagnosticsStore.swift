@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum NativeDiagnosticKind: String, Codable, CaseIterable {
+enum NativeDiagnosticKind: String, Codable {
   case crash = "Crash"
   case performance = "Performance"
 }

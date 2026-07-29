@@ -4,7 +4,10 @@ import XCTest
 @MainActor
 private final class FakeHealthKitService: SyncHealthWriting {
   var hasAnyWritePermission: Bool
-  var saveResult: Result<Int, Error> = .success(0)
+  var saveError: Error?
+  /// External ids save() should silently drop, mirroring HealthKitService
+  /// skipping samples whose per-type permission is missing.
+  var droppedExternalIds: Set<String> = []
   private(set) var refreshAuthorizationStatusCallCount = 0
   private(set) var savedSamples: [SampleDTO] = []
 
@@ -16,14 +19,17 @@ private final class FakeHealthKitService: SyncHealthWriting {
     refreshAuthorizationStatusCallCount += 1
   }
 
-  func save(samples: [SampleDTO]) async throws -> Int {
+  func save(samples: [SampleDTO]) async throws -> [SampleDTO] {
     savedSamples = samples
-    return try saveResult.get()
+    if let saveError {
+      throw saveError
+    }
+
+    return samples.filter { !droppedExternalIds.contains($0.externalId) }
   }
 }
 
 private struct StubTandemSyncResponse: Encodable {
-  let cursor: String?
   let samples: [SampleDTO]
   let effectiveMinDate: Date
   let effectiveMaxDate: Date
@@ -78,7 +84,6 @@ final class SyncCoordinatorTests: XCTestCase {
 
   func testSuccessfulSyncImportsUnseenSamplesAndRecordsWatermarkFromServerEffectiveMaxDate() async throws {
     let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
-    fakeHealthKit.saveResult = .success(2)
     let syncMetadataStore = makeSyncMetadataStore()
     let diagnostics = makeDiagnostics()
     let samples = [sample(externalId: "sample-1"), sample(externalId: "sample-2")]
@@ -113,7 +118,6 @@ final class SyncCoordinatorTests: XCTestCase {
 
   func testSyncDeduplicatesAlreadyImportedSamplesBeforeSavingToHealthKit() async throws {
     let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
-    fakeHealthKit.saveResult = .success(1)
     let importedSampleLedger = ImportedSampleLedger(
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)"),
       defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!
@@ -181,7 +185,6 @@ final class SyncCoordinatorTests: XCTestCase {
     // sync look already-stale the instant it finished, forcing an
     // unnecessary re-sync on the very next staleness check.
     let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
-    fakeHealthKit.saveResult = .success(0)
     let syncMetadataStore = makeSyncMetadataStore()
     URLProtocolStub.requestHandler = syncResponseHandler(
       samples: [],
@@ -211,7 +214,6 @@ final class SyncCoordinatorTests: XCTestCase {
 
   func testRefreshIfStaleSyncsWhenNoPriorSuccessfulSync() async throws {
     let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
-    fakeHealthKit.saveResult = .success(0)
     URLProtocolStub.requestHandler = syncResponseHandler(
       samples: [],
       effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
@@ -228,7 +230,159 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.lastMessage, "No new pump samples were returned.")
   }
 
+  func testSamplesDroppedByHealthKitAreNotMarkedImported() async throws {
+    // A sample skipped by save() (missing per-type permission or unknown
+    // type) must stay out of the dedupe ledger so a later permission grant
+    // can still import it from the watermark-overlap re-fetch. Ledgering it
+    // would lose it permanently — the backend retains nothing to replay.
+    let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
+    fakeHealthKit.droppedExternalIds = ["carb-1"]
+    let importedSampleLedger = ImportedSampleLedger(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)"),
+      defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!
+    )
+    let written = sample(externalId: "bolus-1")
+    let dropped = sample(externalId: "carb-1")
+    URLProtocolStub.requestHandler = syncResponseHandler(
+      samples: [written, dropped],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: fakeHealthKit,
+      importedSampleLedger: importedSampleLedger
+    )
+
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(coordinator.lastMessage, "Imported 1 new samples.")
+    XCTAssertEqual(try importedSampleLedger.filterUnseen([written]).count, 0, "the written sample should be ledgered")
+    XCTAssertEqual(try importedSampleLedger.filterUnseen([dropped]).count, 1, "the dropped sample must remain importable")
+  }
+
+  func testTandemCredentialRejectionInvalidatesValidationAndSurfacesBackendMessage() async throws {
+    let authService = makeSignedInAuthService()
+    let credentialStore = try makeValidatedCredentialStore()
+    let backendMessage = "Tandem Source did not accept the supplied pump account credentials. Re-save your Tandem account credentials in PumpSync."
+    URLProtocolStub.requestHandler = errorResponseHandler(statusCode: 424, code: "tandem_authentication_failed", message: backendMessage)
+
+    let coordinator = makeCoordinator(authService: authService, credentialStore: credentialStore)
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(coordinator.lastMessage, backendMessage, "the backend's remediation guidance is user-facing and must reach the user")
+    XCTAssertFalse(credentialStore.hasValidatedCredentials, "a Tandem rejection means the stored credentials need re-validation")
+    XCTAssertTrue(authService.isSignedIn, "a Tandem credential failure is not a PumpSync session failure")
+  }
+
+  func testRateLimitedSyncShowsWaitMessage() async throws {
+    URLProtocolStub.requestHandler = errorResponseHandler(statusCode: 429, code: "rate_limit_exceeded", message: "Rate limit exceeded for 'sync-tandem'.")
+
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore()
+    )
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(coordinator.lastMessage, "Sync limit reached. Wait a while before trying again.")
+  }
+
+  func testLookbackClampSurfacesDataGapNotice() async throws {
+    // The backend clamps the requested window to Tandem's ~14-day lookback
+    // and reports the effective start; data before it is unrecoverable, so
+    // the sync must not report an unqualified success.
+    let fakeHealthKit = FakeHealthKitService(hasAnyWritePermission: true)
+    URLProtocolStub.requestHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date().addingTimeInterval(-24 * 60 * 60),
+      effectiveMaxDate: Date()
+    )
+
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: fakeHealthKit
+    )
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertTrue(
+      coordinator.lastMessage?.contains("no longer available") == true,
+      "expected a data-gap notice, got: \(coordinator.lastMessage ?? "nil")"
+    )
+  }
+
+  func testSyncRequestCarriesDeviceTimeZone() async throws {
+    // Tandem timestamps are pump-local wall-clock values; without the
+    // device's zone the backend anchors them to UTC and every sample lands
+    // hours off in Apple Health.
+    let capturedBody = CapturedBody()
+    URLProtocolStub.requestHandler = { request in
+      capturedBody.store(Self.bodyData(from: request))
+      let body = StubTandemSyncResponse(samples: [], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000))
+      let encoder = JSONEncoder()
+      encoder.dateEncodingStrategy = .iso8601
+      let data = try encoder.encode(body)
+      let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+      return (response, data)
+    }
+
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore()
+    )
+    await coordinator.sync(reason: .manual)
+
+    let body = try XCTUnwrap(capturedBody.value)
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["timeZoneIdentifier"] as? String, TimeZone.current.identifier)
+  }
+
   // MARK: - Fixtures
+
+  private final class CapturedBody: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data: Data?
+
+    func store(_ data: Data?) {
+      lock.lock()
+      defer { lock.unlock() }
+      self.data = data
+    }
+
+    var value: Data? {
+      lock.lock()
+      defer { lock.unlock() }
+      return data
+    }
+  }
+
+  private nonisolated static func bodyData(from request: URLRequest) -> Data? {
+    if let body = request.httpBody {
+      return body
+    }
+
+    guard let stream = request.httpBodyStream else {
+      return nil
+    }
+
+    stream.open()
+    defer { stream.close() }
+    var data = Data()
+    let bufferSize = 4096
+    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+    defer { buffer.deallocate() }
+    while stream.hasBytesAvailable {
+      let read = stream.read(buffer, maxLength: bufferSize)
+      guard read > 0 else {
+        break
+      }
+      data.append(buffer, count: read)
+    }
+
+    return data
+  }
 
   private func makeCoordinator(
     authService: AuthService,
@@ -325,11 +479,10 @@ final class SyncCoordinatorTests: XCTestCase {
   private func syncResponseHandler(
     samples: [SampleDTO],
     effectiveMinDate: Date,
-    effectiveMaxDate: Date,
-    cursor: String? = nil
+    effectiveMaxDate: Date
   ) -> @Sendable (URLRequest) throws -> (HTTPURLResponse, Data) {
     { request in
-      let body = StubTandemSyncResponse(cursor: cursor, samples: samples, effectiveMinDate: effectiveMinDate, effectiveMaxDate: effectiveMaxDate)
+      let body = StubTandemSyncResponse(samples: samples, effectiveMinDate: effectiveMinDate, effectiveMaxDate: effectiveMaxDate)
       let encoder = JSONEncoder()
       encoder.dateEncodingStrategy = .iso8601
       let data = try encoder.encode(body)

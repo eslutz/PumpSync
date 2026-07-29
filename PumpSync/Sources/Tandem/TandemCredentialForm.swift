@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TandemCredentialForm: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.scenePhase) private var scenePhase
 
   @State private var username = ""
   @State private var password = ""
@@ -73,7 +74,13 @@ struct TandemCredentialForm: View {
         .frame(minHeight: 44)
         .accessibilityElement(children: .contain)
       }
+      // privacySensitive alone is inert — SwiftUI only redacts it while a
+      // .privacy redaction reason is active, which nothing applies by
+      // default. Drive it from the scene phase so the app-switcher snapshot
+      // (taken after the scene resigns active) never captures a revealed
+      // password.
       .privacySensitive()
+      .redacted(reason: scenePhase == .active ? [] : .privacy)
 
       Button {
         Task {
@@ -97,6 +104,14 @@ struct TandemCredentialForm: View {
     }
     .navigationTitle("Tandem")
     .onAppear(perform: load)
+    .onChange(of: scenePhase) { _, newPhase in
+      // A revealed password must not survive backgrounding: the plain
+      // TextField (unlike SecureField) would otherwise be captured in the
+      // app-switcher snapshot and remain visible on return.
+      if newPhase != .active {
+        isShowingPassword = false
+      }
+    }
     .alert(
       alert?.title ?? "",
       isPresented: Binding(
@@ -207,7 +222,7 @@ struct TandemCredentialForm: View {
 
     do {
       let response = try await services.apiClient.validateTandemCredentials(
-        TandemCredentialValidationRequest(tandem: credentials),
+        TandemCredentialValidationRequest(tandem: credentials, timeZoneIdentifier: TimeZone.current.identifier),
         accessToken: accessToken
       )
 

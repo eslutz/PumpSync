@@ -48,12 +48,42 @@ final class TandemCredentialStore {
   }
 
   func delete() throws {
-    try keychain.delete(account: Self.account)
-    try keychain.delete(account: Self.validationAccount)
-    hasStoredCredentials = false
+    // Attempt both deletions independently: bailing out after the first
+    // failure could leave the validation record (which holds the username)
+    // orphaned in the Keychain while the UI reports credentials removed.
+    var firstError: Error?
+    do {
+      try keychain.delete(account: Self.account)
+    } catch {
+      firstError = error
+    }
+
+    do {
+      try keychain.delete(account: Self.validationAccount)
+    } catch {
+      firstError = firstError ?? error
+    }
+
+    refreshStatus()
+    if let firstError {
+      throw firstError
+    }
+  }
+
+  /// Called when the backend reports Tandem rejected the stored credentials
+  /// (a sync-time 424): the credentials stay stored, but they must be
+  /// re-validated before the next sync so the UI directs the user to the
+  /// credential form instead of looping on a failing sync.
+  func invalidateValidation() {
+    do {
+      try keychain.delete(account: Self.validationAccount)
+    } catch {
+      // The in-memory flag below still gates syncing; an orphaned record is
+      // reconciled by the username/region match in refreshValidationStatus.
+    }
+
     hasValidatedCredentials = false
     validatedAt = nil
-    redactedUsername = nil
   }
 
   func refreshStatus() {

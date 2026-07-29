@@ -5,7 +5,6 @@ final class JSONCodecTests: XCTestCase {
   func testDecodesFractionalSecondDates() throws {
     let data = Data("""
     {
-      "cursor": null,
       "samples": [
         {
           "externalId": "sample-1",
@@ -35,7 +34,6 @@ final class JSONCodecTests: XCTestCase {
   func testDecodesNumericMetadataAndEventIdsAsStrings() throws {
     let data = Data("""
     {
-      "cursor": 123456,
       "samples": [
         {
           "externalId": 987654,
@@ -61,7 +59,6 @@ final class JSONCodecTests: XCTestCase {
 
     let response = try JSONCodec.decoder.decode(TandemSyncResponse.self, from: data)
 
-    XCTAssertEqual(response.cursor, "123456")
     XCTAssertEqual(response.samples[0].externalId, "987654")
     XCTAssertEqual(response.samples[0].unit, "1")
     XCTAssertEqual(response.samples[0].metadata["rateIUPerHour"], "0.5")
@@ -71,9 +68,18 @@ final class JSONCodecTests: XCTestCase {
 
   func testAPIClientErrorClassifiesTransientStatuses() {
     XCTAssertTrue(APIClientError.invalidResponse.isTransient)
-    XCTAssertTrue(APIClientError.httpStatus(429, nil).isTransient)
-    XCTAssertTrue(APIClientError.httpStatus(503, nil).isTransient)
-    XCTAssertFalse(APIClientError.httpStatus(400, nil).isTransient)
-    XCTAssertFalse(APIClientError.httpStatus(401, nil).isTransient)
+    // 429 must not be blind-retried: the backend's rate-limit windows are
+    // minutes to an hour, so an immediate retry is guaranteed to fail.
+    XCTAssertFalse(APIClientError.httpStatus(429, code: nil, message: nil).isTransient)
+    XCTAssertTrue(APIClientError.httpStatus(503, code: nil, message: nil).isTransient)
+    XCTAssertFalse(APIClientError.httpStatus(400, code: nil, message: nil).isTransient)
+    XCTAssertFalse(APIClientError.httpStatus(401, code: nil, message: nil).isTransient)
+  }
+
+  func testAPIClientErrorClassifiesTandemCredentialAndRateLimitFailures() {
+    XCTAssertTrue(APIClientError.httpStatus(424, code: "tandem_authentication_failed", message: nil).isTandemCredentialFailure)
+    XCTAssertFalse(APIClientError.httpStatus(401, code: nil, message: nil).isTandemCredentialFailure)
+    XCTAssertTrue(APIClientError.httpStatus(429, code: "rate_limit_exceeded", message: nil).isRateLimited)
+    XCTAssertFalse(APIClientError.httpStatus(500, code: nil, message: nil).isRateLimited)
   }
 }
