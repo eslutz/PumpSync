@@ -32,7 +32,7 @@ PumpSync writes data to Apple Health only after the user grants permission. User
 
 ## Account And Data Deletion
 
-Users may remove Tandem credentials in the app. Users may request deletion of PumpSync hosted subscription and installation metadata using `docs/legal/data-deletion-request.md`.
+Users may remove Tandem credentials in the app. Users may request deletion of PumpSync hosted subscription and installation metadata using the [Account and Data Deletion](https://pumpsync.ericslutz.dev/privacy/data-deletion/) instructions.
 
 ## Acceptable Use
 

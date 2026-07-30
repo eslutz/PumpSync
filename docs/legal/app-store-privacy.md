@@ -59,9 +59,9 @@ Do not declare these unless the implementation changes:
 
 ## Privacy Links
 
-Use the public URL for `docs/legal/privacy-policy.md` as the required Privacy Policy URL after it is published on the product website or another public support page.
+Use `https://pumpsync.ericslutz.dev/privacy/` as the required Privacy Policy URL.
 
-Use the public URL for `docs/legal/data-deletion-request.md` as the optional Privacy Choices URL after it is published.
+Use `https://pumpsync.ericslutz.dev/privacy/data-deletion/` as the optional Privacy Choices URL.
 
 ## HealthKit Submission Wording
 
