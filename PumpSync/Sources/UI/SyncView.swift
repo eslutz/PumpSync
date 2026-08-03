@@ -27,15 +27,20 @@ struct SyncView: View {
 
           GlassDivider(leadingPadding: 0)
 
-          VStack(alignment: .leading, spacing: 10) {
-            Text("Choose how much pump history to import the first time. Future syncs import new data only.")
+          Text("Choose how much pump history to import the first time. Future syncs import new data only.")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 8)
+        }
+      }
 
-            Text("You can start a sync yourself anytime with the sync button. After the first sync, PumpSync also checks for new pump data when the app opens and during daily background updates when iOS grants time.")
-          }
+      // Sync triggers stay visible after the first sync: this is the only
+      // in-app disclosure that syncing also happens automatically.
+      GlassSection("How Syncing Runs") {
+        Text("You can start a sync yourself anytime with the sync button below. After the first sync, PumpSync also checks for new pump data when the app opens and during daily background updates when iOS grants time.")
           .frame(maxWidth: .infinity, alignment: .leading)
           .foregroundStyle(.secondary)
           .padding(.vertical, 8)
-        }
       }
 
       Button {
