@@ -30,7 +30,7 @@ struct SyncView: View {
           VStack(alignment: .leading, spacing: 10) {
             Text("Choose how much pump history to import the first time. Future syncs import new data only.")
 
-            Text("After the first sync, PumpSync checks for new pump data when the app opens and during daily background updates when iOS grants time.")
+            Text("You can start a sync yourself anytime with the sync button. After the first sync, PumpSync also checks for new pump data when the app opens and during daily background updates when iOS grants time.")
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .foregroundStyle(.secondary)

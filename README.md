@@ -80,3 +80,7 @@ xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync -destination 'platf
 | App Store release | `PumpSync` | `Release` archive | Production |
 
 TestFlight and development-signed purchases use Apple's sandbox and do not charge real money. App Store release builds use the production App Store transaction environment.
+
+## License
+
+PumpSync source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md). Noncommercial use — including running your own self-hosted backend for personal use — is permitted. Commercial use is reserved by the copyright holder.
