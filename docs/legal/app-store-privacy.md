@@ -63,6 +63,8 @@ Use `https://pumpsync.ericslutz.dev/privacy/` as the required Privacy Policy URL
 
 Use `https://pumpsync.ericslutz.dev/privacy/data-deletion/` as the optional Privacy Choices URL.
 
+Use `https://pumpsync.ericslutz.dev/terms/` as the Terms of Use (EULA) URL. App Review guideline 3.1.2 requires a terms link for the auto-renewable PumpSync Hosted subscription; set it in App Store Connect alongside the Privacy Policy URL.
+
 ## HealthKit Submission Wording
 
 Use this wording in App Review notes and public support material:

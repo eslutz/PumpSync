@@ -20,7 +20,7 @@ Hosted production/nonprod backend images are private GitHub Container Registry i
 - `PumpSyncUITests/`: UI tests and screenshot automation entry points.
 - `project.yml`: XcodeGen source of truth for schemes, configurations, build settings, entitlements, and generated project files.
 - `docs/app-store/`: App Store metadata, screenshots, accessibility notes, and review assets.
-- `docs/legal/`: pointer to the website's Privacy Policy and Account/Data Deletion pages, plus repo-local Terms of Use and App Store privacy notes.
+- `docs/legal/`: pointers to the website's Privacy Policy, Terms of Use, and Account/Data Deletion pages, plus repo-local App Store privacy notes.
 - `scripts/ios/`: iOS screenshot capture scripts.
 
 ## Access Model

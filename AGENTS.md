@@ -9,8 +9,8 @@
 
 ## Documentation
 
-- `docs/legal/` points to the website (https://pumpsync.ericslutz.dev/privacy/ and /privacy/data-deletion/) as the canonical Privacy Policy and Account/Data Deletion text — do not restore local copies of that content here.
-- `docs/legal/terms-of-use.md` and `docs/legal/app-store-privacy.md` are repo-local and not published elsewhere; keep them here.
+- `docs/legal/` points to the website (https://pumpsync.ericslutz.dev/privacy/, /terms/, and /privacy/data-deletion/) as the canonical Privacy Policy, Terms of Use, and Account/Data Deletion text — do not restore local copies of that content here.
+- `docs/legal/app-store-privacy.md` is repo-local App Store Connect worksheet material and is not published elsewhere; keep it here.
 - `docs/app-store/` (screenshots, accessibility answers, submission evidence) is repo-local App Store Connect material, not documentation duplicated from the wiki.
 - User-facing self-hosting/demo setup content lives in the wiki (https://github.com/eslutz/PumpSync/wiki/Self-Hosting, .../Demo-Mode), not this repo.
 
