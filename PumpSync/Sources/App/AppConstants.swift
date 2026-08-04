@@ -9,6 +9,13 @@ enum AppConstants {
   static let hostedSubscriptionGroupId =
     Bundle.main.object(forInfoDictionaryKey: "HOSTED_SUBSCRIPTION_GROUP_ID") as? String
       ?? "22168040"
+  // Published policy pages on the public website. App Review guideline 3.1.2
+  // requires functional Terms of Use and Privacy Policy links on the
+  // subscription purchase screen; these back the paywall's policy
+  // destinations. The website is the canonical source for this text, so the
+  // app links out rather than carrying a copy (see AGENTS.md).
+  static let termsOfUseURL = URL(string: "https://pumpsync.ericslutz.dev/terms/")!
+  static let privacyPolicyURL = URL(string: "https://pumpsync.ericslutz.dev/privacy/")!
   // Fail fast rather than fall back: a silent default here could point a
   // misconfigured Release build at the wrong backend environment. The key is
   // injected per configuration from project.yml, so any build missing it is

@@ -569,6 +569,10 @@ private struct HostedSubscriptionStoreView: View {
       .padding(.top, 24)
     }
     .subscriptionStoreButtonLabel(.action)
+    // App Review guideline 3.1.2 requires functional Terms of Use and Privacy
+    // Policy links on the purchase screen for auto-renewable subscriptions.
+    .subscriptionStorePolicyDestination(url: AppConstants.termsOfUseURL, for: .termsOfService)
+    .subscriptionStorePolicyDestination(url: AppConstants.privacyPolicyURL, for: .privacyPolicy)
     .onInAppPurchaseCompletion { _, result in
       await handlePurchaseCompletion(result)
     }

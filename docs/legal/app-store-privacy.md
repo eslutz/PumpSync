@@ -63,7 +63,9 @@ Use `https://pumpsync.ericslutz.dev/privacy/` as the required Privacy Policy URL
 
 Use `https://pumpsync.ericslutz.dev/privacy/data-deletion/` as the optional Privacy Choices URL.
 
-Use `https://pumpsync.ericslutz.dev/terms/` as the Terms of Use (EULA) URL. App Review guideline 3.1.2 requires a terms link for the auto-renewable PumpSync Hosted subscription; set it in App Store Connect alongside the Privacy Policy URL.
+Use `https://pumpsync.ericslutz.dev/terms/` as the Terms of Use (EULA) URL. App Review guideline 3.1.2 requires a terms link for the auto-renewable PumpSync Hosted subscription.
+
+App Store Connect has no dedicated Terms of Use URL field the way it does for the privacy policy. The requirement is met in two places instead: the PumpSync Hosted paywall links both policies in-app via `AppConstants.termsOfUseURL` and `AppConstants.privacyPolicyURL`, and the App Description should carry the terms link in its text. Keep those and this file in sync. Setting a custom license agreement under App Information is optional; leaving it unset means the app uses Apple's standard EULA, which is fine alongside the published terms.
 
 ## HealthKit Submission Wording
 
@@ -77,6 +79,7 @@ Before App Store submission, verify:
 
 - The privacy policy URL is publicly accessible.
 - The data deletion URL is publicly accessible.
+- The Terms of Use and Privacy Policy links render on the PumpSync Hosted paywall in a sandbox or TestFlight build. A plain simulator run has no StoreKit products, so the paywall may show an error state with no policy links — that is not proof either way.
 - App Store Connect answers match the shipped build and all SDKs.
 - HealthKit purpose strings match the app's actual data use.
 - Tandem disclosure wording matches the final Tandem terms review.

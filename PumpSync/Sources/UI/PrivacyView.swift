@@ -100,7 +100,7 @@ struct DataHandlingView: View {
     PumpSync installation ID:
     \(services.backendConfigurationStore.installationId)
 
-    Do not include Tandem passwords, Tandem tokens, screenshots containing health data, or other sensitive medical details in this request.
+    Do not include pump account passwords or tokens, screenshots containing health data, or other sensitive medical details in this request.
     """
   }
 }
