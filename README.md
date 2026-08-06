@@ -27,7 +27,7 @@ Hosted production/nonprod backend images are private GitHub Container Registry i
 
 PumpSync supports two backend access paths:
 
-- Hosted: the user buys or restores the PumpSync Hosted auto-renewable subscription through StoreKit. The app sends the signed App Store transaction JWS to the backend and receives a short-lived PumpSync service token.
+- Hosted: the user buys or restores the PumpSync auto-renewable subscription through StoreKit. The app sends the signed App Store transaction JWS to the backend and receives a short-lived PumpSync service token.
 - Self-hosted: the user enters their own backend base URL. A backend deployed in `SelfHosted` mode issues a service token for that installation without App Store subscription verification.
 
 Sign in with Apple is intentionally not part of this flow.

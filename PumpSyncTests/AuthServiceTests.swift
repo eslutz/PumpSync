@@ -37,7 +37,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
   }
 
-  func testHostedRestoreCreatesBackendSession() async {
+  func testSubscriptionRestoreCreatesBackendSession() async {
     let diagnostics = makeDiagnostics()
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
@@ -69,17 +69,17 @@ final class AuthServiceTests: XCTestCase {
       diagnostics: diagnostics
     )
 
-    await service.connectHostedUsingCurrentSubscription()
+    await service.connectUsingCurrentSubscription()
 
     XCTAssertTrue(service.isSignedIn)
     XCTAssertFalse(service.isConnecting)
     XCTAssertNil(service.errorMessage)
-    XCTAssertEqual(service.statusMessage, "Hosted subscription active")
+    XCTAssertEqual(service.statusMessage, "PumpSync subscription active")
     XCTAssertEqual(sessionStore.loadValidSession(), session)
-    XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription restored", "Hosted session started", "Hosted restore started"])
+    XCTAssertEqual(diagnostics.entries.map(\.title), ["PumpSync subscription restored", "Subscription session started", "Subscription restore started"])
   }
 
-  func testHostedPurchaseCompletionCreatesBackendSession() async {
+  func testSubscriptionPurchaseCompletionCreatesBackendSession() async {
     let diagnostics = makeDiagnostics()
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
@@ -111,17 +111,17 @@ final class AuthServiceTests: XCTestCase {
       diagnostics: diagnostics
     )
 
-    await service.activateHostedSubscription(signedTransactionInfo: "signed-purchase-transaction")
+    await service.activateSubscription(signedTransactionInfo: "signed-purchase-transaction")
 
     XCTAssertTrue(service.isSignedIn)
     XCTAssertFalse(service.isConnecting)
     XCTAssertNil(service.errorMessage)
-    XCTAssertEqual(service.statusMessage, "Hosted subscription active")
+    XCTAssertEqual(service.statusMessage, "PumpSync subscription active")
     XCTAssertEqual(sessionStore.loadValidSession(), session)
-    XCTAssertEqual(diagnostics.entries.map(\.title), ["Hosted subscription purchased", "Hosted session started"])
+    XCTAssertEqual(diagnostics.entries.map(\.title), ["PumpSync subscription purchased", "Subscription session started"])
   }
 
-  func testHostedRestorePublishesUserSafeErrorAndDiagnostics() async {
+  func testSubscriptionRestorePublishesUserSafeErrorAndDiagnostics() async {
     let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -139,7 +139,7 @@ final class AuthServiceTests: XCTestCase {
       diagnostics: diagnostics
     )
 
-    await service.connectHostedUsingCurrentSubscription()
+    await service.connectUsingCurrentSubscription()
 
     let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
     XCTAssertFalse(service.isSignedIn)
@@ -147,11 +147,11 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(service.statusMessage, expectedMessage)
     XCTAssertEqual(service.errorMessage, expectedMessage)
     XCTAssertEqual(service.connectionRequiredMessage, expectedMessage)
-    XCTAssertEqual(diagnostics.entries.first?.title, "Hosted session failed")
+    XCTAssertEqual(diagnostics.entries.first?.title, "Subscription session failed")
     XCTAssertEqual(diagnostics.entries.first?.message, "Subscription validation failed for [redacted email].")
   }
 
-  func testHostedRestoreFailurePreservesExistingSession() async throws {
+  func testSubscriptionRestoreFailurePreservesExistingSession() async throws {
     let diagnostics = makeDiagnostics()
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
     let existingSession = BackendSessionResponse(
@@ -182,7 +182,7 @@ final class AuthServiceTests: XCTestCase {
 
     XCTAssertEqual(service.accessToken, "existing-token")
 
-    await service.connectHostedUsingCurrentSubscription()
+    await service.connectUsingCurrentSubscription()
 
     let expectedMessage = "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
     XCTAssertTrue(service.isSignedIn)
@@ -191,10 +191,10 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(service.statusMessage, expectedMessage)
     XCTAssertEqual(service.errorMessage, expectedMessage)
     XCTAssertEqual(sessionStore.loadValidSession(), existingSession)
-    XCTAssertEqual(diagnostics.entries.first?.title, "Hosted session failed")
+    XCTAssertEqual(diagnostics.entries.first?.title, "Subscription session failed")
   }
 
-  func testSilentHostedRecoveryCreatesBackendSessionWhenNoCachedSessionExists() async {
+  func testSilentSubscriptionRecoveryCreatesBackendSessionWhenNoCachedSessionExists() async {
     let configuration = makeConfigurationStore()
     let sessionStore = makeSessionStore()
     let session = BackendSessionResponse(
@@ -276,7 +276,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), recoveredSession)
   }
 
-  func testSilentHostedRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
+  func testSilentSubscriptionRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
     let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -304,8 +304,8 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSignedIn)
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Connect to PumpSync or a self-hosted service")
-    XCTAssertEqual(diagnostics.entries.first?.title, "Hosted recovery skipped")
-    XCTAssertEqual(diagnostics.entries.first?.message, "No current StoreKit entitlement was available for hosted recovery.")
+    XCTAssertEqual(diagnostics.entries.first?.title, "Subscription recovery skipped")
+    XCTAssertEqual(diagnostics.entries.first?.message, "No current StoreKit entitlement was available for subscription recovery.")
   }
 
   func testSelfHostedCreatesBackendSession() async {
@@ -412,7 +412,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSignedIn)
   }
 
-  func testExpiredCachedSessionTriggersHostedRecovery() async throws {
+  func testExpiredCachedSessionTriggersSubscriptionRecovery() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
     try sessionStore.save(
       BackendSessionResponse(
@@ -449,7 +449,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), recoveredSession)
   }
 
-  func testHostedConnectionRequiredMessageUsesHostedServiceTerminology() {
+  func testSubscriptionConnectionRequiredMessageUsesSubscriptionTerminology() {
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),

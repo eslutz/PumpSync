@@ -6,7 +6,7 @@ struct SettingsView: View {
   @Environment(AppServices.self) private var services
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var isShowingHostedSubscriptionStore = false
+  @State private var isShowingSubscriptionStore = false
   @State private var connectionAlert: ConnectionAlert?
   @State private var selfHostedURLDraft = ""
   @State private var hasLoadedSelfHostedURLDraft = false
@@ -18,13 +18,13 @@ struct SettingsView: View {
 
         switch services.backendConfigurationStore.mode {
         case .hosted:
-          Text("Subscribe to PumpSync Hosted to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.")
+          Text("Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
 
           Button {
-            isShowingHostedSubscriptionStore = true
+            isShowingSubscriptionStore = true
           } label: {
             GlassPrimaryLabel(
               title: "Subscribe",
@@ -32,12 +32,12 @@ struct SettingsView: View {
             )
           }
           .buttonStyle(GroupedRowActionButtonStyle())
-          .disabled(hostedSubscriptionActionsDisabled)
-          .accessibilityHint("Opens the PumpSync Hosted subscription options")
+          .disabled(subscriptionActionsDisabled)
+          .accessibilityHint("Opens the PumpSync subscription options")
 
           Button {
             Task {
-              await services.authService.connectHostedUsingCurrentSubscription()
+              await services.authService.connectUsingCurrentSubscription()
               connectionAlert = restoreConnectionAlert
             }
           } label: {
@@ -47,7 +47,7 @@ struct SettingsView: View {
             )
           }
           .buttonStyle(GroupedInlineButtonStyle())
-          .disabled(hostedSubscriptionActionsDisabled)
+          .disabled(subscriptionActionsDisabled)
           .accessibilityHint("Checks your current App Store subscription and reconnects hosted service access")
 
         case .selfHosted:
@@ -174,15 +174,15 @@ struct SettingsView: View {
       hasLoadedSelfHostedURLDraft = true
       selfHostedURLDraft = services.backendConfigurationStore.selfHostedBaseURLString
     }
-    .sheet(isPresented: $isShowingHostedSubscriptionStore) {
+    .sheet(isPresented: $isShowingSubscriptionStore) {
 #if DEBUG
       if AppLaunchEnvironment.isScreenshotMode {
-        HostedSubscriptionScreenshotView()
+        SubscriptionScreenshotView()
       } else {
-        HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
+        PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
       }
 #else
-      HostedSubscriptionStoreView(isPresented: $isShowingHostedSubscriptionStore)
+      PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
 #endif
     }
     .alert(
@@ -268,7 +268,7 @@ struct SettingsView: View {
     if services.authService.isSignedIn {
       return ConnectionAlert(
         title: "Subscription Restored",
-        message: "PumpSync Hosted is connected. You can now save your Tandem account."
+        message: "PumpSync Subscription is connected. You can now save your Tandem account."
       )
     }
 
@@ -278,7 +278,7 @@ struct SettingsView: View {
     )
   }
 
-  private var hostedSubscriptionActionsDisabled: Bool {
+  private var subscriptionActionsDisabled: Bool {
     services.authService.isConnecting
   }
 
@@ -443,7 +443,7 @@ private enum ConnectionAlertAction {
   case manageSubscription
 }
 
-enum HostedSubscriptionPresentation {
+enum SubscriptionPresentation {
   static func shouldDismissAfterManageSubscriptions(isSignedIn: Bool) -> Bool {
     isSignedIn
   }
@@ -476,11 +476,11 @@ private struct ConnectionModeButtonLabel: View {
   }
 }
 
-private struct HostedSubscriptionScreenshotView: View {
+private struct SubscriptionScreenshotView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 24) {
       VStack(alignment: .leading, spacing: 8) {
-        Text("PumpSync Hosted")
+        Text("PumpSync Subscription")
           .font(.largeTitle.weight(.bold))
           .foregroundStyle(.primary)
 
@@ -491,19 +491,19 @@ private struct HostedSubscriptionScreenshotView: View {
       }
 
       VStack(alignment: .leading, spacing: 16) {
-        HostedSubscriptionBenefitRow(
+        SubscriptionBenefitRow(
           title: "Managed connection",
           detail: "PumpSync handles hosted service access and server maintenance.",
           systemImage: "server.rack"
         )
 
-        HostedSubscriptionBenefitRow(
+        SubscriptionBenefitRow(
           title: "Secure Health sync",
           detail: "Data is processed only during active sync operations and is not retained on PumpSync servers.",
           systemImage: "heart.text.square"
         )
 
-        HostedSubscriptionBenefitRow(
+        SubscriptionBenefitRow(
           title: "No server setup",
           detail: "Use the hosted service instead of deploying and maintaining your own backend.",
           systemImage: "checkmark.shield"
@@ -525,16 +525,16 @@ private struct HostedSubscriptionScreenshotView: View {
   }
 }
 
-private struct HostedSubscriptionStoreView: View {
+private struct PumpSyncSubscriptionStoreView: View {
   @Environment(AppServices.self) private var services
   @Binding var isPresented: Bool
   @State private var purchaseAlert: ConnectionAlert?
 
   var body: some View {
-    SubscriptionStoreView(groupID: AppConstants.hostedSubscriptionGroupId) {
+    SubscriptionStoreView(groupID: AppConstants.subscriptionGroupId) {
       VStack(alignment: .leading, spacing: 20) {
         VStack(alignment: .leading, spacing: 8) {
-          Text("PumpSync Hosted")
+          Text("PumpSync Subscription")
             .font(.largeTitle.weight(.bold))
             .foregroundStyle(.primary)
 
@@ -545,19 +545,19 @@ private struct HostedSubscriptionStoreView: View {
         }
 
         VStack(alignment: .leading, spacing: 12) {
-          HostedSubscriptionBenefitRow(
+          SubscriptionBenefitRow(
             title: "Managed connection",
             detail: "PumpSync handles hosted service access and server maintenance.",
             systemImage: "server.rack"
           )
 
-          HostedSubscriptionBenefitRow(
+          SubscriptionBenefitRow(
             title: "Secure Health sync",
             detail: "Sync through PumpSync's hosted service. Data is processed only during active sync operations and is not retained on PumpSync servers.",
             systemImage: "heart.text.square"
           )
 
-          HostedSubscriptionBenefitRow(
+          SubscriptionBenefitRow(
             title: "No server setup",
             detail: "Use the hosted service instead of deploying and maintaining your own backend.",
             systemImage: "checkmark.shield"
@@ -630,7 +630,7 @@ private struct HostedSubscriptionStoreView: View {
           title: "Active subscription transaction returned",
           message: transaction.diagnosticSummary(active: true)
         )
-        await services.authService.activateHostedSubscription(signedTransactionInfo: verificationResult.jwsRepresentation)
+        await services.authService.activateSubscription(signedTransactionInfo: verificationResult.jwsRepresentation)
         await transaction.finish()
         if services.authService.isSignedIn {
           isPresented = false
@@ -641,28 +641,28 @@ private struct HostedSubscriptionStoreView: View {
           )
         }
       } catch {
-        services.authService.recordHostedSubscriptionPurchaseFailed(error)
+        services.authService.recordSubscriptionPurchaseFailed(error)
         purchaseAlert = ConnectionAlert(
           title: "Subscription Verification Failed",
           message: services.authService.connectionRequiredMessage
         )
       }
     case .success(.userCancelled):
-      services.authService.recordHostedSubscriptionPurchaseCancelled()
+      services.authService.recordSubscriptionPurchaseCancelled()
     case .success(.pending):
-      services.authService.recordHostedSubscriptionPurchasePending()
+      services.authService.recordSubscriptionPurchasePending()
       purchaseAlert = ConnectionAlert(
         title: "Subscription Pending",
         message: services.authService.statusMessage
       )
     case .failure(let error):
-      services.authService.recordHostedSubscriptionPurchaseFailed(error)
+      services.authService.recordSubscriptionPurchaseFailed(error)
       purchaseAlert = ConnectionAlert(
         title: "Subscription Failed",
         message: services.authService.connectionRequiredMessage
       )
     @unknown default:
-      services.authService.recordHostedSubscriptionPurchaseFailed(StoreKitSubscriptionError.unverifiedTransaction)
+      services.authService.recordSubscriptionPurchaseFailed(StoreKitSubscriptionError.unverifiedTransaction)
       purchaseAlert = ConnectionAlert(
         title: "Subscription Failed",
         message: services.authService.connectionRequiredMessage
@@ -691,9 +691,9 @@ private struct HostedSubscriptionStoreView: View {
     }
 
     do {
-      try await AppStore.showManageSubscriptions(in: scene, subscriptionGroupID: AppConstants.hostedSubscriptionGroupId)
+      try await AppStore.showManageSubscriptions(in: scene, subscriptionGroupID: AppConstants.subscriptionGroupId)
       await services.authService.recoverSessionIfNeeded()
-      if HostedSubscriptionPresentation.shouldDismissAfterManageSubscriptions(isSignedIn: services.authService.isSignedIn) {
+      if SubscriptionPresentation.shouldDismissAfterManageSubscriptions(isSignedIn: services.authService.isSignedIn) {
         isPresented = false
       }
     } catch {
@@ -706,7 +706,7 @@ private struct HostedSubscriptionStoreView: View {
   }
 }
 
-private struct HostedSubscriptionBenefitRow: View {
+private struct SubscriptionBenefitRow: View {
   let title: String
   let detail: String
   let systemImage: String

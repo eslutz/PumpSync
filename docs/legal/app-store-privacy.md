@@ -24,7 +24,7 @@ Reference sources:
 Declare these as linked to the user and used for App Functionality:
 
 - Identifiers: User ID, consisting of the PumpSync internal ID, App Store original transaction ID, and app installation ID.
-- Purchases: Purchase History, for the PumpSync Hosted subscription.
+- Purchases: Purchase History, for the PumpSync subscription.
 
 Declare these as linked to the user and used for App Functionality and diagnostics/service operation if retained in backend telemetry:
 
@@ -71,7 +71,7 @@ App Store Connect has no dedicated Terms of Use URL field the way it does for th
 
 Use this wording in App Review notes and public support material:
 
-PumpSync writes Tandem insulin and carbohydrate samples to Apple Health after the user connects PumpSync Hosted or a self-hosted backend, stores Tandem credentials on device, grants Health permission, and starts sync. PumpSync does not provide medical advice, diagnosis, treatment, or dosing recommendations. PumpSync does not use HealthKit data for advertising, marketing, or data mining.
+PumpSync writes Tandem insulin and carbohydrate samples to Apple Health after the user connects PumpSync or a self-hosted backend, stores Tandem credentials on device, grants Health permission, and starts sync. PumpSync does not provide medical advice, diagnosis, treatment, or dosing recommendations. PumpSync does not use HealthKit data for advertising, marketing, or data mining.
 
 ## Required Review Before Submission
 

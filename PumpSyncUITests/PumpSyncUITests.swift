@@ -96,7 +96,7 @@ final class PumpSyncUITests: XCTestCase {
   func testIPadAppStoreScreenshots() {
     let app = launchScreenshotFixture()
 
-    attachScreenshot(named: "ipad-pro-13-app-store-listing-01-sync-overview.png", from: app)
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-01-status-overview.png", from: app)
 
     navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
@@ -105,7 +105,7 @@ final class PumpSyncUITests: XCTestCase {
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
     tapSegment("PumpSync", in: app)
-    attachScreenshot(named: "ipad-pro-13-app-store-listing-03-settings-pumpsync-hosted.png", from: app)
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-03-settings-pumpsync.png", from: app)
 
     tapSegment("Self-hosted", in: app)
     assertSelfHostedServerURLField(in: app)
@@ -135,14 +135,14 @@ final class PumpSyncUITests: XCTestCase {
     app.navigationBars.buttons.firstMatch.tap()
     tapSegment("PumpSync", in: app)
     app.buttons["Subscribe"].firstMatch.tap()
-    XCTAssertTrue(app.staticTexts["PumpSync Hosted"].waitForExistence(timeout: 5))
-    attachScreenshot(named: "ipad-pro-13-app-store-listing-04-hosted-subscription-benefits.png", from: app)
+    XCTAssertTrue(app.staticTexts["PumpSync Subscription"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-04-subscription-benefits.png", from: app)
   }
 
   func testIPhoneAppStoreScreenshots() {
     let app = launchScreenshotFixture()
 
-    attachScreenshot(named: "iphone-6-7-app-store-listing-01-sync-overview.png", from: app)
+    attachScreenshot(named: "iphone-6-7-app-store-listing-01-status-overview.png", from: app)
 
     navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
@@ -151,7 +151,7 @@ final class PumpSyncUITests: XCTestCase {
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
     tapSegment("PumpSync", in: app)
-    attachScreenshot(named: "iphone-6-7-app-store-listing-03-settings-pumpsync-hosted.png", from: app)
+    attachScreenshot(named: "iphone-6-7-app-store-listing-03-settings-pumpsync.png", from: app)
 
     tapSegment("Self-hosted", in: app)
     assertSelfHostedServerURLField(in: app)
@@ -180,8 +180,8 @@ final class PumpSyncUITests: XCTestCase {
 
     app.navigationBars.buttons.firstMatch.tap()
     app.buttons["Subscribe"].firstMatch.tap()
-    XCTAssertTrue(app.staticTexts["PumpSync Hosted"].waitForExistence(timeout: 5))
-    attachScreenshot(named: "iphone-6-7-app-store-listing-04-hosted-subscription-benefits.png", from: app)
+    XCTAssertTrue(app.staticTexts["PumpSync Subscription"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-04-subscription-benefits.png", from: app)
   }
 
   private func launchScreenshotFixture(
@@ -207,7 +207,7 @@ final class PumpSyncUITests: XCTestCase {
       return
     }
 
-    let button = app.buttons[title]
+    let button = app.buttons[title].firstMatch
     if button.waitForExistence(timeout: 2) {
       button.tap()
       return

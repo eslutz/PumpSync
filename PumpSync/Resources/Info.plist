@@ -26,10 +26,6 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>HOSTED_SUBSCRIPTION_GROUP_ID</key>
-	<string>22168040</string>
-	<key>HOSTED_SUBSCRIPTION_PRODUCT_ID</key>
-	<string>dev.ericslutz.PumpSync.hosted.monthly</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
@@ -38,6 +34,10 @@
 	<string>PumpSync checks authorization status for insulin and carbohydrate samples before syncing Tandem data.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>PumpSync writes Tandem insulin and carbohydrate samples to Apple Health after you start a sync.</string>
+	<key>SUBSCRIPTION_GROUP_ID</key>
+	<string>22168040</string>
+	<key>SUBSCRIPTION_PRODUCT_ID</key>
+	<string>dev.ericslutz.PumpSync.subscription.monthly</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

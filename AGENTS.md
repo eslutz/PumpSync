@@ -14,7 +14,7 @@
 - `docs/app-store/` (screenshots, accessibility answers, submission evidence) is repo-local App Store Connect material, not documentation duplicated from the wiki.
 - User-facing self-hosting/demo setup content lives in the wiki (https://github.com/eslutz/PumpSync/wiki/Self-Hosting, .../Demo-Mode), not this repo.
 
-## Hosted Subscription Builds
+## PumpSync Subscription Builds
 
 - Local Xcode installs use the `PumpSync` scheme with the `Debug` configuration. They must point at the nonprod backend and use Apple's sandbox App Store transaction environment.
 - TestFlight uploads use the `PumpSync Beta` scheme with the `Beta` archive configuration. They must point at the nonprod backend and use Apple's sandbox App Store transaction environment.

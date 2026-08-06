@@ -3,11 +3,11 @@ import Foundation
 enum AppConstants {
   static let backgroundTaskIdentifier = "dev.ericslutz.PumpSync.daily-sync"
   static let staleSyncInterval: TimeInterval = 20 * 60 * 60
-  static let hostedSubscriptionProductId =
-    Bundle.main.object(forInfoDictionaryKey: "HOSTED_SUBSCRIPTION_PRODUCT_ID") as? String
-      ?? "dev.ericslutz.PumpSync.hosted.monthly"
-  static let hostedSubscriptionGroupId =
-    Bundle.main.object(forInfoDictionaryKey: "HOSTED_SUBSCRIPTION_GROUP_ID") as? String
+  static let subscriptionProductId =
+    Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_PRODUCT_ID") as? String
+      ?? "dev.ericslutz.PumpSync.subscription.monthly"
+  static let subscriptionGroupId =
+    Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_GROUP_ID") as? String
       ?? "22168040"
   // Published policy pages on the public website. App Review guideline 3.1.2
   // requires functional Terms of Use and Privacy Policy links on the

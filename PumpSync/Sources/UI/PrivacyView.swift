@@ -95,7 +95,7 @@ struct DataHandlingView: View {
 
   private var dataDeletionRequestBody: String {
     """
-    Please delete PumpSync hosted backend metadata associated with this installation.
+    Please delete metadata stored by the PumpSync-hosted backend for this installation.
 
     PumpSync installation ID:
     \(services.backendConfigurationStore.installationId)

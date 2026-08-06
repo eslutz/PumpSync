@@ -176,7 +176,7 @@ final class AppServices {
         initialImportRange: .pastWeek
       )
     )
-    diagnosticsLogStore.record(source: .auth, title: "Hosted subscription active")
+    diagnosticsLogStore.record(source: .auth, title: "PumpSync subscription active")
     diagnosticsLogStore.record(source: .sync, title: "Sync completed", message: "Returned 48, imported 48.")
     nativeDiagnosticsStore.applyScreenshotEntries([
       NativeDiagnosticEntry(

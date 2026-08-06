@@ -133,13 +133,13 @@ final class AuthService {
     self.diagnostics = diagnostics
     currentEntitlementJWS = {
       try await StoreKitSubscriptionProvider.currentEntitlementJWS(
-        productId: AppConstants.hostedSubscriptionProductId,
+        productId: AppConstants.subscriptionProductId,
         syncWithAppStore: false
       )
     }
     syncedCurrentEntitlementJWS = {
       try await StoreKitSubscriptionProvider.currentEntitlementJWS(
-        productId: AppConstants.hostedSubscriptionProductId,
+        productId: AppConstants.subscriptionProductId,
         syncWithAppStore: true
       )
     }
@@ -200,7 +200,7 @@ final class AuthService {
 
   var connectionRequiredMessage: String {
     if let errorMessage {
-      return hostedConnectionMessage(for: errorMessage)
+      return subscriptionConnectionMessage(for: errorMessage)
     }
 
     switch configurationStore.mode {
@@ -211,50 +211,50 @@ final class AuthService {
     }
   }
 
-  func connectHostedUsingCurrentSubscription() async {
+  func connectUsingCurrentSubscription() async {
     _ = configurationStore.apply(to: apiClient)
     isConnecting = true
     errorMessage = nil
     statusMessage = "Checking hosted service..."
-    diagnostics?.record(source: .auth, title: "Hosted restore started")
+    diagnostics?.record(source: .auth, title: "Subscription restore started")
 
     do {
       let signedTransactionInfo = try await syncedCurrentEntitlementJWS()
-      await establishHostedSession(
+      await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Activating hosted service...",
-        title: "Hosted subscription restored",
+        title: "PumpSync subscription restored",
         publishesErrors: true
       )
     } catch StoreKitSubscriptionError.noActiveSubscription {
       session = nil
       try? sessionStore?.delete()
-      let message = hostedConnectionMessage(for: StoreKitSubscriptionError.noActiveSubscription.errorDescription ?? "No active subscription was found.")
+      let message = subscriptionConnectionMessage(for: StoreKitSubscriptionError.noActiveSubscription.errorDescription ?? "No active subscription was found.")
       errorMessage = message
       statusMessage = message
       diagnostics?.record(
         source: .auth,
         severity: .error,
-        title: "Hosted restore failed",
-        message: "No current StoreKit entitlement was available for hosted restore."
+        title: "Subscription restore failed",
+        message: "No current StoreKit entitlement was available for subscription restore."
       )
       isConnecting = false
     } catch {
       session = nil
       try? sessionStore?.delete()
-      let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
+      let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
       errorMessage = message
       statusMessage = message
-      diagnostics?.record(error: error, source: .auth, title: "Hosted restore failed")
+      diagnostics?.record(error: error, source: .auth, title: "Subscription restore failed")
       isConnecting = false
     }
   }
 
-  func activateHostedSubscription(signedTransactionInfo: String) async {
-    await establishHostedSession(
+  func activateSubscription(signedTransactionInfo: String) async {
+    await establishSubscriptionSession(
       signedTransactionInfo: signedTransactionInfo,
       activityMessage: "Activating hosted service...",
-      title: "Hosted subscription purchased",
+      title: "PumpSync subscription purchased",
       publishesErrors: true
     )
   }
@@ -281,7 +281,7 @@ final class AuthService {
       return
     }
 
-    guard transaction.productID == AppConstants.hostedSubscriptionProductId else {
+    guard transaction.productID == AppConstants.subscriptionProductId else {
       await transaction.finish()
       return
     }
@@ -296,7 +296,7 @@ final class AuthService {
     guard configurationStore.mode == .hosted else {
       diagnostics?.record(
         source: .auth,
-        title: "Hosted subscription transaction update skipped",
+        title: "PumpSync subscription transaction update skipped",
         message: "Self-hosted mode is active; not touching the current session. \(transaction.diagnosticSummary(active: transaction.isActiveSubscriptionEntitlement))"
       )
       await transaction.finish()
@@ -304,7 +304,7 @@ final class AuthService {
     }
 
     if transaction.isActiveSubscriptionEntitlement {
-      await activateHostedSubscription(signedTransactionInfo: result.jwsRepresentation)
+      await activateSubscription(signedTransactionInfo: result.jwsRepresentation)
     } else if session != nil {
       // Guarded on session != nil: the first time an app observes
       // Transaction.updates, StoreKit replays every transaction that's
@@ -324,7 +324,7 @@ final class AuthService {
       diagnostics?.record(
         source: .auth,
         severity: .warning,
-        title: "Hosted subscription revoked or expired",
+        title: "PumpSync subscription revoked or expired",
         message: transaction.diagnosticSummary(active: false)
       )
     }
@@ -332,32 +332,32 @@ final class AuthService {
     await transaction.finish()
   }
 
-  func recordHostedSubscriptionPurchaseCancelled() {
+  func recordSubscriptionPurchaseCancelled() {
     session = nil
     try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Subscription purchase cancelled."
     isConnecting = false
-    diagnostics?.record(source: .auth, title: "Hosted subscription purchase cancelled")
+    diagnostics?.record(source: .auth, title: "PumpSync subscription purchase cancelled")
   }
 
-  func recordHostedSubscriptionPurchasePending() {
+  func recordSubscriptionPurchasePending() {
     session = nil
     try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Subscription purchase is pending App Store approval."
     isConnecting = false
-    diagnostics?.record(source: .auth, title: "Hosted subscription purchase pending")
+    diagnostics?.record(source: .auth, title: "PumpSync subscription purchase pending")
   }
 
-  func recordHostedSubscriptionPurchaseFailed(_ error: Error) {
+  func recordSubscriptionPurchaseFailed(_ error: Error) {
     session = nil
     try? sessionStore?.delete()
     let message = safeMessage("Subscription purchase could not be completed.", error: error)
     errorMessage = message
     statusMessage = message
     isConnecting = false
-    diagnostics?.record(error: error, source: .auth, title: "Hosted subscription purchase failed")
+    diagnostics?.record(error: error, source: .auth, title: "PumpSync subscription purchase failed")
   }
 
   func connectSelfHosted() async {
@@ -413,7 +413,7 @@ final class AuthService {
 
     switch configurationStore.mode {
     case .hosted:
-      await recoverHostedSession()
+      await recoverSubscriptionSession()
     case .selfHosted:
       await recoverSelfHostedSession()
     }
@@ -435,7 +435,7 @@ final class AuthService {
     diagnostics?.record(source: .auth, severity: .warning, title: "Connection session expired")
   }
 
-  private func establishHostedSession(
+  private func establishSubscriptionSession(
     signedTransactionInfo: String,
     activityMessage: String,
     title: String,
@@ -447,7 +447,7 @@ final class AuthService {
     isConnecting = true
     errorMessage = nil
     statusMessage = activityMessage
-    diagnostics?.record(source: .auth, title: "Hosted session started")
+    diagnostics?.record(source: .auth, title: "Subscription session started")
 
     do {
       session = try await createSubscriptionSession(
@@ -459,7 +459,7 @@ final class AuthService {
       if let session {
         try? sessionStore?.save(session)
       }
-      statusMessage = "Hosted subscription active"
+      statusMessage = "PumpSync subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
       if hasValidPreviousSession {
@@ -469,7 +469,7 @@ final class AuthService {
         try? sessionStore?.delete()
       }
       if publishesErrors {
-        let message = hostedConnectionMessage(for: safeMessage("Hosted subscription access could not be verified.", error: error))
+        let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
         errorMessage = message
         statusMessage = message
       } else {
@@ -479,21 +479,21 @@ final class AuthService {
           resetDisconnectedStatus()
         }
       }
-      diagnostics?.record(error: error, source: .auth, title: "Hosted session failed")
+      diagnostics?.record(error: error, source: .auth, title: "Subscription session failed")
     }
 
     isConnecting = false
   }
 
-  private func recoverHostedSession() async {
-    diagnostics?.record(source: .auth, title: "Hosted recovery started")
+  private func recoverSubscriptionSession() async {
+    diagnostics?.record(source: .auth, title: "Subscription recovery started")
 
     do {
       let signedTransactionInfo = try await currentEntitlementJWS()
-      await establishHostedSession(
+      await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Restoring hosted service...",
-        title: "Hosted subscription recovered",
+        title: "PumpSync subscription recovered",
         publishesErrors: false
       )
     } catch StoreKitSubscriptionError.noActiveSubscription {
@@ -503,14 +503,14 @@ final class AuthService {
       diagnostics?.record(
         source: .auth,
         severity: .warning,
-        title: "Hosted recovery skipped",
-        message: "No current StoreKit entitlement was available for hosted recovery."
+        title: "Subscription recovery skipped",
+        message: "No current StoreKit entitlement was available for subscription recovery."
       )
     } catch {
       session = nil
       try? sessionStore?.delete()
       resetDisconnectedStatus()
-      diagnostics?.record(error: error, source: .auth, title: "Hosted recovery failed")
+      diagnostics?.record(error: error, source: .auth, title: "Subscription recovery failed")
     }
   }
 
@@ -553,7 +553,7 @@ final class AuthService {
   /// samples are written into their real Apple Health store.
   static func connectedStatusMessage(for session: BackendSessionResponse) -> String {
     guard session.serviceMode == "selfHosted" else {
-      return "Hosted subscription active"
+      return "PumpSync subscription active"
     }
 
     return session.isSyntheticDemo
@@ -582,7 +582,7 @@ final class AuthService {
     return DiagnosticsLogStore.redacted(description)
   }
 
-  private func hostedConnectionMessage(for message: String) -> String {
+  private func subscriptionConnectionMessage(for message: String) -> String {
     switch configurationStore.mode {
     case .hosted:
       return "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
@@ -604,7 +604,7 @@ enum StoreKitSubscriptionError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .productUnavailable:
-      return "The hosted subscription is not available from the App Store."
+      return "The PumpSync subscription is not available from the App Store."
     case .noActiveSubscription:
       return "No PumpSync service was found. Please subscribe to PumpSync or set up your own self-hosted PumpSync service."
     case .inactiveSubscriptionTransaction:
@@ -699,7 +699,7 @@ extension AuthService {
       serviceMode: serviceMode,
       dataSourceMode: "tandemSource"
     )
-    statusMessage = serviceMode == "hosted" ? "Hosted subscription active" : "Connected to self-hosted service"
+    statusMessage = serviceMode == "hosted" ? "PumpSync subscription active" : "Connected to self-hosted service"
     errorMessage = nil
     isConnecting = false
   }
