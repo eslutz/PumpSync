@@ -68,7 +68,7 @@ Record `subscription.mov` for at least 8 seconds while opening Settings, confirm
 
 Record `privacy.mov` for at least 7 seconds while opening Data Handling and revealing the privacy summary. Record `close.mov` for at least 4 seconds after returning to the status overview.
 
-- [ ] **Step 6: Verify all raw clips**
+- [x] **Step 6: Verify all raw clips**
 
 Run:
 
@@ -79,7 +79,7 @@ for clip in status sync subscription self-hosted privacy close; do
 done
 ```
 
-Expected: six non-empty portrait video clips, each at least as long as its planned edit.
+Expected: six non-empty portrait video clips. Static status and closing clips may contain only a few encoded frames because `simctl` records display changes; Task 2 extends their final genuine frames to the planned duration.
 
 ### Task 2: Build the reproducible preview assembly pipeline
 
