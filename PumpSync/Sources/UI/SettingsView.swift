@@ -531,7 +531,7 @@ private struct PumpSyncSubscriptionStoreView: View {
   @State private var purchaseAlert: ConnectionAlert?
 
   var body: some View {
-    SubscriptionStoreView(groupID: AppConstants.subscriptionGroupId) {
+    SubscriptionStoreView(productIDs: [AppConstants.subscriptionProductId]) {
       VStack(alignment: .leading, spacing: 20) {
         VStack(alignment: .leading, spacing: 8) {
           Text("PumpSync Subscription")
