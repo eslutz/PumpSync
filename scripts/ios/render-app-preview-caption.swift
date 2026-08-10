@@ -1,52 +1,94 @@
 import AppKit
 import Foundation
 
-guard CommandLine.arguments.count == 3 else {
-  FileHandle.standardError.write(Data("Usage: render-app-preview-caption.swift <text> <output.png>\n".utf8))
+guard CommandLine.arguments.count == 9 else {
+  FileHandle.standardError.write(
+    Data("Usage: render-app-preview-caption.swift <callout|closing> <text> <output.png> <x> <y> <width> <height> <font-size>\n".utf8)
+  )
   exit(64)
 }
 
-let text = CommandLine.arguments[1]
-let outputURL = URL(fileURLWithPath: CommandLine.arguments[2])
-let size = NSSize(width: 886, height: 1920)
-guard let bitmap = NSBitmapImageRep(
-  bitmapDataPlanes: nil,
-  pixelsWide: Int(size.width),
-  pixelsHigh: Int(size.height),
-  bitsPerSample: 8,
-  samplesPerPixel: 4,
-  hasAlpha: true,
-  isPlanar: false,
-  colorSpaceName: .deviceRGB,
-  bytesPerRow: 0,
-  bitsPerPixel: 0
-) else {
-  FileHandle.standardError.write(Data("Unable to allocate caption bitmap.\n".utf8))
+let style = CommandLine.arguments[1]
+let text = CommandLine.arguments[2]
+let outputURL = URL(fileURLWithPath: CommandLine.arguments[3])
+
+guard
+  ["callout", "closing"].contains(style),
+  let x = Double(CommandLine.arguments[4]),
+  let y = Double(CommandLine.arguments[5]),
+  let width = Double(CommandLine.arguments[6]),
+  let height = Double(CommandLine.arguments[7]),
+  let fontSize = Double(CommandLine.arguments[8])
+else {
+  FileHandle.standardError.write(Data("Invalid caption style or geometry.\n".utf8))
+  exit(64)
+}
+
+let canvasSize = NSSize(width: 886, height: 1920)
+let contentRect = NSRect(x: x, y: y, width: width, height: height)
+guard
+  contentRect.minX >= 0,
+  contentRect.minY >= 0,
+  contentRect.maxX <= canvasSize.width,
+  contentRect.maxY <= canvasSize.height,
+  let bitmap = NSBitmapImageRep(
+    bitmapDataPlanes: nil,
+    pixelsWide: Int(canvasSize.width),
+    pixelsHigh: Int(canvasSize.height),
+    bitsPerSample: 8,
+    samplesPerPixel: 4,
+    hasAlpha: true,
+    isPlanar: false,
+    colorSpaceName: .deviceRGB,
+    bytesPerRow: 0,
+    bitsPerPixel: 0
+  )
+else {
+  FileHandle.standardError.write(Data("Caption geometry is outside the 886x1920 canvas.\n".utf8))
   exit(1)
 }
 
 NSGraphicsContext.saveGraphicsState()
 NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSColor.clear.setFill()
-NSRect(origin: .zero, size: size).fill()
+NSRect(origin: .zero, size: canvasSize).fill()
 
-let panelRect = NSRect(x: 54, y: 164, width: 778, height: 170)
-let panel = NSBezierPath(roundedRect: panelRect, xRadius: 34, yRadius: 34)
-NSColor(calibratedWhite: 0.04, alpha: 0.82).setFill()
-panel.fill()
+if style == "callout" {
+  let shadow = NSShadow()
+  shadow.shadowColor = NSColor(calibratedWhite: 0, alpha: 0.18)
+  shadow.shadowBlurRadius = 16
+  shadow.shadowOffset = NSSize(width: 0, height: -5)
+  shadow.set()
+
+  let panel = NSBezierPath(roundedRect: contentRect, xRadius: 26, yRadius: 26)
+  NSColor(calibratedWhite: 0.98, alpha: 0.94).setFill()
+  panel.fill()
+  NSGraphicsContext.current?.shouldAntialias = true
+}
 
 let paragraphStyle = NSMutableParagraphStyle()
 paragraphStyle.alignment = .center
 paragraphStyle.lineBreakMode = .byWordWrapping
 
+let textColor = NSColor(
+  calibratedRed: 29.0 / 255.0,
+  green: 29.0 / 255.0,
+  blue: 31.0 / 255.0,
+  alpha: 1
+)
+let textInset = style == "callout" ? 24.0 : 0.0
+let textRect = contentRect.insetBy(dx: textInset, dy: textInset * 0.55)
 let attributes: [NSAttributedString.Key: Any] = [
-  .font: NSFont.systemFont(ofSize: 43, weight: .semibold),
-  .foregroundColor: NSColor.white,
+  .font: NSFont.systemFont(ofSize: fontSize, weight: style == "closing" ? .bold : .semibold),
+  .foregroundColor: textColor,
   .paragraphStyle: paragraphStyle,
 ]
 
-let textRect = NSRect(x: 88, y: 194, width: 710, height: 110)
-(text as NSString).draw(with: textRect, options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attributes)
+(text as NSString).draw(
+  with: textRect,
+  options: [.usesLineFragmentOrigin, .usesFontLeading],
+  attributes: attributes
+)
 NSGraphicsContext.restoreGraphicsState()
 
 guard let pngData = bitmap.representation(using: .png, properties: [:]) else {

@@ -19,45 +19,88 @@ for command_name in ffmpeg ffprobe swift; do
   }
 done
 
-SCENES=(status sync subscription self-hosted privacy close)
-DURATIONS=(4 7 6 6 5 2)
-CAPTIONS=(
-  "Keep your pump data in view."
-  "Sync insulin and carbohydrates to Apple Health."
-  "Subscribe to PumpSync—no server to manage."
-  "Or connect to your own self-hosted backend."
-  "Your Health data stays under your control."
-  "PumpSync."
-)
-
+SCENES=(status subscription self-hosted privacy close)
 for scene in "${SCENES[@]}"; do
   input_file="${SOURCE_DIR}/${scene}.mov"
-  if [[ ! -s "${input_file}" ]]; then
+  [[ -s "${input_file}" ]] || {
     echo "Missing or empty source clip: ${input_file}" >&2
     exit 1
-  fi
+  }
 done
 
 mkdir -p "$(dirname "${OUTPUT_FILE}")"
 
-for index in "${!SCENES[@]}"; do
-  scene="${SCENES[$index]}"
-  duration="${DURATIONS[$index]}"
-  caption_file="${WORK_DIR}/${scene}-caption.png"
-  segment_file="${WORK_DIR}/${scene}.mp4"
+render_overlay() {
+  local style="$1" text="$2" output="$3" x="$4" y="$5" width="$6" height="$7" font_size="$8"
+  swift "${CAPTION_RENDERER}" "${style}" "${text}" "${output}" \
+    "${x}" "${y}" "${width}" "${height}" "${font_size}"
+}
 
-  swift "${CAPTION_RENDERER}" "${CAPTIONS[$index]}" "${caption_file}"
+encode_segment() {
+  local input_file="$1" duration="$2" overlay_file="$3" fade_start="$4" output_file="$5"
+  local fade_end
+  fade_end="$(awk -v d="${duration}" 'BEGIN { printf "%.2f", d - 0.25 }')"
 
   ffmpeg -hide_banner -loglevel error -y \
-    -i "${SOURCE_DIR}/${scene}.mov" \
-    -loop 1 -i "${caption_file}" \
+    -i "${input_file}" -loop 1 -i "${overlay_file}" \
     -filter_complex \
-      "[0:v]reverse,trim=duration=${duration},reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${duration},trim=duration=${duration},scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[1:v]format=rgba[caption];[base][caption]overlay=0:0:shortest=1,fade=t=in:st=0:d=0.18,fade=t=out:st=$(awk -v d="${duration}" 'BEGIN { printf "%.2f", d - 0.18 }'):d=0.18[out]" \
+      "[0:v]reverse,trim=duration=${duration},reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${duration},trim=duration=${duration},scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[1:v]format=rgba,fade=t=in:st=${fade_start}:d=0.3:alpha=1,fade=t=out:st=${fade_end}:d=0.25:alpha=1[caption];[base][caption]overlay=x=0:y='if(lt(t,${fade_start}+0.3),12*(1-(t-${fade_start})/0.3),0)':shortest=1[out]" \
     -map "[out]" -t "${duration}" -an \
     -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
-    "${segment_file}"
+    "${output_file}"
+}
 
-  printf "file '%s'\n" "${segment_file}" >>"${WORK_DIR}/segments.txt"
+render_overlay callout \
+  "Sync insulin and carbohydrates from your pump to Apple Health." \
+  "${WORK_DIR}/status-caption.png" 60 470 766 190 36
+encode_segment "${SOURCE_DIR}/status.mov" 8 "${WORK_DIR}/status-caption.png" 0.4 "${WORK_DIR}/01-status.mp4"
+
+render_overlay callout "Managed by PumpSync" \
+  "${WORK_DIR}/subscription-managed.png" 110 1120 666 118 34
+render_overlay callout "No server to manage" \
+  "${WORK_DIR}/subscription-server.png" 140 500 606 118 34
+ffmpeg -hide_banner -loglevel error -y \
+  -i "${SOURCE_DIR}/subscription.mov" \
+  -loop 1 -i "${WORK_DIR}/subscription-managed.png" \
+  -loop 1 -i "${WORK_DIR}/subscription-server.png" \
+  -filter_complex \
+    "[0:v]reverse,trim=duration=6,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=6,trim=duration=6,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[1:v]format=rgba,fade=t=in:st=0.3:d=0.3:alpha=1,fade=t=out:st=2.65:d=0.3:alpha=1[managed];[2:v]format=rgba,fade=t=in:st=3.1:d=0.3:alpha=1,fade=t=out:st=5.75:d=0.25:alpha=1[server];[base][managed]overlay=x=0:y='if(lt(t,0.6),12*(1-(t-0.3)/0.3),0)':shortest=1[first];[first][server]overlay=x=0:y='if(lt(t,3.4),12*(1-(t-3.1)/0.3),0)':shortest=1[out]" \
+  -map "[out]" -t 6 -an \
+  -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
+  "${WORK_DIR}/02-subscription.mp4"
+
+render_overlay callout \
+  "Prefer your own server? Connect a self-hosted backend." \
+  "${WORK_DIR}/self-hosted-caption.png" 65 1640 756 130 30
+encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" 0.3 "${WORK_DIR}/03-self-hosted.mp4"
+
+render_overlay callout \
+  "Your Health data stays under your control." \
+  "${WORK_DIR}/privacy-caption.png" 150 1660 666 120 31
+encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" 0.3 "${WORK_DIR}/04-privacy.mp4"
+
+render_overlay closing "PumpSync" \
+  "${WORK_DIR}/closing-title.png" 120 650 646 160 66
+render_overlay closing "Your pump data. Your choice." \
+  "${WORK_DIR}/closing-tagline.png" 100 480 686 140 38
+ffmpeg -hide_banner -loglevel error -y \
+  -i "${SOURCE_DIR}/close.mov" \
+  -loop 1 -i "${WORK_DIR}/closing-title.png" \
+  -loop 1 -i "${WORK_DIR}/closing-tagline.png" \
+  -f lavfi -i "color=c=white@0.30:s=886x1920:d=4,format=rgba" \
+  -filter_complex \
+    "[0:v]reverse,trim=duration=4,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base][3:v]overlay=shortest=1[veiled];[1:v]format=rgba,fade=t=in:st=0.45:d=0.45:alpha=1[title];[2:v]format=rgba,fade=t=in:st=0.85:d=0.45:alpha=1[tagline];[veiled][title]overlay=shortest=1[titled];[titled][tagline]overlay=shortest=1[out]" \
+  -map "[out]" -t 4 -an \
+  -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
+  "${WORK_DIR}/05-close.mp4"
+
+for segment in \
+  "${WORK_DIR}/01-status.mp4" \
+  "${WORK_DIR}/02-subscription.mp4" \
+  "${WORK_DIR}/03-self-hosted.mp4" \
+  "${WORK_DIR}/04-privacy.mp4" \
+  "${WORK_DIR}/05-close.mp4"; do
+  printf "file '%s'\n" "${segment}" >>"${WORK_DIR}/segments.txt"
 done
 
 ffmpeg -hide_banner -loglevel error -y \
