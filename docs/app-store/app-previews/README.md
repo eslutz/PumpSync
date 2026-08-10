@@ -17,6 +17,6 @@ scripts/ios/create-iphone-app-preview.sh
 
 Static Simulator screens may contain only a few encoded frames because `simctl` records display changes. The assembly script deliberately extends the final genuine frame to create the approved static holds.
 
-Captions are rendered separately from the app footage. Every caption uses the app's native San Francisco system font at light weight, 72 pt black text, and a fully transparent layer with no veil or shadow. The opening transitions from the ready state to a genuine disabled, spinning Sync action; the closing title and tagline fade in in the top third of the screen.
+Captions are rendered separately from the app footage. Every caption uses the app's native San Francisco system font at light weight and 72 pt black text. A tight rounded blur of the underlying app footage supports each caption; the closing title and tagline share one blur region. The opening transitions from the ready state to a genuine disabled, spinning Sync action, and scenes use 0.35-second cross-dissolves.
 
 The output is `pumpsync-iphone-app-preview.mp4`: a silent, 30-second, portrait H.264 High-profile video at 886 × 1920 and 30 fps, targeting 11 Mbps. Upload it to the English (U.S.) iPhone App Preview slot for App Store version 1.0. Do not upload it to the iPad media set.

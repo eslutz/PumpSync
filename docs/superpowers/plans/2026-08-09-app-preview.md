@@ -339,3 +339,27 @@ Use the San Francisco system light weight in black, with a 72 pt base size for e
 - [x] **Step 3: Regenerate and inspect**
 
 Regenerate the preview, inspect all six caption scenes, validate the required App Preview media characteristics, and commit directly on `main`.
+
+### Task 9: Smooth storyboard transitions and apply background blur
+
+**Files:**
+- Modify: `scripts/ios/render-app-preview-caption.swift`
+- Modify: `scripts/ios/create-iphone-app-preview.sh`
+- Modify: `docs/app-store/app-previews/README.md`
+- Modify: `docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4`
+
+- [ ] **Step 1: Add rounded background-blur layers**
+
+Blur only the app pixels beneath each caption. The final scene uses one shared rounded blur region behind its title and tagline.
+
+- [ ] **Step 2: Revise copy and placement**
+
+Use “PumpSync runs the backend.” above Managed connection, move the other captions to their specified sections, and make the closing PumpSync title larger than the 72 pt feature-caption base.
+
+- [ ] **Step 3: Cross-dissolve scenes**
+
+Replace direct concatenation with 0.35-second cross-dissolves. Caption fade timing must leave the outgoing copy gone before the incoming screen is fully visible.
+
+- [ ] **Step 4: Regenerate, inspect, validate, and commit**
+
+Inspect all scenes and transition boundaries; validate App Preview metadata, run `git diff --check`, and commit directly on `main`.

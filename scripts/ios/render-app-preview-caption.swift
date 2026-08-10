@@ -3,7 +3,7 @@ import Foundation
 
 guard CommandLine.arguments.count == 9 else {
   FileHandle.standardError.write(
-    Data("Usage: render-app-preview-caption.swift <callout|closing> <text> <output.png> <x> <y> <width> <height> <font-size>\n".utf8)
+    Data("Usage: render-app-preview-caption.swift <callout|closing|blur> <text> <output.png> <x> <y> <width> <height> <font-size>\n".utf8)
   )
   exit(64)
 }
@@ -13,7 +13,7 @@ let text = CommandLine.arguments[2]
 let outputURL = URL(fileURLWithPath: CommandLine.arguments[3])
 
 guard
-  ["callout", "closing"].contains(style),
+  ["callout", "closing", "blur"].contains(style),
   let x = Double(CommandLine.arguments[4]),
   let y = Double(CommandLine.arguments[5]),
   let width = Double(CommandLine.arguments[6]),
@@ -53,21 +53,27 @@ NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSColor.clear.setFill()
 NSRect(origin: .zero, size: canvasSize).fill()
 
-let paragraphStyle = NSMutableParagraphStyle()
-paragraphStyle.alignment = .center
-paragraphStyle.lineBreakMode = .byWordWrapping
+if style == "blur" {
+  let blurMask = NSBezierPath(roundedRect: contentRect, xRadius: 24, yRadius: 24)
+  NSColor.white.setFill()
+  blurMask.fill()
+} else {
+  let paragraphStyle = NSMutableParagraphStyle()
+  paragraphStyle.alignment = .center
+  paragraphStyle.lineBreakMode = .byWordWrapping
 
-let attributes: [NSAttributedString.Key: Any] = [
-  .font: NSFont.systemFont(ofSize: fontSize, weight: .light),
-  .foregroundColor: NSColor.black,
-  .paragraphStyle: paragraphStyle,
-]
+  let attributes: [NSAttributedString.Key: Any] = [
+    .font: NSFont.systemFont(ofSize: fontSize, weight: .light),
+    .foregroundColor: NSColor.black,
+    .paragraphStyle: paragraphStyle,
+  ]
 
-(text as NSString).draw(
-  with: contentRect,
-  options: [.usesLineFragmentOrigin, .usesFontLeading],
-  attributes: attributes
-)
+  (text as NSString).draw(
+    with: contentRect,
+    options: [.usesLineFragmentOrigin, .usesFontLeading],
+    attributes: attributes
+  )
+}
 NSGraphicsContext.restoreGraphicsState()
 
 guard let pngData = bitmap.representation(using: .png, properties: [:]) else {

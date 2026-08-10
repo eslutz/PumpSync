@@ -16,7 +16,7 @@ The preview is for prospective users who already understand insulin pumps but ma
 4. **Privacy (20–26 seconds):** Show Data Handling. Caption: “Your Health data stays under your control.” Position it over the Stored on this device section; the card details do not need to remain readable.
 5. **Close (26–30 seconds):** Return to the sync overview. Fade in “PumpSync,” then fade in “Your pump data. Your choice.” 0.4 seconds later. Position both lines in the top third within one shared blurred background. The PumpSync title is larger than feature caption text.
 
-Transitions should be direct cuts or short dissolves. Avoid decorative animation, narration, music, or claims that are not visible in the app.
+Use 0.35-second cross-dissolves between every scene. Fade the outgoing caption during the dissolve and fade the incoming caption in after the destination screen settles. Avoid decorative animation, narration, music, or claims that are not visible in the app.
 
 ## Capture and Composition
 
