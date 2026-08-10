@@ -47,6 +47,13 @@ final class SyncCoordinator {
   private(set) var isSyncing = false
   private(set) var lastMessage: String?
 
+#if DEBUG
+  func applyScreenshotSyncing() {
+    isSyncing = true
+    lastMessage = nil
+  }
+#endif
+
   init(
     apiClient: PumpSyncAPIClient,
     authService: AuthService,

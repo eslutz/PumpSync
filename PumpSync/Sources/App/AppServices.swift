@@ -176,6 +176,9 @@ final class AppServices {
         initialImportRange: .pastWeek
       )
     )
+    if AppLaunchEnvironment.isScreenshotSyncing {
+      syncCoordinator.applyScreenshotSyncing()
+    }
     diagnosticsLogStore.record(source: .auth, title: "PumpSync subscription active")
     diagnosticsLogStore.record(source: .sync, title: "Sync completed", message: "Returned 48, imported 48.")
     nativeDiagnosticsStore.applyScreenshotEntries([

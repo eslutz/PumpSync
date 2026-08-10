@@ -19,7 +19,7 @@ for command_name in ffmpeg ffprobe swift; do
   }
 done
 
-SCENES=(status subscription self-hosted privacy close)
+SCENES=(status sync-active subscription self-hosted privacy close)
 for scene in "${SCENES[@]}"; do
   input_file="${SOURCE_DIR}/${scene}.mov"
   [[ -s "${input_file}" ]] || {
@@ -52,13 +52,21 @@ encode_segment() {
 
 render_overlay callout \
   "Sync insulin and carbohydrates from your pump to Apple Health." \
-  "${WORK_DIR}/status-caption.png" 40 480 806 190 42
-encode_segment "${SOURCE_DIR}/status.mov" 8 "${WORK_DIR}/status-caption.png" 0.4 "${WORK_DIR}/01-status.mp4"
+  "${WORK_DIR}/status-caption.png" 45 1630 796 170 50
+ffmpeg -hide_banner -loglevel error -y \
+  -i "${SOURCE_DIR}/status.mov" \
+  -i "${SOURCE_DIR}/sync-active.mov" \
+  -loop 1 -i "${WORK_DIR}/status-caption.png" \
+  -filter_complex \
+    "[0:v]reverse,trim=duration=2,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=2,trim=duration=2,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[ready];[1:v]trim=duration=6,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=6,trim=duration=6,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[active];[ready][active]concat=n=2:v=1:a=0[base];[2:v]format=rgba,fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=7.75:d=0.25:alpha=1[caption];[base][caption]overlay=x=0:y='if(lt(t,0.7),12*(1-(t-0.4)/0.3),0)':shortest=1[out]" \
+  -map "[out]" -t 8 -an \
+  -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
+  "${WORK_DIR}/01-status.mp4"
 
 render_overlay callout "Managed by PumpSync" \
-  "${WORK_DIR}/subscription-managed.png" 75 500 736 130 42
+  "${WORK_DIR}/subscription-managed.png" 135 1120 616 130 48
 render_overlay callout "No server to manage" \
-  "${WORK_DIR}/subscription-server.png" 70 500 746 130 42
+  "${WORK_DIR}/subscription-server.png" 115 560 656 130 48
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/subscription.mov" \
   -loop 1 -i "${WORK_DIR}/subscription-managed.png" \
@@ -70,26 +78,25 @@ ffmpeg -hide_banner -loglevel error -y \
   "${WORK_DIR}/02-subscription.mp4"
 
 render_overlay callout \
-  "Connect a self-hosted backend." \
-  "${WORK_DIR}/self-hosted-caption.png" 80 860 726 90 40
+  "Connect to your own backend that you host and manage." \
+  "${WORK_DIR}/self-hosted-caption.png" 55 730 776 170 46
 encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" 0.3 "${WORK_DIR}/03-self-hosted.mp4"
 
 render_overlay callout \
   "Your Health data stays under your control." \
-  "${WORK_DIR}/privacy-caption.png" 150 1620 666 140 40
+  "${WORK_DIR}/privacy-caption.png" 75 1000 736 190 50
 encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" 0.3 "${WORK_DIR}/04-privacy.mp4"
 
 render_overlay closing "PumpSync" \
-  "${WORK_DIR}/closing-title.png" 120 1260 646 160 66
+  "${WORK_DIR}/closing-title.png" 100 1410 686 160 72
 render_overlay closing "Your pump data. Your choice." \
-  "${WORK_DIR}/closing-tagline.png" 80 1080 726 140 42
+  "${WORK_DIR}/closing-tagline.png" 60 1210 766 140 50
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/close.mov" \
   -loop 1 -i "${WORK_DIR}/closing-title.png" \
   -loop 1 -i "${WORK_DIR}/closing-tagline.png" \
-  -f lavfi -i "color=c=white@0.30:s=886x1920:d=4,format=rgba" \
   -filter_complex \
-    "[0:v]reverse,trim=duration=4,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base][3:v]overlay=shortest=1[veiled];[1:v]format=rgba,fade=t=in:st=0.45:d=0.45:alpha=1[title];[2:v]format=rgba,fade=t=in:st=0.85:d=0.45:alpha=1[tagline];[veiled][title]overlay=shortest=1[titled];[titled][tagline]overlay=shortest=1[out]" \
+    "[0:v]reverse,trim=duration=4,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[1:v]format=rgba,fade=t=in:st=0.45:d=0.45:alpha=1[title];[2:v]format=rgba,fade=t=in:st=0.85:d=0.45:alpha=1[tagline];[base][title]overlay=shortest=1[titled];[titled][tagline]overlay=shortest=1[out]" \
   -map "[out]" -t 4 -an \
   -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
   "${WORK_DIR}/05-close.mp4"

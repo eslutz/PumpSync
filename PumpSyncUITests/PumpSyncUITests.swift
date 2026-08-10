@@ -15,6 +15,14 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(hasTabBar || hasSplitSidebar)
   }
 
+  func testPreviewSyncFixtureShowsDisabledSyncAction() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-syncing"])
+
+    let syncingButton = app.buttons["Syncing"]
+    XCTAssertTrue(syncingButton.waitForExistence(timeout: 5))
+    XCTAssertFalse(syncingButton.isEnabled)
+  }
+
   func testCoreScreensRenderInScreenshotMode() {
     let app = launchScreenshotFixture()
 

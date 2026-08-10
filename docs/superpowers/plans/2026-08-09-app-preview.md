@@ -290,3 +290,32 @@ Run `bash -n scripts/ios/create-iphone-app-preview.sh` and `bash scripts/ios/cre
 - [ ] **Step 4: Validate and commit on main**
 
 Verify H.264 High, 886 × 1920, 30 fps, 25–30 seconds, no audio, and size below 500 MB. Run `git diff --check`; update the preview README; commit the pipeline, documentation, and MP4 directly on `main`.
+
+### Task 7: Record an active sync and refine caption hierarchy
+
+**Files:**
+- Create temporarily: `/tmp/pumpsync-app-preview/sync-active.mov`
+- Modify: `scripts/ios/render-app-preview-caption.swift`
+- Modify: `scripts/ios/create-iphone-app-preview.sh`
+- Modify: `docs/app-store/app-previews/README.md`
+- Modify: `docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4`
+
+**Interfaces:**
+- Consumes: genuine Simulator status and active-sync recordings, the five existing storyboard recordings, and the existing caption renderer.
+- Produces: one Apple-compliant preview with visible Sync action feedback, regular-weight large captions, and tight translucent veils where footage would otherwise reduce legibility.
+
+- [x] **Step 1: Record the active sync state**
+
+Build and launch PumpSync on the iPhone simulator using the deterministic active-sync preview fixture, record `sync-active.mov`, and preserve at least one second where the action is disabled and the sync icon is spinning. Inspect a recorded frame before using it.
+
+- [x] **Step 2: Render regular-weight veiled captions**
+
+Use SF system regular at `#5F6066`. Render a tight white `82%` veil behind caption text, with no shadow, approximately 48–50 pt feature text, 72 pt closing title, and 50 pt closing tagline.
+
+- [x] **Step 3: Recompose the storyboard**
+
+Use active-sync footage in the opening scene. Put its caption in the top third. Return subscription captions to their related benefits, use “Connect to your own backend that you host and manage.” below Connect, place the Data Handling caption over Credentials, and put closing copy in the top third. Use thin veils for all of these captions.
+
+- [x] **Step 4: Regenerate, inspect, validate, and commit**
+
+Inspect frames at 2, 5, 9, 12, 16, 22, 27, and 29 seconds. Verify visible active sync feedback, legibility, caption placement, no Subscribe overlap, H.264 High, 886 × 1920, 30 fps, 25–30 seconds, no audio, and size below 500 MB. Commit directly on `main`.

@@ -53,24 +53,29 @@ NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSColor.clear.setFill()
 NSRect(origin: .zero, size: canvasSize).fill()
 
+let veil = NSBezierPath(roundedRect: contentRect, xRadius: 18, yRadius: 18)
+NSColor(calibratedWhite: 1, alpha: 0.82).setFill()
+veil.fill()
+
 let paragraphStyle = NSMutableParagraphStyle()
 paragraphStyle.alignment = .center
 paragraphStyle.lineBreakMode = .byWordWrapping
 
 let textColor = NSColor(
-  calibratedRed: 107.0 / 255.0,
-  green: 107.0 / 255.0,
-  blue: 112.0 / 255.0,
+  calibratedRed: 95.0 / 255.0,
+  green: 96.0 / 255.0,
+  blue: 102.0 / 255.0,
   alpha: 1
 )
+let textRect = contentRect.insetBy(dx: 18, dy: 12)
 let attributes: [NSAttributedString.Key: Any] = [
-  .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
+  .font: NSFont.systemFont(ofSize: fontSize, weight: .regular),
   .foregroundColor: textColor,
   .paragraphStyle: paragraphStyle,
 ]
 
 (text as NSString).draw(
-  with: contentRect,
+  with: textRect,
   options: [.usesLineFragmentOrigin, .usesFontLeading],
   attributes: attributes
 )
