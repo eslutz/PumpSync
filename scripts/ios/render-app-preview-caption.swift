@@ -3,7 +3,7 @@ import Foundation
 
 guard CommandLine.arguments.count == 9 else {
   FileHandle.standardError.write(
-    Data("Usage: render-app-preview-caption.swift <callout|closing|blur> <text> <output.png> <x> <y> <width> <height> <font-size>\n".utf8)
+    Data("Usage: render-app-preview-caption.swift <callout|closing|blur|blur-full> <text> <output.png> <x> <y> <width> <height> <font-size>\n".utf8)
   )
   exit(64)
 }
@@ -13,7 +13,7 @@ let text = CommandLine.arguments[2]
 let outputURL = URL(fileURLWithPath: CommandLine.arguments[3])
 
 guard
-  ["callout", "closing", "blur"].contains(style),
+  ["callout", "closing", "blur", "blur-full"].contains(style),
   let x = Double(CommandLine.arguments[4]),
   let y = Double(CommandLine.arguments[5]),
   let width = Double(CommandLine.arguments[6]),
@@ -66,7 +66,15 @@ let measuredText = (text as NSString).boundingRect(
   options: [.usesLineFragmentOrigin, .usesFontLeading],
   attributes: attributes
 )
-let bubbleSize = NSSize(width: min(contentRect.width, ceil(measuredText.width) + 48), height: min(contentRect.height, ceil(measuredText.height) + 48))
+// AppKit's typographic bounds can omit a few pixels of glyph descent and
+// antialiasing. Keep the requested 24-point visual padding plus 12 points of
+// vertical drawing safety so descenders and the final line cannot be clipped.
+let measuredWidth = ceil(measuredText.width)
+let measuredHeight = ceil(measuredText.height) + 12
+let bubbleSize = NSSize(
+  width: min(contentRect.width, measuredWidth + 48),
+  height: min(contentRect.height, measuredHeight + 48)
+)
 let bubbleRect = NSRect(
   x: contentRect.midX - bubbleSize.width / 2,
   y: contentRect.midY - bubbleSize.height / 2,
@@ -74,14 +82,20 @@ let bubbleRect = NSRect(
   height: bubbleSize.height
 )
 
-if style == "blur" {
-  let blurMask = NSBezierPath(roundedRect: bubbleRect, xRadius: 24, yRadius: 24)
+if style == "blur" || style == "blur-full" {
+  let maskRect = style == "blur-full" ? contentRect : bubbleRect
+  let blurMask = NSBezierPath(roundedRect: maskRect, xRadius: 24, yRadius: 24)
   NSColor.white.setFill()
   blurMask.fill()
 } else {
-
+  let textRect = NSRect(
+    x: bubbleRect.midX - measuredWidth / 2,
+    y: bubbleRect.midY - measuredHeight / 2,
+    width: measuredWidth,
+    height: measuredHeight
+  )
   (text as NSString).draw(
-    with: bubbleRect.insetBy(dx: 24, dy: 24),
+    with: textRect,
     options: [.usesLineFragmentOrigin, .usesFontLeading],
     attributes: attributes
   )
