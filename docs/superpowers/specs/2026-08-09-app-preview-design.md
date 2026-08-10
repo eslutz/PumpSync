@@ -11,10 +11,10 @@ The preview is for prospective users who already understand insulin pumps but ma
 ## Storyboard
 
 1. **Sync overview (0–8 seconds):** Show the connected status, ready pump data, Sync Now action, and completed last sync as one continuous opening screen. Caption: “Sync insulin and carbohydrates from your pump to Apple Health.” Place the caption in the open space below Last Sync and fade it in after 0.4 seconds.
-2. **PumpSync subscription (8–14 seconds):** Present the subscription benefits. Show “Managed by PumpSync” beside the Managed connection benefit, then replace it with “No server to manage” beside the No server setup benefit. Neither callout may cover the Subscribe button.
-3. **Self-hosted (14–20 seconds):** Show the Self-hosted connection settings. Caption: “Prefer your own server? Connect a self-hosted backend.” Place the caption below the connection card or beside the Self-hosted selector without covering form controls.
-4. **Privacy (20–26 seconds):** Show Data Handling. Caption: “Your Health data stays under your control.” Place a compact callout directly beneath the Data Handling heading without obscuring the privacy details.
-5. **Close (26–30 seconds):** Return to the sync overview and apply a subtle white veil. Fade in “PumpSync,” then fade in “Your pump data. Your choice.” 0.4 seconds later. Do not use a caption box on this screen.
+2. **PumpSync subscription (8–14 seconds):** Present the subscription benefits. Show “Managed by PumpSync” beside the Managed connection benefit, then replace it with “No server to manage” beside the No server setup benefit. Neither caption may cover the Subscribe button.
+3. **Self-hosted (14–20 seconds):** Show the Self-hosted connection settings. Caption: “Connect a self-hosted backend.” Position it immediately below the Connect control without obscuring the control itself.
+4. **Privacy (20–26 seconds):** Show Data Handling. Caption: “Your Health data stays under your control.” Place it in the top third, offset to preserve the Back control.
+5. **Close (26–30 seconds):** Return to the sync overview and apply a subtle white veil. Fade in “PumpSync,” then fade in “Your pump data. Your choice.” 0.4 seconds later. Position both lines in the top third and do not use a caption box.
 
 Transitions should be direct cuts or short dissolves. Avoid decorative animation, narration, music, or claims that are not visible in the app.
 
@@ -23,9 +23,9 @@ Transitions should be direct cuts or short dissolves. Avoid decorative animation
 - Capture genuine app UI from an iPhone simulator in portrait orientation.
 - Use deterministic demo data and avoid displaying personal information, credentials, or production tokens.
 - Keep important controls away from caption overlays, including the Subscribe button and tab bar.
-- Use contextual callouts rather than a fixed lower-third. Callouts use a light gray or white background at approximately 94% opacity, dark `#1D1D1F` text, restrained corner radii, and a subtle shadow.
-- Position each callout close to the feature it describes. Animate it with a 0.3-second opacity fade and a slight upward movement.
-- The closing title uses dark typography over a subtle white veil, with no rounded caption panel.
+- Use the app's native San Francisco system font for every caption. Use medium-gray `#6B6B70`, which maintains at least 4.5:1 contrast against both white and the app's light-gray surface.
+- Use no caption panels, rounded rectangles, shadows, or other caption backgrounds. Position each caption in clear UI space close to the feature it describes, then animate it with a 0.3-second opacity fade and a slight upward movement.
+- Use approximately 40–44 pt type for feature captions; use a larger title and supporting tagline for the close. The closing typography is medium gray over a subtle white veil, without a caption panel.
 - The default poster frame should clearly show the app’s status overview and the PumpSync name.
 
 ## Delivery Contract

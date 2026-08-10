@@ -53,39 +53,24 @@ NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSColor.clear.setFill()
 NSRect(origin: .zero, size: canvasSize).fill()
 
-if style == "callout" {
-  let shadow = NSShadow()
-  shadow.shadowColor = NSColor(calibratedWhite: 0, alpha: 0.18)
-  shadow.shadowBlurRadius = 16
-  shadow.shadowOffset = NSSize(width: 0, height: -5)
-  shadow.set()
-
-  let panel = NSBezierPath(roundedRect: contentRect, xRadius: 26, yRadius: 26)
-  NSColor(calibratedWhite: 0.98, alpha: 0.94).setFill()
-  panel.fill()
-  NSGraphicsContext.current?.shouldAntialias = true
-}
-
 let paragraphStyle = NSMutableParagraphStyle()
 paragraphStyle.alignment = .center
 paragraphStyle.lineBreakMode = .byWordWrapping
 
 let textColor = NSColor(
-  calibratedRed: 29.0 / 255.0,
-  green: 29.0 / 255.0,
-  blue: 31.0 / 255.0,
+  calibratedRed: 107.0 / 255.0,
+  green: 107.0 / 255.0,
+  blue: 112.0 / 255.0,
   alpha: 1
 )
-let textInset = style == "callout" ? 24.0 : 0.0
-let textRect = contentRect.insetBy(dx: textInset, dy: textInset * 0.55)
 let attributes: [NSAttributedString.Key: Any] = [
-  .font: NSFont.systemFont(ofSize: fontSize, weight: style == "closing" ? .bold : .semibold),
+  .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
   .foregroundColor: textColor,
   .paragraphStyle: paragraphStyle,
 ]
 
 (text as NSString).draw(
-  with: textRect,
+  with: contentRect,
   options: [.usesLineFragmentOrigin, .usesFontLeading],
   attributes: attributes
 )

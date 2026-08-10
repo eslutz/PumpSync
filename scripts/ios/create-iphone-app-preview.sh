@@ -52,13 +52,13 @@ encode_segment() {
 
 render_overlay callout \
   "Sync insulin and carbohydrates from your pump to Apple Health." \
-  "${WORK_DIR}/status-caption.png" 60 470 766 190 36
+  "${WORK_DIR}/status-caption.png" 40 480 806 190 42
 encode_segment "${SOURCE_DIR}/status.mov" 8 "${WORK_DIR}/status-caption.png" 0.4 "${WORK_DIR}/01-status.mp4"
 
 render_overlay callout "Managed by PumpSync" \
-  "${WORK_DIR}/subscription-managed.png" 110 1120 666 118 34
+  "${WORK_DIR}/subscription-managed.png" 75 500 736 130 42
 render_overlay callout "No server to manage" \
-  "${WORK_DIR}/subscription-server.png" 140 500 606 118 34
+  "${WORK_DIR}/subscription-server.png" 70 500 746 130 42
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/subscription.mov" \
   -loop 1 -i "${WORK_DIR}/subscription-managed.png" \
@@ -70,19 +70,19 @@ ffmpeg -hide_banner -loglevel error -y \
   "${WORK_DIR}/02-subscription.mp4"
 
 render_overlay callout \
-  "Prefer your own server? Connect a self-hosted backend." \
-  "${WORK_DIR}/self-hosted-caption.png" 65 1640 756 130 30
+  "Connect a self-hosted backend." \
+  "${WORK_DIR}/self-hosted-caption.png" 80 860 726 90 40
 encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" 0.3 "${WORK_DIR}/03-self-hosted.mp4"
 
 render_overlay callout \
   "Your Health data stays under your control." \
-  "${WORK_DIR}/privacy-caption.png" 150 1660 666 120 31
+  "${WORK_DIR}/privacy-caption.png" 150 1620 666 140 40
 encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" 0.3 "${WORK_DIR}/04-privacy.mp4"
 
 render_overlay closing "PumpSync" \
-  "${WORK_DIR}/closing-title.png" 120 650 646 160 66
+  "${WORK_DIR}/closing-title.png" 120 1260 646 160 66
 render_overlay closing "Your pump data. Your choice." \
-  "${WORK_DIR}/closing-tagline.png" 100 480 686 140 38
+  "${WORK_DIR}/closing-tagline.png" 80 1080 726 140 42
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/close.mov" \
   -loop 1 -i "${WORK_DIR}/closing-title.png" \

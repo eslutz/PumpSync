@@ -262,3 +262,31 @@ Choose the clear status/sync frame near 5 seconds as the poster frame. Confirm t
 - [ ] **Step 5: Final state verification**
 
 Reload the version page and verify one English (U.S.) iPhone App Preview, eight correctly ordered iPhone screenshots, eight correctly ordered iPad screenshots, and no unintended submission-state change. Record the frontend `HEAD`, worktree status, and ahead/behind state for handoff.
+
+### Task 6: Make every caption a native, accessible text overlay
+
+**Files:**
+- Modify: `scripts/ios/render-app-preview-caption.swift`
+- Modify: `scripts/ios/create-iphone-app-preview.sh`
+- Modify: `docs/app-store/app-previews/README.md`
+- Modify: `docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4`
+
+**Interfaces:**
+- Consumes: the five raw Simulator clips in `/tmp/pumpsync-app-preview` and the renderer CLI `render-app-preview-caption.swift <style> <text> <output.png> <x> <y> <width> <height> <font-size>`.
+- Produces: transparent, system-font caption layers with no panel or shadow, assembled into a 30-second App Preview.
+
+- [x] **Step 1: Make the renderer text-only**
+
+Remove panel, shadow, inset, and style-dependent font weight rendering. Preserve the current CLI for compatibility. Render every caption with `NSFont.systemFont`, `.medium` weight, `#6B6B70`, centered multiline alignment, and transparent surrounding pixels.
+
+- [x] **Step 2: Update caption geometry and sizes**
+
+Set feature captions to 40–44 pt in clear screen areas. Keep subscription captions clear of Subscribe. Use “Connect a self-hosted backend.” directly below Connect, place privacy in the top third clear of Back, and place both closing lines in the top third over the existing white veil.
+
+- [x] **Step 3: Regenerate and inspect all scenes**
+
+Run `bash -n scripts/ios/create-iphone-app-preview.sh` and `bash scripts/ios/create-iphone-app-preview.sh`. Export frames at 2, 9, 12, 16, 22, 27, and 29 seconds. Confirm all captions are gray, backgroundless, legible, and do not cover the specified controls.
+
+- [ ] **Step 4: Validate and commit on main**
+
+Verify H.264 High, 886 × 1920, 30 fps, 25–30 seconds, no audio, and size below 500 MB. Run `git diff --check`; update the preview README; commit the pipeline, documentation, and MP4 directly on `main`.
