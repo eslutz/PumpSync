@@ -50,7 +50,7 @@ encode_segment() {
   ffmpeg -hide_banner -loglevel error -y \
     -i "${input_file}" -loop 1 -i "${overlay_file}" -loop 1 -i "${mask_file}" \
     -filter_complex \
-      "[0:v]reverse,trim=duration=${duration},reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${duration},trim=duration=${duration},scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=2[clean][blur-source];[blur-source]crop=${width}:${height}:${x}:${video_y},boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[blur];[2:v]crop=${width}:${height}:${x}:${video_y},format=gray[mask];[blur][mask]alphamerge[masked-blur];[clean][masked-blur]overlay=${x}:${video_y}:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=${fade_start}:d=0.3:alpha=1,fade=t=out:st=${fade_end}:d=0.35:alpha=1[caption];[blurred-base][caption]overlay=x=0:y='if(lt(t,${fade_start}+0.3),12*(1-(t-${fade_start})/0.3),0)':shortest=1[out]" \
+      "[0:v]reverse,trim=duration=${duration},reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${duration},trim=duration=${duration},scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=2[clean][blur-source];[blur-source]crop=${width}:${height}:${x}:${video_y},boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[blur];[2:v]crop=${width}:${height}:${x}:${video_y},format=gray[mask];[blur][mask]alphamerge[masked-blur];[masked-blur]fade=t=in:st=${fade_start}:d=0.3:alpha=1,fade=t=out:st=${fade_end}:d=0.35:alpha=1[visible-blur];[clean][visible-blur]overlay=${x}:${video_y}:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=${fade_start}:d=0.3:alpha=1,fade=t=out:st=${fade_end}:d=0.35:alpha=1[caption];[blurred-base][caption]overlay=x=0:y='if(lt(t,${fade_start}+0.3),12*(1-(t-${fade_start})/0.3),0)':shortest=1[out]" \
     -map "[out]" -t "${duration}" -an \
     -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
     "${output_file}"
@@ -65,8 +65,8 @@ ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/sync-active.mov" \
   -loop 1 -i "${WORK_DIR}/status-caption.png" -loop 1 -i "${WORK_DIR}/status-blur.png" \
   -filter_complex \
-    "[0:v]reverse,trim=duration=2,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=2,trim=duration=2,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[ready];[1:v]trim=duration=6,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=6,trim=duration=6,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[active];[ready][active]concat=n=2:v=1:a=0[base];[base]split=2[clean][blur-source];[blur-source]crop=796:260:45:190,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[blur];[3:v]crop=796:260:45:190,format=gray[mask];[blur][mask]alphamerge[masked-blur];[clean][masked-blur]overlay=45:190:format=auto[blurred-base];[2:v]format=rgba,fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=7.65:d=0.35:alpha=1[caption];[blurred-base][caption]overlay=x=0:y='if(lt(t,0.7),12*(1-(t-0.4)/0.3),0)':shortest=1[out]" \
-  -map "[out]" -t 8 -an \
+    "[0:v]reverse,trim=duration=1,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=1,trim=duration=1,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[ready];[1:v]trim=duration=4,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[active];[ready][active]concat=n=2:v=1:a=0[base];[base]split=2[clean][blur-source];[blur-source]crop=796:260:45:190,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[blur];[3:v]crop=796:260:45:190,format=gray[mask];[blur][mask]alphamerge[masked-blur];[masked-blur]fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=4.65:d=0.35:alpha=1[visible-blur];[clean][visible-blur]overlay=45:190:format=auto[blurred-base];[2:v]format=rgba,fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=4.65:d=0.35:alpha=1[caption];[blurred-base][caption]overlay=x=0:y='if(lt(t,0.7),12*(1-(t-0.4)/0.3),0)':shortest=1[out]" \
+  -map "[out]" -t 5 -an \
   -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
   "${WORK_DIR}/01-status.mp4"
 
@@ -83,22 +83,22 @@ ffmpeg -hide_banner -loglevel error -y \
   -loop 1 -i "${WORK_DIR}/subscription-managed-blur.png" \
   -loop 1 -i "${WORK_DIR}/subscription-server-blur.png" \
   -filter_complex \
-    "[0:v]reverse,trim=duration=6,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=6,trim=duration=6,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=2[clean][managed-source];[managed-source]crop=800:180:43:460,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[managed-blur];[3:v]crop=800:180:43:460,format=gray[managed-mask];[managed-blur][managed-mask]alphamerge[masked-managed];[clean][masked-managed]overlay=43:460:format=auto[managed-base];[managed-base]split=2[clean-two][server-source];[server-source]crop=800:120:43:1180,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[server-blur];[4:v]crop=800:120:43:1180,format=gray[server-mask];[server-blur][server-mask]alphamerge[masked-server];[clean-two][masked-server]overlay=43:1180:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=0.3:d=0.3:alpha=1,fade=t=out:st=2.65:d=0.3:alpha=1[managed];[2:v]format=rgba,fade=t=in:st=3.1:d=0.3:alpha=1,fade=t=out:st=5.65:d=0.35:alpha=1[server];[blurred-base][managed]overlay=x=0:y='if(lt(t,0.6),12*(1-(t-0.3)/0.3),0)':shortest=1[first];[first][server]overlay=x=0:y='if(lt(t,3.4),12*(1-(t-3.1)/0.3),0)':shortest=1[out]" \
+    "[0:v]reverse,trim=duration=6,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=2[clean][managed-source];[managed-source]crop=800:180:43:460,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[managed-blur];[3:v]crop=800:180:43:460,format=gray[managed-mask];[managed-blur][managed-mask]alphamerge[masked-managed];[masked-managed]fade=t=in:st=0.3:d=0.3:alpha=1,fade=t=out:st=2.65:d=0.3:alpha=1[visible-managed];[clean][visible-managed]overlay=43:460:format=auto[managed-base];[managed-base]split=2[clean-two][server-source];[server-source]crop=800:120:43:1180,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[server-blur];[4:v]crop=800:120:43:1180,format=gray[server-mask];[server-blur][server-mask]alphamerge[masked-server];[masked-server]fade=t=in:st=3.1:d=0.3:alpha=1,fade=t=out:st=5.65:d=0.35:alpha=1[visible-server];[clean-two][visible-server]overlay=43:1180:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=0.3:d=0.3:alpha=1,fade=t=out:st=2.65:d=0.3:alpha=1[managed];[2:v]format=rgba,fade=t=in:st=3.1:d=0.3:alpha=1,fade=t=out:st=5.65:d=0.35:alpha=1[server];[blurred-base][managed]overlay=x=0:y='if(lt(t,0.6),12*(1-(t-0.3)/0.3),0)':shortest=1[first];[first][server]overlay=x=0:y='if(lt(t,3.4),12*(1-(t-3.1)/0.3),0)':shortest=1[out]" \
   -map "[out]" -t 6 -an \
   -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
   "${WORK_DIR}/02-subscription.mp4"
 
 render_overlay callout \
   "Connect to your own backend that you host and manage." \
-  "${WORK_DIR}/self-hosted-caption.png" 43 660 800 370 72
-render_blur_mask "${WORK_DIR}/self-hosted-blur.png" 43 660 800 370
-encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" "${WORK_DIR}/self-hosted-blur.png" 43 660 800 370 0.3 "${WORK_DIR}/03-self-hosted.mp4"
+  "${WORK_DIR}/self-hosted-caption.png" 43 430 800 370 72
+render_blur_mask "${WORK_DIR}/self-hosted-blur.png" 43 430 800 370
+encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" "${WORK_DIR}/self-hosted-blur.png" 43 430 800 370 0.3 "${WORK_DIR}/03-self-hosted.mp4"
 
 render_overlay callout \
   "Your Health data stays under your control." \
-  "${WORK_DIR}/privacy-caption.png" 43 1250 800 220 72
-render_blur_mask "${WORK_DIR}/privacy-blur.png" 43 1250 800 220
-encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" "${WORK_DIR}/privacy-blur.png" 43 1250 800 220 0.3 "${WORK_DIR}/04-privacy.mp4"
+  "${WORK_DIR}/privacy-caption.png" 43 1110 800 220 72
+render_blur_mask "${WORK_DIR}/privacy-blur.png" 43 1110 800 220
+encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" "${WORK_DIR}/privacy-blur.png" 43 1110 800 220 0.3 "${WORK_DIR}/04-privacy.mp4"
 
 render_overlay closing "PumpSync" \
   "${WORK_DIR}/closing-title.png" 43 1450 800 170 96
@@ -111,7 +111,7 @@ ffmpeg -hide_banner -loglevel error -y \
   -loop 1 -i "${WORK_DIR}/closing-tagline.png" \
   -loop 1 -i "${WORK_DIR}/closing-blur.png" \
   -filter_complex \
-    "[0:v]reverse,trim=duration=4,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=2[clean][blur-source];[blur-source]crop=800:460:43:280,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[blur];[3:v]crop=800:460:43:280,format=gray[mask];[blur][mask]alphamerge[masked-blur];[clean][masked-blur]overlay=43:280:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=0.45:d=0.9:alpha=1[title];[2:v]format=rgba,fade=t=in:st=1.35:d=0.9:alpha=1[tagline];[blurred-base][title]overlay=shortest=1[titled];[titled][tagline]overlay=shortest=1[out]" \
+    "[0:v]reverse,trim=duration=4,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=2[clean][blur-source];[blur-source]crop=800:460:43:280,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+255*0.85':g='g(X,Y)*0.15+255*0.85':b='b(X,Y)*0.15+255*0.85'[blur];[3:v]crop=800:460:43:280,format=gray[mask];[blur][mask]alphamerge[masked-blur];[masked-blur]fade=t=in:st=0.45:d=0.9:alpha=1[visible-blur];[clean][visible-blur]overlay=43:280:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=0.45:d=0.9:alpha=1[title];[2:v]format=rgba,fade=t=in:st=1.35:d=0.9:alpha=1[tagline];[blurred-base][title]overlay=shortest=1[titled];[titled][tagline]overlay=shortest=1[out]" \
   -map "[out]" -t 4 -an \
   -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
   "${WORK_DIR}/05-close.mp4"
@@ -127,7 +127,7 @@ done
 
 ffmpeg -hide_banner -loglevel error -y \
   -i "${WORK_DIR}/01-status.mp4" -i "${WORK_DIR}/02-subscription.mp4" -i "${WORK_DIR}/03-self-hosted.mp4" -i "${WORK_DIR}/04-privacy.mp4" -i "${WORK_DIR}/05-close.mp4" \
-  -filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.35:offset=7.65[v01];[v01][2:v]xfade=transition=fade:duration=0.35:offset=13.30[v02];[v02][3:v]xfade=transition=fade:duration=0.35:offset=18.95[v03];[v03][4:v]xfade=transition=fade:duration=0.35:offset=24.60[out]" \
+  -filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.35:offset=4.65[v01];[v01][2:v]xfade=transition=fade:duration=0.35:offset=10.30[v02];[v02][3:v]xfade=transition=fade:duration=0.35:offset=15.95[v03];[v03][4:v]xfade=transition=fade:duration=0.35:offset=21.60[out]" \
   -map "[out]" \
   -an -c:v libx264 -profile:v high -level:v 4.0 -preset slow \
   -b:v 11M -minrate 11M -maxrate 11M -bufsize 22M \
