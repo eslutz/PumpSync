@@ -53,23 +53,35 @@ NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSColor.clear.setFill()
 NSRect(origin: .zero, size: canvasSize).fill()
 
+let paragraphStyle = NSMutableParagraphStyle()
+paragraphStyle.alignment = .center
+paragraphStyle.lineBreakMode = .byWordWrapping
+let attributes: [NSAttributedString.Key: Any] = [
+  .font: NSFont.systemFont(ofSize: fontSize, weight: .light),
+  .foregroundColor: NSColor.black,
+  .paragraphStyle: paragraphStyle,
+]
+let measuredText = (text as NSString).boundingRect(
+  with: NSSize(width: contentRect.width - 48, height: .greatestFiniteMagnitude),
+  options: [.usesLineFragmentOrigin, .usesFontLeading],
+  attributes: attributes
+)
+let bubbleSize = NSSize(width: min(contentRect.width, ceil(measuredText.width) + 48), height: min(contentRect.height, ceil(measuredText.height) + 48))
+let bubbleRect = NSRect(
+  x: contentRect.midX - bubbleSize.width / 2,
+  y: contentRect.midY - bubbleSize.height / 2,
+  width: bubbleSize.width,
+  height: bubbleSize.height
+)
+
 if style == "blur" {
-  let blurMask = NSBezierPath(roundedRect: contentRect, xRadius: 24, yRadius: 24)
+  let blurMask = NSBezierPath(roundedRect: bubbleRect, xRadius: 24, yRadius: 24)
   NSColor.white.setFill()
   blurMask.fill()
 } else {
-  let paragraphStyle = NSMutableParagraphStyle()
-  paragraphStyle.alignment = .center
-  paragraphStyle.lineBreakMode = .byWordWrapping
-
-  let attributes: [NSAttributedString.Key: Any] = [
-    .font: NSFont.systemFont(ofSize: fontSize, weight: .light),
-    .foregroundColor: NSColor.black,
-    .paragraphStyle: paragraphStyle,
-  ]
 
   (text as NSString).draw(
-    with: contentRect,
+    with: bubbleRect.insetBy(dx: 24, dy: 24),
     options: [.usesLineFragmentOrigin, .usesFontLeading],
     attributes: attributes
   )

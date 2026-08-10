@@ -37,8 +37,8 @@ render_overlay() {
 }
 
 render_blur_mask() {
-  local output="$1" x="$2" y="$3" width="$4" height="$5"
-  render_overlay blur "" "${output}" "${x}" "${y}" "${width}" "${height}" 1
+  local text="$1" output="$2" x="$3" y="$4" width="$5" height="$6" font_size="$7"
+  render_overlay blur "${text}" "${output}" "${x}" "${y}" "${width}" "${height}" "${font_size}"
 }
 
 encode_segment() {
@@ -59,7 +59,7 @@ encode_segment() {
 render_overlay callout \
   "Sync insulin and carbohydrates from your pump to Apple Health." \
   "${WORK_DIR}/status-caption.png" 45 1470 796 260 72
-render_blur_mask "${WORK_DIR}/status-blur.png" 45 1470 796 260
+render_blur_mask "Sync insulin and carbohydrates from your pump to Apple Health." "${WORK_DIR}/status-blur.png" 45 1470 796 260 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/status.mov" \
   -i "${SOURCE_DIR}/sync-active.mov" \
@@ -72,10 +72,10 @@ ffmpeg -hide_banner -loglevel error -y \
 
 render_overlay callout "PumpSync runs the backend." \
   "${WORK_DIR}/subscription-managed.png" 43 1280 800 180 72
-render_overlay callout "No server to manage" \
-  "${WORK_DIR}/subscription-server.png" 43 620 800 120 72
-render_blur_mask "${WORK_DIR}/subscription-managed-blur.png" 43 1280 800 180
-render_blur_mask "${WORK_DIR}/subscription-server-blur.png" 43 620 800 120
+render_overlay callout "No server to manage." \
+  "${WORK_DIR}/subscription-server.png" 43 580 800 120 72
+render_blur_mask "PumpSync runs the backend." "${WORK_DIR}/subscription-managed-blur.png" 43 1320 800 180 72
+render_blur_mask "No server to manage." "${WORK_DIR}/subscription-server-blur.png" 43 580 800 120 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/subscription.mov" \
   -loop 1 -i "${WORK_DIR}/subscription-managed.png" \
@@ -90,21 +90,21 @@ ffmpeg -hide_banner -loglevel error -y \
 
 render_overlay callout \
   "Connect to your own backend that you host and manage." \
-  "${WORK_DIR}/self-hosted-caption.png" 43 480 800 370 72
-render_blur_mask "${WORK_DIR}/self-hosted-blur.png" 43 480 800 370
+  "${WORK_DIR}/self-hosted-caption.png" 43 520 800 370 72
+render_blur_mask "Connect to your own backend that you host and manage." "${WORK_DIR}/self-hosted-blur.png" 43 520 800 370 72
 encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" "${WORK_DIR}/self-hosted-blur.png" 43 480 800 370 0.3 "${WORK_DIR}/03-self-hosted.mp4"
 
 render_overlay callout \
   "Your Health data stays under your control." \
   "${WORK_DIR}/privacy-caption.png" 43 1110 800 220 72
-render_blur_mask "${WORK_DIR}/privacy-blur.png" 43 1110 800 220
+render_blur_mask "Your Health data stays under your control." "${WORK_DIR}/privacy-blur.png" 43 1110 800 220 72
 encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" "${WORK_DIR}/privacy-blur.png" 43 1110 800 220 0.3 "${WORK_DIR}/04-privacy.mp4"
 
 render_overlay closing "PumpSync" \
   "${WORK_DIR}/closing-title.png" 43 1450 800 170 96
 render_overlay closing "Your pump data. Your choice." \
   "${WORK_DIR}/closing-tagline.png" 43 1190 800 200 72
-render_blur_mask "${WORK_DIR}/closing-blur.png" 43 1180 800 460
+render_blur_mask "PumpSync Your pump data. Your choice." "${WORK_DIR}/closing-blur.png" 43 1180 800 460 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/close.mov" \
   -loop 1 -i "${WORK_DIR}/closing-title.png" \
