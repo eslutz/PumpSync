@@ -57,9 +57,9 @@ encode_segment() {
 }
 
 render_overlay callout \
-  "Sync insulin and carbohydrates from your pump to Apple Health." \
+  "Sync insulin and carbohydrates from your pump to Apple Health" \
   "${WORK_DIR}/status-caption.png" 45 1140 796 330 72
-render_blur_mask "Sync insulin and carbohydrates from your pump to Apple Health." "${WORK_DIR}/status-blur.png" 45 1140 796 330 72
+render_blur_mask "Sync insulin and carbohydrates from your pump to Apple Health" "${WORK_DIR}/status-blur.png" 45 1140 796 330 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/status.mov" \
   -i "${SOURCE_DIR}/sync-active.mov" \
@@ -70,12 +70,12 @@ ffmpeg -hide_banner -loglevel error -y \
   -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
   "${WORK_DIR}/01-status.mp4"
 
-render_overlay callout "PumpSync runs the backend." \
+render_overlay callout "PumpSync runs the backend" \
   "${WORK_DIR}/subscription-managed.png" 43 1320 800 210 72
-render_overlay callout "No server to manage." \
+render_overlay callout "No server to manage" \
   "${WORK_DIR}/subscription-server.png" 43 540 800 150 72
-render_blur_mask "PumpSync runs the backend." "${WORK_DIR}/subscription-managed-blur.png" 43 1320 800 210 72
-render_blur_mask "No server to manage." "${WORK_DIR}/subscription-server-blur.png" 43 540 800 150 72
+render_blur_mask "PumpSync runs the backend" "${WORK_DIR}/subscription-managed-blur.png" 43 1320 800 210 72
+render_blur_mask "No server to manage" "${WORK_DIR}/subscription-server-blur.png" 43 540 800 150 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/subscription.mov" \
   -loop 1 -i "${WORK_DIR}/subscription-managed.png" \
@@ -89,15 +89,15 @@ ffmpeg -hide_banner -loglevel error -y \
   "${WORK_DIR}/02-subscription.mp4"
 
 render_overlay callout \
-  "Or connect to a backend you host and manage." \
+  "Or connect to a backend you host and manage" \
   "${WORK_DIR}/self-hosted-caption.png" 43 600 800 330 72
-render_blur_mask "Or connect to a backend you host and manage." "${WORK_DIR}/self-hosted-blur.png" 43 600 800 330 72
+render_blur_mask "Or connect to a backend you host and manage" "${WORK_DIR}/self-hosted-blur.png" 43 600 800 330 72
 encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" "${WORK_DIR}/self-hosted-blur.png" 43 600 800 330 0.3 "${WORK_DIR}/03-self-hosted.mp4"
 
 render_overlay callout \
-  "Your Health data stays under your control." \
+  "Your Health data stays under your control" \
   "${WORK_DIR}/privacy-caption.png" 43 1110 800 220 72
-render_blur_mask "Your Health data stays under your control." "${WORK_DIR}/privacy-blur.png" 43 1110 800 220 72
+render_blur_mask "Your Health data stays under your control" "${WORK_DIR}/privacy-blur.png" 43 1110 800 220 72
 encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" "${WORK_DIR}/privacy-blur.png" 43 1110 800 220 0.3 "${WORK_DIR}/04-privacy.mp4"
 
 render_overlay closing "PumpSync" \
