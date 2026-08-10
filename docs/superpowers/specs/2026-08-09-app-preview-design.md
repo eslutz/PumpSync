@@ -10,7 +10,7 @@ The preview is for prospective users who already understand insulin pumps but ma
 
 ## Storyboard
 
-1. **Sync overview (0–8 seconds):** Show the ready status, then a genuine in-progress sync with the Sync action disabled and its icon spinning. Caption: “Sync insulin and carbohydrates from your pump to Apple Health.” Move it lower than the status area and fade it in after 0.4 seconds.
+1. **Sync overview (0–8 seconds):** Show the ready status, then a genuine in-progress sync with the Sync action disabled and its icon spinning. Caption: “Sync insulin and carbohydrates from your pump to Apple Health.” Position it directly below the Sync heading and fade it in after 0.4 seconds.
 2. **PumpSync subscription (8–14 seconds):** Present the subscription benefits. Show “PumpSync runs the backend.” above the Managed connection heading, then replace it with “No server to manage” below the No server setup detail with clear separation. Neither may cover Subscribe.
 3. **Self-hosted (14–20 seconds):** Show the Self-hosted connection settings. Caption: “Connect to your own backend that you host and manage.” Position it below Connect with the same separation used beneath No server setup.
 4. **Privacy (20–26 seconds):** Show Data Handling. Caption: “Your Health data stays under your control.” Position it over the Stored on this device section; the card details do not need to remain readable.

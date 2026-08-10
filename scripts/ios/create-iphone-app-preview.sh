@@ -58,14 +58,14 @@ encode_segment() {
 
 render_overlay callout \
   "Sync insulin and carbohydrates from your pump to Apple Health." \
-  "${WORK_DIR}/status-caption.png" 45 1400 796 330 72
-render_blur_mask "Sync insulin and carbohydrates from your pump to Apple Health." "${WORK_DIR}/status-blur.png" 45 1400 796 330 72
+  "${WORK_DIR}/status-caption.png" 45 1140 796 330 72
+render_blur_mask "Sync insulin and carbohydrates from your pump to Apple Health." "${WORK_DIR}/status-blur.png" 45 1140 796 330 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/status.mov" \
   -i "${SOURCE_DIR}/sync-active.mov" \
   -loop 1 -i "${WORK_DIR}/status-caption.png" -loop 1 -i "${WORK_DIR}/status-blur.png" \
   -filter_complex \
-    "[0:v]reverse,trim=duration=1,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=1,trim=duration=1,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[ready];[1:v]trim=duration=4,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[active];[ready][active]concat=n=2:v=1:a=0[base];[base]split=2[clean][blur-source];[blur-source]crop=796:330:45:190,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+226*0.85':g='g(X,Y)*0.15+226*0.85':b='b(X,Y)*0.15+226*0.85'[blur];[3:v]crop=796:330:45:190,format=gray[mask];[blur][mask]alphamerge[masked-blur];[masked-blur]fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=4.65:d=0.35:alpha=1[visible-blur];[clean][visible-blur]overlay=45:190:format=auto[blurred-base];[2:v]format=rgba,fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=4.65:d=0.35:alpha=1[caption];[blurred-base][caption]overlay=x=0:y='if(lt(t,0.7),12*(1-(t-0.4)/0.3),0)':shortest=1[out]" \
+    "[0:v]reverse,trim=duration=1,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=1,trim=duration=1,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[ready];[1:v]trim=duration=4,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[active];[ready][active]concat=n=2:v=1:a=0[base];[base]split=2[clean][blur-source];[blur-source]crop=796:330:45:450,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+226*0.85':g='g(X,Y)*0.15+226*0.85':b='b(X,Y)*0.15+226*0.85'[blur];[3:v]crop=796:330:45:450,format=gray[mask];[blur][mask]alphamerge[masked-blur];[masked-blur]fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=4.65:d=0.35:alpha=1[visible-blur];[clean][visible-blur]overlay=45:450:format=auto[blurred-base];[2:v]format=rgba,fade=t=in:st=0.4:d=0.3:alpha=1,fade=t=out:st=4.65:d=0.35:alpha=1[caption];[blurred-base][caption]overlay=x=0:y='if(lt(t,0.7),12*(1-(t-0.4)/0.3),0)':shortest=1[out]" \
   -map "[out]" -t 5 -an \
   -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
   "${WORK_DIR}/01-status.mp4"
