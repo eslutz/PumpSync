@@ -174,7 +174,67 @@ git commit -m "assets: add PumpSync App Store preview"
 
 Expected: the terminology search returns no matches, checks pass, and the signed commit is created directly on `main`.
 
-### Task 4: Upload and verify in App Store Connect
+### Task 4: Revise the caption system and regenerate the preview
+
+**Files:**
+- Modify: `scripts/ios/render-app-preview-caption.swift`
+- Modify: `scripts/ios/create-iphone-app-preview.sh`
+- Modify: `docs/app-store/app-previews/README.md`
+- Modify: `docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4`
+
+**Interfaces:**
+- Consumes: the existing validated `status.mov`, `subscription.mov`, `self-hosted.mov`, `privacy.mov`, and `close.mov` fixture captures in `/tmp/pumpsync-app-preview`.
+- Produces: a 30-second preview with five scenes, contextual light callouts, and an unboxed two-stage closing title.
+
+- [ ] **Step 1: Add a failing renderer contract check**
+
+Render representative callout and closing-title overlays into `/tmp/pumpsync-app-preview/review`. Assert that each output is exactly 886 × 1920 with alpha, then composite it over the relevant source frame and inspect placement. The current renderer should fail because it exposes only one fixed dark lower-third layout.
+
+- [ ] **Step 2: Generalize the caption renderer**
+
+Change `render-app-preview-caption.swift` to accept a style (`callout` or `closing`), text, output path, and explicit panel rectangle. The `callout` style must render dark `#1D1D1F` text on a white panel at approximately 94% opacity with a restrained corner radius and shadow. The `closing` style must render centered dark text without a panel so FFmpeg can place it over a white veil.
+
+- [ ] **Step 3: Encode the revised five-scene storyboard**
+
+Update `create-iphone-app-preview.sh` to use these exact scene durations and copy:
+
+```text
+0–8s   status         Sync insulin and carbohydrates from your pump to Apple Health.
+8–11s  subscription   Managed by PumpSync
+11–14s subscription   No server to manage
+14–20s self-hosted    Prefer your own server? Connect a self-hosted backend.
+20–26s privacy        Your Health data stays under your control.
+26–30s close          PumpSync / Your pump data. Your choice.
+```
+
+The first two duplicate status segments must become one continuous eight-second scene. Every contextual callout must fade and move slightly upward over 0.3 seconds. The closing scene must apply a subtle white veil, fade in “PumpSync,” and fade in “Your pump data. Your choice.” 0.4 seconds later with no panel.
+
+- [ ] **Step 4: Verify overlay placement before the final encode**
+
+Export frames at 2, 9, 12, 16, 22, 27, and 29 seconds. Confirm the opening caption sits below Last Sync, subscription callouts do not overlap Subscribe, the self-hosted callout avoids the form, the privacy callout does not obscure privacy details, and the closing title is centered and legible.
+
+- [ ] **Step 5: Regenerate and validate the MP4**
+
+Run:
+
+```bash
+bash -n scripts/ios/create-iphone-app-preview.sh
+scripts/ios/create-iphone-app-preview.sh
+ffprobe -v error -show_entries stream=index,codec_name,profile,width,height,r_frame_rate,pix_fmt -show_entries format=duration,size,bit_rate -of json docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4
+```
+
+Expected: H.264 High profile, 886 × 1920, 30 fps, exactly 30 seconds, 10–12 Mbps, no audio, and less than 500 MB.
+
+- [ ] **Step 6: Update documentation and commit**
+
+Update `docs/app-store/app-previews/README.md` with the five-scene order and contextual overlay behavior. Run `git diff --check` and the prohibited-terminology search, then commit directly to `main`:
+
+```bash
+git add scripts/ios/render-app-preview-caption.swift scripts/ios/create-iphone-app-preview.sh docs/app-store/app-previews docs/superpowers/plans/2026-08-09-app-preview.md
+git commit -m "assets: refine App Preview captions"
+```
+
+### Task 5: Upload and verify in App Store Connect
 
 **Files:**
 - Read: `docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4`
