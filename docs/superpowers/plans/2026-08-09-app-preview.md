@@ -319,3 +319,23 @@ Use active-sync footage in the opening scene. Put its caption in the top third. 
 - [x] **Step 4: Regenerate, inspect, validate, and commit**
 
 Inspect frames at 2, 5, 9, 12, 16, 22, 27, and 29 seconds. Verify visible active sync feedback, legibility, caption placement, no Subscribe overlap, H.264 High, 886 × 1920, 30 fps, 25–30 seconds, no audio, and size below 500 MB. Commit directly on `main`.
+
+### Task 8: Use transparent, lightweight high-impact captions
+
+**Files:**
+- Modify: `scripts/ios/render-app-preview-caption.swift`
+- Modify: `scripts/ios/create-iphone-app-preview.sh`
+- Modify: `docs/app-store/app-previews/README.md`
+- Modify: `docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4`
+
+- [x] **Step 1: Remove caption veils**
+
+Render captions on fully transparent layers with no veil, shadow, or padding.
+
+- [x] **Step 2: Increase type and reduce weight**
+
+Use the San Francisco system light weight in black, with a 72 pt base size for every caption. Expand transparent layout areas to accommodate natural multiline wrapping.
+
+- [x] **Step 3: Regenerate and inspect**
+
+Regenerate the preview, inspect all six caption scenes, validate the required App Preview media characteristics, and commit directly on `main`.

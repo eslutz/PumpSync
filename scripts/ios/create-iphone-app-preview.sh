@@ -52,7 +52,7 @@ encode_segment() {
 
 render_overlay callout \
   "Sync insulin and carbohydrates from your pump to Apple Health." \
-  "${WORK_DIR}/status-caption.png" 45 1630 796 170 50
+  "${WORK_DIR}/status-caption.png" 45 1600 796 260 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/status.mov" \
   -i "${SOURCE_DIR}/sync-active.mov" \
@@ -64,9 +64,9 @@ ffmpeg -hide_banner -loglevel error -y \
   "${WORK_DIR}/01-status.mp4"
 
 render_overlay callout "Managed by PumpSync" \
-  "${WORK_DIR}/subscription-managed.png" 135 1120 616 130 48
+  "${WORK_DIR}/subscription-managed.png" 43 1120 800 120 72
 render_overlay callout "No server to manage" \
-  "${WORK_DIR}/subscription-server.png" 115 560 656 130 48
+  "${WORK_DIR}/subscription-server.png" 43 560 800 190 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/subscription.mov" \
   -loop 1 -i "${WORK_DIR}/subscription-managed.png" \
@@ -79,18 +79,18 @@ ffmpeg -hide_banner -loglevel error -y \
 
 render_overlay callout \
   "Connect to your own backend that you host and manage." \
-  "${WORK_DIR}/self-hosted-caption.png" 55 730 776 170 46
+  "${WORK_DIR}/self-hosted-caption.png" 43 610 800 370 72
 encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" 0.3 "${WORK_DIR}/03-self-hosted.mp4"
 
 render_overlay callout \
   "Your Health data stays under your control." \
-  "${WORK_DIR}/privacy-caption.png" 75 1000 736 190 50
+  "${WORK_DIR}/privacy-caption.png" 43 980 800 220 72
 encode_segment "${SOURCE_DIR}/privacy.mov" 6 "${WORK_DIR}/privacy-caption.png" 0.3 "${WORK_DIR}/04-privacy.mp4"
 
 render_overlay closing "PumpSync" \
-  "${WORK_DIR}/closing-title.png" 100 1410 686 160 72
+  "${WORK_DIR}/closing-title.png" 43 1440 800 130 72
 render_overlay closing "Your pump data. Your choice." \
-  "${WORK_DIR}/closing-tagline.png" 60 1210 766 140 50
+  "${WORK_DIR}/closing-tagline.png" 43 1190 800 200 72
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/close.mov" \
   -loop 1 -i "${WORK_DIR}/closing-title.png" \
