@@ -89,9 +89,9 @@ ffmpeg -hide_banner -loglevel error -y \
   "${WORK_DIR}/02-subscription.mp4"
 
 render_overlay callout \
-  "Connect to your own backend that you host and manage." \
+  "Or connect to a backend you host and manage." \
   "${WORK_DIR}/self-hosted-caption.png" 43 600 800 330 72
-render_blur_mask "Connect to your own backend that you host and manage." "${WORK_DIR}/self-hosted-blur.png" 43 600 800 330 72
+render_blur_mask "Or connect to a backend you host and manage." "${WORK_DIR}/self-hosted-blur.png" 43 600 800 330 72
 encode_segment "${SOURCE_DIR}/self-hosted.mov" 6 "${WORK_DIR}/self-hosted-caption.png" "${WORK_DIR}/self-hosted-blur.png" 43 600 800 330 0.3 "${WORK_DIR}/03-self-hosted.mp4"
 
 render_overlay callout \
