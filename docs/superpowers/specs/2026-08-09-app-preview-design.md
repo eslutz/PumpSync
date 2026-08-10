@@ -14,7 +14,7 @@ The preview is for prospective users who already understand insulin pumps but ma
 2. **PumpSync subscription (8–14 seconds):** Present the subscription benefits. Show “PumpSync runs the backend.” above the Managed connection heading, then replace it with “No server to manage” below the No server setup detail with clear separation. Neither may cover Subscribe.
 3. **Self-hosted (14–20 seconds):** Show the Self-hosted connection settings. Caption: “Or connect to a backend you host and manage.” Position it below Connect with the same separation used beneath No server setup. “Or” explicitly presents Self-hosted as the alternative to the PumpSync subscription shown in the preceding scene.
 4. **Privacy (20–26 seconds):** Show Data Handling. Caption: “Your Health data stays under your control.” Position it over the Stored on this device section; the card details do not need to remain readable.
-5. **Close (26–30 seconds):** Return to the sync overview. Fade in “PumpSync,” then fade in “Your pump data. Your choice.” 0.4 seconds later. Position both lines in the top third within one shared blurred background. The PumpSync title is larger than feature caption text.
+5. **Close (26–30 seconds):** Return to the sync overview. Fade in “PumpSync” with a compact upper frosted surface, then fade in “Your pump data. Your choice.” 0.4 seconds later while a complementary lower frosted extension appears at the same rate. The two surfaces overlap sufficiently to eliminate seams and form one continuous rounded background after the second transition. Position both lines in the top third. The PumpSync title is larger than feature caption text.
 
 Use 0.35-second cross-dissolves between every scene. Fade the outgoing caption during the dissolve and fade the incoming caption in after the destination screen settles. Avoid decorative animation, narration, music, or claims that are not visible in the app.
 
@@ -24,7 +24,7 @@ Use 0.35-second cross-dissolves between every scene. Fade the outgoing caption d
 - Use deterministic demo data and avoid displaying personal information, credentials, or production tokens.
 - Keep important controls away from caption overlays, including the Subscribe button and tab bar.
 - Use the app's native San Francisco system font for every caption, with light weight and black text. The feature-caption base size is 72 pt.
-- Use a tight rounded background blur behind each caption. The closing title and tagline share one background blur rather than separate panels. Animate each caption with a 0.3-second opacity fade and a slight upward movement.
+- Use a tight rounded background blur behind each caption. The closing title begins on an upper frosted surface; a lower extension fades in with the tagline and joins it into one continuous background rather than leaving two separate panels. Animate each caption with a 0.3-second opacity fade and a slight upward movement.
 - The default poster frame should clearly show the app’s status overview and the PumpSync name.
 
 ## Delivery Contract

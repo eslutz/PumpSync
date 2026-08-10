@@ -104,14 +104,16 @@ render_overlay closing "PumpSync" \
   "${WORK_DIR}/closing-title.png" 43 1420 800 210 96
 render_overlay closing "Your pump data. Your choice." \
   "${WORK_DIR}/closing-tagline.png" 43 1120 800 270 72
-render_overlay blur-full "" "${WORK_DIR}/closing-blur.png" 115 1110 656 520 1
+render_overlay blur-full "" "${WORK_DIR}/closing-title-blur.png" 115 1360 656 270 1
+render_overlay blur-full "" "${WORK_DIR}/closing-tagline-blur.png" 115 1110 656 300 1
 ffmpeg -hide_banner -loglevel error -y \
   -i "${SOURCE_DIR}/close.mov" \
   -loop 1 -i "${WORK_DIR}/closing-title.png" \
   -loop 1 -i "${WORK_DIR}/closing-tagline.png" \
-  -loop 1 -i "${WORK_DIR}/closing-blur.png" \
+  -loop 1 -i "${WORK_DIR}/closing-title-blur.png" \
+  -loop 1 -i "${WORK_DIR}/closing-tagline-blur.png" \
   -filter_complex \
-    "[0:v]reverse,trim=duration=4,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=2[clean][blur-source];[blur-source]crop=656:520:115:290,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+226*0.85':g='g(X,Y)*0.15+226*0.85':b='b(X,Y)*0.15+226*0.85'[blur];[3:v]crop=656:520:115:290,format=gray[mask];[blur][mask]alphamerge[masked-blur];[masked-blur]fade=t=in:st=0.45:d=0.9:alpha=1[visible-blur];[clean][visible-blur]overlay=115:290:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=0.45:d=0.9:alpha=1[title];[2:v]format=rgba,fade=t=in:st=1.35:d=0.9:alpha=1[tagline];[blurred-base][title]overlay=shortest=1[titled];[titled][tagline]overlay=shortest=1[out]" \
+    "[0:v]reverse,trim=duration=4,reverse,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,scale=886:1920:force_original_aspect_ratio=increase,crop=886:1920,fps=30,format=yuv420p[base];[base]split=3[clean][title-blur-source][tagline-blur-source];[title-blur-source]crop=656:270:115:290,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+226*0.85':g='g(X,Y)*0.15+226*0.85':b='b(X,Y)*0.15+226*0.85'[title-blur];[3:v]crop=656:270:115:290,format=gray[title-mask];[title-blur][title-mask]alphamerge[masked-title-blur];[masked-title-blur]fade=t=in:st=0.45:d=0.9:alpha=1[visible-title-blur];[tagline-blur-source]crop=656:300:115:510,boxblur=4:1,format=rgb24,geq=r='r(X,Y)*0.15+226*0.85':g='g(X,Y)*0.15+226*0.85':b='b(X,Y)*0.15+226*0.85'[tagline-blur];[4:v]crop=656:300:115:510,format=gray[tagline-mask];[tagline-blur][tagline-mask]alphamerge[masked-tagline-blur];[masked-tagline-blur]fade=t=in:st=1.35:d=0.9:alpha=1[visible-tagline-blur];[clean][visible-title-blur]overlay=115:290:format=auto[title-blurred-base];[title-blurred-base][visible-tagline-blur]overlay=115:510:format=auto[blurred-base];[1:v]format=rgba,fade=t=in:st=0.45:d=0.9:alpha=1[title];[2:v]format=rgba,fade=t=in:st=1.35:d=0.9:alpha=1[tagline];[blurred-base][title]overlay=shortest=1[titled];[titled][tagline]overlay=shortest=1[out]" \
   -map "[out]" -t 4 -an \
   -c:v libx264 -profile:v high -level:v 4.0 -preset medium -crf 15 -pix_fmt yuv420p \
   "${WORK_DIR}/05-close.mp4"

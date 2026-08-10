@@ -259,6 +259,33 @@ Wait until App Store Connect finishes processing. Confirm there is no video, res
 
 Choose the clear status/sync frame near 5 seconds as the poster frame. Confirm the selected frame is readable, visually clean, and contains no transition or caption overlap.
 
+### Task 6: Stage the closing frosted surface
+
+**Files:**
+- Modify: `scripts/ios/create-iphone-app-preview.sh`
+- Modify: `docs/superpowers/specs/2026-08-09-app-preview-design.md`
+- Modify: `docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4`
+
+**Interfaces:**
+- Consumes: the existing closing title/tagline overlays and `close.mov` fixture.
+- Produces: a closing scene whose upper material appears with “PumpSync” and whose complementary lower extension fades with the tagline into one continuous rounded surface.
+
+- [x] **Step 1: Split the closing material into overlapping masks**
+
+Render an upper full-width rounded mask at `x=115, y=1360, width=656, height=270` and a lower full-width rounded mask at `x=115, y=1110, width=656, height=300`. Their 50-pixel overlap must exceed the 24-pixel corner radius so the final union has no seam or inward corners.
+
+- [x] **Step 2: Synchronize each material fade with its caption**
+
+Fade the upper material and “PumpSync” from 0.45–1.35 seconds. Fade the lower material and “Your pump data. Your choice.” from 1.35–2.25 seconds. Composite the upper material first and the lower extension second using identical blur and tint settings.
+
+- [x] **Step 3: Regenerate and inspect the transition**
+
+Render the complete preview, then export closing frames before the tagline, halfway through its fade, and after it is fully visible. Confirm the first bubble is rounded, the lower surface appears only with the tagline, the completed background is continuous, and neither text line is clipped.
+
+- [x] **Step 4: Validate and commit**
+
+Run the pipeline's media assertions, `git diff --check`, and inspect the final repository state. Commit only the pipeline, specification, plan, and regenerated MP4 directly to `main`.
+
 - [ ] **Step 5: Final state verification**
 
 Reload the version page and verify one English (U.S.) iPhone App Preview, eight correctly ordered iPhone screenshots, eight correctly ordered iPad screenshots, and no unintended submission-state change. Record the frontend `HEAD`, worktree status, and ahead/behind state for handoff.
