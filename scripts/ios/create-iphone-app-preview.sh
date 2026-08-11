@@ -129,47 +129,14 @@ done
 
 ffmpeg -hide_banner -loglevel error -y \
   -i "${WORK_DIR}/01-status.mp4" -i "${WORK_DIR}/02-subscription.mp4" -i "${WORK_DIR}/03-self-hosted.mp4" -i "${WORK_DIR}/04-privacy.mp4" -i "${WORK_DIR}/05-close.mp4" \
+  -f lavfi -i "anoisesrc=color=white:amplitude=0.00001:sample_rate=48000" \
   -filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.35:offset=4.65[v01];[v01][2:v]xfade=transition=fade:duration=0.35:offset=10.30[v02];[v02][3:v]xfade=transition=fade:duration=0.35:offset=15.95[v03];[v03][4:v]xfade=transition=fade:duration=0.35:offset=21.60[out]" \
-  -map "[out]" \
-  -an -c:v libx264 -profile:v high -level:v 4.0 -preset slow \
+  -map "[out]" -map 5:a:0 \
+  -c:v libx264 -profile:v high -level:v 4.0 -preset slow \
   -b:v 11M -minrate 11M -maxrate 11M -bufsize 22M \
   -x264-params "nal-hrd=cbr:force-cfr=1:filler=1" -r 30 -pix_fmt yuv420p \
+  -c:a aac -profile:a aac_low -b:a 256k -ar 48000 -ac 2 -disposition:a:0 default -shortest \
   -movflags +faststart "${OUTPUT_FILE}"
 
-metadata="$(ffprobe -v error -select_streams v:0 \
-  -show_entries stream=codec_name,profile,width,height,r_frame_rate,pix_fmt \
-  -show_entries format=duration,size,bit_rate -of default=nw=1 "${OUTPUT_FILE}")"
-
-value_for() {
-  awk -F= -v key="$1" '$1 == key { print $2; exit }' <<<"${metadata}"
-}
-
-[[ "$(value_for codec_name)" == "h264" ]] || { echo "Output codec is not H.264" >&2; exit 1; }
-[[ "$(value_for profile)" == "High" ]] || { echo "Output profile is not High" >&2; exit 1; }
-[[ "$(value_for width)" == "886" && "$(value_for height)" == "1920" ]] || {
-  echo "Output resolution is not 886x1920" >&2
-  exit 1
-}
-[[ "$(value_for r_frame_rate)" == "30/1" ]] || { echo "Output frame rate is not 30 fps" >&2; exit 1; }
-[[ "$(value_for pix_fmt)" == "yuv420p" ]] || { echo "Output pixel format is not yuv420p" >&2; exit 1; }
-
-duration="$(value_for duration)"
-awk -v duration="${duration}" 'BEGIN { exit !(duration >= 25 && duration <= 30.01) }' || {
-  echo "Output duration ${duration}s is outside 25–30 seconds" >&2
-  exit 1
-}
-
-size="$(value_for size)"
-(( size < 500000000 )) || { echo "Output exceeds 500 MB" >&2; exit 1; }
-
-bit_rate="$(value_for bit_rate)"
-(( bit_rate >= 10000000 && bit_rate <= 12000000 )) || {
-  echo "Output bitrate ${bit_rate} is outside 10–12 Mbps" >&2
-  exit 1
-}
-
-audio_streams="$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "${OUTPUT_FILE}" | wc -l | tr -d ' ')"
-[[ "${audio_streams}" == "0" ]] || { echo "Output unexpectedly contains audio" >&2; exit 1; }
-
 echo "Created ${OUTPUT_FILE}"
-echo "Verified: H.264 High, 886x1920, 30 fps, ${duration}s, no audio, ${size} bytes"
+"${ROOT_DIR}/scripts/ios/verify-app-preview-media.sh" "${OUTPUT_FILE}"

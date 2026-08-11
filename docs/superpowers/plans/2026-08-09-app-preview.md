@@ -14,7 +14,7 @@
 - Use genuine app UI and deterministic demo data; expose no personal information, credentials, or production tokens.
 - Use “PumpSync subscription,” “PumpSync,” “Self-hosted,” and “PumpSync-hosted backend” according to the approved terminology.
 - Deliver H.264 at exactly 886 × 1920, progressive scan, no more than 30 fps, 10–12 Mbps target video bitrate, and 25–30 seconds duration.
-- Deliver no audio track.
+- Deliver one enabled 256 kbps AAC-LC stereo track at 48 kHz with an inaudible noise floor.
 - Keep the output below 500 MB and upload it to the English (U.S.) iPhone App Preview slot for version 1.0.
 - Do not submit the app for review or complete a subscription purchase.
 
@@ -97,11 +97,11 @@ The script must use `set -euo pipefail`, accept `SOURCE_DIR` and `OUTPUT_FILE` o
 
 - [ ] **Step 2: Encode the approved storyboard**
 
-Use one FFmpeg filter graph to trim scenes to 4, 7, 6, 6, 5, and 2 seconds respectively; reset timestamps; scale/crop to 886 × 1920; normalize to 30 fps and `yuv420p`; overlay the exact captions from the approved design; apply short video-only fades; concatenate to exactly 30 seconds; and encode with `libx264`, High profile, Level 4.0, 11 Mbps target bitrate, 12 Mbps maximum rate, 24 Mbps buffer, fast-start metadata, and no audio.
+Use one FFmpeg filter graph to trim scenes to 4, 7, 6, 6, 5, and 2 seconds respectively; reset timestamps; scale/crop to 886 × 1920; normalize to 30 fps and `yuv420p`; overlay the exact captions from the approved design; apply short video-only fades; concatenate to exactly 30 seconds; and encode with `libx264`, High profile, Level 4.0, 11 Mbps target bitrate, 12 Mbps maximum rate, 24 Mbps buffer, fast-start metadata, and an enabled 256 kbps AAC-LC stereo track at 48 kHz with an inaudible noise floor.
 
 - [ ] **Step 3: Add hard output assertions**
 
-Use FFprobe to assert: H.264 video; 886 × 1920; 30 fps or lower; duration from 25.0 through 30.0 seconds inclusive; no audio stream; and file size below 500,000,000 bytes. Print a concise success summary only after every assertion passes.
+Use FFprobe to assert: H.264 video; 886 × 1920; 30 fps or lower; duration from 25.0 through 30.0 seconds inclusive; exactly one enabled AAC-LC stereo audio stream at 44.1 or 48 kHz; and file size below 500,000,000 bytes. Print a concise success summary only after every assertion passes.
 
 - [ ] **Step 4: Document capture and regeneration**
 
@@ -144,7 +144,7 @@ Run:
 ffprobe -v error -show_entries stream=index,codec_name,profile,width,height,r_frame_rate,pix_fmt -show_entries format=duration,size,bit_rate -of json docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4
 ```
 
-Expected: one H.264 High-profile 886 × 1920 video stream at no more than 30 fps, no audio stream, duration 25–30 seconds, bitrate near 11 Mbps, and size below 500 MB.
+Expected: one H.264 High-profile 886 × 1920 video stream at no more than 30 fps, one enabled AAC-LC stereo audio stream at 48 kHz, duration 25–30 seconds, bitrate near 11 Mbps, and size below 500 MB.
 
 - [ ] **Step 3: Generate and inspect representative frames**
 
@@ -223,7 +223,7 @@ scripts/ios/create-iphone-app-preview.sh
 ffprobe -v error -show_entries stream=index,codec_name,profile,width,height,r_frame_rate,pix_fmt -show_entries format=duration,size,bit_rate -of json docs/app-store/app-previews/pumpsync-iphone-app-preview.mp4
 ```
 
-Expected: H.264 High profile, 886 × 1920, 30 fps, exactly 30 seconds, 10–12 Mbps, no audio, and less than 500 MB.
+Expected: H.264 High profile, 886 × 1920, 30 fps, 25–30 seconds, 10–12 Mbps, enabled AAC-LC stereo audio at 48 kHz, and less than 500 MB.
 
 - [ ] **Step 6: Update documentation and commit**
 
@@ -316,7 +316,7 @@ Run `bash -n scripts/ios/create-iphone-app-preview.sh` and `bash scripts/ios/cre
 
 - [ ] **Step 4: Validate and commit on main**
 
-Verify H.264 High, 886 × 1920, 30 fps, 25–30 seconds, no audio, and size below 500 MB. Run `git diff --check`; update the preview README; commit the pipeline, documentation, and MP4 directly on `main`.
+Verify H.264 High, 886 × 1920, 30 fps, 25–30 seconds, enabled AAC-LC stereo audio at 48 kHz, and size below 500 MB. Run `git diff --check`; update the preview README; commit the pipeline, documentation, and MP4 directly on `main`.
 
 ### Task 7: Record an active sync and refine caption hierarchy
 
@@ -345,7 +345,7 @@ Use active-sync footage in the opening scene. Put its caption in the top third. 
 
 - [x] **Step 4: Regenerate, inspect, validate, and commit**
 
-Inspect frames at 2, 5, 9, 12, 16, 22, 27, and 29 seconds. Verify visible active sync feedback, legibility, caption placement, no Subscribe overlap, H.264 High, 886 × 1920, 30 fps, 25–30 seconds, no audio, and size below 500 MB. Commit directly on `main`.
+Inspect frames at 2, 5, 9, 12, 16, 22, 27, and 29 seconds. Verify visible active sync feedback, legibility, caption placement, no Subscribe overlap, H.264 High, 886 × 1920, 30 fps, 25–30 seconds, enabled AAC-LC stereo audio at 48 kHz, and size below 500 MB. Commit directly on `main`.
 
 ### Task 8: Use transparent, lightweight high-impact captions
 

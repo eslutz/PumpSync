@@ -34,7 +34,7 @@ Use 0.35-second cross-dissolves between every scene. Fade the outgoing caption d
 - Duration: 25–30 seconds; never outside Apple’s 15–30 second limit.
 - Progressive scan, maximum 30 fps, High Profile Level 4.0 or lower.
 - Target video bitrate: 10–12 Mbps.
-- No audio track unless a valid 256 kbps stereo AAC track is deliberately added. This design uses no audio.
+- One enabled 256 kbps AAC-LC stereo track at 48 kHz. The track uses an inaudible noise floor, so the preview remains effectively silent while satisfying App Store Connect's media requirements.
 - Maximum file size: 500 MB.
 - Upload to the English (U.S.) iPhone App Preview slot for version 1.0.
 
