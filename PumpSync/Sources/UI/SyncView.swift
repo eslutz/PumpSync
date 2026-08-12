@@ -37,7 +37,7 @@ struct SyncView: View {
       // Sync triggers stay visible after the first sync: this is the only
       // in-app disclosure that syncing also happens automatically.
       GlassSection("How Syncing Runs") {
-        Text("You can start a sync yourself anytime. PumpSync also checks for new pump data when the app opens and during background updates when iOS grants time. Background updates usually target data that is less than four hours old, but iOS may delay them.")
+        Text("You can start a sync yourself anytime. PumpSync also checks for any pump data not yet synced when the app opens and during background updates when iOS grants time. It aims to keep Apple Health less than four hours behind, but iOS may delay background work.")
           .frame(maxWidth: .infinity, alignment: .leading)
           .foregroundStyle(.secondary)
           .padding(.vertical, 8)
