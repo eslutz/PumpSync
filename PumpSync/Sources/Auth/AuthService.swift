@@ -133,7 +133,7 @@ final class AuthService {
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
     self.diagnostics = diagnostics
-    subscriptionSessionTimeout = 20
+    subscriptionSessionTimeout = 75
     currentEntitlementJWS = {
       try await StoreKitSubscriptionProvider.currentEntitlementJWS(
         productId: AppConstants.subscriptionProductId,
@@ -509,6 +509,12 @@ final class AuthService {
   private func recoverSubscriptionSession() async {
     let startedAt = Date()
     diagnostics?.record(source: .auth, title: "Subscription recovery started")
+
+    // Begin Container Apps activation while StoreKit resolves the entitlement.
+    // This is best-effort and does not change the subscription decision.
+    Task { [apiClient] in
+      await apiClient.warmup()
+    }
 
     do {
       let entitlementStartedAt = Date()

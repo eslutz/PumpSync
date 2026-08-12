@@ -7,6 +7,23 @@ enum SyncTriggerReason: String {
   case background
 }
 
+enum SyncPhase: String {
+  case preparing
+  case downloading
+  case updatingHealth
+
+  var message: String {
+    switch self {
+    case .preparing:
+      return "Starting secure service…"
+    case .downloading:
+      return "Downloading pump data…"
+    case .updatingHealth:
+      return "Updating Apple Health…"
+    }
+  }
+}
+
 /// The slice of HealthKitService's surface SyncCoordinator depends on,
 /// extracted as a seam so tests can substitute a fake — real HealthKit
 /// authorization/writes require device interaction and aren't something a
@@ -46,6 +63,7 @@ final class SyncCoordinator {
 
   private(set) var isSyncing = false
   private(set) var lastMessage: String?
+  private(set) var syncPhase: SyncPhase?
 
 #if DEBUG
   func applyScreenshotSyncing() {
@@ -86,6 +104,13 @@ final class SyncCoordinator {
       return
     }
 
+    isSyncing = true
+    syncPhase = .preparing
+    defer {
+      isSyncing = false
+      syncPhase = nil
+    }
+
     // A background launch has no view lifecycle to refresh permission state,
     // so refresh it here rather than relying on a view's .task/.onAppear.
     healthKitService.refreshAuthorizationStatus()
@@ -114,7 +139,6 @@ final class SyncCoordinator {
       return
     }
 
-    isSyncing = true
     lastMessage = nil
     syncMetadataStore.recordAttempt()
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
@@ -131,6 +155,7 @@ final class SyncCoordinator {
         // the device's zone to anchor them, or every sample lands hours off.
         timeZoneIdentifier: TimeZone.current.identifier
       )
+      syncPhase = .downloading
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
       // Record only what Apple Health confirmed: save() drops samples whose
@@ -138,6 +163,7 @@ final class SyncCoordinator {
       // permanently lose them — the backend retains nothing to replay, so a
       // later permission grant could never backfill an already-ledgered
       // sample.
+      syncPhase = .updatingHealth
       let writtenSamples = try await healthKitService.save(samples: unseenSamples)
       try importedSampleLedger.recordImported(writtenSamples)
       let importedCount = writtenSamples.count
@@ -188,7 +214,6 @@ final class SyncCoordinator {
       diagnostics?.record(error: error, source: .sync, title: "Sync failed")
     }
 
-    isSyncing = false
   }
 
   func performBackgroundSync() async {

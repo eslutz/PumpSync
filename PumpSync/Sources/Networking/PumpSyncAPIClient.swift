@@ -39,6 +39,17 @@ final class PumpSyncAPIClient {
     try await send(path: "/v1/tandem/credentials/validate", method: "POST", body: request, accessToken: accessToken)
   }
 
+  /// Starts hosted Container Apps activation without requiring an authenticated
+  /// operation. The caller intentionally ignores failures because this is a
+  /// latency optimization, not a required connection step.
+  func warmup() async {
+    var request = URLRequest(url: baseURL.appendingPathComponent("v1/capabilities"))
+    request.httpMethod = "GET"
+    request.timeoutInterval = 75
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    _ = try? await urlSession.data(for: request)
+  }
+
   private func send<Request: Encodable, Response: Decodable>(
     path: String,
     method: String,
@@ -82,6 +93,7 @@ final class PumpSyncAPIClient {
       urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
     }
 
+    urlRequest.timeoutInterval = timeoutInterval(for: path)
     let (data, response) = try await urlSession.data(for: urlRequest)
     guard let httpResponse = response as? HTTPURLResponse else {
       throw APIClientError.invalidResponse
@@ -93,6 +105,18 @@ final class PumpSyncAPIClient {
     }
 
     return try JSONCodec.decoder.decode(Response.self, from: data)
+  }
+
+  private func timeoutInterval(for path: String) -> TimeInterval {
+    if path.contains("subscription/session") {
+      return 75
+    }
+
+    if path.contains("sync/tandem") || path.contains("tandem/credentials/validate") {
+      return 120
+    }
+
+    return 60
   }
 
   /// Every request this client sends is a POST, and two of them carry the

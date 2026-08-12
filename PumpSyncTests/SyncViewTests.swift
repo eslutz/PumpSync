@@ -3,6 +3,12 @@ import XCTest
 
 @MainActor
 final class SyncViewTests: XCTestCase {
+  func testSyncPhaseMessagesExplainLongRunningActivation() {
+    XCTAssertEqual(SyncPhase.preparing.message, "Starting secure service…")
+    XCTAssertEqual(SyncPhase.downloading.message, "Downloading pump data…")
+    XCTAssertEqual(SyncPhase.updatingHealth.message, "Updating Apple Health…")
+  }
+
   func testSyncIconRotationStaysAtZeroWhenNotSyncing() {
     let startDate = Date(timeIntervalSince1970: 100)
     let laterDate = startDate.addingTimeInterval(5)
