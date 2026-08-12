@@ -74,6 +74,7 @@ final class SyncCoordinator {
 
   func refreshIfStale(reason: SyncTriggerReason) async {
     guard shouldRefreshForStaleness else {
+      diagnostics?.record(source: .sync, title: "Sync skipped", message: "Last successful sync is within the four-hour freshness target.")
       return
     }
 

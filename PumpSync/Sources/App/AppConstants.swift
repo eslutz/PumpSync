@@ -2,7 +2,9 @@ import Foundation
 
 enum AppConstants {
   static let backgroundTaskIdentifier = "dev.ericslutz.PumpSync.daily-sync"
-  static let staleSyncInterval: TimeInterval = 20 * 60 * 60
+  /// Background execution is system-scheduled, so this is a freshness target,
+  /// not a guarantee that iOS will wake the app every four hours.
+  static let staleSyncInterval: TimeInterval = 4 * 60 * 60
   static let subscriptionProductId =
     Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_PRODUCT_ID") as? String
       ?? "dev.ericslutz.PumpSync.subscription.monthly"

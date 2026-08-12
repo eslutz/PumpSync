@@ -90,6 +90,10 @@ final class AppServices {
       Task { @MainActor in
         diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync scheduling failed")
       }
+    } onEvent: { event in
+      Task { @MainActor in
+        diagnosticsLogStore.record(source: .sync, title: event)
+      }
     }
     let metricKitDiagnosticsCollector = MetricKitDiagnosticsCollector(store: nativeDiagnosticsStore)
 

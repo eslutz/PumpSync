@@ -26,9 +26,9 @@ struct PumpSyncApp: App {
     .onChange(of: scenePhase) { _, newPhase in
       switch newPhase {
       case .active:
-        // AppView's .task only runs on cold launch; an app kept resident for
-        // days and foregrounded again needs the same staleness check, which
-        // the 20h stale interval keeps from over-syncing.
+        // AppView's .task only runs on cold launch. Re-check on every
+        // foreground and keep a future task submitted for the next window.
+        services.backgroundSyncScheduler.scheduleDailySync()
         Task {
           await services.authService.recoverSessionIfNeeded()
           await services.syncCoordinator.refreshIfStale(reason: .appOpen)
