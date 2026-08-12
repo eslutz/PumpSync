@@ -54,5 +54,12 @@ struct HealthWritePermission: Identifiable, Equatable {
 }
 
 enum HealthAccessCopy {
-  static let healthAppInstructions = "To change access, open Settings, tap Privacy & Security, tap Health, choose PumpSync, then update the Insulin Delivery and Carbohydrates permissions."
+  static let healthAppInstructionSteps = [
+    "Open Settings.",
+    "Tap Privacy & Security, then Health.",
+    "Select PumpSync.",
+    "Turn Insulin Delivery and Carbohydrates on or off."
+  ]
+
+  static let healthAppInstructions = healthAppInstructionSteps.joined(separator: " ")
 }

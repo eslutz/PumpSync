@@ -9,4 +9,8 @@ enum AppLaunchEnvironment {
   static var isScreenshotSyncing: Bool {
     ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-syncing")
   }
+
+  static var isScreenshotInitialSync: Bool {
+    ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-initial-sync")
+  }
 }

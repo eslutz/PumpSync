@@ -30,6 +30,7 @@ struct PumpSyncApp: App {
         // days and foregrounded again needs the same staleness check, which
         // the 20h stale interval keeps from over-syncing.
         Task {
+          await services.authService.recoverSessionIfNeeded()
           await services.syncCoordinator.refreshIfStale(reason: .appOpen)
         }
       case .background:

@@ -10,7 +10,7 @@ struct DataHandlingView: View {
       GlassSection("Credentials") {
         DataHandlingRow(
           title: "Stored on this device",
-          detail: "Pump account credentials are kept on this device in Keychain with device-only accessibility.",
+          detail: "Your pump account sign-in is stored securely on this device.",
           systemImage: "key"
         )
 
@@ -18,7 +18,7 @@ struct DataHandlingView: View {
 
         DataHandlingRow(
           title: "Sent only for sync",
-          detail: "Credentials are sent over HTTPS only during an active sync request.",
+          detail: "Your sign-in is sent securely only while PumpSync is syncing.",
           systemImage: "lock.shield"
         )
       }
@@ -26,7 +26,7 @@ struct DataHandlingView: View {
       GlassSection("Pump Data") {
         DataHandlingRow(
           title: "Not retained after write",
-          detail: "Raw records and normalized samples are discarded after Apple Health confirms the write.",
+          detail: "PumpSync removes the downloaded pump data after Apple Health confirms it was saved.",
           systemImage: "externaldrive.badge.checkmark"
         )
 
@@ -34,7 +34,7 @@ struct DataHandlingView: View {
 
         DataHandlingRow(
           title: "Duplicate prevention",
-          detail: "On this device, PumpSync keeps a rolling HMAC ledger of imported source IDs so repeat syncs do not write duplicates. The server does not store this ledger, and the ledger cannot reveal source event IDs without the device-only key.",
+          detail: "PumpSync keeps a secure record on this device so the same pump data is not added to Apple Health twice.",
           systemImage: "checkmark.seal"
         )
       }
@@ -42,15 +42,15 @@ struct DataHandlingView: View {
       GlassSection("Other Devices") {
         DataHandlingRow(
           title: "Configure each device",
-          detail: "Pump account credentials are not synced through iCloud. Each device must be configured separately.",
+          detail: "Your pump account sign-in is not synced through iCloud. Set it up separately on each device.",
           systemImage: "iphone"
         )
       }
 
       GlassSection("Data Deletion") {
         DataHandlingRow(
-          title: "Request hosted metadata deletion",
-          detail: "PumpSync can prepare a support email with the installation ID needed to locate hosted metadata associated with this app install.",
+          title: "Delete PumpSync data",
+          detail: "PumpSync can prepare an email asking support to delete information linked to this app installation.",
           systemImage: "envelope"
         )
 
@@ -65,7 +65,7 @@ struct DataHandlingView: View {
               .frame(width: 28)
               .accessibilityHidden(true)
 
-            Text("Delete Data Request")
+            Text("Request Data Deletion")
               .layoutPriority(1)
 
             Spacer(minLength: 0)

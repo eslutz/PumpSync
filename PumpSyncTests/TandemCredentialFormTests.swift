@@ -3,6 +3,21 @@ import XCTest
 
 @MainActor
 final class TandemCredentialFormTests: XCTestCase {
+  func testActionStateForNewCredentialsRequiresAllFields() {
+    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: false, usernameChanged: false, regionChanged: false, password: ""), .saveDisabled)
+    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: false, usernameChanged: true, regionChanged: false, password: "secret"), .save)
+  }
+
+  func testStoredUnchangedCredentialsOfferRemoval() {
+    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: false, regionChanged: false, password: ""), .remove)
+  }
+
+  func testStoredEditedCredentialsRequirePasswordBeforeSave() {
+    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: true, regionChanged: false, password: ""), .saveDisabled)
+    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: false, regionChanged: true, password: ""), .saveDisabled)
+    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: true, regionChanged: false, password: "secret"), .save)
+  }
+
   func testSkipsRevalidationWhenCredentialsExactlyMatchLastValidatedSave() {
     let credentials = TandemCredentials(username: "demo@pumpsync.app", password: "hunter2", region: "us")
 

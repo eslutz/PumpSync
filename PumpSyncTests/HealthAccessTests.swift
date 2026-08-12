@@ -1,3 +1,4 @@
+import HealthKit
 import XCTest
 @testable import PumpSync
 
@@ -46,7 +47,34 @@ final class HealthAccessTests: XCTestCase {
     XCTAssertEqual(permissions.map(\.statusDescription), ["Allowed", "Not allowed"])
     XCTAssertEqual(
       HealthAccessCopy.healthAppInstructions,
-      "To change access, open Settings, tap Privacy & Security, tap Health, choose PumpSync, then update the Insulin Delivery and Carbohydrates permissions."
+      "Open Settings. Tap Privacy & Security, then Health. Select PumpSync. Turn Insulin Delivery and Carbohydrates on or off."
     )
+  }
+
+  func testHealthAccessInstructionsAreReadableSteps() {
+    XCTAssertEqual(HealthAccessCopy.healthAppInstructionSteps, [
+      "Open Settings.",
+      "Tap Privacy & Security, then Health.",
+      "Select PumpSync.",
+      "Turn Insulin Delivery and Carbohydrates on or off."
+    ])
+  }
+
+  func testHealthSampleMetadataUsesStableSyncIdentity() {
+    let sample = SampleDTO(
+      externalId: "event-123",
+      type: "nutrition.carbohydrates",
+      value: 12,
+      unit: "g",
+      startAt: Date(timeIntervalSince1970: 1_000),
+      endAt: Date(timeIntervalSince1970: 1_000),
+      metadata: [:],
+      source: SourceDTO(deviceId: "pump-1", eventIds: ["event-123"])
+    )
+
+    let metadata = HealthSampleMetadata.values(for: sample)
+
+    XCTAssertEqual(metadata[HKMetadataKeySyncIdentifier] as? String, "pumpsync.nutrition.carbohydrates.event-123")
+    XCTAssertEqual(metadata[HKMetadataKeySyncVersion] as? Int, 1)
   }
 }

@@ -324,8 +324,20 @@ final class HealthKitService {
   }
 
   private func healthKitMetadata(for sample: SampleDTO) -> [String: Any] {
+    HealthSampleMetadata.values(for: sample)
+  }
+
+  private func decimalToDouble(_ value: Decimal) -> Double {
+    NSDecimalNumber(decimal: value).doubleValue
+  }
+}
+
+enum HealthSampleMetadata {
+  static func values(for sample: SampleDTO) -> [String: Any] {
     var metadata: [String: Any] = [
       HKMetadataKeyExternalUUID: sample.externalId,
+      HKMetadataKeySyncIdentifier: "pumpsync.\(sample.type).\(sample.externalId)",
+      HKMetadataKeySyncVersion: 1,
       "PumpSyncSourceDeviceId": sample.source.deviceId,
       "PumpSyncSourceEventIds": sample.source.eventIds.joined(separator: ",")
     ]
@@ -335,10 +347,6 @@ final class HealthKitService {
     }
 
     return metadata
-  }
-
-  private func decimalToDouble(_ value: Decimal) -> Double {
-    NSDecimalNumber(decimal: value).doubleValue
   }
 }
 

@@ -102,11 +102,12 @@ final class PumpSyncUITests: XCTestCase {
   }
 
   func testIPadAppStoreScreenshots() {
+    let initialApp = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-initial-sync"])
+    XCTAssertTrue(initialApp.buttons["Sync Past 14 Days"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "ipad-pro-13-app-store-listing-01-status-overview.png", from: initialApp)
+    initialApp.terminate()
+
     let app = launchScreenshotFixture()
-
-    attachScreenshot(named: "ipad-pro-13-app-store-listing-01-status-overview.png", from: app)
-
-    navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
     attachScreenshot(named: "ipad-pro-13-app-store-listing-02-sync-workflow.png", from: app)
 
@@ -148,11 +149,12 @@ final class PumpSyncUITests: XCTestCase {
   }
 
   func testIPhoneAppStoreScreenshots() {
+    let initialApp = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-initial-sync"])
+    XCTAssertTrue(initialApp.buttons["Sync Past 14 Days"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-6-7-app-store-listing-01-status-overview.png", from: initialApp)
+    initialApp.terminate()
+
     let app = launchScreenshotFixture()
-
-    attachScreenshot(named: "iphone-6-7-app-store-listing-01-status-overview.png", from: app)
-
-    navigate(to: "Sync", in: app)
     XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
     attachScreenshot(named: "iphone-6-7-app-store-listing-02-sync-workflow.png", from: app)
 

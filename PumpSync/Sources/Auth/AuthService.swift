@@ -38,7 +38,7 @@ final class BackendConfigurationStore {
   private let defaults: UserDefaults
   private static let modeKey = "backend.mode"
   private static let selfHostedBaseURLKey = "backend.selfHostedBaseURL"
-  private static let installationIdKey = "backend.installationId"
+  nonisolated static let installationIdDefaultsKey = "backend.installationId"
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
@@ -47,11 +47,11 @@ final class BackendConfigurationStore {
     mode = BackendAccessMode(rawValue: modeValue) ?? .hosted
     selfHostedBaseURLString = defaults.string(forKey: Self.selfHostedBaseURLKey) ?? ""
 
-    if let storedInstallationId = defaults.string(forKey: Self.installationIdKey), !storedInstallationId.isEmpty {
+    if let storedInstallationId = defaults.string(forKey: Self.installationIdDefaultsKey), !storedInstallationId.isEmpty {
       installationId = storedInstallationId
     } else {
       let newInstallationId = UUID().uuidString
-      defaults.set(newInstallationId, forKey: Self.installationIdKey)
+      defaults.set(newInstallationId, forKey: Self.installationIdDefaultsKey)
       installationId = newInstallationId
     }
   }
@@ -114,12 +114,14 @@ final class AuthService {
   private let syncedCurrentEntitlementJWS: @MainActor () async throws -> String
   private let createSubscriptionSession: @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse
   private let createSelfHostedSession: @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse
+  private let subscriptionSessionTimeout: TimeInterval
 
   private(set) var isConnecting = false
   private(set) var session: BackendSessionResponse?
   private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
   private(set) var errorMessage: String?
   private var transactionUpdatesTask: Task<Void, Never>?
+  private var subscriptionOperationTask: Task<Void, Never>?
 
   init(
     apiClient: PumpSyncAPIClient,
@@ -131,6 +133,7 @@ final class AuthService {
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
     self.diagnostics = diagnostics
+    subscriptionSessionTimeout = 20
     currentEntitlementJWS = {
       try await StoreKitSubscriptionProvider.currentEntitlementJWS(
         productId: AppConstants.subscriptionProductId,
@@ -160,12 +163,14 @@ final class AuthService {
     syncedCurrentEntitlementJWS: (@MainActor () async throws -> String)? = nil,
     createSubscriptionSession: @escaping @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse,
     createSelfHostedSession: @escaping @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse,
-    diagnostics: DiagnosticsLogStore? = nil
+    diagnostics: DiagnosticsLogStore? = nil,
+    subscriptionSessionTimeout: TimeInterval = 20
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
     self.diagnostics = diagnostics
+    self.subscriptionSessionTimeout = subscriptionSessionTimeout
     self.currentEntitlementJWS = currentEntitlementJWS
     self.syncedCurrentEntitlementJWS = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
     self.createSubscriptionSession = createSubscriptionSession
@@ -212,23 +217,28 @@ final class AuthService {
   }
 
   func connectUsingCurrentSubscription() async {
+    await runCoalescedSubscriptionOperation {
+      await self.restoreCurrentSubscription()
+    }
+  }
+
+  private func restoreCurrentSubscription() async {
     _ = configurationStore.apply(to: apiClient)
     isConnecting = true
     errorMessage = nil
-    statusMessage = "Checking hosted service..."
+    statusMessage = "Checking Subscription…"
     diagnostics?.record(source: .auth, title: "Subscription restore started")
 
     do {
       let signedTransactionInfo = try await syncedCurrentEntitlementJWS()
       await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
-        activityMessage: "Activating hosted service...",
+        activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription restored",
         publishesErrors: true
       )
     } catch StoreKitSubscriptionError.noActiveSubscription {
-      session = nil
-      try? sessionStore?.delete()
+      preserveValidSessionOrClear()
       let message = subscriptionConnectionMessage(for: StoreKitSubscriptionError.noActiveSubscription.errorDescription ?? "No active subscription was found.")
       errorMessage = message
       statusMessage = message
@@ -240,8 +250,7 @@ final class AuthService {
       )
       isConnecting = false
     } catch {
-      session = nil
-      try? sessionStore?.delete()
+      preserveValidSessionOrClear()
       let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
       errorMessage = message
       statusMessage = message
@@ -251,12 +260,14 @@ final class AuthService {
   }
 
   func activateSubscription(signedTransactionInfo: String) async {
-    await establishSubscriptionSession(
-      signedTransactionInfo: signedTransactionInfo,
-      activityMessage: "Activating hosted service...",
-      title: "PumpSync subscription purchased",
-      publishesErrors: true
-    )
+    await runCoalescedSubscriptionOperation {
+      await self.establishSubscriptionSession(
+        signedTransactionInfo: signedTransactionInfo,
+        activityMessage: "Connecting to PumpSync…",
+        title: "PumpSync subscription purchased",
+        publishesErrors: true
+      )
+    }
   }
 
   /// Starts listening for StoreKit transaction updates that arrive outside the
@@ -304,6 +315,7 @@ final class AuthService {
     }
 
     if transaction.isActiveSubscriptionEntitlement {
+      await transaction.finish()
       await activateSubscription(signedTransactionInfo: result.jwsRepresentation)
     } else if session != nil {
       // Guarded on session != nil: the first time an app observes
@@ -329,12 +341,13 @@ final class AuthService {
       )
     }
 
-    await transaction.finish()
+    if !transaction.isActiveSubscriptionEntitlement {
+      await transaction.finish()
+    }
   }
 
   func recordSubscriptionPurchaseCancelled() {
-    session = nil
-    try? sessionStore?.delete()
+    preserveValidSessionOrClear()
     errorMessage = nil
     statusMessage = "Subscription purchase cancelled."
     isConnecting = false
@@ -342,8 +355,7 @@ final class AuthService {
   }
 
   func recordSubscriptionPurchasePending() {
-    session = nil
-    try? sessionStore?.delete()
+    preserveValidSessionOrClear()
     errorMessage = nil
     statusMessage = "Subscription purchase is pending App Store approval."
     isConnecting = false
@@ -351,8 +363,7 @@ final class AuthService {
   }
 
   func recordSubscriptionPurchaseFailed(_ error: Error) {
-    session = nil
-    try? sessionStore?.delete()
+    preserveValidSessionOrClear()
     let message = safeMessage("Subscription purchase could not be completed.", error: error)
     errorMessage = message
     statusMessage = message
@@ -393,11 +404,8 @@ final class AuthService {
   }
 
   func recoverSessionIfNeeded() async {
-    guard !isConnecting else {
-      return
-    }
-
     if let session, sessionStore?.isValid(session) ?? !session.accessToken.isEmpty {
+      diagnostics?.record(source: .auth, title: "Connection session cache hit", message: "cacheHit=true totalMs=0")
       return
     }
 
@@ -413,7 +421,9 @@ final class AuthService {
 
     switch configurationStore.mode {
     case .hosted:
-      await recoverSubscriptionSession()
+      await runCoalescedSubscriptionOperation {
+        await self.recoverSubscriptionSession()
+      }
     case .selfHosted:
       await recoverSelfHostedSession()
     }
@@ -449,8 +459,10 @@ final class AuthService {
     statusMessage = activityMessage
     diagnostics?.record(source: .auth, title: "Subscription session started")
 
+    let backendStartedAt = Date()
+    var timedOut = false
     do {
-      session = try await createSubscriptionSession(
+      session = try await createSubscriptionSessionWithTimeout(
         SubscriptionSessionRequest(
           signedTransactionInfo: signedTransactionInfo,
           installationId: configurationStore.installationId
@@ -462,6 +474,7 @@ final class AuthService {
       statusMessage = "PumpSync subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
+      timedOut = error is SubscriptionSessionTimeoutError
       if hasValidPreviousSession {
         session = previousSession
       } else {
@@ -482,20 +495,32 @@ final class AuthService {
       diagnostics?.record(error: error, source: .auth, title: "Subscription session failed")
     }
 
+    let backendMs = Int(Date().timeIntervalSince(backendStartedAt) * 1_000)
+    diagnostics?.record(
+      source: .auth,
+      severity: timedOut ? .warning : .info,
+      title: "Subscription session timing",
+      message: "backendMs=\(backendMs) timedOut=\(timedOut) cacheHit=false"
+    )
+
     isConnecting = false
   }
 
   private func recoverSubscriptionSession() async {
+    let startedAt = Date()
     diagnostics?.record(source: .auth, title: "Subscription recovery started")
 
     do {
+      let entitlementStartedAt = Date()
       let signedTransactionInfo = try await currentEntitlementJWS()
+      let entitlementMs = Int(Date().timeIntervalSince(entitlementStartedAt) * 1_000)
       await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
-        activityMessage: "Restoring hosted service...",
+        activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription recovered",
         publishesErrors: false
       )
+      diagnostics?.record(source: .auth, title: "Subscription recovery timing", message: "entitlementMs=\(entitlementMs) totalMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000)) cacheHit=false")
     } catch StoreKitSubscriptionError.noActiveSubscription {
       session = nil
       try? sessionStore?.delete()
@@ -548,6 +573,57 @@ final class AuthService {
     statusMessage = "Connect to PumpSync or a self-hosted service"
   }
 
+  private func runCoalescedSubscriptionOperation(_ operation: @escaping @MainActor () async -> Void) async {
+    if let subscriptionOperationTask {
+      diagnostics?.record(source: .auth, title: "Subscription operation coalesced", message: "coalesced=true")
+      await subscriptionOperationTask.value
+      return
+    }
+
+    let task = Task { @MainActor in
+      await operation()
+    }
+    subscriptionOperationTask = task
+    await task.value
+    subscriptionOperationTask = nil
+  }
+
+  private func createSubscriptionSessionWithTimeout(
+    _ request: SubscriptionSessionRequest
+  ) async throws -> BackendSessionResponse {
+    try await withCheckedThrowingContinuation { continuation in
+      var hasResumed = false
+
+      Task { @MainActor in
+        do {
+          let response = try await createSubscriptionSession(request)
+          guard !hasResumed else { return }
+          hasResumed = true
+          continuation.resume(returning: response)
+        } catch {
+          guard !hasResumed else { return }
+          hasResumed = true
+          continuation.resume(throwing: error)
+        }
+      }
+
+      Task { @MainActor in
+        try? await Task.sleep(for: .seconds(subscriptionSessionTimeout))
+        guard !hasResumed else { return }
+        hasResumed = true
+        continuation.resume(throwing: SubscriptionSessionTimeoutError())
+      }
+    }
+  }
+
+  private func preserveValidSessionOrClear() {
+    if let session, sessionStore?.isValid(session) ?? !session.accessToken.isEmpty {
+      return
+    }
+    session = nil
+    try? sessionStore?.delete()
+  }
+
   /// The backend reports its data source on the session so a user who points
   /// the app at a demo deployment can tell before fabricated insulin/carb
   /// samples are written into their real Apple Health store.
@@ -590,6 +666,10 @@ final class AuthService {
       return message
     }
   }
+}
+
+private struct SubscriptionSessionTimeoutError: LocalizedError {
+  var errorDescription: String? { "Connecting to PumpSync timed out. Please try again." }
 }
 
 enum StoreKitSubscriptionError: LocalizedError {
@@ -638,6 +718,7 @@ private enum StoreKitSubscriptionProvider {
         continue
       }
 
+      await transaction.finish()
       return result.jwsRepresentation
     }
 

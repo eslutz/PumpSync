@@ -157,7 +157,9 @@ struct SyncView: View {
       return "Syncing"
     }
 
-    return services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil ? "Start Initial Sync" : "Sync Now"
+    return services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil
+      ? services.syncMetadataStore.metadata.initialImportRange.initialSyncButtonTitle
+      : "Sync Now"
   }
 
   private func formattedDate(_ date: Date?) -> String {

@@ -39,12 +39,15 @@ struct HealthAccessView: View {
             if isRequestingAccess {
               ProgressView()
             } else {
-              Text("Allow Health Access")
+              Text("Allow Access to Health")
             }
             Spacer()
           }
         }
-        .buttonStyle(GroupedActionButtonStyle())
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.roundedRectangle(radius: 24))
+        .controlSize(.large)
+        .frame(maxWidth: .infinity)
         .disabled(isRequestingAccess)
       }
 
@@ -57,9 +60,25 @@ struct HealthAccessView: View {
       }
 
       GlassSection("Change Access") {
-        Text(services.healthKitService.managementMessage ?? HealthAccessCopy.healthAppInstructions)
-          .foregroundStyle(.secondary)
+        if services.healthKitService.managementMessage == nil {
+          VStack(alignment: .leading, spacing: 12) {
+            ForEach(Array(HealthAccessCopy.healthAppInstructionSteps.enumerated()), id: \.offset) { index, step in
+              HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("\(index + 1)")
+                  .font(.subheadline.weight(.semibold))
+                  .foregroundStyle(.tint)
+                  .frame(width: 20)
+                Text(step)
+                  .foregroundStyle(.secondary)
+              }
+            }
+          }
           .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+          Text(services.healthKitService.managementMessage ?? "")
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
       }
     }
     .navigationTitle("Apple Health")

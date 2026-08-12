@@ -16,4 +16,11 @@ final class InitialImportRangeTests: XCTestCase {
   func testDefaultInitialImportRangeIsPastWeek() {
     XCTAssertEqual(InitialImportRange.default, .pastWeek)
   }
+
+  func testInitialSyncButtonTitlesReflectSelectedRange() {
+    XCTAssertEqual(InitialImportRange.startFromNow.initialSyncButtonTitle, "Start Syncing")
+    XCTAssertEqual(InitialImportRange.pastTwoDays.initialSyncButtonTitle, "Sync Past 2 Days")
+    XCTAssertEqual(InitialImportRange.pastWeek.initialSyncButtonTitle, "Sync Past 7 Days")
+    XCTAssertEqual(InitialImportRange.pastTwoWeeks.initialSyncButtonTitle, "Sync Past 14 Days")
+  }
 }

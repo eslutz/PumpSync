@@ -44,7 +44,9 @@
 		AFE1EEA207C7E7440827049F /* NativeDiagnosticsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E117802C7DE65061DABF6727 /* NativeDiagnosticsStore.swift */; };
 		B071813F6A46DD557EC13A9D /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490EE136418A1B6AE164F633 /* AuthService.swift */; };
 		B2749195783155E5333CF70E /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6DA5FED28D70A119E7A56B /* HealthKitService.swift */; };
+		B45C152203FA65E288CDBFEF /* InstallStateReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A1AD7EC80A3DEE8B0B8807 /* InstallStateReconciler.swift */; };
 		B65BEA4308E67124A51FC987 /* InitialImportRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */; };
+		C280C4C54379D8443B31C7A9 /* InstallStateReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B33EA113BB223EB24DB915BC /* InstallStateReconcilerTests.swift */; };
 		C4B65866DE4A307C249B6057 /* InitialImportRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6510518C8E49577BD3F362F /* InitialImportRange.swift */; };
 		CED29C776F51918B0EE77A47 /* SupportBundleBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550211DC80206514571F2CA4 /* SupportBundleBuilder.swift */; };
 		D038B9BF745207A4396D81BC /* HealthAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */; };
@@ -103,6 +105,7 @@
 		5DA7EAD49918D98ADBDB09F8 /* PumpSyncTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PumpSyncTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F320DEB00E61B6A6E1DA31C /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		5F3A6A77F4F6DCA618C40B84 /* DeveloperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperView.swift; sourceTree = "<group>"; };
+		64A1AD7EC80A3DEE8B0B8807 /* InstallStateReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallStateReconciler.swift; sourceTree = "<group>"; };
 		69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentialForm.swift; sourceTree = "<group>"; };
 		6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsLogStoreTests.swift; sourceTree = "<group>"; };
 		70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendSessionStore.swift; sourceTree = "<group>"; };
@@ -113,6 +116,7 @@
 		A6510518C8E49577BD3F362F /* InitialImportRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialImportRange.swift; sourceTree = "<group>"; };
 		A6CB633F521B8CEC31BEE771 /* SubscriptionPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPresentationTests.swift; sourceTree = "<group>"; };
 		B2BE58A53E6A9CAE0104AE0E /* ImportedSampleLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedSampleLedgerTests.swift; sourceTree = "<group>"; };
+		B33EA113BB223EB24DB915BC /* InstallStateReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallStateReconcilerTests.swift; sourceTree = "<group>"; };
 		C23E211038A242211F7416AF /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
 		C572BC95D8A1228661865AC4 /* GlassUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassUI.swift; sourceTree = "<group>"; };
 		C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncShortcuts.swift; sourceTree = "<group>"; };
@@ -199,6 +203,7 @@
 			isa = PBXGroup;
 			children = (
 				D2841227766770EA92688A77 /* ImportedSampleLedger.swift */,
+				64A1AD7EC80A3DEE8B0B8807 /* InstallStateReconciler.swift */,
 				CFE10C4425E732936246A0BB /* SecureKeychainStore.swift */,
 				2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */,
 			);
@@ -237,6 +242,7 @@
 				CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */,
 				B2BE58A53E6A9CAE0104AE0E /* ImportedSampleLedgerTests.swift */,
 				58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */,
+				B33EA113BB223EB24DB915BC /* InstallStateReconcilerTests.swift */,
 				16DD953874B39F8C31C11399 /* JSONCodecTests.swift */,
 				94CE75F06E77B7E64182EFBE /* NativeDiagnosticsStoreTests.swift */,
 				E86C5E3A2FF717124BE9EE65 /* PolicyURLTests.swift */,
@@ -428,6 +434,7 @@
 				7EFE319F32AC57F0B583ABF3 /* HealthWritePermission.swift in Sources */,
 				7D8239130474C55B9925A4C7 /* ImportedSampleLedger.swift in Sources */,
 				C4B65866DE4A307C249B6057 /* InitialImportRange.swift in Sources */,
+				B45C152203FA65E288CDBFEF /* InstallStateReconciler.swift in Sources */,
 				562C2A1D6E9BE2F7A5ACFB89 /* MetricKitDiagnosticsCollector.swift in Sources */,
 				AFE1EEA207C7E7440827049F /* NativeDiagnosticsStore.swift in Sources */,
 				59F4523649C67CC80D72AFBE /* PrivacyView.swift in Sources */,
@@ -456,6 +463,7 @@
 				AE379769E7346E02086C3A63 /* HealthAccessTests.swift in Sources */,
 				3B46D91090DE18F4C7AC932F /* ImportedSampleLedgerTests.swift in Sources */,
 				B65BEA4308E67124A51FC987 /* InitialImportRangeTests.swift in Sources */,
+				C280C4C54379D8443B31C7A9 /* InstallStateReconcilerTests.swift in Sources */,
 				DB5B3E47304BB73A55880A3A /* JSONCodecTests.swift in Sources */,
 				6ED107DF74FEB8E5ED6CD3A4 /* NativeDiagnosticsStoreTests.swift in Sources */,
 				5DEED1D2EB56D00A74A19A0C /* PolicyURLTests.swift in Sources */,

@@ -50,11 +50,18 @@ final class AppServices {
 
   static func live() -> AppServices {
     let apiClient = PumpSyncAPIClient.live()
+    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
+    do {
+      _ = try InstallStateReconciler.reconcile {
+        try keychain.deleteAll()
+      }
+    } catch {
+      assertionFailure("Fresh-install Keychain cleanup failed: \(error.localizedDescription)")
+    }
     let backendConfigurationStore = BackendConfigurationStore()
     _ = backendConfigurationStore.apply(to: apiClient)
     let diagnosticsLogStore = DiagnosticsLogStore()
     let nativeDiagnosticsStore = NativeDiagnosticsStore()
-    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
     let sessionStore = BackendSessionStore(keychain: keychain)
     let credentialStore = TandemCredentialStore(keychain: keychain)
     let authService = AuthService(
@@ -166,7 +173,16 @@ final class AppServices {
       validatedAt: Date().addingTimeInterval(-60 * 60)
     )
     healthKitService.applyScreenshotAuthorization()
-    syncMetadataStore.applyScreenshotMetadata(
+    let screenshotMetadata = if AppLaunchEnvironment.isScreenshotInitialSync {
+      SyncMetadata(
+        lastAttemptAt: nil,
+        lastSuccessfulSyncAt: nil,
+        lastSampleCount: 0,
+        lastImportedCount: 0,
+        lastErrorMessage: nil,
+        initialImportRange: .pastTwoWeeks
+      )
+    } else {
       SyncMetadata(
         lastAttemptAt: Date().addingTimeInterval(-45 * 60),
         lastSuccessfulSyncAt: Date().addingTimeInterval(-45 * 60),
@@ -175,7 +191,8 @@ final class AppServices {
         lastErrorMessage: nil,
         initialImportRange: .pastWeek
       )
-    )
+    }
+    syncMetadataStore.applyScreenshotMetadata(screenshotMetadata)
     if AppLaunchEnvironment.isScreenshotSyncing {
       syncCoordinator.applyScreenshotSyncing()
     }

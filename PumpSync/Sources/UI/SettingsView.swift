@@ -48,7 +48,7 @@ struct SettingsView: View {
           }
           .buttonStyle(GroupedInlineButtonStyle())
           .disabled(subscriptionActionsDisabled)
-          .accessibilityHint("Checks your current App Store subscription and reconnects hosted service access")
+          .accessibilityHint("Checks your current App Store subscription and reconnects to PumpSync")
 
         case .selfHosted:
           Text("Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.")
@@ -493,7 +493,7 @@ private struct SubscriptionScreenshotView: View {
       VStack(alignment: .leading, spacing: 16) {
         SubscriptionBenefitRow(
           title: "Managed connection",
-          detail: "PumpSync handles hosted service access and server maintenance.",
+          detail: "PumpSync operates and maintains the service for you.",
           systemImage: "server.rack"
         )
 
@@ -505,7 +505,7 @@ private struct SubscriptionScreenshotView: View {
 
         SubscriptionBenefitRow(
           title: "No server setup",
-          detail: "Use the hosted service instead of deploying and maintaining your own backend.",
+          detail: "Sync without setting up or maintaining your own server.",
           systemImage: "checkmark.shield"
         )
       }
@@ -547,19 +547,19 @@ private struct PumpSyncSubscriptionStoreView: View {
         VStack(alignment: .leading, spacing: 12) {
           SubscriptionBenefitRow(
             title: "Managed connection",
-            detail: "PumpSync handles hosted service access and server maintenance.",
+            detail: "PumpSync operates and maintains the service for you.",
             systemImage: "server.rack"
           )
 
           SubscriptionBenefitRow(
             title: "Secure Health sync",
-            detail: "Sync through PumpSync's hosted service. Data is processed only during active sync operations and is not retained on PumpSync servers.",
+            detail: "Your data is processed only while syncing and is not kept on PumpSync servers.",
             systemImage: "heart.text.square"
           )
 
           SubscriptionBenefitRow(
             title: "No server setup",
-            detail: "Use the hosted service instead of deploying and maintaining your own backend.",
+            detail: "Sync without setting up or maintaining your own server.",
             systemImage: "checkmark.shield"
           )
         }
@@ -630,8 +630,8 @@ private struct PumpSyncSubscriptionStoreView: View {
           title: "Active subscription transaction returned",
           message: transaction.diagnosticSummary(active: true)
         )
-        await services.authService.activateSubscription(signedTransactionInfo: verificationResult.jwsRepresentation)
         await transaction.finish()
+        await services.authService.activateSubscription(signedTransactionInfo: verificationResult.jwsRepresentation)
         if services.authService.isSignedIn {
           isPresented = false
         } else {

@@ -11,6 +11,9 @@ struct TandemCredentialForm: View {
   @State private var isShowingPassword = false
   @State private var isValidating = false
   @State private var lastValidatedCredentials: TandemCredentials?
+  @State private var baselineUsername = ""
+  @State private var baselineRegion = TandemRegion.us
+  @State private var isConfirmingRemoval = false
 
   var body: some View {
     PumpSyncScreen {
@@ -25,20 +28,30 @@ struct TandemCredentialForm: View {
 
         GlassDivider(leadingPadding: 0)
 
-        if isShowingPassword {
-          TextField("Password", text: $password)
-            .textContentType(.password)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .frame(minHeight: 44)
-            .accessibilityLabel("Tandem password")
-            .accessibilityHint("Enter the password for your pump account")
-        } else {
-          SecureField("Password", text: $password)
-            .textContentType(.password)
-            .frame(minHeight: 44)
-            .accessibilityLabel("Tandem password")
-            .accessibilityHint("Enter the password for your pump account")
+        HStack(spacing: 12) {
+          Group {
+            if isShowingPassword {
+              TextField("Password", text: $password)
+            } else {
+              SecureField("Password", text: $password)
+            }
+          }
+          .textContentType(.password)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .frame(minHeight: 44)
+          .accessibilityLabel("Tandem password")
+          .accessibilityHint("Enter the password for your pump account")
+
+          Button {
+            isShowingPassword.toggle()
+          } label: {
+            Image(systemName: isShowingPassword ? "eye.slash" : "eye")
+              .frame(width: 44, height: 44)
+          }
+          .buttonStyle(.plain)
+          .disabled(password.isEmpty)
+          .accessibilityLabel(isShowingPassword ? "Hide password" : "Show password")
         }
 
         if services.credentialStore.hasStoredCredentials {
@@ -46,13 +59,8 @@ struct TandemCredentialForm: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 8)
         }
-
-        GlassDivider(leadingPadding: 0)
-
-        Toggle("Show password", isOn: $isShowingPassword)
-          .frame(minHeight: 44)
-          .accessibilityHint("Shows or hides the Tandem password text")
 
         GlassDivider(leadingPadding: 0)
 
@@ -82,9 +90,13 @@ struct TandemCredentialForm: View {
       .privacySensitive()
       .redacted(reason: scenePhase == .active ? [] : .privacy)
 
-      Button {
-        Task {
-          await validateAndSave()
+      Button(role: actionState == .remove ? .destructive : nil) {
+        if actionState == .remove {
+          isConfirmingRemoval = true
+        } else {
+          Task {
+            await validateAndSave()
+          }
         }
       } label: {
         GlassPrimaryLabel(title: primaryActionTitle, systemImage: primaryActionSystemImage)
@@ -93,14 +105,13 @@ struct TandemCredentialForm: View {
       .disabled(!canUsePrimaryAction)
       .accessibilityHint(primaryActionHint)
 
-      Button(role: .destructive) {
-        delete()
-      } label: {
-        GlassPrimaryLabel(title: "Remove Credentials", systemImage: "trash")
+      if actionState == .saveDisabled && services.credentialStore.hasStoredCredentials && (usernameChanged || regionChanged) && password.isEmpty {
+        Text("Enter your password to save changes.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 4)
       }
-      .buttonStyle(GroupedActionButtonStyle())
-      .disabled(!services.credentialStore.hasStoredCredentials)
-      .accessibilityHint("Removes the saved pump account credentials from this device")
     }
     .navigationTitle("Tandem")
     .onAppear(perform: load)
@@ -111,6 +122,12 @@ struct TandemCredentialForm: View {
       if newPhase != .active {
         isShowingPassword = false
       }
+    }
+    .confirmationDialog("Remove saved credentials?", isPresented: $isConfirmingRemoval, titleVisibility: .visible) {
+      Button("Remove Credentials", role: .destructive, action: delete)
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("You will need to enter your Tandem account details before syncing again.")
     }
     .alert(
       alert?.title ?? "",
@@ -142,8 +159,47 @@ struct TandemCredentialForm: View {
     !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty
   }
 
+  enum ActionState: Equatable {
+    case save
+    case saveDisabled
+    case remove
+  }
+
+  static func actionState(
+    hasStoredCredentials: Bool,
+    usernameChanged: Bool,
+    regionChanged: Bool,
+    password: String
+  ) -> ActionState {
+    if !hasStoredCredentials {
+      return password.isEmpty ? .saveDisabled : .save
+    }
+    if password.isEmpty {
+      return usernameChanged || regionChanged ? .saveDisabled : .remove
+    }
+    return .save
+  }
+
+  private var usernameChanged: Bool {
+    username.trimmingCharacters(in: .whitespacesAndNewlines) != baselineUsername
+  }
+
+  private var regionChanged: Bool { region != baselineRegion }
+
+  private var actionState: ActionState {
+    Self.actionState(
+      hasStoredCredentials: services.credentialStore.hasStoredCredentials,
+      usernameChanged: usernameChanged,
+      regionChanged: regionChanged,
+      password: password
+    )
+  }
+
   private var canUsePrimaryAction: Bool {
-    hasRequiredFields && !isValidating && !services.authService.isConnecting
+    actionState != .saveDisabled
+      && (actionState == .remove || hasRequiredFields)
+      && !isValidating
+      && !services.authService.isConnecting
   }
 
   private var primaryActionTitle: String {
@@ -155,15 +211,17 @@ struct TandemCredentialForm: View {
       return "Connecting"
     }
 
-    return "Save Credentials"
+    return actionState == .remove ? "Remove Credentials" : "Save Credentials"
   }
 
   private var primaryActionSystemImage: String {
-    "key.fill"
+    actionState == .remove ? "trash" : "key.fill"
   }
 
   private var primaryActionHint: String {
-    "Validates the pump account credentials using the current PumpSync connection, then saves them on this device"
+    actionState == .remove
+      ? "Removes the saved pump account credentials from this device"
+      : "Validates the pump account credentials using the current PumpSync connection, then saves them on this device"
   }
 
   static func shouldSkipRevalidation(current: TandemCredentials, lastValidated: TandemCredentials?) -> Bool {
@@ -187,6 +245,8 @@ struct TandemCredentialForm: View {
       // the password.
       username = credentials.username
       region = TandemRegion(rawValue: credentials.region) ?? .us
+      baselineUsername = credentials.username
+      baselineRegion = region
     } catch {
       services.diagnosticsLogStore.record(source: .credential, severity: .error, title: "Credentials unavailable", message: error.localizedDescription)
     }
@@ -237,6 +297,10 @@ struct TandemCredentialForm: View {
 
       try services.credentialStore.saveValidated(credentials)
       lastValidatedCredentials = credentials
+      baselineUsername = credentials.username
+      baselineRegion = region
+      password = ""
+      isShowingPassword = false
       alert = CredentialAlert(
         title: "Credentials Saved",
         message: "Credentials validated and saved to this device."
@@ -271,6 +335,9 @@ struct TandemCredentialForm: View {
       try services.credentialStore.delete()
       username = ""
       password = ""
+      baselineUsername = ""
+      baselineRegion = .us
+      region = .us
       lastValidatedCredentials = nil
       alert = CredentialAlert(
         title: "Credentials Removed",

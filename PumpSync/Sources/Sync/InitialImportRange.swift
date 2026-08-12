@@ -23,6 +23,19 @@ enum InitialImportRange: String, CaseIterable, Codable, Identifiable {
     }
   }
 
+  var initialSyncButtonTitle: String {
+    switch self {
+    case .startFromNow:
+      return "Start Syncing"
+    case .pastTwoDays:
+      return "Sync Past 2 Days"
+    case .pastWeek:
+      return "Sync Past 7 Days"
+    case .pastTwoWeeks:
+      return "Sync Past 14 Days"
+    }
+  }
+
   func minimumDate(relativeTo now: Date, calendar: Calendar = .current) -> Date {
     switch self {
     case .startFromNow:
