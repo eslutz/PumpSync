@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
     paths:
       - "PumpSync/**"
       - "PumpSyncTests/**"
       - "PumpSyncUITests/**"
       - "project.yml"
+      - "scripts/validate-version.sh"
+      - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
   pull_request:
     paths:
@@ -16,6 +20,8 @@ on:
       - "PumpSyncTests/**"
       - "PumpSyncUITests/**"
       - "project.yml"
+      - "scripts/validate-version.sh"
+      - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
 
 permissions:
@@ -29,11 +35,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate release version
+        run: |
+          scripts/tests/validate-version-tests.sh
+          scripts/validate-version.sh
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
       - name: Generate Xcode project
         run: xcodegen generate
+
+      - name: Verify generated Xcode project is current
+        run: git diff --exit-code -- PumpSync.xcodeproj
 
       - name: Create simulator
         id: simulator

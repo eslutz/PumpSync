@@ -1,12 +1,12 @@
 # PumpSync Release Preparation Checklist
 
-Use this document as the release gate for PumpSync 1.0. Complete the sections in order. If a release-blocking fix changes the app, backend, subscription configuration, or data-handling behavior, repeat every affected check before advancing.
+Use this document as the release gate for PumpSync 1.0.0. Complete the sections in order. If a release-blocking fix changes the app, backend, subscription configuration, or data-handling behavior, repeat every affected check before advancing.
 
 ## Release Record
 
 - [ ] Record the intended iOS release commit: `________________________`
 - [ ] Record the intended backend release commit: `________________________`
-- [ ] Record the App Store version: `1.0`
+- [ ] Record the App Store version: `1.0.0`
 - [ ] Record the release build number: `________________________`
 - [ ] Record the internal TestFlight build number: `________________________`
 - [ ] Record the external TestFlight build number: `________________________`
@@ -245,10 +245,10 @@ Do not configure production to accept sandbox transactions. Run full sandbox sub
 - [ ] Run the complete automated test suite before archiving.
 - [ ] Confirm Release points to `https://api.pumpsync.ericslutz.dev/api`.
 - [ ] Confirm the subscription product ID is correct.
-- [ ] Increment `CFBundleVersion` and confirm marketing version `1.0`.
+- [ ] Set `CFBundleVersion` to the next unused App Store Connect build number and confirm marketing version `1.0.0`.
 - [ ] Regenerate `PumpSync.xcodeproj` from `project.yml` and verify no diff remains.
 - [ ] Verify the frontend worktree is clean, the intended commit is pushed, and `HEAD` equals its upstream.
-- [ ] Tag the exact release commit as `v1.0.0` after verifying local and remote tag state.
+- [ ] Record the exact source commit for the archive; do not create the stable `v1.0.0` tag until Apple accepts this build.
 - [ ] Archive and upload the App Store release build.
 - [ ] Inspect the archived app's effective Info.plist, entitlements, signing, HealthKit capability, background modes, API URL, product ID, and encryption declaration.
 - [ ] Confirm App Store Connect finishes processing the build without warnings or compliance blockers.
@@ -257,7 +257,7 @@ Do not configure production to accept sandbox transactions. Run full sandbox sub
 
 ### Product Page and App Information
 
-- [ ] Select the production build for version 1.0.
+- [ ] Select the production build for version 1.0.0.
 - [ ] Verify app name, subtitle, promotional text, description, keywords, version, and copyright.
 - [ ] Verify marketing and support URLs.
 - [ ] Verify the iPhone App Preview, screenshots, ordering, processing status, and poster frame.
@@ -290,11 +290,11 @@ Do not configure production to accept sandbox transactions. Run full sandbox sub
 
 ### First Subscription Submission
 
-The first auto-renewable subscription must be reviewed with version 1.0.
+The first auto-renewable subscription must be reviewed with version 1.0.0.
 
 - [ ] Verify subscription group and localization.
 - [ ] Verify product name, description, ID, $2.99 monthly price, renewal period, availability, and review screenshot.
-- [ ] Add the subscription to the version 1.0 App Review submission.
+- [ ] Add the subscription to the version 1.0.0 App Review submission.
 - [ ] Add the unapproved subscription group if App Store Connect requires it.
 - [ ] Confirm both the app version and subscription appear in the same submission.
 
@@ -302,13 +302,25 @@ The first auto-renewable subscription must be reviewed with version 1.0.
 
 - [ ] Select **Manually release this version** instead of automatic release.
 - [ ] Save all version metadata.
-- [ ] Add version 1.0 and the subscription items for review.
+- [ ] Add version 1.0.0 and the subscription items for review.
 - [ ] Review the complete submission one final time.
 - [ ] Submit for App Review.
 - [ ] Monitor App Review messages and respond promptly.
 - [ ] Resolve any rejection and repeat affected validation before resubmission.
 - [ ] Confirm both the app and subscription are approved.
-- [ ] Confirm version 1.0 reaches **Pending Developer Release**.
+- [ ] Confirm version 1.0.0 reaches **Pending Developer Release**.
+- [ ] Reconcile the accepted build number to its recorded source commit, and confirm that commit is clean, pushed, and matches its upstream.
+- [ ] Confirm `v1.0.0` does not exist locally or remotely, then create the annotated tag on the accepted commit and push it without ever moving it:
+
+```sh
+git status --short
+git rev-list --left-right --count HEAD...@{upstream}
+git tag --list v1.0.0
+git ls-remote --tags origin refs/tags/v1.0.0
+git tag -a v1.0.0 <accepted-source-commit> -m "PumpSync v1.0.0"
+git push origin v1.0.0
+gh release create v1.0.0 --verify-tag --title "PumpSync v1.0.0" --notes-from-tag
+```
 
 ## Gate 6: Production Release
 
@@ -331,7 +343,7 @@ The first auto-renewable subscription must be reviewed with version 1.0.
 ### Release and Production Canary
 
 - [ ] Click **Release This Version** and confirm the manual release.
-- [ ] Wait until version 1.0 is publicly available in the intended storefront.
+- [ ] Wait until version 1.0.0 is publicly available in the intended storefront.
 - [ ] Download the public App Store build using the controlled canary account.
 - [ ] Complete one real $2.99 subscription purchase; record the charge and receipt context.
 - [ ] Verify the production backend accepts the production entitlement and creates a session.
@@ -360,4 +372,3 @@ The first auto-renewable subscription must be reviewed with version 1.0.
 - [ ] Complete a 24-hour launch review.
 - [ ] Complete a 7-day launch review.
 - [ ] Close the release only after monitoring is stable and all release records are complete.
-

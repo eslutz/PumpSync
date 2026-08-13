@@ -4,7 +4,7 @@ import XCTest
 final class SupportBundleBuilderTests: XCTestCase {
   func testSupportBundleIncludesExpectedMetadataAndRedactsSensitiveValues() {
     let context = SupportBundleContext(
-      bundleInfo: AppBundleInfo(version: "1.0", build: "42"),
+      bundleInfo: AppBundleInfo(version: "1.0.0", build: "42"),
       systemVersion: "26.0",
       deviceModel: "iPhone",
       backendMode: "PumpSync",
@@ -31,7 +31,7 @@ final class SupportBundleBuilderTests: XCTestCase {
           kind: .performance,
           title: "Performance metrics",
           summary: "cumulativeHangTime: 0 ms",
-          appVersion: "1.0",
+          appVersion: "1.0.0",
           buildNumber: "42"
         )
       ]
@@ -39,7 +39,7 @@ final class SupportBundleBuilderTests: XCTestCase {
 
     let bundle = SupportBundleBuilder.build(context: context, generatedAt: Date(timeIntervalSince1970: 50))
 
-    XCTAssertTrue(bundle.contains("App Version: 1.0 (42)"))
+    XCTAssertTrue(bundle.contains("App Version: 1.0.0 (42)"))
     XCTAssertFalse(bundle.contains("Bundle Identifier"))
     XCTAssertFalse(bundle.contains("dev.ericslutz.PumpSync"))
     XCTAssertFalse(bundle.contains("Connection Host"))

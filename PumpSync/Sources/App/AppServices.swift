@@ -212,7 +212,7 @@ final class AppServices {
         kind: .performance,
         title: "Performance metrics",
         summary: "cumulativeHangTime: 0 ms\nhistogrammedTimeToFirstDraw: nominal",
-        appVersion: "1.0",
+        appVersion: "1.0.0",
         buildNumber: "1"
       )
     ])
