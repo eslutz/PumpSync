@@ -28,13 +28,13 @@ struct PumpSyncApp: App {
       case .active:
         // AppView's .task only runs on cold launch. Re-check on every
         // foreground and keep a future task submitted for the next window.
-        services.backgroundSyncScheduler.scheduleDailySync()
+        services.backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
         Task {
           await services.authService.recoverSessionIfNeeded()
           await services.syncCoordinator.refreshIfStale(reason: .appOpen)
         }
       case .background:
-        services.backgroundSyncScheduler.scheduleDailySync()
+        services.backgroundSyncScheduler.scheduleDailySync(trigger: "appBackground")
       default:
         break
       }

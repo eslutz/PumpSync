@@ -151,7 +151,17 @@ final class SyncCoordinator {
   }
 
   func refreshIfStale(reason: SyncTriggerReason) async {
-    guard shouldRefreshForStaleness else {
+    let lastSuccessfulSyncAt = syncMetadataStore.metadata.lastSuccessfulSyncAt
+    let ageSeconds = lastSuccessfulSyncAt.map { max(0, Date().timeIntervalSince($0)) }
+    let shouldRefresh = ageSeconds.map { $0 >= AppConstants.staleSyncInterval } ?? true
+    let ageDescription = ageSeconds.map { String(Int($0)) } ?? "none"
+    diagnostics?.record(
+      source: .sync,
+      title: "Background sync freshness evaluated",
+      message: "build=\(BackgroundSyncDiagnostics.buildNumber) reason=\(reason.rawValue) decision=\(shouldRefresh ? "sync" : "skip") lastSuccessAgeSeconds=\(ageDescription) targetSeconds=\(Int(AppConstants.staleSyncInterval))"
+    )
+
+    guard shouldRefresh else {
       diagnostics?.record(source: .sync, title: "Sync skipped", message: "Last successful sync is within the four-hour freshness target.")
       return
     }
@@ -239,6 +249,7 @@ final class SyncCoordinator {
 
     syncMetadataStore.recordAttempt()
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
+    recordBackgroundStage(.preparing, startedAt: startedAt, reason: reason)
 
     do {
       let now = Date()
@@ -253,6 +264,7 @@ final class SyncCoordinator {
         timeZoneIdentifier: TimeZone.current.identifier
       )
       operationState = .running(SyncProgress(phase: .downloading, trigger: reason, startedAt: startedAt))
+      recordBackgroundStage(.downloading, startedAt: startedAt, reason: reason)
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
       // Record only what Apple Health confirmed: save() drops samples whose
@@ -261,6 +273,7 @@ final class SyncCoordinator {
       // later permission grant could never backfill an already-ledgered
       // sample.
       operationState = .running(SyncProgress(phase: .updatingHealth, trigger: reason, startedAt: startedAt))
+      recordBackgroundStage(.updatingHealth, startedAt: startedAt, reason: reason)
       let writtenSamples = try await healthKitService.save(samples: unseenSamples)
       try importedSampleLedger.recordImported(writtenSamples)
       let importedCount = writtenSamples.count
@@ -331,6 +344,23 @@ final class SyncCoordinator {
     operationState = .failed(SyncFailure(message: message, recovery: recovery))
   }
 
+  private func recordBackgroundStage(_ phase: SyncPhase, startedAt: Date, reason: SyncTriggerReason) {
+    guard reason == .background else {
+      return
+    }
+
+    let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+    diagnostics?.record(
+      source: .sync,
+      title: "Background sync stage",
+      message: BackgroundSyncDiagnostics.stageDescription(
+        buildNumber: BackgroundSyncDiagnostics.buildNumber,
+        stage: phase.rawValue,
+        elapsedMs: elapsedMs
+      )
+    )
+  }
+
   private func isHealthAuthorizationFailure(_ error: Error) -> Bool {
     guard let healthError = error as? HealthKitError else {
       return false
@@ -358,14 +388,6 @@ final class SyncCoordinator {
 
   func performBackgroundSync() async {
     await refreshIfStale(reason: .background)
-  }
-
-  private var shouldRefreshForStaleness: Bool {
-    guard let lastSuccessfulSyncAt = syncMetadataStore.metadata.lastSuccessfulSyncAt else {
-      return true
-    }
-
-    return Date().timeIntervalSince(lastSuccessfulSyncAt) >= AppConstants.staleSyncInterval
   }
 
   private func message(sampleCount: Int, importedCount: Int, reason: SyncTriggerReason) -> String {

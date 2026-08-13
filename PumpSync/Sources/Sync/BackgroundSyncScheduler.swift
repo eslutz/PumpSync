@@ -1,17 +1,19 @@
 import BackgroundTasks
 import Foundation
 import Synchronization
+import UIKit
 
+@MainActor
 final class BackgroundSyncScheduler {
   private let identifier: String
   private var isRegistered = false
   private let onScheduleFailure: (@Sendable (any Error) -> Void)?
-  private let onEvent: (@Sendable (String) -> Void)?
+  private let onEvent: (@Sendable (String, String?) -> Void)?
 
   init(
     identifier: String,
     onScheduleFailure: (@Sendable (any Error) -> Void)? = nil,
-    onEvent: (@Sendable (String) -> Void)? = nil
+    onEvent: (@Sendable (String, String?) -> Void)? = nil
   ) {
     self.identifier = identifier
     self.onScheduleFailure = onScheduleFailure
@@ -24,25 +26,40 @@ final class BackgroundSyncScheduler {
     }
 
     let onEvent = onEvent
-    BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { [weak self] task in
+    let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { [weak self] task in
       guard let self else {
         task.setTaskCompleted(success: false)
         return
       }
 
-      onEvent?("Background sync task started")
+      onEvent?("Background sync task started", Self.runtimeContext())
       self.handle(task: task, handler: handler)
     }
-    isRegistered = true
+    isRegistered = registered
+    onEvent?(
+      registered ? "Background sync task registered" : "Background sync task registration failed",
+      Self.runtimeContext()
+    )
   }
 
-  func scheduleDailySync() {
+  func scheduleDailySync(trigger: String = "unspecified") {
     let identifier = identifier
     let onScheduleFailure = onScheduleFailure
     let onEvent = onEvent
+    let runtimeContext = Self.runtimeContext()
     BGTaskScheduler.shared.getPendingTaskRequests { requests in
+      let matchingRequests = requests.filter { $0.identifier == identifier }
+      let descriptions = matchingRequests.map {
+        BackgroundSyncDiagnostics.pendingRequestDescription(
+          identifier: $0.identifier,
+          earliestBeginDate: $0.earliestBeginDate
+        )
+      }
+      let pendingMessage = ([runtimeContext, "trigger=\(trigger)", "count=\(matchingRequests.count)"] + descriptions)
+        .joined(separator: " ")
+
       guard !requests.contains(where: { $0.identifier == identifier }) else {
-        onEvent?("Background sync task already scheduled")
+        onEvent?("Background sync task already scheduled", pendingMessage)
         return
       }
 
@@ -51,7 +68,11 @@ final class BackgroundSyncScheduler {
 
       do {
         try BGTaskScheduler.shared.submit(request)
-        onEvent?("Background sync task scheduled")
+        let requestMessage = BackgroundSyncDiagnostics.pendingRequestDescription(
+          identifier: request.identifier,
+          earliestBeginDate: request.earliestBeginDate
+        )
+        onEvent?("Background sync task scheduled", "\(runtimeContext) trigger=\(trigger) \(requestMessage)")
       } catch {
         // A swallowed submit failure (unregistered identifier, simulator
         // restrictions, too many pending requests) makes background sync
@@ -62,9 +83,10 @@ final class BackgroundSyncScheduler {
   }
 
   private func handle(task: BGTask, handler: @escaping @Sendable () async -> Void) {
-    scheduleDailySync()
+    scheduleDailySync(trigger: "taskLaunch")
 
     let onEvent = onEvent
+    let startedAt = Date()
     // BGTask isn't Sendable, but setTaskCompleted(success:) is documented as
     // safe to call from any thread — that's the whole point of the method.
     // Box it so it can cross into the unstructured Task below without the
@@ -84,7 +106,11 @@ final class BackgroundSyncScheduler {
       }
 
       if shouldComplete {
-        onEvent?(success ? "Background sync task completed" : "Background sync task failed")
+        let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+        onEvent?(
+          success ? "Background sync task completed" : "Background sync task failed",
+          "build=\(BackgroundSyncDiagnostics.buildNumber) elapsedMs=\(elapsedMs) cancelled=\(!success)"
+        )
         taskBox.value.setTaskCompleted(success: success)
       }
     }
@@ -96,9 +122,30 @@ final class BackgroundSyncScheduler {
 
     task.expirationHandler = {
       work.cancel()
-      onEvent?("Background sync task expired")
+      let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+      onEvent?("Background sync task expired", "build=\(BackgroundSyncDiagnostics.buildNumber) elapsedMs=\(elapsedMs)")
       complete(false)
     }
+  }
+
+  private static func runtimeContext() -> String {
+    let refreshStatus: BackgroundRefreshAvailability
+    switch UIApplication.shared.backgroundRefreshStatus {
+    case .available:
+      refreshStatus = .available
+    case .denied:
+      refreshStatus = .denied
+    case .restricted:
+      refreshStatus = .restricted
+    @unknown default:
+      refreshStatus = .unknown
+    }
+
+    return BackgroundSyncDiagnostics.schedulingContext(
+      buildNumber: BackgroundSyncDiagnostics.buildNumber,
+      refreshStatus: refreshStatus,
+      isLowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled
+    )
   }
 }
 

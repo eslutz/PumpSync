@@ -417,18 +417,23 @@ final class SyncCoordinatorTests: XCTestCase {
   func testRefreshIfStaleSkipsSyncWhenRecentlySuccessful() async throws {
     let syncMetadataStore = makeSyncMetadataStore()
     syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date())
+    let diagnostics = makeDiagnostics()
     // No requestHandler installed: if sync() were reached, the client would
     // fail with badServerResponse instead of silently succeeding, so a
     // non-nil lastMessage here would prove the guard didn't hold.
     let coordinator = makeCoordinator(
       authService: makeSignedInAuthService(),
       credentialStore: try makeValidatedCredentialStore(),
-      syncMetadataStore: syncMetadataStore
+      syncMetadataStore: syncMetadataStore,
+      diagnostics: diagnostics
     )
 
     await coordinator.refreshIfStale(reason: .appOpen)
 
     XCTAssertNil(coordinator.lastMessage)
+    XCTAssertEqual(diagnostics.entries.first?.title, "Background sync freshness evaluated")
+    XCTAssertTrue(diagnostics.entries.first?.message?.contains("reason=appOpen decision=skip") == true)
+    XCTAssertTrue(diagnostics.entries.first?.message?.contains("targetSeconds=14400") == true)
   }
 
   func testRefreshIfStaleDoesNotImmediatelyReSyncAfterARealSyncCompletes() async throws {
