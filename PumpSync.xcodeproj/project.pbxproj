@@ -14,6 +14,7 @@
 		18701BDFE904793BC7E5CEB8 /* AppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E85545B2A7D3EE4285CD12F /* AppView.swift */; };
 		1B03175A1F27037B703EC8D1 /* AuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */; };
 		1F1F4F0E1826A0A2BDB7D4FF /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B8ED0AEB98A53C1A0C48F8 /* SyncView.swift */; };
+		26448D39917E7A13F46266A7 /* SyncStatusBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0F4BE066A2E453B955A070 /* SyncStatusBanner.swift */; };
 		2E581DC0577F1D384651346A /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23E211038A242211F7416AF /* AppServices.swift */; };
 		36AA12257E2352EA32E4F1C8 /* SyncViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57320D50B3E96C71BB07264 /* SyncViewTests.swift */; };
 		38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */; };
@@ -92,6 +93,7 @@
 		228837A73B88DB4E80B7A957 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		23F29882A2FE266DE552731A /* PumpSyncAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncAPIClient.swift; sourceTree = "<group>"; };
 		25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLaunchEnvironment.swift; sourceTree = "<group>"; };
+		2A0F4BE066A2E453B955A070 /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
 		2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMetadataStore.swift; sourceTree = "<group>"; };
 		3256EF7EB4927D3CF3BD72A0 /* SupportBundleBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportBundleBuilderTests.swift; sourceTree = "<group>"; };
 		36ABBE2A707B83D4D4006E57 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -230,6 +232,7 @@
 				52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */,
 				E9BE8DF10D82A15535948164 /* PrivacyView.swift */,
 				0981ABD17009F7A4A08958B4 /* SettingsView.swift */,
+				2A0F4BE066A2E453B955A070 /* SyncStatusBanner.swift */,
 				D8B8ED0AEB98A53C1A0C48F8 /* SyncView.swift */,
 			);
 			path = UI;
@@ -449,6 +452,7 @@
 				CED29C776F51918B0EE77A47 /* SupportBundleBuilder.swift in Sources */,
 				64F8658EBAE60271076F2524 /* SyncCoordinator.swift in Sources */,
 				38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */,
+				26448D39917E7A13F46266A7 /* SyncStatusBanner.swift in Sources */,
 				1F1F4F0E1826A0A2BDB7D4FF /* SyncView.swift in Sources */,
 				0EC447AEE68669C7C0CEFBF6 /* TandemCredentialForm.swift in Sources */,
 				FF558BD17D2F7FFB5762840B /* TandemCredentialStore.swift in Sources */,

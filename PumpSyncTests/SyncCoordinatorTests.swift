@@ -10,6 +10,9 @@ private final class FakeHealthKitService: SyncHealthWriting {
   var droppedExternalIds: Set<String> = []
   private(set) var refreshAuthorizationStatusCallCount = 0
   private(set) var savedSamples: [SampleDTO] = []
+  var saveStarted: (() -> Void)?
+  var suspendsSave = false
+  private var saveContinuation: CheckedContinuation<Void, Never>?
 
   init(hasAnyWritePermission: Bool = true) {
     self.hasAnyWritePermission = hasAnyWritePermission
@@ -21,11 +24,22 @@ private final class FakeHealthKitService: SyncHealthWriting {
 
   func save(samples: [SampleDTO]) async throws -> [SampleDTO] {
     savedSamples = samples
+    saveStarted?()
+    if suspendsSave {
+      await withCheckedContinuation { continuation in
+        saveContinuation = continuation
+      }
+    }
     if let saveError {
       throw saveError
     }
 
     return samples.filter { !droppedExternalIds.contains($0.externalId) }
+  }
+
+  func resumeSave() {
+    saveContinuation?.resume()
+    saveContinuation = nil
   }
 }
 
@@ -35,11 +49,245 @@ private struct StubTandemSyncResponse: Encodable {
   let effectiveMaxDate: Date
 }
 
+private final class LockIsolated<Value>: @unchecked Sendable {
+  private let lock = NSLock()
+  private var storedValue: Value
+
+  init(_ value: Value) {
+    storedValue = value
+  }
+
+  var value: Value {
+    lock.withLock { storedValue }
+  }
+
+  func withValue<Result>(_ operation: (inout Value) -> Result) -> Result {
+    lock.withLock { operation(&storedValue) }
+  }
+}
+
 @MainActor
 final class SyncCoordinatorTests: XCTestCase {
   override func tearDown() {
     URLProtocolStub.requestHandler = nil
     super.tearDown()
+  }
+
+  func testManualSyncPublishesEveryOperationPhaseBeforeSuccess() async throws {
+    let requestStarted = expectation(description: "sync request started")
+    let saveStarted = expectation(description: "HealthKit save started")
+    let allowResponse = DispatchSemaphore(value: 0)
+    let fakeHealthKit = FakeHealthKitService()
+    fakeHealthKit.suspendsSave = true
+    fakeHealthKit.saveStarted = { saveStarted.fulfill() }
+    let responseHandler = syncResponseHandler(
+      samples: [sample(externalId: "sample-1")],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      requestStarted.fulfill()
+      allowResponse.wait()
+      return try responseHandler(request)
+    }
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: fakeHealthKit
+    )
+
+    coordinator.startManualSync()
+
+    guard case .running(let preparing) = coordinator.operationState else {
+      return XCTFail("expected preparing state")
+    }
+    XCTAssertEqual(preparing.phase, .preparing)
+    XCTAssertEqual(preparing.trigger, .manual)
+
+    await fulfillment(of: [requestStarted], timeout: 2)
+    guard case .running(let downloading) = coordinator.operationState else {
+      return XCTFail("expected downloading state")
+    }
+    XCTAssertEqual(downloading.phase, .downloading)
+
+    allowResponse.signal()
+    await fulfillment(of: [saveStarted], timeout: 2)
+    guard case .running(let updatingHealth) = coordinator.operationState else {
+      return XCTFail("expected updating Health state")
+    }
+    XCTAssertEqual(updatingHealth.phase, .updatingHealth)
+
+    fakeHealthKit.resumeSave()
+    await waitUntil { !coordinator.isSyncing }
+    guard case .succeeded(let completion) = coordinator.operationState else {
+      return XCTFail("expected successful completion")
+    }
+    XCTAssertEqual(completion.message, "Imported 1 new samples.")
+  }
+
+  func testDuplicateManualStartsIssueOnlyOneRequest() async throws {
+    let requestStarted = expectation(description: "sync request started")
+    let allowResponse = DispatchSemaphore(value: 0)
+    let requestCount = LockIsolated(0)
+    let responseHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      requestCount.withValue { $0 += 1 }
+      requestStarted.fulfill()
+      allowResponse.wait()
+      return try responseHandler(request)
+    }
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    coordinator.startManualSync()
+    coordinator.startManualSync()
+    await fulfillment(of: [requestStarted], timeout: 2)
+    XCTAssertEqual(requestCount.value, 1)
+
+    allowResponse.signal()
+    await waitUntil { !coordinator.isSyncing }
+  }
+
+  func testTransientFailureOffersRetryAndRetryCanSucceed() async throws {
+    let attempt = LockIsolated(0)
+    let responseHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      let currentAttempt = attempt.withValue { value in
+        value += 1
+        return value
+      }
+      if currentAttempt == 1 {
+        throw URLError(.networkConnectionLost)
+      }
+      return try responseHandler(request)
+    }
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    await coordinator.sync(reason: .manual)
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(message: "Sync could not be completed. Try again.", recovery: .retry))
+    )
+
+    coordinator.retry()
+    await waitUntil { !coordinator.isSyncing }
+    guard case .succeeded = coordinator.operationState else {
+      return XCTFail("expected retry to replace the failure with success")
+    }
+    XCTAssertEqual(attempt.value, 2)
+  }
+
+  func testBlockedPrerequisiteOffersSettingsRecovery() async throws {
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: makeCredentialStore()
+    )
+
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(message: "Save your pump account credentials before syncing.", recovery: .openSettings))
+    )
+  }
+
+  func testRateLimitDoesNotOfferImmediateRetry() async throws {
+    URLProtocolStub.requestHandler = errorResponseHandler(
+      statusCode: 429,
+      code: "rate_limit_exceeded",
+      message: "Rate limit exceeded for 'sync-tandem'."
+    )
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(message: "Sync limit reached. Wait a while before trying again.", recovery: .waitAndRetry))
+    )
+  }
+
+  func testBackgroundSuccessReturnsToIdleWithoutPublishingCompletion() async throws {
+    URLProtocolStub.requestHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    await coordinator.sync(reason: .background)
+
+    XCTAssertEqual(coordinator.operationState, .idle)
+  }
+
+  func testHealthAuthorizationFailureOffersSettingsRecovery() async throws {
+    let fakeHealthKit = FakeHealthKitService()
+    fakeHealthKit.saveError = HealthKitError.authorizationDenied
+    URLProtocolStub.requestHandler = syncResponseHandler(
+      samples: [sample(externalId: "sample-1")],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: fakeHealthKit
+    )
+
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(message: "Enable Apple Health write access before syncing.", recovery: .openSettings))
+    )
+  }
+
+  func testDismissResultReturnsToIdleButCannotDismissRunningOperation() async throws {
+    let requestStarted = expectation(description: "sync request started")
+    let allowResponse = DispatchSemaphore(value: 0)
+    let responseHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      requestStarted.fulfill()
+      allowResponse.wait()
+      return try responseHandler(request)
+    }
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    coordinator.startManualSync()
+    await fulfillment(of: [requestStarted], timeout: 2)
+    coordinator.dismissResult()
+    XCTAssertTrue(coordinator.isSyncing)
+
+    allowResponse.signal()
+    await waitUntil { !coordinator.isSyncing }
+    coordinator.dismissResult()
+    XCTAssertEqual(coordinator.operationState, .idle)
   }
 
   func testSyncBlockedWhenNotAuthenticated() async throws {
@@ -159,6 +407,10 @@ final class SyncCoordinatorTests: XCTestCase {
 
     XCTAssertFalse(authService.isSignedIn, "a 401 from the sync endpoint should clear the now-invalid session")
     XCTAssertEqual(coordinator.lastMessage, "Sync could not be completed. Try again.")
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(message: "Sync could not be completed. Try again.", recovery: .openSettings))
+    )
     XCTAssertNotNil(syncMetadataStore.metadata.lastErrorMessage)
   }
 
@@ -340,6 +592,17 @@ final class SyncCoordinatorTests: XCTestCase {
   }
 
   // MARK: - Fixtures
+
+  private func waitUntil(
+    timeout: TimeInterval = 2,
+    condition: @escaping @MainActor () -> Bool
+  ) async {
+    let deadline = Date().addingTimeInterval(timeout)
+    while !condition(), Date() < deadline {
+      await Task.yield()
+    }
+    XCTAssertTrue(condition(), "condition was not met before timeout")
+  }
 
   private final class CapturedBody: @unchecked Sendable {
     private let lock = NSLock()

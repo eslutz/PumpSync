@@ -1,13 +1,13 @@
 import Foundation
 import Observation
 
-enum SyncTriggerReason: String {
+enum SyncTriggerReason: String, Equatable {
   case appOpen
   case manual
   case background
 }
 
-enum SyncPhase: String {
+enum SyncPhase: String, Equatable {
   case preparing
   case downloading
   case updatingHealth
@@ -22,6 +22,36 @@ enum SyncPhase: String {
       return "Updating Apple Health…"
     }
   }
+}
+
+enum SyncRecovery: Equatable {
+  case retry
+  case openSettings
+  case waitAndRetry
+  case none
+}
+
+struct SyncProgress: Equatable {
+  let phase: SyncPhase
+  let trigger: SyncTriggerReason
+  let startedAt: Date
+}
+
+struct SyncCompletion: Equatable {
+  let message: String
+  let completedAt: Date
+}
+
+struct SyncFailure: Equatable {
+  let message: String
+  let recovery: SyncRecovery
+}
+
+enum SyncOperationState: Equatable {
+  case idle
+  case running(SyncProgress)
+  case succeeded(SyncCompletion)
+  case failed(SyncFailure)
 }
 
 /// The slice of HealthKitService's surface SyncCoordinator depends on,
@@ -61,14 +91,44 @@ final class SyncCoordinator {
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
 
-  private(set) var isSyncing = false
-  private(set) var lastMessage: String?
-  private(set) var syncPhase: SyncPhase?
+  private(set) var operationState: SyncOperationState = .idle
+
+  var isSyncing: Bool {
+    if case .running = operationState {
+      return true
+    }
+    return false
+  }
+
+  var lastMessage: String? {
+    switch operationState {
+    case .succeeded(let completion):
+      return completion.message
+    case .failed(let failure):
+      return failure.message
+    case .idle, .running:
+      return nil
+    }
+  }
+
+  var syncPhase: SyncPhase? {
+    guard case .running(let progress) = operationState else {
+      return nil
+    }
+    return progress.phase
+  }
 
 #if DEBUG
   func applyScreenshotSyncing() {
-    isSyncing = true
-    lastMessage = nil
+    operationState = .running(SyncProgress(phase: .preparing, trigger: .manual, startedAt: Date()))
+  }
+
+  func applyScreenshotSuccess() {
+    operationState = .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: Date()))
+  }
+
+  func applyScreenshotFailure() {
+    operationState = .failed(SyncFailure(message: "Sync could not be completed. Try again.", recovery: .retry))
   }
 #endif
 
@@ -99,16 +159,54 @@ final class SyncCoordinator {
     await sync(reason: reason)
   }
 
-  func sync(reason: SyncTriggerReason) async {
-    guard !isSyncing else {
+  func startManualSync() {
+    guard beginSync(reason: .manual) else {
       return
     }
 
-    isSyncing = true
-    syncPhase = .preparing
-    defer {
-      isSyncing = false
-      syncPhase = nil
+    Task { [weak self] in
+      await self?.performSync(reason: .manual)
+    }
+  }
+
+  func retry() {
+    guard case .failed(let failure) = operationState, failure.recovery == .retry else {
+      return
+    }
+    startManualSync()
+  }
+
+  func dismissResult() {
+    switch operationState {
+    case .succeeded, .failed:
+      operationState = .idle
+    case .idle, .running:
+      break
+    }
+  }
+
+  func sync(reason: SyncTriggerReason) async {
+    guard beginSync(reason: reason) else {
+      return
+    }
+
+    await performSync(reason: reason)
+  }
+
+  private func beginSync(reason: SyncTriggerReason) -> Bool {
+    guard !isSyncing else {
+      return false
+    }
+    operationState = .running(SyncProgress(phase: .preparing, trigger: reason, startedAt: Date()))
+    return true
+  }
+
+  private func performSync(reason: SyncTriggerReason) async {
+    let startedAt: Date
+    if case .running(let progress) = operationState {
+      startedAt = progress.startedAt
+    } else {
+      return
     }
 
     // A background launch has no view lifecycle to refresh permission state,
@@ -116,30 +214,29 @@ final class SyncCoordinator {
     healthKitService.refreshAuthorizationStatus()
 
     guard let accessToken = await authService.accessTokenRecoveringIfNeeded() else {
-      lastMessage = "Connect PumpSync before syncing."
+      fail("Connect PumpSync before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")
       return
     }
 
     guard credentialStore.hasValidatedCredentials else {
-      lastMessage = "Save your pump account credentials before syncing."
+      fail("Save your pump account credentials before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Pump account credentials are not validated.")
       return
     }
 
     guard let credentials = try? credentialStore.load() else {
-      lastMessage = "Add your pump account before syncing."
+      fail("Add your pump account before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing pump account credentials.")
       return
     }
 
     guard healthKitService.hasAnyWritePermission else {
-      lastMessage = "Enable Apple Health write access before syncing."
+      fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "No Apple Health write permissions are enabled.")
       return
     }
 
-    lastMessage = nil
     syncMetadataStore.recordAttempt()
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
 
@@ -155,7 +252,7 @@ final class SyncCoordinator {
         // the device's zone to anchor them, or every sample lands hours off.
         timeZoneIdentifier: TimeZone.current.identifier
       )
-      syncPhase = .downloading
+      operationState = .running(SyncProgress(phase: .downloading, trigger: reason, startedAt: startedAt))
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
       // Record only what Apple Health confirmed: save() drops samples whose
@@ -163,13 +260,13 @@ final class SyncCoordinator {
       // permanently lose them — the backend retains nothing to replay, so a
       // later permission grant could never backfill an already-ledgered
       // sample.
-      syncPhase = .updatingHealth
+      operationState = .running(SyncProgress(phase: .updatingHealth, trigger: reason, startedAt: startedAt))
       let writtenSamples = try await healthKitService.save(samples: unseenSamples)
       try importedSampleLedger.recordImported(writtenSamples)
       let importedCount = writtenSamples.count
       let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
       syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark)
-      lastMessage = message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
+      var completionMessage = message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
 
       // Tandem Source only retains ~14 days of history. If the requested
       // window start was clamped forward, data between the watermark and the
@@ -177,7 +274,7 @@ final class SyncCoordinator {
       // an unqualified success.
       if response.effectiveMinDate.timeIntervalSince(requestMinDate) > Self.lookbackGapTolerance {
         let gapEnd = response.effectiveMinDate.formatted(date: .abbreviated, time: .omitted)
-        lastMessage = (lastMessage.map { "\($0) " } ?? "") + "Pump data before \(gapEnd) is no longer available from Tandem Source and could not be imported."
+        completionMessage += " Pump data before \(gapEnd) is no longer available from Tandem Source and could not be imported."
         diagnostics?.record(
           source: .sync,
           severity: .warning,
@@ -191,6 +288,11 @@ final class SyncCoordinator {
         title: "Sync completed",
         message: "Returned \(response.samples.count), imported \(importedCount), reason \(reason.rawValue)."
       )
+      if reason == .background {
+        operationState = .idle
+      } else {
+        operationState = .succeeded(SyncCompletion(message: completionMessage, completedAt: Date()))
+      }
     } catch {
       let apiError = error as? APIClientError
       if apiError?.isAuthenticationFailure == true {
@@ -204,16 +306,54 @@ final class SyncCoordinator {
       }
       syncMetadataStore.recordFailure(error)
       if apiError?.isTandemCredentialFailure == true {
-        lastMessage = apiError?.errorDescription
-          ?? "Tandem Source did not accept your pump account credentials. Re-save your Tandem account."
+        fail(
+          apiError?.errorDescription
+            ?? "Tandem Source did not accept your pump account credentials. Re-save your Tandem account.",
+          recovery: .openSettings
+        )
+      } else if apiError?.isAuthenticationFailure == true {
+        fail("Sync could not be completed. Try again.", recovery: .openSettings)
       } else if apiError?.isRateLimited == true {
-        lastMessage = "Sync limit reached. Wait a while before trying again."
+        fail("Sync limit reached. Wait a while before trying again.", recovery: .waitAndRetry)
+      } else if isHealthAuthorizationFailure(error) {
+        fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
+      } else if apiError?.isTransient == true || isTransientNetworkFailure(error) {
+        fail("Sync could not be completed. Try again.", recovery: .retry)
       } else {
-        lastMessage = "Sync could not be completed. Try again."
+        fail("Sync could not be completed. Try again.", recovery: .none)
       }
       diagnostics?.record(error: error, source: .sync, title: "Sync failed")
     }
 
+  }
+
+  private func fail(_ message: String, recovery: SyncRecovery) {
+    operationState = .failed(SyncFailure(message: message, recovery: recovery))
+  }
+
+  private func isHealthAuthorizationFailure(_ error: Error) -> Bool {
+    guard let healthError = error as? HealthKitError else {
+      return false
+    }
+    if case .authorizationDenied = healthError {
+      return true
+    }
+    return false
+  }
+
+  private func isTransientNetworkFailure(_ error: Error) -> Bool {
+    let error = error as NSError
+    guard error.domain == NSURLErrorDomain else {
+      return false
+    }
+    return [
+      NSURLErrorTimedOut,
+      NSURLErrorCannotFindHost,
+      NSURLErrorCannotConnectToHost,
+      NSURLErrorNetworkConnectionLost,
+      NSURLErrorDNSLookupFailed,
+      NSURLErrorNotConnectedToInternet
+    ].contains(error.code)
   }
 
   func performBackgroundSync() async {

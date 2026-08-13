@@ -199,6 +199,10 @@ final class AppServices {
     syncMetadataStore.applyScreenshotMetadata(screenshotMetadata)
     if AppLaunchEnvironment.isScreenshotSyncing {
       syncCoordinator.applyScreenshotSyncing()
+    } else if AppLaunchEnvironment.isScreenshotSyncSuccess {
+      syncCoordinator.applyScreenshotSuccess()
+    } else if AppLaunchEnvironment.isScreenshotSyncFailure {
+      syncCoordinator.applyScreenshotFailure()
     }
     diagnosticsLogStore.record(source: .auth, title: "PumpSync subscription active")
     diagnosticsLogStore.record(source: .sync, title: "Sync completed", message: "Returned 48, imported 48.")

@@ -23,6 +23,34 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertFalse(syncingButton.isEnabled)
   }
 
+  func testRunningSyncBannerRemainsVisibleAfterSwitchingToSettings() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-syncing"])
+
+    XCTAssertTrue(app.staticTexts["Starting secure service…"].waitForExistence(timeout: 5))
+
+    navigate(to: "Settings", in: app)
+
+    XCTAssertTrue(app.staticTexts["Starting secure service…"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+  }
+
+  func testSuccessfulSyncBannerDismissesAfterEightSeconds() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-success"])
+    let banner = app.staticTexts["Sync complete"]
+
+    XCTAssertTrue(banner.waitForExistence(timeout: 5))
+    XCTAssertTrue(banner.waitForNonExistence(timeout: 10))
+  }
+
+  func testActionableFailureBannerDoesNotAutoDismiss() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-failure"])
+    let banner = app.staticTexts["Sync needs attention"]
+
+    XCTAssertTrue(banner.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Try Again"].exists)
+    XCTAssertFalse(banner.waitForNonExistence(timeout: 9))
+  }
+
   func testCoreScreensRenderInScreenshotMode() {
     let app = launchScreenshotFixture()
 

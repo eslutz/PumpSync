@@ -27,7 +27,7 @@ struct SyncView: View {
 
           GlassDivider(leadingPadding: 0)
 
-          Text("Choose how much pump history to import the first time. Future syncs import new data only. You can leave this screen while a sync is running.")
+          Text("Choose how much pump history to import the first time. Future syncs import new data only. Keep PumpSync open while a sync is running; you can move around within PumpSync.")
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(.secondary)
             .padding(.vertical, 8)
@@ -44,32 +44,14 @@ struct SyncView: View {
       }
 
       Button {
-        Task {
-          if canSync {
-            await services.syncCoordinator.sync(reason: .manual)
-          }
+        if canSync {
+          services.syncCoordinator.startManualSync()
         }
       } label: {
         SyncButtonLabel(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing)
       }
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!canSync)
-
-      if let phase = services.syncCoordinator.syncPhase {
-        GlassSection {
-          Label(phase.message, systemImage: "hourglass")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(.secondary)
-        }
-      }
-
-      if let message = services.syncCoordinator.lastMessage {
-        GlassSection {
-          Label(message, systemImage: services.syncCoordinator.isSyncing ? "arrow.triangle.2.circlepath" : "checkmark.circle")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(.secondary)
-        }
-      }
 
       if let message = Self.readinessMessage(
         isBackendConnected: services.authService.isSignedIn,
