@@ -431,9 +431,10 @@ final class SyncCoordinatorTests: XCTestCase {
     await coordinator.refreshIfStale(reason: .appOpen)
 
     XCTAssertNil(coordinator.lastMessage)
-    XCTAssertEqual(diagnostics.entries.first?.title, "Background sync freshness evaluated")
-    XCTAssertTrue(diagnostics.entries.first?.message?.contains("reason=appOpen decision=skip") == true)
-    XCTAssertTrue(diagnostics.entries.first?.message?.contains("targetSeconds=14400") == true)
+    XCTAssertEqual(diagnostics.entries.first?.title, "Sync skipped")
+    let freshnessEntry = diagnostics.entries.first { $0.title == "Background sync freshness evaluated" }
+    XCTAssertTrue(freshnessEntry?.message?.contains("reason=appOpen decision=skip") == true)
+    XCTAssertTrue(freshnessEntry?.message?.contains("targetSeconds=14400") == true)
   }
 
   func testRefreshIfStaleDoesNotImmediatelyReSyncAfterARealSyncCompletes() async throws {
