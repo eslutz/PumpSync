@@ -68,6 +68,7 @@ struct GlassStatusRow: View {
   let value: String
   let systemImage: String
   var tint: Color = .accentColor
+  var showsProgress = false
 
   var body: some View {
     HStack(spacing: 14) {
@@ -88,6 +89,11 @@ struct GlassStatusRow: View {
       .layoutPriority(1)
 
       Spacer(minLength: 0)
+
+      if showsProgress {
+        ProgressView()
+          .accessibilityHidden(true)
+      }
     }
     .padding(.vertical, 6)
     .accessibilityElement(children: .ignore)

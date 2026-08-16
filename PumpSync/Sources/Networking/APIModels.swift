@@ -3,24 +3,90 @@ import Foundation
 struct SubscriptionSessionRequest: Encodable {
   let signedTransactionInfo: String
   let installationId: String
+  let deviceEnrollment: HostedDeviceEnrollment
 }
 
 struct SelfHostedSessionRequest: Encodable {
   let installationId: String
+  let deviceEnrollment: SelfHostedDeviceEnrollment
+}
+
+struct SessionChallengeRequest: Encodable {
+  let installationId: String
+}
+
+struct SessionChallengeResponse: Decodable, Equatable {
+  let protocolVersion: Int
+  let proofKind: String
+  let challengeToken: String
+  let expiresAt: Date
+}
+
+struct HostedDeviceEnrollment: Encodable, Equatable {
+  let requestId: String
+  let issuedAt: Date
+  let challengeToken: String
+  let keyId: String
+  let attestationObject: String?
+  let assertion: String?
+}
+
+struct SelfHostedDeviceEnrollment: Encodable, Equatable {
+  let requestId: String
+  let issuedAt: Date
+  let challengeToken: String
+  let publicKey: String
+  let signature: String
+}
+
+struct SessionRefreshRequest: Encodable, Equatable {
+  let installationId: String
+  let refreshToken: String
+  let requestId: String
+  let issuedAt: Date
+  let proof: String
 }
 
 struct BackendSessionResponse: Codable, Equatable {
   let accessToken: String
   let expiresAt: Date
   let serviceMode: String
-  /// "tandemSource" or "syntheticDemo". Optional so sessions from backends
-  /// predating the field (and previously persisted sessions) still decode.
-  let dataSourceMode: String?
+  let dataSourceMode: String
+  let protocolVersion: Int
+  let sessionFamilyId: String
+  let refreshToken: String
+  let refreshTokenExpiresAt: Date
+  let refreshTokenAbsoluteExpiresAt: Date
 
   var isSyntheticDemo: Bool {
     dataSourceMode == "syntheticDemo"
   }
+
+  var hasRenewableCredential: Bool {
+    protocolVersion == 2 &&
+      !refreshToken.isEmpty &&
+      refreshTokenExpiresAt > Date() &&
+      refreshTokenAbsoluteExpiresAt > Date()
+  }
 }
+
+#if DEBUG
+extension BackendSessionResponse {
+  init(accessToken: String, expiresAt: Date, serviceMode: String, dataSourceMode: String) {
+    self.init(
+      accessToken: accessToken,
+      expiresAt: expiresAt,
+      serviceMode: serviceMode,
+      dataSourceMode: dataSourceMode,
+      protocolVersion: 2,
+      sessionFamilyId: "debug-session-family",
+      refreshToken: "debug-refresh-token",
+      refreshTokenExpiresAt: .distantFuture,
+      refreshTokenAbsoluteExpiresAt: .distantFuture
+    )
+  }
+}
+#endif
 
 struct TandemSyncRequest: Encodable {
   let tandem: TandemCredentials

@@ -1,6 +1,6 @@
 # App Store Privacy Answers
 
-Effective date: 2026-06-18
+Effective date: 2026-08-15
 
 These answers are the intended App Store Connect privacy nutrition label inputs for the current PumpSync MVP. Re-check this file before every App Store or TestFlight submission if dependencies, telemetry, subscriptions, analytics, crash reporting, or backend retention change.
 
@@ -25,6 +25,8 @@ Declare these as linked to the user and used for App Functionality:
 
 - Identifiers: User ID, consisting of the PumpSync internal ID, App Store original transaction ID, and app installation ID.
 - Purchases: Purchase History, for the PumpSync subscription.
+
+The hosted backend also retains the installation's App Attest public key, a one-way renewable-session token verifier, expiry/revocation state, and replay counter. Treat these as part of the disclosed app/account identifier and app-functionality data, not as a device identifier used for tracking.
 
 Declare these as linked to the user and used for App Functionality and diagnostics/service operation if retained in backend telemetry:
 
@@ -81,5 +83,6 @@ Before App Store submission, verify:
 - The data deletion URL is publicly accessible.
 - The Terms of Use and Privacy Policy links render on the PumpSync subscription paywall in a sandbox or TestFlight build. A plain simulator run has no StoreKit products, so the paywall may show an error state with no policy links — that is not proof either way.
 - App Store Connect answers match the shipped build and all SDKs.
+- App Attest is configured for development in Debug and production in TestFlight/App Store builds; self-hosted authentication remains Secure Enclave-only and has no Apple dependency.
 - HealthKit purpose strings match the app's actual data use.
 - Tandem disclosure wording matches the final Tandem terms review.

@@ -63,11 +63,13 @@ final class AppServices {
     let diagnosticsLogStore = DiagnosticsLogStore()
     let nativeDiagnosticsStore = NativeDiagnosticsStore()
     let sessionStore = BackendSessionStore(keychain: keychain)
+    let proofProvider = DeviceSessionProofProvider(keychain: keychain)
     let credentialStore = TandemCredentialStore(keychain: keychain)
     let authService = AuthService(
       apiClient: apiClient,
       configurationStore: backendConfigurationStore,
       sessionStore: sessionStore,
+      proofProvider: proofProvider,
       diagnostics: diagnosticsLogStore
     )
     let insulinConcentrationStore = InsulinConcentrationStore()
@@ -156,7 +158,8 @@ final class AppServices {
           dataSourceMode: "tandemSource"
         )
       },
-      diagnostics: diagnosticsLogStore
+      diagnostics: diagnosticsLogStore,
+      proofProvider: DeviceSessionProofProvider(keychain: keychain)
     )
     let syncCoordinator = SyncCoordinator(
       apiClient: apiClient,

@@ -21,6 +21,7 @@ enum DiagnosticsRedactor {
       #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#: "[redacted email]",
       #"Bearer\s+[A-Za-z0-9._\-]+"#: "Bearer [redacted token]",
       #"\beyJ[A-Za-z0-9._\-]{20,}\b"#: "[redacted token]",
+      #"\bps(?:rt|c)1\.[A-Za-z0-9_\-\.]{20,}\b"#: "[redacted renewable credential]",
       #"\b[A-Za-z0-9_\-]{32,}\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}\b"#: "[redacted token]"
     ]
 

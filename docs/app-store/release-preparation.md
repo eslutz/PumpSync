@@ -42,6 +42,8 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 - [ ] Cancel the purchase sheet and verify the app remains usable.
 - [ ] Complete a sandbox subscription purchase and verify PumpSync connects.
 - [ ] Force-quit and relaunch; verify the subscription session recovers promptly.
+- [ ] Verify the hosted session reports protocol v2 with an App Attest proof in the support bundle; confirm the bundle contains no proof, challenge, transaction JWS, or refresh credential values.
+- [ ] Leave the app backgrounded past the refresh target and verify the backend records a successful credential refresh and sync without a StoreKit request.
 - [ ] Restore an active subscription.
 - [ ] Attempt restore with an account that has no entitlement, if available.
 - [ ] Test purchase or restore while offline, then restore connectivity and retry.
@@ -59,6 +61,7 @@ Use the controlled demo configuration:
 - Region: United States
 
 - [ ] Switch from PumpSync to Self-hosted.
+- [ ] Verify Self-hosted enrollment and renewal use the Secure Enclave proof and succeed without an Apple Account, StoreKit entitlement, or App Attest service.
 - [ ] Connect to the demo URL and verify the UI identifies a demo service.
 - [ ] Verify missing `/api`, unreachable hosts, invalid TLS, and malformed URLs produce understandable errors.
 - [ ] Verify non-loopback HTTP URLs are rejected.
@@ -251,6 +254,7 @@ Do not configure production to accept sandbox transactions. Run full sandbox sub
 - [ ] Record the exact source commit for the archive; do not create the stable `v1.0.0` tag until Apple accepts this build.
 - [ ] Archive and upload the App Store release build.
 - [ ] Inspect the archived app's effective Info.plist, entitlements, signing, HealthKit capability, background modes, API URL, product ID, and encryption declaration.
+- [ ] Confirm the archive has the production App Attest entitlement; confirm Debug alone uses the development App Attest environment.
 - [ ] Confirm App Store Connect finishes processing the build without warnings or compliance blockers.
 
 ## Gate 5: App Store Submission
@@ -328,6 +332,7 @@ gh release create v1.0.0 --verify-tag --title "PumpSync v1.0.0" --notes-from-tag
 
 - [ ] App and subscription are both approved.
 - [ ] Production backend is deployed from the recorded commit and revision.
+- [ ] The hosted backend reports session protocol `2`, App Attest enrollment and refresh telemetry are healthy, and the current iOS build completes foreground and system-launched background renewal.
 - [ ] Production health, capabilities, authorization, DNS, and TLS checks pass.
 - [ ] Production and sandbox notification URLs point to the correct environments.
 - [ ] Alerts and rollback procedures are operational.

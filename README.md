@@ -27,14 +27,15 @@ Hosted production/nonprod backend images are private GitHub Container Registry i
 
 PumpSync supports two backend access paths:
 
-- Hosted: the user buys or restores the PumpSync auto-renewable subscription through StoreKit. The app sends the signed App Store transaction JWS to the backend and receives a short-lived PumpSync service token.
-- Self-hosted: the user enters their own backend base URL. A backend deployed in `SelfHosted` mode issues a service token for that installation without App Store subscription verification.
+- Hosted: the user buys or restores the PumpSync auto-renewable subscription through StoreKit. The app sends the signed App Store transaction JWS plus an App Attest proof and receives a renewable device-bound session.
+- Self-hosted: the user enters their own backend base URL. A backend deployed in `SelfHosted` mode verifies a Secure Enclave P-256 signature and issues a renewable session without App Store or Apple authentication.
 
 Sign in with Apple is intentionally not part of this flow.
 
 ## Privacy Model
 
 - Tandem credentials are stored only by the iOS app in Keychain with device-only accessibility.
+- Renewable session credentials and device-key references are also stored in device-only Keychain items; private proof keys never leave App Attest or the Secure Enclave.
 - Tandem credentials are sent to the configured backend only inside an active HTTPS sync request.
 - The app writes Tandem insulin and carbohydrate samples to Apple Health and then discards the returned payload.
 - Duplicate prevention uses a local rolling HMAC external-ID ledger.

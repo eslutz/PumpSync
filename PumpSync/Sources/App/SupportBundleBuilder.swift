@@ -24,6 +24,10 @@ struct SupportBundleContext {
   let syncMetadata: SyncMetadata
   let appDiagnostics: [DiagnosticEntry]
   let nativeDiagnostics: [NativeDiagnosticEntry]
+  var sessionProtocolVersion: Int? = nil
+  var deviceProofKind: String? = nil
+  var refreshCredentialExpiresAt: Date? = nil
+  var refreshCredentialAbsoluteExpiresAt: Date? = nil
 }
 
 enum SupportBundleBuilder {
@@ -36,6 +40,12 @@ enum SupportBundleBuilder {
       "iOS Version: \(context.systemVersion)",
       "Device Model: \(context.deviceModel)",
       "Connection Mode: \(context.backendMode)",
+      "",
+      "## Authentication",
+      "Session Protocol: \(context.sessionProtocolVersion.map(String.init) ?? "None")",
+      "Device Proof: \(context.deviceProofKind ?? "None")",
+      "Refresh Credential Idle Expiry: \(format(context.refreshCredentialExpiresAt))",
+      "Refresh Credential Absolute Expiry: \(format(context.refreshCredentialAbsoluteExpiresAt))",
       "",
       "## Sync",
       "Last Attempt: \(format(context.syncMetadata.lastAttemptAt))",
@@ -65,7 +75,13 @@ enum SupportBundleBuilder {
         backendMode: services.backendConfigurationStore.mode.title,
         syncMetadata: services.syncMetadataStore.metadata,
         appDiagnostics: Array(services.diagnosticsLogStore.entries.prefix(50)),
-        nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50))
+        nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50)),
+        sessionProtocolVersion: services.authService.session?.protocolVersion,
+        deviceProofKind: services.authService.session?.protocolVersion == 2
+          ? (services.backendConfigurationStore.mode == .hosted ? "App Attest" : "Secure Enclave P-256")
+          : nil,
+        refreshCredentialExpiresAt: services.authService.session?.refreshTokenExpiresAt,
+        refreshCredentialAbsoluteExpiresAt: services.authService.session?.refreshTokenAbsoluteExpiresAt
       ),
       generatedAt: generatedAt
     )

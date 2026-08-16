@@ -11,3 +11,4 @@ coverage/
 .DerivedData*/
 **/xcuserdata/
 *.xcresult
+docs/app-store/listing-screenshots/archive/

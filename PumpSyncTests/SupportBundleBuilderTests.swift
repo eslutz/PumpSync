@@ -34,7 +34,11 @@ final class SupportBundleBuilderTests: XCTestCase {
           appVersion: "1.0.0",
           buildNumber: "42"
         )
-      ]
+      ],
+      sessionProtocolVersion: 2,
+      deviceProofKind: "App Attest",
+      refreshCredentialExpiresAt: Date(timeIntervalSince1970: 60),
+      refreshCredentialAbsoluteExpiresAt: Date(timeIntervalSince1970: 70)
     )
 
     let bundle = SupportBundleBuilder.build(context: context, generatedAt: Date(timeIntervalSince1970: 50))
@@ -46,6 +50,8 @@ final class SupportBundleBuilderTests: XCTestCase {
     XCTAssertFalse(bundle.contains("api.example.com"))
     XCTAssertTrue(bundle.contains("Last Returned Count: 12"))
     XCTAssertTrue(bundle.contains("Performance metrics"))
+    XCTAssertTrue(bundle.contains("Session Protocol: 2"))
+    XCTAssertTrue(bundle.contains("Device Proof: App Attest"))
     XCTAssertFalse(bundle.contains("user@example.com"))
     XCTAssertFalse(bundle.contains("fake-token-value"))
     XCTAssertFalse(bundle.contains("eyJaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))

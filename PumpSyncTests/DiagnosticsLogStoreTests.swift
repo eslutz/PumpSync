@@ -3,6 +3,16 @@ import XCTest
 
 @MainActor
 final class DiagnosticsLogStoreTests: XCTestCase {
+  func testRedactsRenewableSessionCredentialsAndChallenges() {
+    let redacted = DiagnosticsLogStore.redacted(
+      "refresh=psrt1.019c1234567890abcdef1234567890ab.aVeryLongRefreshSecretValue123456789 challenge=psc1.payloadPayloadPayloadPayload.signatureSignatureSignature"
+    )
+
+    XCTAssertFalse(redacted.contains("psrt1."))
+    XCTAssertFalse(redacted.contains("psc1."))
+    XCTAssertTrue(redacted.contains("[redacted renewable credential]"))
+  }
+
   func testRedactsEmailAndBearerToken() {
     let redacted = DiagnosticsLogStore.redacted(
       "Authorization failed for user@example.com with Bearer eyJhbGciOi.fake-token-value-1234567890."

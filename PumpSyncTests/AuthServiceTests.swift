@@ -28,7 +28,8 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in
         XCTFail("Backend should not be called when a cached session is valid")
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.recoverSessionIfNeeded()
@@ -59,7 +60,8 @@ final class AuthServiceTests: XCTestCase {
           dataSourceMode: "tandemSource"
         )
       },
-      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
     )
 
     async let first: Void = service.recoverSessionIfNeeded()
@@ -84,7 +86,8 @@ final class AuthServiceTests: XCTestCase {
       },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
       diagnostics: diagnostics,
-      subscriptionSessionTimeout: 0.01
+      subscriptionSessionTimeout: 0.01,
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.recoverSessionIfNeeded()
@@ -92,6 +95,33 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isConnecting)
     XCTAssertFalse(service.isSignedIn)
     XCTAssertTrue(diagnostics.entries.contains { $0.message?.contains("timedOut=true") == true })
+  }
+
+  func testSubscriptionSessionTimeoutCancelsTheInFlightBackendOperation() async throws {
+    var backendOperationWasCancelled = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in
+        do {
+          try await Task.sleep(for: .seconds(1))
+          throw APIClientError.invalidResponse
+        } catch is CancellationError {
+          backendOperationWasCancelled = true
+          throw CancellationError()
+        }
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      subscriptionSessionTimeout: 0.01,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.recoverSessionIfNeeded()
+    try await Task.sleep(for: .milliseconds(20))
+
+    XCTAssertTrue(backendOperationWasCancelled)
   }
 
   func testSubscriptionRestoreCreatesBackendSession() async {
@@ -123,7 +153,8 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
       },
-      diagnostics: diagnostics
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.connectUsingCurrentSubscription()
@@ -166,7 +197,8 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
       },
-      diagnostics: diagnostics
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.activateSubscription(signedTransactionInfo: "signed-purchase-transaction")
@@ -195,7 +227,8 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
       },
-      diagnostics: diagnostics
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.connectUsingCurrentSubscription()
@@ -236,7 +269,8 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
       },
-      diagnostics: diagnostics
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
     )
 
     XCTAssertEqual(service.accessToken, "existing-token")
@@ -316,7 +350,8 @@ final class AuthServiceTests: XCTestCase {
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.recoverSessionIfNeeded()
@@ -359,7 +394,8 @@ final class AuthServiceTests: XCTestCase {
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: AcceptingProofProvider()
     )
 
     XCTAssertEqual(service.accessToken, "stale-token")
@@ -391,7 +427,8 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
       },
-      diagnostics: diagnostics
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.recoverSessionIfNeeded()
@@ -427,7 +464,8 @@ final class AuthServiceTests: XCTestCase {
           serviceMode: "selfHosted",
           dataSourceMode: "tandemSource"
         )
-      }
+      },
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.connectSelfHosted()
@@ -498,7 +536,8 @@ final class AuthServiceTests: XCTestCase {
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: AcceptingProofProvider()
     )
 
     service.clearSessionForConnectionChange()
@@ -535,13 +574,77 @@ final class AuthServiceTests: XCTestCase {
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: AcceptingProofProvider()
     )
 
     await service.recoverSessionIfNeeded()
 
     XCTAssertEqual(service.accessToken, "recovered-token")
     XCTAssertEqual(sessionStore.loadValidSession(), recoveredSession)
+  }
+
+  func testBackgroundRecoveryRefreshesRenewableSessionWithoutStoreKit() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(BackendSessionResponse(
+      accessToken: "expired-access-token",
+      expiresAt: Date(timeIntervalSince1970: 1_999),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 2,
+      sessionFamilyId: "family-1",
+      refreshToken: "refresh-token-1",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_000),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    ))
+    let refreshed = BackendSessionResponse(
+      accessToken: "refreshed-access-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 2,
+      sessionFamilyId: "family-2",
+      refreshToken: "refresh-token-2",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    let responseData = try JSONCodec.encoder.encode(refreshed)
+    URLProtocolStub.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/api/v1/session/refresh")
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, responseData)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let apiClient = PumpSyncAPIClient(
+      baseURL: URL(string: "https://example.com/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 0
+    )
+    let service = AuthService(
+      apiClient: apiClient,
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        XCTFail("Background renewable-session recovery must not call StoreKit")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in
+        XCTFail("Background renewable-session recovery must not create a subscription session")
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let token = await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false)
+
+    XCTAssertEqual(token, "refreshed-access-token")
+    XCTAssertEqual(sessionStore.loadValidSession(), refreshed)
   }
 
   func testSubscriptionConnectionRequiredMessageUsesSubscriptionTerminology() {
@@ -557,7 +660,8 @@ final class AuthServiceTests: XCTestCase {
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: AcceptingProofProvider()
     )
 
     let expected = "No PumpSync service was found. Please subscribe to PumpSync or set up your own self-hosted PumpSync service."
@@ -566,7 +670,11 @@ final class AuthServiceTests: XCTestCase {
   }
 
   private func makeAPIClient() -> PumpSyncAPIClient {
-    PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0)
+    PumpSyncAPIClient(
+      baseURL: URL(string: "https://example.com/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 0
+    )
   }
 
   private func makeConfigurationStore() -> BackendConfigurationStore {
@@ -581,7 +689,8 @@ final class AuthServiceTests: XCTestCase {
       sessionStore: sessionStore,
       currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
       createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
-      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
     )
   }
 
@@ -594,5 +703,49 @@ final class AuthServiceTests: XCTestCase {
 
   private func makeDiagnostics() -> DiagnosticsLogStore {
     DiagnosticsLogStore(defaults: UserDefaults(suiteName: "AuthServiceTests-\(UUID().uuidString)")!)
+  }
+
+  private final class AcceptingProofProvider: DeviceSessionProofProviding {
+    func hostedEnrollment(
+      challenge: SessionChallengeResponse,
+      installationId: String,
+      existingSession: BackendSessionResponse?
+    ) async throws -> HostedDeviceEnrollment {
+      HostedDeviceEnrollment(
+        requestId: "request-1",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        challengeToken: challenge.challengeToken,
+        keyId: "app-attest-key",
+        attestationObject: "attestation",
+        assertion: nil
+      )
+    }
+
+    func selfHostedEnrollment(
+      challenge: SessionChallengeResponse,
+      installationId: String
+    ) throws -> SelfHostedDeviceEnrollment {
+      SelfHostedDeviceEnrollment(
+        requestId: "request-1",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        challengeToken: challenge.challengeToken,
+        publicKey: "public-key",
+        signature: "signature"
+      )
+    }
+
+    func refreshRequest(
+      session: BackendSessionResponse,
+      installationId: String,
+      mode: BackendAccessMode
+    ) async throws -> SessionRefreshRequest {
+      SessionRefreshRequest(
+        installationId: installationId,
+        refreshToken: session.refreshToken,
+        requestId: "request-1",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        proof: "proof"
+      )
+    }
   }
 }
