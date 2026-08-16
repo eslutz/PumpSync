@@ -15,7 +15,7 @@ final class NativeDiagnosticsStoreTests: XCTestCase {
         kind: .performance,
         title: "Entry \(index)",
         summary: "Summary \(index)",
-        appVersion: "1.0",
+        appVersion: "1.0.0",
         buildNumber: "1"
       ))
     }
@@ -35,7 +35,7 @@ final class NativeDiagnosticsStoreTests: XCTestCase {
       kind: .crash,
       title: "Crash",
       summary: "Signal 11",
-      appVersion: "1.0",
+      appVersion: "1.0.0",
       buildNumber: "1"
     ))
     store.clear()

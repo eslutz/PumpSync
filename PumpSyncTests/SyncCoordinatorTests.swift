@@ -691,7 +691,8 @@ final class SyncCoordinatorTests: XCTestCase {
       createSelfHostedSession: { _ in
         XCTFail("Backend session creation should not be reached when a session is already present")
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: StubDeviceSessionProofProvider()
     )
     service.applyScreenshotSession(serviceMode: "hosted")
     return service
@@ -710,7 +711,8 @@ final class SyncCoordinatorTests: XCTestCase {
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
-      }
+      },
+      proofProvider: StubDeviceSessionProofProvider()
     )
   }
 
@@ -726,6 +728,31 @@ final class SyncCoordinatorTests: XCTestCase {
 
   private func makeSyncMetadataStore() -> SyncMetadataStore {
     SyncMetadataStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!)
+  }
+
+  private final class StubDeviceSessionProofProvider: DeviceSessionProofProviding {
+    func hostedEnrollment(
+      challenge: SessionChallengeResponse,
+      installationId: String,
+      existingSession: BackendSessionResponse?
+    ) async throws -> HostedDeviceEnrollment {
+      throw APIClientError.invalidResponse
+    }
+
+    func selfHostedEnrollment(
+      challenge: SessionChallengeResponse,
+      installationId: String
+    ) throws -> SelfHostedDeviceEnrollment {
+      throw APIClientError.invalidResponse
+    }
+
+    func refreshRequest(
+      session: BackendSessionResponse,
+      installationId: String,
+      mode: BackendAccessMode
+    ) async throws -> SessionRefreshRequest {
+      throw APIClientError.invalidResponse
+    }
   }
 
   private func makeDiagnostics() -> DiagnosticsLogStore {

@@ -9,7 +9,8 @@ struct SyncView: View {
         GlassStatusRow(
           title: "Connection",
           value: connectionStatus,
-          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled"
+          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
+          showsProgress: services.authService.isConnecting
         )
 
         GlassDivider()
@@ -55,6 +56,7 @@ struct SyncView: View {
 
       if let message = Self.readinessMessage(
         isBackendConnected: services.authService.isSignedIn,
+        isConnecting: services.authService.isConnecting,
         hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
         hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
       ) {
@@ -142,7 +144,10 @@ struct SyncView: View {
   }
 
   private var connectionStatus: String {
-    services.authService.isSignedIn ? "Connected" : "Not connected"
+    Self.connectionStatus(
+      isSignedIn: services.authService.isSignedIn,
+      isConnecting: services.authService.isConnecting
+    )
   }
 
   private var tandemStatus: String {
@@ -158,13 +163,12 @@ struct SyncView: View {
   }
 
   private var syncButtonTitle: String {
-    if services.syncCoordinator.isSyncing {
-      return "Syncing"
-    }
-
-    return services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil
-      ? services.syncMetadataStore.metadata.initialImportRange.initialSyncButtonTitle
-      : "Sync Now"
+    Self.syncButtonTitle(
+      isSyncing: services.syncCoordinator.isSyncing,
+      isConnecting: services.authService.isConnecting,
+      hasCompletedInitialSync: services.syncMetadataStore.metadata.lastSuccessfulSyncAt != nil,
+      initialImportRange: services.syncMetadataStore.metadata.initialImportRange
+    )
   }
 
   private func formattedDate(_ date: Date?) -> String {
@@ -175,13 +179,39 @@ struct SyncView: View {
     return date.formatted(date: .abbreviated, time: .shortened)
   }
 
+  static func connectionStatus(isSignedIn: Bool, isConnecting: Bool) -> String {
+    if isSignedIn {
+      return "Connected"
+    }
+
+    return isConnecting ? "Connecting to PumpSync…" : "Not connected"
+  }
+
+  static func syncButtonTitle(
+    isSyncing: Bool,
+    isConnecting: Bool,
+    hasCompletedInitialSync: Bool,
+    initialImportRange: InitialImportRange
+  ) -> String {
+    if isSyncing {
+      return "Syncing"
+    }
+
+    if isConnecting {
+      return "Connecting…"
+    }
+
+    return hasCompletedInitialSync ? "Sync Now" : initialImportRange.initialSyncButtonTitle
+  }
+
   static func readinessMessage(
     isBackendConnected: Bool,
+    isConnecting: Bool = false,
     hasValidatedCredentials: Bool,
     hasAnyHealthWritePermission: Bool
   ) -> String? {
     if !isBackendConnected {
-      return nil
+      return isConnecting ? "Restoring your secure connection. Sync will start automatically when ready." : nil
     }
 
     if !hasValidatedCredentials {

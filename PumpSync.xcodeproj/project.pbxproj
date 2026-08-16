@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		09DF5D09CFD220E909409A04 /* DeviceSessionProofProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD584B88E13A677DF615346 /* DeviceSessionProofProvider.swift */; };
 		0A860106CE1BB55F05ADBF24 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0981ABD17009F7A4A08958B4 /* SettingsView.swift */; };
 		0EC447AEE68669C7C0CEFBF6 /* TandemCredentialForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */; };
 		0ED99E75A53490C4E83A40F0 /* AppLaunchEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */; };
@@ -16,6 +17,7 @@
 		1F1F4F0E1826A0A2BDB7D4FF /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B8ED0AEB98A53C1A0C48F8 /* SyncView.swift */; };
 		26448D39917E7A13F46266A7 /* SyncStatusBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0F4BE066A2E453B955A070 /* SyncStatusBanner.swift */; };
 		2E581DC0577F1D384651346A /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23E211038A242211F7416AF /* AppServices.swift */; };
+		3126AD243E9F89EFDF53AFEC /* DeviceSessionProofProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE867E4AB95A704FF058E35 /* DeviceSessionProofProviderTests.swift */; };
 		36AA12257E2352EA32E4F1C8 /* SyncViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57320D50B3E96C71BB07264 /* SyncViewTests.swift */; };
 		38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */; };
 		3B46D91090DE18F4C7AC932F /* ImportedSampleLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BE58A53E6A9CAE0104AE0E /* ImportedSampleLedgerTests.swift */; };
@@ -105,6 +107,7 @@
 		40DE20811BED75BD5394BE44 /* BackgroundSyncDiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncDiagnosticsTests.swift; sourceTree = "<group>"; };
 		479A925ED4D07C6CBF465383 /* PumpSyncUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PumpSyncUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		490EE136418A1B6AE164F633 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		4BE867E4AB95A704FF058E35 /* DeviceSessionProofProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionProofProviderTests.swift; sourceTree = "<group>"; };
 		52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAccessView.swift; sourceTree = "<group>"; };
 		550211DC80206514571F2CA4 /* SupportBundleBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportBundleBuilder.swift; sourceTree = "<group>"; };
 		58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialImportRangeTests.swift; sourceTree = "<group>"; };
@@ -115,6 +118,7 @@
 		69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentialForm.swift; sourceTree = "<group>"; };
 		6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsLogStoreTests.swift; sourceTree = "<group>"; };
 		70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendSessionStore.swift; sourceTree = "<group>"; };
+		7BD584B88E13A677DF615346 /* DeviceSessionProofProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionProofProvider.swift; sourceTree = "<group>"; };
 		88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncScheduler.swift; sourceTree = "<group>"; };
 		90FA12541E4E2A95DA61AC93 /* PumpSyncApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncApp.swift; sourceTree = "<group>"; };
 		94CE75F06E77B7E64182EFBE /* NativeDiagnosticsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDiagnosticsStoreTests.swift; sourceTree = "<group>"; };
@@ -249,6 +253,7 @@
 				09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */,
 				3DD435C541AB9259458F31EF /* BackendSessionStoreTests.swift */,
 				40DE20811BED75BD5394BE44 /* BackgroundSyncDiagnosticsTests.swift */,
+				4BE867E4AB95A704FF058E35 /* DeviceSessionProofProviderTests.swift */,
 				6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */,
 				CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */,
 				B2BE58A53E6A9CAE0104AE0E /* ImportedSampleLedgerTests.swift */,
@@ -273,6 +278,7 @@
 			children = (
 				490EE136418A1B6AE164F633 /* AuthService.swift */,
 				70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */,
+				7BD584B88E13A677DF615346 /* DeviceSessionProofProvider.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -440,6 +446,7 @@
 				D37A29BA9341593037F2AF8D /* BackgroundSyncDiagnostics.swift in Sources */,
 				4D208B7D49A8858765E583E9 /* BackgroundSyncScheduler.swift in Sources */,
 				8E691048B5B3682731B288BC /* DeveloperView.swift in Sources */,
+				09DF5D09CFD220E909409A04 /* DeviceSessionProofProvider.swift in Sources */,
 				76E2553C94E3222BE53E42C3 /* DiagnosticsLogStore.swift in Sources */,
 				EB193DD271B48CD0448A9F14 /* GlassUI.swift in Sources */,
 				D038B9BF745207A4396D81BC /* HealthAccessView.swift in Sources */,
@@ -474,6 +481,7 @@
 				1B03175A1F27037B703EC8D1 /* AuthServiceTests.swift in Sources */,
 				66714B017B0839A88FD59778 /* BackendSessionStoreTests.swift in Sources */,
 				4EB4ECB714A856877ECE28F2 /* BackgroundSyncDiagnosticsTests.swift in Sources */,
+				3126AD243E9F89EFDF53AFEC /* DeviceSessionProofProviderTests.swift in Sources */,
 				882B07661FC363D0C5D80733 /* DiagnosticsLogStoreTests.swift in Sources */,
 				AE379769E7346E02086C3A63 /* HealthAccessTests.swift in Sources */,
 				3B46D91090DE18F4C7AC932F /* ImportedSampleLedgerTests.swift in Sources */,
@@ -559,7 +567,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -572,7 +580,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -621,6 +629,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				API_BASE_URL = "https://api.pumpsync.ericslutz.dev/api";
+				APP_ATTEST_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PumpSync/PumpSync.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -671,7 +680,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -690,7 +699,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -706,6 +715,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				API_BASE_URL = "https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api";
+				APP_ATTEST_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PumpSync/PumpSync.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -773,7 +783,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -786,7 +796,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -835,6 +845,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				API_BASE_URL = "https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api";
+				APP_ATTEST_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PumpSync/PumpSync.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";

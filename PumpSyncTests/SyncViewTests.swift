@@ -146,6 +146,31 @@ final class SyncViewTests: XCTestCase {
     ))
   }
 
+  func testConnectionPresentationExplainsSessionRecovery() {
+    XCTAssertEqual(
+      SyncView.connectionStatus(isSignedIn: false, isConnecting: true),
+      "Connecting to PumpSync…"
+    )
+    XCTAssertEqual(
+      SyncView.readinessMessage(
+        isBackendConnected: false,
+        isConnecting: true,
+        hasValidatedCredentials: true,
+        hasAnyHealthWritePermission: true
+      ),
+      "Restoring your secure connection. Sync will start automatically when ready."
+    )
+    XCTAssertEqual(
+      SyncView.syncButtonTitle(
+        isSyncing: false,
+        isConnecting: true,
+        hasCompletedInitialSync: true,
+        initialImportRange: .pastTwoDays
+      ),
+      "Connecting…"
+    )
+  }
+
   func testReadinessMessagePromptsForSavedCredentialsAfterSignIn() {
     XCTAssertEqual(
       SyncView.readinessMessage(

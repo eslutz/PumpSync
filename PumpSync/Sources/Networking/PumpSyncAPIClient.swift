@@ -31,6 +31,14 @@ final class PumpSyncAPIClient {
     try await send(path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil)
   }
 
+  func createSessionChallenge(_ request: SessionChallengeRequest) async throws -> SessionChallengeResponse {
+    try await send(path: "/v1/session/challenge", method: "POST", body: request, accessToken: nil)
+  }
+
+  func refreshSession(_ request: SessionRefreshRequest) async throws -> BackendSessionResponse {
+    try await send(path: "/v1/session/refresh", method: "POST", body: request, accessToken: nil)
+  }
+
   func syncTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
     try await send(path: "/v1/sync/tandem", method: "POST", body: request, accessToken: accessToken)
   }
@@ -101,7 +109,12 @@ final class PumpSyncAPIClient {
 
     guard (200..<300).contains(httpResponse.statusCode) else {
       let errorResponse = try? JSONCodec.decoder.decode(ErrorResponse.self, from: data)
-      throw APIClientError.httpStatus(httpResponse.statusCode, code: errorResponse?.code, message: errorResponse?.message)
+      throw APIClientError.httpStatus(
+        httpResponse.statusCode,
+        code: errorResponse?.code,
+        message: errorResponse?.message,
+        correlationId: errorResponse?.correlationId ?? httpResponse.value(forHTTPHeaderField: "X-Correlation-ID")
+      )
     }
 
     return try JSONCodec.decoder.decode(Response.self, from: data)
@@ -110,6 +123,10 @@ final class PumpSyncAPIClient {
   private func timeoutInterval(for path: String) -> TimeInterval {
     if path.contains("subscription/session") {
       return 75
+    }
+
+    if path.contains("session/challenge") || path.contains("session/refresh") || path.contains("self-host/session") {
+      return 7
     }
 
     if path.contains("sync/tandem") || path.contains("tandem/credentials/validate") {
@@ -149,13 +166,13 @@ private struct ErrorResponse: Decodable {
 
 enum APIClientError: LocalizedError {
   case invalidResponse
-  case httpStatus(Int, code: String?, message: String?)
+  case httpStatus(Int, code: String?, message: String?, correlationId: String? = nil)
 
   var isAuthenticationFailure: Bool {
     switch self {
     case .invalidResponse:
       return false
-    case .httpStatus(let status, _, _):
+    case .httpStatus(let status, _, _, _):
       return status == 401 || status == 403
     }
   }
@@ -164,7 +181,7 @@ enum APIClientError: LocalizedError {
   /// pump credentials — the remedy is re-saving the Tandem account, not
   /// retrying or reconnecting PumpSync.
   var isTandemCredentialFailure: Bool {
-    if case .httpStatus(424, _, _) = self {
+    if case .httpStatus(424, _, _, _) = self {
       return true
     }
 
@@ -172,7 +189,7 @@ enum APIClientError: LocalizedError {
   }
 
   var isRateLimited: Bool {
-    if case .httpStatus(429, _, _) = self {
+    if case .httpStatus(429, _, _, _) = self {
       return true
     }
 
@@ -183,7 +200,7 @@ enum APIClientError: LocalizedError {
     switch self {
     case .invalidResponse:
       return true
-    case .httpStatus(let status, _, _):
+    case .httpStatus(let status, _, _, _):
       // 429 is deliberately NOT transient: the backend's rate-limit windows
       // are minutes to an hour, so a sub-second retry is guaranteed to fail
       // and just consumes more budget. Callers surface a wait message.
@@ -195,8 +212,12 @@ enum APIClientError: LocalizedError {
     switch self {
     case .invalidResponse:
       return "The server returned an invalid response."
-    case .httpStatus(let status, _, let message):
-      return message ?? "The server returned HTTP \(status)."
+    case .httpStatus(let status, _, let message, let correlationId):
+      let base = message ?? "The server returned HTTP \(status)."
+      guard let correlationId, !correlationId.isEmpty else {
+        return base
+      }
+      return "\(base) Reference: \(correlationId)."
     }
   }
 }

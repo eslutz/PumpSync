@@ -109,11 +109,13 @@ final class AuthService {
   private let apiClient: PumpSyncAPIClient
   private let configurationStore: BackendConfigurationStore
   private let sessionStore: BackendSessionStore?
+  private let proofProvider: DeviceSessionProofProviding
   private let diagnostics: DiagnosticsLogStore?
   private let currentEntitlementJWS: @MainActor () async throws -> String
   private let syncedCurrentEntitlementJWS: @MainActor () async throws -> String
   private let createSubscriptionSession: @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse
   private let createSelfHostedSession: @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse
+  private let createSessionChallenge: @MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse
   private let subscriptionSessionTimeout: TimeInterval
 
   private(set) var isConnecting = false
@@ -127,11 +129,13 @@ final class AuthService {
     apiClient: PumpSyncAPIClient,
     configurationStore: BackendConfigurationStore,
     sessionStore: BackendSessionStore? = nil,
+    proofProvider: DeviceSessionProofProviding,
     diagnostics: DiagnosticsLogStore? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
+    self.proofProvider = proofProvider
     self.diagnostics = diagnostics
     subscriptionSessionTimeout = 75
     currentEntitlementJWS = {
@@ -152,9 +156,13 @@ final class AuthService {
     createSelfHostedSession = { request in
       try await apiClient.createSelfHostedSession(request)
     }
+    createSessionChallenge = { request in
+      try await apiClient.createSessionChallenge(request)
+    }
     session = sessionStore?.loadValidSession()
   }
 
+  #if DEBUG
   init(
     apiClient: PumpSyncAPIClient,
     configurationStore: BackendConfigurationStore,
@@ -164,19 +172,31 @@ final class AuthService {
     createSubscriptionSession: @escaping @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse,
     createSelfHostedSession: @escaping @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse,
     diagnostics: DiagnosticsLogStore? = nil,
-    subscriptionSessionTimeout: TimeInterval = 20
+    subscriptionSessionTimeout: TimeInterval = 20,
+    proofProvider: DeviceSessionProofProviding,
+    createSessionChallenge: (@MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse)? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
+    self.proofProvider = proofProvider
     self.diagnostics = diagnostics
     self.subscriptionSessionTimeout = subscriptionSessionTimeout
     self.currentEntitlementJWS = currentEntitlementJWS
     self.syncedCurrentEntitlementJWS = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
     self.createSubscriptionSession = createSubscriptionSession
     self.createSelfHostedSession = createSelfHostedSession
+    self.createSessionChallenge = createSessionChallenge ?? { _ in
+      SessionChallengeResponse(
+        protocolVersion: 2,
+        proofKind: configurationStore.mode == .hosted ? "appAttest" : "secureEnclaveP256",
+        challengeToken: "test-session-challenge",
+        expiresAt: .distantFuture
+      )
+    }
     session = sessionStore?.loadValidSession()
   }
+  #endif
 
   var isSignedIn: Bool {
     guard let session else {
@@ -198,8 +218,8 @@ final class AuthService {
     return session?.accessToken
   }
 
-  func accessTokenRecoveringIfNeeded() async -> String? {
-    await recoverSessionIfNeeded()
+  func accessTokenRecoveringIfNeeded(allowInteractiveRecovery: Bool = true) async -> String? {
+    await recoverSessionIfNeeded(allowInteractiveRecovery: allowInteractiveRecovery)
     return accessToken
   }
 
@@ -384,7 +404,7 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Self-hosted session started")
 
     do {
-      session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
+      session = try await createSelfHostedSession(try await makeSelfHostedSessionRequest())
       if let session {
         try? sessionStore?.save(session)
         recordDemoModeIfNeeded(session)
@@ -403,17 +423,43 @@ final class AuthService {
     isConnecting = false
   }
 
-  func recoverSessionIfNeeded() async {
+  func recoverSessionIfNeeded(allowInteractiveRecovery: Bool = true) async {
     if let session, sessionStore?.isValid(session) ?? !session.accessToken.isEmpty {
       diagnostics?.record(source: .auth, title: "Connection session cache hit", message: "cacheHit=true totalMs=0")
       return
     }
 
-    if let restoredSession = sessionStore?.loadValidSession() {
-      session = restoredSession
-      errorMessage = nil
-      statusMessage = Self.connectedStatusMessage(for: restoredSession)
-      diagnostics?.record(source: .auth, title: "Connection session restored")
+    let recoverableSession = session.flatMap { current in
+      if sessionStore?.isRenewable(current) == true {
+        return current
+      }
+      return nil
+    } ?? sessionStore?.loadRecoverableSession()
+    if let recoverableSession {
+      session = recoverableSession
+      if sessionStore?.isValid(recoverableSession) == true {
+        errorMessage = nil
+        statusMessage = Self.connectedStatusMessage(for: recoverableSession)
+        diagnostics?.record(source: .auth, title: "Connection session restored")
+        return
+      }
+
+      if await refreshRenewableSession(recoverableSession) {
+        return
+      }
+
+      if !allowInteractiveRecovery {
+        return
+      }
+    }
+
+    if !allowInteractiveRecovery {
+      diagnostics?.record(
+        source: .auth,
+        severity: .warning,
+        title: "Background session recovery stopped",
+        message: "interactiveRecovery=false renewableCredential=false"
+      )
       return
     }
 
@@ -463,9 +509,9 @@ final class AuthService {
     var timedOut = false
     do {
       session = try await createSubscriptionSessionWithTimeout(
-        SubscriptionSessionRequest(
+        try await makeSubscriptionSessionRequest(
           signedTransactionInfo: signedTransactionInfo,
-          installationId: configurationStore.installationId
+          existingSession: previousSession
         )
       )
       if let session {
@@ -557,7 +603,7 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Self-hosted recovery started")
 
     do {
-      session = try await createSelfHostedSession(SelfHostedSessionRequest(installationId: configurationStore.installationId))
+      session = try await createSelfHostedSession(try await makeSelfHostedSessionRequest())
       if let session {
         try? sessionStore?.save(session)
         recordDemoModeIfNeeded(session)
@@ -572,6 +618,91 @@ final class AuthService {
     }
 
     isConnecting = false
+  }
+
+  private func makeSubscriptionSessionRequest(
+    signedTransactionInfo: String,
+    existingSession: BackendSessionResponse?
+  ) async throws -> SubscriptionSessionRequest {
+    let challenge = try await createSessionChallenge(
+      SessionChallengeRequest(installationId: configurationStore.installationId)
+    )
+    guard challenge.protocolVersion == 2, challenge.proofKind == "appAttest", challenge.expiresAt > Date() else {
+      throw DeviceSessionProofError.appAttestUnavailable
+    }
+    let enrollment = try await proofProvider.hostedEnrollment(
+      challenge: challenge,
+      installationId: configurationStore.installationId,
+      existingSession: existingSession
+    )
+    return SubscriptionSessionRequest(
+      signedTransactionInfo: signedTransactionInfo,
+      installationId: configurationStore.installationId,
+      deviceEnrollment: enrollment
+    )
+  }
+
+  private func makeSelfHostedSessionRequest() async throws -> SelfHostedSessionRequest {
+    let challenge = try await createSessionChallenge(
+      SessionChallengeRequest(installationId: configurationStore.installationId)
+    )
+    guard challenge.protocolVersion == 2, challenge.proofKind == "secureEnclaveP256", challenge.expiresAt > Date() else {
+      throw DeviceSessionProofError.secureEnclaveUnavailable
+    }
+    return SelfHostedSessionRequest(
+      installationId: configurationStore.installationId,
+      deviceEnrollment: try proofProvider.selfHostedEnrollment(
+        challenge: challenge,
+        installationId: configurationStore.installationId
+      )
+    )
+  }
+
+  private func refreshRenewableSession(_ currentSession: BackendSessionResponse) async -> Bool {
+    _ = configurationStore.apply(to: apiClient)
+    let startedAt = Date()
+    diagnostics?.record(
+      source: .auth,
+      title: "Renewable session refresh started",
+      message: "protocolVersion=2 serviceMode=\(currentSession.serviceMode)"
+    )
+    do {
+      let request = try await proofProvider.refreshRequest(
+        session: currentSession,
+        installationId: configurationStore.installationId,
+        mode: configurationStore.mode
+      )
+      let refreshed = try await apiClient.refreshSession(request)
+      guard refreshed.protocolVersion == 2, refreshed.serviceMode == currentSession.serviceMode else {
+        throw APIClientError.invalidResponse
+      }
+
+      session = refreshed
+      try sessionStore?.save(refreshed)
+      errorMessage = nil
+      statusMessage = Self.connectedStatusMessage(for: refreshed)
+      diagnostics?.record(
+        source: .auth,
+        title: "Renewable session refresh completed",
+        message: "protocolVersion=2 elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000))"
+      )
+      return true
+    } catch {
+      let permanentlyRejected = (error as? APIClientError)?.isAuthenticationFailure == true
+      if permanentlyRejected {
+        session = nil
+        try? sessionStore?.delete()
+      } else {
+        session = currentSession
+      }
+      diagnostics?.record(
+        source: .auth,
+        severity: .warning,
+        title: "Renewable session refresh failed",
+        message: "permanentlyRejected=\(permanentlyRejected) elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000)) error=\(safeMessage("refresh failed", error: error))"
+      )
+      return false
+    }
   }
 
   private func resetDisconnectedStatus() {
@@ -599,24 +730,32 @@ final class AuthService {
   ) async throws -> BackendSessionResponse {
     try await withCheckedThrowingContinuation { continuation in
       var hasResumed = false
+      var timeoutTask: Task<Void, Never>?
 
-      Task { @MainActor in
+      let backendTask = Task { @MainActor in
         do {
           let response = try await createSubscriptionSession(request)
           guard !hasResumed else { return }
           hasResumed = true
+          timeoutTask?.cancel()
           continuation.resume(returning: response)
         } catch {
           guard !hasResumed else { return }
           hasResumed = true
+          timeoutTask?.cancel()
           continuation.resume(throwing: error)
         }
       }
 
-      Task { @MainActor in
-        try? await Task.sleep(for: .seconds(subscriptionSessionTimeout))
+      timeoutTask = Task { @MainActor in
+        do {
+          try await Task.sleep(for: .seconds(subscriptionSessionTimeout))
+        } catch {
+          return
+        }
         guard !hasResumed else { return }
         hasResumed = true
+        backendTask.cancel()
         continuation.resume(throwing: SubscriptionSessionTimeoutError())
       }
     }

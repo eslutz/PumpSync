@@ -14,6 +14,34 @@ final class BackendSessionStore {
   }
 
   func loadValidSession() -> BackendSessionResponse? {
+    guard let session = loadStoredSession() else {
+      return nil
+    }
+
+    if isValid(session) {
+      return session
+    }
+
+    if !isRenewable(session) {
+      try? delete()
+    }
+    return nil
+  }
+
+  func loadRecoverableSession() -> BackendSessionResponse? {
+    guard let session = loadStoredSession() else {
+      return nil
+    }
+
+    if isValid(session) || isRenewable(session) {
+      return session
+    }
+
+    try? delete()
+    return nil
+  }
+
+  private func loadStoredSession() -> BackendSessionResponse? {
     let data: Data?
     do {
       data = try keychain.readData(account: Self.account)
@@ -30,11 +58,6 @@ final class BackendSessionStore {
 
     do {
       let session = try JSONCodec.decoder.decode(BackendSessionResponse.self, from: data)
-      guard isValid(session) else {
-        try? delete()
-        return nil
-      }
-
       return session
     } catch {
       // A decode failure means the stored data is corrupted or from an
@@ -59,5 +82,16 @@ final class BackendSessionStore {
     }
 
     return session.expiresAt.timeIntervalSince(now()) > Self.refreshWindow
+  }
+
+  func isRenewable(_ session: BackendSessionResponse) -> Bool {
+    guard
+      session.protocolVersion == 2,
+      !session.refreshToken.isEmpty
+    else {
+      return false
+    }
+
+    return session.refreshTokenExpiresAt > now() && session.refreshTokenAbsoluteExpiresAt > now()
   }
 }
