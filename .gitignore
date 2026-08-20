@@ -11,4 +11,5 @@ coverage/
 .DerivedData*/
 **/xcuserdata/
 *.xcresult
+CLAUDE.md
 docs/app-store/listing-screenshots/archive/

@@ -1,33 +1,40 @@
-# PumpSync Agent Notes
+# Repository Guidelines
 
-## Repo Scope
+## Project Structure & Module Organization
 
-- This repository is frontend-only. Do not add backend API projects, backend infrastructure, backend deploy workflows, log drains, model-cost updaters, or data-deletion tooling here.
-- Backend implementation and operations belong in `eslutz/PumpSync-Backend`.
-- Hosted backend container images and Azure Container Apps infrastructure are owned by `eslutz/PumpSync-Backend`. The current direction is private GitHub Container Registry images for the hosted backend, pulled by Azure Container Apps with a backend Key Vault-stored read-only package token, and public GitHub Container Registry images for self-host/demo use.
-- Do not add Dockerfiles, container publishing, Azure Bicep, data deletion CLI code, or backend runbooks to this repo. If an iOS change requires backend behavior or URL changes, update the backend repo and then update `project.yml`/docs here with the resulting base URL.
+This repository owns the SwiftUI iOS app, App Store/TestFlight material, and iOS CI. Application code is in `PumpSync/Sources/`, grouped into `App`, `Auth`, `Health`, `Networking`, `Storage`, `Sync`, `Tandem`, and `UI`. Unit tests live in `PumpSyncTests/`; UI and screenshot tests live in `PumpSyncUITests/`. Store submission assets and reference material belong in `docs/app-store/`. `project.yml` is the XcodeGen source of truth.
 
-## Documentation
+Do not add backend code, Dockerfiles, Bicep, deployment workflows, or backend runbooks here.
 
-- `docs/legal/` points to the website (https://pumpsync.ericslutz.dev/privacy/, /terms/, and /privacy/data-deletion/) as the canonical Privacy Policy, Terms of Use, and Account/Data Deletion text — do not restore local copies of that content here.
-- `docs/legal/app-store-privacy.md` is repo-local App Store Connect worksheet material and is not published elsewhere; keep it here.
-- `docs/app-store/` (screenshots, accessibility answers, submission evidence) is repo-local App Store Connect material, not documentation duplicated from the wiki.
-- User-facing self-hosting/demo setup content lives in the wiki (https://github.com/eslutz/PumpSync/wiki/Self-Hosting, .../Demo-Mode), not this repo.
+## Build, Test, and Development Commands
 
-## PumpSync Subscription Builds
+```sh
+xcodegen generate
+xcodebuild -list -project PumpSync.xcodeproj
+xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest'
+```
 
-- Local Xcode installs use the `PumpSync` scheme with the `Debug` configuration. They must point at the nonprod backend and use Apple's sandbox App Store transaction environment.
-- TestFlight uploads use the `PumpSync Beta` scheme with the `Beta` archive configuration. They must point at the nonprod backend and use Apple's sandbox App Store transaction environment.
-- App Store release uploads use the `PumpSync` scheme with the `Release` archive configuration. They must point at the prod backend and use Apple's production App Store transaction environment.
-- Hosted backend base URLs include `/api`; the app appends `/v1/...` endpoint paths. Do not switch hosted builds to root `/v1/...` URLs.
-- Self-hosted users may enter their own backend URL in app settings. See the Documentation section above for where user-facing self-host setup content lives.
-- Do not add a hosted-subscription bypass or production allowlist unless the user explicitly asks for it.
-- Do not add an In-App Purchase entitlement key to `PumpSync.entitlements`; StoreKit access comes from enabling the In-App Purchase capability in Apple Developer and App Store Connect.
+Regenerate after changing `project.yml`; do not hand-edit generated project or scheme files. Keep raw `xcodebuild` output available when diagnosing failures.
 
-## iOS Validation
+## Coding Style & Naming Conventions
 
-- `project.yml` is the XcodeGen source of truth.
-- Regenerate the project with `xcodegen generate` after editing `project.yml`.
-- Prefer destination strings that include `OS=latest`, for example `platform=iOS Simulator,name=iPhone 17,OS=latest`, to avoid ambiguous-destination warnings.
-- GitHub-hosted macOS runners may not have the same pre-created simulator models as local machines. CI should create/select an available simulator dynamically rather than relying on a hard-coded runner device.
-- Keep validation output unfiltered. Raw `xcodebuild` may print Xcode/simulator runtime warnings such as `IDELaunchParametersSnapshot`, AppIntents metadata extraction notices, CA event messages, or duplicate `UIAccessibilityLoaderWebShared` messages during simulator UI tests.
+Use four-space indentation and standard Swift naming: `UpperCamelCase` types, `lowerCamelCase` properties/functions, and filenames matching their primary type. Keep SwiftUI views small, move side effects into services or coordinators, and preserve existing dependency-injection patterns. Hosted base URLs include `/api`; clients append `/v1/...`.
+
+## Testing Guidelines
+
+Use XCTest. Name files `FeatureTests.swift` and test methods for observable behavior. Add focused tests for sync, storage, authentication, and UI-state changes. Use `OS=latest` simulator destinations and run `git diff --check` before committing.
+
+## Commit & Pull Request Guidelines
+
+Use concise imperative subjects, optionally prefixed with `fix:`, `docs:`, or `refactor:`. Keep commits scoped to one concern. Pull requests must explain user-visible behavior, list validation, link issues when relevant, and include screenshots for UI or App Store asset changes.
+
+## Security & Configuration
+
+Never commit credentials, service tokens, signing material, or live user health data. Preserve device-only Keychain storage and the Debug/Beta/Release backend and StoreKit environment mapping. Do not add subscription bypasses or an In-App Purchase entitlement key.
+
+## Related Project Guides
+
+- [Backend](../PumpSync.backend/AGENTS.md)
+- [Website](../PumpSync.website/AGENTS.md)
+- [Wiki](../PumpSync.wiki/AGENTS.md)
