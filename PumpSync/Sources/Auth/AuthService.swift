@@ -25,16 +25,23 @@ final class BackendConfigurationStore {
   var mode: BackendAccessMode {
     didSet {
       defaults.set(mode.rawValue, forKey: Self.modeKey)
+      if mode != oldValue {
+        revision &+= 1
+      }
     }
   }
 
   var selfHostedBaseURLString: String {
     didSet {
       defaults.set(selfHostedBaseURLString, forKey: Self.selfHostedBaseURLKey)
+      if selfHostedBaseURLString != oldValue {
+        revision &+= 1
+      }
     }
   }
 
   let installationId: String
+  private(set) var revision = 0
 
   private let defaults: UserDefaults
   private static let modeKey = "backend.mode"
@@ -126,6 +133,11 @@ final class AuthService {
   private(set) var errorMessage: String?
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
+  private var subscriptionOperationID: UUID?
+  private var selfHostedOperationID: UUID?
+  // Process-local by design: explicit purchase/restore actions may retry the
+  // same JWS, while StoreKit's automatic update stream must not replay it.
+  private var attemptedSubscriptionSessionJWSHashes = Set<Data>()
 
   init(
     apiClient: PumpSyncAPIClient,
@@ -244,13 +256,19 @@ final class AuthService {
   }
 
   func connectUsingCurrentSubscription() async {
-    await runCoalescedSubscriptionOperation {
+    await runQueuedExplicitSubscriptionOperation {
       await self.restoreCurrentSubscription()
     }
   }
 
   private func restoreCurrentSubscription() async {
-    _ = configurationStore.apply(to: apiClient)
+    let configurationRevision = configurationStore.revision
+    do {
+      try prepareHostedRequest(configurationRevision: configurationRevision)
+    } catch {
+      recordSubscriptionRestoreConfigurationChange()
+      return
+    }
     isConnecting = true
     errorMessage = nil
     statusMessage = "Checking Subscription…"
@@ -258,13 +276,19 @@ final class AuthService {
 
     do {
       let signedTransactionInfo = try await syncedCurrentEntitlementJWS()
-      await establishSubscriptionSession(
+      try prepareHostedRequest(configurationRevision: configurationRevision)
+      _ = await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription restored",
-        publishesErrors: true
+        publishesErrors: true,
+        expectedConfigurationRevision: configurationRevision
       )
     } catch StoreKitSubscriptionError.noActiveSubscription {
+      guard isCurrentHostedConfiguration(configurationRevision) else {
+        recordSubscriptionRestoreConfigurationChange()
+        return
+      }
       preserveValidSessionOrClear()
       let message = subscriptionConnectionMessage(for: StoreKitSubscriptionError.noActiveSubscription.errorDescription ?? "No active subscription was found.")
       errorMessage = message
@@ -277,6 +301,11 @@ final class AuthService {
       )
       isConnecting = false
     } catch {
+      guard !(error is SubscriptionConfigurationChangedError),
+            isCurrentHostedConfiguration(configurationRevision) else {
+        recordSubscriptionRestoreConfigurationChange()
+        return
+      }
       preserveValidSessionOrClear()
       let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
       errorMessage = message
@@ -287,8 +316,8 @@ final class AuthService {
   }
 
   func activateSubscription(signedTransactionInfo: String) async {
-    await runCoalescedSubscriptionOperation {
-      await self.establishSubscriptionSession(
+    await runQueuedExplicitSubscriptionOperation {
+      _ = await self.establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription purchased",
@@ -342,8 +371,11 @@ final class AuthService {
     }
 
     if transaction.isActiveSubscriptionEntitlement {
-      await transaction.finish()
-      await activateSubscription(signedTransactionInfo: result.jwsRepresentation)
+      await handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: result.jwsRepresentation,
+        diagnosticSummary: transaction.diagnosticSummary(active: true),
+        finish: { await transaction.finish() }
+      )
     } else if session != nil {
       // Guarded on session != nil: the first time an app observes
       // Transaction.updates, StoreKit replays every transaction that's
@@ -373,6 +405,66 @@ final class AuthService {
     }
   }
 
+  /// Handles only verified, active updates from `Transaction.updates` after
+  /// product and connection-mode validation.
+  func handleActiveSubscriptionTransactionUpdate(
+    signedTransactionInfo: String,
+    diagnosticSummary: String,
+    finish: @MainActor () async -> Void
+  ) async {
+    let configurationRevision = configurationStore.revision
+    await finish()
+
+    let transactionHash = Self.subscriptionJWSHash(signedTransactionInfo)
+    guard !attemptedSubscriptionSessionJWSHashes.contains(transactionHash) else {
+      diagnostics?.record(
+        source: .auth,
+        title: "PumpSync subscription transaction update skipped",
+        message: "reason=duplicateSessionAttempt \(diagnosticSummary)"
+      )
+      return
+    }
+
+    while !attemptedSubscriptionSessionJWSHashes.contains(transactionHash) {
+      guard isCurrentHostedConfiguration(configurationRevision) else {
+        diagnostics?.record(
+          source: .auth,
+          title: "PumpSync subscription transaction update skipped",
+          message: "reason=connectionModeChanged \(diagnosticSummary)"
+        )
+        return
+      }
+
+      var configurationChanged = false
+      await runCoalescedSubscriptionOperation {
+        // The mode can change while this update is waiting for another
+        // subscription operation. Check again in the operation that actually
+        // acquires the slot so a hosted JWS is never sent to a self-hosted URL.
+        guard self.isCurrentHostedConfiguration(configurationRevision) else {
+          configurationChanged = true
+          return
+        }
+
+        configurationChanged = await self.establishSubscriptionSession(
+          signedTransactionInfo: signedTransactionInfo,
+          activityMessage: "Connecting to PumpSync…",
+          title: "PumpSync subscription purchased",
+          publishesErrors: true,
+          expectedConfigurationRevision: configurationRevision
+        )
+      }
+
+      if configurationChanged {
+        diagnostics?.record(
+          source: .auth,
+          title: "PumpSync subscription transaction update skipped",
+          message: "reason=connectionModeChanged \(diagnosticSummary)"
+        )
+        return
+      }
+    }
+  }
+
   func recordSubscriptionPurchaseCancelled() {
     preserveValidSessionOrClear()
     errorMessage = nil
@@ -399,26 +491,49 @@ final class AuthService {
   }
 
   func connectSelfHosted() async {
-    guard configurationStore.apply(to: apiClient) else {
+    let configurationRevision = configurationStore.revision
+    guard isCurrentConfiguration(configurationRevision, mode: .selfHosted),
+          configurationStore.apply(to: apiClient) else {
       errorMessage = "Enter a valid self-hosted service URL starting with https:// (http:// is only allowed for localhost)."
       statusMessage = errorMessage ?? statusMessage
       return
     }
 
+    let operationID = UUID()
+    selfHostedOperationID = operationID
     isConnecting = true
     errorMessage = nil
     statusMessage = "Connecting to self-hosted service..."
     diagnostics?.record(source: .auth, title: "Self-hosted session started")
 
     do {
-      session = try await createSelfHostedSession(try await makeSelfHostedSessionRequest())
-      if let session {
-        try? sessionStore?.save(session)
-        recordDemoModeIfNeeded(session)
-      }
-      statusMessage = session.map(Self.connectedStatusMessage(for:)) ?? "Connected to self-hosted service"
+      let request = try await makeSelfHostedSessionRequest(
+        configurationRevision: configurationRevision,
+        operationID: operationID
+      )
+      try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      let createdSession = try await createSelfHostedSession(request)
+      try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      session = createdSession
+      try? sessionStore?.save(createdSession)
+      recordDemoModeIfNeeded(createdSession)
+      statusMessage = Self.connectedStatusMessage(for: createdSession)
       diagnostics?.record(source: .auth, title: "Self-hosted session created")
     } catch {
+      if error is BackendConfigurationChangedError
+        || !isCurrentConfiguration(configurationRevision, mode: .selfHosted) {
+        recordSelfHostedConfigurationChange()
+        finishSelfHostedOperation(operationID)
+        return
+      }
+      if error is SelfHostedOperationSupersededError || selfHostedOperationID != operationID {
+        diagnostics?.record(
+          source: .auth,
+          title: "Self-hosted session stopped",
+          message: "reason=connectionOperationSuperseded"
+        )
+        return
+      }
       session = nil
       try? sessionStore?.delete()
       let message = safeMessage("Self-hosted connection could not be established.", error: error)
@@ -427,7 +542,7 @@ final class AuthService {
       diagnostics?.record(error: error, source: .auth, title: "Self-hosted session failed")
     }
 
-    isConnecting = false
+    finishSelfHostedOperation(operationID)
   }
 
   func recoverSessionIfNeeded(allowInteractiveRecovery: Bool = true) async {
@@ -490,10 +605,14 @@ final class AuthService {
   }
 
   func clearSessionForConnectionChange() {
+    subscriptionOperationID = nil
+    subscriptionOperationTask = nil
+    selfHostedOperationID = nil
     session = nil
     try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Connect to PumpSync or a self-hosted service"
+    isConnecting = false
     diagnostics?.record(source: .auth, title: "Connection session reset")
   }
 
@@ -505,13 +624,23 @@ final class AuthService {
     diagnostics?.record(source: .auth, severity: .warning, title: "Connection session expired")
   }
 
+  @discardableResult
   private func establishSubscriptionSession(
     signedTransactionInfo: String,
     activityMessage: String,
     title: String,
-    publishesErrors: Bool
-  ) async {
-    _ = configurationStore.apply(to: apiClient)
+    publishesErrors: Bool,
+    expectedConfigurationRevision: Int? = nil
+  ) async -> Bool {
+    let configurationRevision = expectedConfigurationRevision ?? configurationStore.revision
+    attemptedSubscriptionSessionJWSHashes.insert(Self.subscriptionJWSHash(signedTransactionInfo))
+    do {
+      try prepareHostedRequest(configurationRevision: configurationRevision)
+    } catch {
+      recordSubscriptionConfigurationChange()
+      return true
+    }
+
     let previousSession = session
     let hasValidPreviousSession = previousSession.map { sessionStore?.isValid($0) ?? !$0.accessToken.isEmpty } ?? false
     isConnecting = true
@@ -522,16 +651,14 @@ final class AuthService {
     let backendStartedAt = Date()
     var timeoutKind = SubscriptionSessionTimeoutKind.none
     var enrollmentKeyId: String?
+    var enrollmentRequestId: String?
     var enrollmentProofKind: String?
+    var enrollmentSubmissionStarted = false
+    var enrollmentRegistered = false
     do {
       let warmupStartedAt = Date()
       do {
         try await warmupHostedService()
-        diagnostics?.record(
-          source: .auth,
-          title: "Hosted service warm-up completed",
-          message: "elapsedMs=\(elapsedMilliseconds(since: warmupStartedAt))"
-        )
       } catch {
         let timeoutKind = SubscriptionSessionTimeoutKind(error: error)
         diagnostics?.record(
@@ -542,16 +669,36 @@ final class AuthService {
         )
         throw HostedServiceWarmupError(timeoutKind: timeoutKind)
       }
+      try prepareHostedRequest(configurationRevision: configurationRevision)
+      diagnostics?.record(
+        source: .auth,
+        title: "Hosted service warm-up completed",
+        message: "elapsedMs=\(elapsedMilliseconds(since: warmupStartedAt))"
+      )
 
       let request = try await makeSubscriptionSessionRequest(
         signedTransactionInfo: signedTransactionInfo,
-        existingSession: previousSession
+        existingSession: previousSession,
+        configurationRevision: configurationRevision
       )
       enrollmentKeyId = request.deviceEnrollment.keyId
+      enrollmentRequestId = request.deviceEnrollment.requestId
       enrollmentProofKind = request.deviceEnrollment.proofKind
+      try prepareHostedRequest(configurationRevision: configurationRevision)
+      guard try proofProvider.markHostedEnrollmentSubmissionStarted(
+        keyId: request.deviceEnrollment.keyId,
+        requestId: request.deviceEnrollment.requestId
+      ) else {
+        throw SubscriptionEnrollmentStateChangedError()
+      }
+      enrollmentSubmissionStarted = true
       let sessionRequestStartedAt = Date()
+      let createdSession: BackendSessionResponse
       do {
-        session = try await createSubscriptionSessionWithTimeout(request)
+        createdSession = try await createSubscriptionSessionWithTimeout(
+          request,
+          configurationRevision: configurationRevision
+        )
         diagnostics?.record(
           source: .auth,
           title: "Subscription session request completed",
@@ -566,19 +713,44 @@ final class AuthService {
         )
         throw error
       }
-      if let session {
-        try proofProvider.markHostedEnrollmentRegistered(keyId: request.deviceEnrollment.keyId)
-        try? sessionStore?.save(session)
+      guard try proofProvider.markHostedEnrollmentRegistered(
+        keyId: request.deviceEnrollment.keyId,
+        requestId: request.deviceEnrollment.requestId
+      ) else {
+        throw SubscriptionEnrollmentStateChangedError()
       }
+      enrollmentRegistered = true
+      try prepareHostedRequest(configurationRevision: configurationRevision)
+      session = createdSession
+      try? sessionStore?.save(createdSession)
       statusMessage = "PumpSync subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
       timeoutKind = SubscriptionSessionTimeoutKind(error: error)
       let apiError = error as? APIClientError
       if let enrollmentKeyId,
+         let enrollmentRequestId,
+         !enrollmentRegistered,
+         enrollmentProofKind == "attestation",
+         error is SubscriptionConfigurationChangedError,
+         (try? proofProvider.discardUnsubmittedHostedEnrollment(
+           keyId: enrollmentKeyId,
+           requestId: enrollmentRequestId
+         )) == true {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Unsubmitted App Attest enrollment discarded",
+          message: "reason=connectionModeChanged backendSubmitted=false"
+        )
+      } else if let enrollmentKeyId,
+         let enrollmentRequestId,
          enrollmentProofKind == "attestation",
          apiError?.isDeviceProofRejected == true,
-         (try? proofProvider.discardRejectedHostedEnrollment(keyId: enrollmentKeyId)) == true {
+         (try? proofProvider.discardRejectedHostedEnrollment(
+           keyId: enrollmentKeyId,
+           requestId: enrollmentRequestId
+         )) == true {
         diagnostics?.record(
           source: .auth,
           severity: .warning,
@@ -586,15 +758,46 @@ final class AuthService {
           message: "protocolVersion=3 proofKind=attestation backendCode=device_proof_rejected"
         )
       } else if let enrollmentKeyId,
-                timeoutKind != .none || apiError?.hasAmbiguousOutcome == true || (error as NSError).domain == NSURLErrorDomain {
-        try? proofProvider.markHostedEnrollmentResponseAmbiguous(keyId: enrollmentKeyId)
+                let enrollmentRequestId,
+                !enrollmentRegistered,
+                timeoutKind != .none
+                  || apiError?.hasAmbiguousOutcome == true
+                  || (error as NSError).domain == NSURLErrorDomain {
+        _ = try? proofProvider.markHostedEnrollmentResponseAmbiguous(
+          keyId: enrollmentKeyId,
+          requestId: enrollmentRequestId
+        )
         diagnostics?.record(
           source: .auth,
           severity: .warning,
           title: "App Attest enrollment outcome is pending",
           message: "protocolVersion=3 responseAmbiguous=true"
         )
+      } else if let enrollmentKeyId,
+                let enrollmentRequestId,
+                !enrollmentRegistered,
+                enrollmentSubmissionStarted,
+                enrollmentProofKind == "attestation",
+                let apiError,
+                !apiError.hasAmbiguousOutcome,
+                (try? proofProvider.discardDefinitivelyFailedHostedEnrollment(
+                  keyId: enrollmentKeyId,
+                  requestId: enrollmentRequestId
+                )) == true {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Definitively failed App Attest enrollment discarded",
+          message: "protocolVersion=3 proofKind=attestation backendOutcome=definitive"
+        )
       }
+
+      if error is SubscriptionConfigurationChangedError
+        || !isCurrentHostedConfiguration(configurationRevision) {
+        recordSubscriptionConfigurationChange()
+        return true
+      }
+
       if hasValidPreviousSession {
         session = previousSession
       } else {
@@ -626,24 +829,41 @@ final class AuthService {
     )
 
     isConnecting = false
+    return false
   }
 
   private func recoverSubscriptionSession() async {
+    let configurationRevision = configurationStore.revision
+    do {
+      try prepareHostedRequest(configurationRevision: configurationRevision)
+    } catch {
+      recordSubscriptionRecoveryConfigurationChange()
+      return
+    }
     let startedAt = Date()
     diagnostics?.record(source: .auth, title: "Subscription recovery started")
 
     do {
       let entitlementStartedAt = Date()
       let signedTransactionInfo = try await currentEntitlementJWS()
+      try prepareHostedRequest(configurationRevision: configurationRevision)
       let entitlementMs = Int(Date().timeIntervalSince(entitlementStartedAt) * 1_000)
-      await establishSubscriptionSession(
+      let configurationChanged = await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription recovered",
-        publishesErrors: false
+        publishesErrors: false,
+        expectedConfigurationRevision: configurationRevision
       )
+      if configurationChanged {
+        return
+      }
       diagnostics?.record(source: .auth, title: "Subscription recovery timing", message: "entitlementMs=\(entitlementMs) totalMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000)) cacheHit=false")
     } catch StoreKitSubscriptionError.noActiveSubscription {
+      guard isCurrentHostedConfiguration(configurationRevision) else {
+        recordSubscriptionRecoveryConfigurationChange()
+        return
+      }
       session = nil
       try? sessionStore?.delete()
       resetDisconnectedStatus()
@@ -654,6 +874,11 @@ final class AuthService {
         message: "No current StoreKit entitlement was available for subscription recovery."
       )
     } catch {
+      guard !(error is SubscriptionConfigurationChangedError),
+            isCurrentHostedConfiguration(configurationRevision) else {
+        recordSubscriptionRecoveryConfigurationChange()
+        return
+      }
       session = nil
       try? sessionStore?.delete()
       resetDisconnectedStatus()
@@ -662,47 +887,73 @@ final class AuthService {
   }
 
   private func recoverSelfHostedSession() async {
-    guard configurationStore.apply(to: apiClient) else {
+    let configurationRevision = configurationStore.revision
+    guard isCurrentConfiguration(configurationRevision, mode: .selfHosted),
+          configurationStore.apply(to: apiClient) else {
       diagnostics?.record(source: .auth, severity: .warning, title: "Self-hosted recovery skipped", message: "No valid self-hosted service URL is configured.")
       return
     }
 
+    let operationID = UUID()
+    selfHostedOperationID = operationID
     isConnecting = true
     errorMessage = nil
     statusMessage = "Connecting to self-hosted service..."
     diagnostics?.record(source: .auth, title: "Self-hosted recovery started")
 
     do {
-      session = try await createSelfHostedSession(try await makeSelfHostedSessionRequest())
-      if let session {
-        try? sessionStore?.save(session)
-        recordDemoModeIfNeeded(session)
-      }
-      statusMessage = session.map(Self.connectedStatusMessage(for:)) ?? "Connected to self-hosted service"
+      let request = try await makeSelfHostedSessionRequest(
+        configurationRevision: configurationRevision,
+        operationID: operationID
+      )
+      try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      let createdSession = try await createSelfHostedSession(request)
+      try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      session = createdSession
+      try? sessionStore?.save(createdSession)
+      recordDemoModeIfNeeded(createdSession)
+      statusMessage = Self.connectedStatusMessage(for: createdSession)
       diagnostics?.record(source: .auth, title: "Self-hosted session recovered")
     } catch {
+      if error is BackendConfigurationChangedError
+        || !isCurrentConfiguration(configurationRevision, mode: .selfHosted) {
+        recordSelfHostedConfigurationChange()
+        finishSelfHostedOperation(operationID)
+        return
+      }
+      if error is SelfHostedOperationSupersededError || selfHostedOperationID != operationID {
+        diagnostics?.record(
+          source: .auth,
+          title: "Self-hosted session stopped",
+          message: "reason=connectionOperationSuperseded"
+        )
+        return
+      }
       session = nil
       try? sessionStore?.delete()
       resetDisconnectedStatus()
       diagnostics?.record(error: error, source: .auth, title: "Self-hosted recovery failed")
     }
 
-    isConnecting = false
+    finishSelfHostedOperation(operationID)
   }
 
   private func makeSubscriptionSessionRequest(
     signedTransactionInfo: String,
-    existingSession: BackendSessionResponse?
+    existingSession: BackendSessionResponse?,
+    configurationRevision: Int
   ) async throws -> SubscriptionSessionRequest {
     let requestHash = DeviceSessionProofProvider.base64URL(
-      Data(SHA256.hash(data: Data(signedTransactionInfo.utf8)))
+      Self.subscriptionJWSHash(signedTransactionInfo)
     )
+    try prepareHostedRequest(configurationRevision: configurationRevision)
     let challengeStartedAt = Date()
     let challenge = try await createSessionChallenge(SessionChallengeRequest(
       installationId: configurationStore.installationId,
       purpose: "hostedEnrollment",
       requestHash: requestHash
     ))
+    try prepareHostedRequest(configurationRevision: configurationRevision)
     guard challenge.protocolVersion == 3, challenge.proofKind == "appAttest", challenge.expiresAt > Date() else {
       throw DeviceSessionProofError.appAttestUnavailable
     }
@@ -730,26 +981,40 @@ final class AuthService {
     )
   }
 
-  private func makeSelfHostedSessionRequest() async throws -> SelfHostedSessionRequest {
+  private func makeSelfHostedSessionRequest(
+    configurationRevision: Int,
+    operationID: UUID
+  ) async throws -> SelfHostedSessionRequest {
+    try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
     let challenge = try await createSessionChallenge(SessionChallengeRequest(
       installationId: configurationStore.installationId,
       purpose: "selfHostedEnrollment",
       requestHash: nil
     ))
+    try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
     guard challenge.protocolVersion == 3, challenge.proofKind == "secureEnclaveP256", challenge.expiresAt > Date() else {
       throw DeviceSessionProofError.secureEnclaveUnavailable
     }
+    let enrollment = try proofProvider.selfHostedEnrollment(
+      challenge: challenge,
+      installationId: configurationStore.installationId
+    )
+    try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
     return SelfHostedSessionRequest(
       installationId: configurationStore.installationId,
-      deviceEnrollment: try proofProvider.selfHostedEnrollment(
-        challenge: challenge,
-        installationId: configurationStore.installationId
-      )
+      deviceEnrollment: enrollment
     )
   }
 
   private func refreshRenewableSession(_ currentSession: BackendSessionResponse) async -> Bool {
-    _ = configurationStore.apply(to: apiClient)
+    let configurationRevision = configurationStore.revision
+    let mode = configurationStore.mode
+    do {
+      try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
+    } catch {
+      recordRefreshConfigurationChange()
+      return false
+    }
     let startedAt = Date()
     diagnostics?.record(
       source: .auth,
@@ -760,9 +1025,11 @@ final class AuthService {
       let request = try await proofProvider.refreshRequest(
         session: currentSession,
         installationId: configurationStore.installationId,
-        mode: configurationStore.mode
+        mode: mode
       )
-      let refreshed = try await apiClient.refreshSession(request, mode: configurationStore.mode)
+      try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
+      let refreshed = try await apiClient.refreshSession(request, mode: mode)
+      try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
       guard refreshed.protocolVersion == 3, refreshed.serviceMode == currentSession.serviceMode else {
         throw APIClientError.invalidResponse
       }
@@ -778,6 +1045,11 @@ final class AuthService {
       )
       return true
     } catch {
+      if error is BackendConfigurationChangedError
+        || !isCurrentConfiguration(configurationRevision, mode: mode) {
+        recordRefreshConfigurationChange()
+        return false
+      }
       let invalidAppAttestKey: Bool
       if case .invalidKey? = error as? AppAttestClientError {
         invalidAppAttestKey = true
@@ -806,23 +1078,52 @@ final class AuthService {
     statusMessage = "Connect to PumpSync or a self-hosted service"
   }
 
-  private func runCoalescedSubscriptionOperation(_ operation: @escaping @MainActor () async -> Void) async {
+  private func runQueuedExplicitSubscriptionOperation(
+    _ operation: @escaping @MainActor () async -> Void
+  ) async {
+    let configurationRevision = configurationStore.revision
+    while !Task.isCancelled,
+          configurationStore.revision == configurationRevision {
+      let executed = await runCoalescedSubscriptionOperation {
+        guard self.configurationStore.revision == configurationRevision else {
+          return
+        }
+        await operation()
+      }
+      if executed {
+        return
+      }
+    }
+  }
+
+  @discardableResult
+  private func runCoalescedSubscriptionOperation(
+    _ operation: @escaping @MainActor () async -> Void
+  ) async -> Bool {
     if let subscriptionOperationTask {
       diagnostics?.record(source: .auth, title: "Subscription operation coalesced", message: "coalesced=true")
       await subscriptionOperationTask.value
-      return
+      return false
     }
 
-    let task = Task { @MainActor in
+    let operationID = UUID()
+    let task = Task { @MainActor [weak self] in
       await operation()
+      guard self?.subscriptionOperationID == operationID else {
+        return
+      }
+      self?.subscriptionOperationTask = nil
+      self?.subscriptionOperationID = nil
     }
+    subscriptionOperationID = operationID
     subscriptionOperationTask = task
     await task.value
-    subscriptionOperationTask = nil
+    return true
   }
 
   private func createSubscriptionSessionWithTimeout(
-    _ request: SubscriptionSessionRequest
+    _ request: SubscriptionSessionRequest,
+    configurationRevision: Int
   ) async throws -> BackendSessionResponse {
     try await withCheckedThrowingContinuation { continuation in
       var hasResumed = false
@@ -830,6 +1131,7 @@ final class AuthService {
 
       let backendTask = Task { @MainActor in
         do {
+          try prepareHostedRequest(configurationRevision: configurationRevision)
           let response = try await createSubscriptionSession(request)
           guard !hasResumed else { return }
           hasResumed = true
@@ -903,6 +1205,90 @@ final class AuthService {
     Int(Date().timeIntervalSince(startedAt) * 1_000)
   }
 
+  private static func subscriptionJWSHash(_ signedTransactionInfo: String) -> Data {
+    Data(SHA256.hash(data: Data(signedTransactionInfo.utf8)))
+  }
+
+  private func isCurrentHostedConfiguration(_ revision: Int) -> Bool {
+    isCurrentConfiguration(revision, mode: .hosted)
+  }
+
+  private func isCurrentConfiguration(_ revision: Int, mode: BackendAccessMode) -> Bool {
+    configurationStore.mode == mode && configurationStore.revision == revision
+  }
+
+  private func prepareHostedRequest(configurationRevision: Int) throws {
+    guard isCurrentHostedConfiguration(configurationRevision),
+          configurationStore.apply(to: apiClient) else {
+      throw SubscriptionConfigurationChangedError()
+    }
+  }
+
+  private func prepareSelfHostedRequest(configurationRevision: Int, operationID: UUID) throws {
+    guard isCurrentConfiguration(configurationRevision, mode: .selfHosted),
+          configurationStore.apply(to: apiClient) else {
+      throw BackendConfigurationChangedError()
+    }
+    guard selfHostedOperationID == operationID else {
+      throw SelfHostedOperationSupersededError()
+    }
+  }
+
+  private func prepareConfiguredRequest(configurationRevision: Int, mode: BackendAccessMode) throws {
+    guard isCurrentConfiguration(configurationRevision, mode: mode),
+          configurationStore.apply(to: apiClient) else {
+      throw BackendConfigurationChangedError()
+    }
+  }
+
+  private func finishSelfHostedOperation(_ operationID: UUID) {
+    guard selfHostedOperationID == operationID else {
+      return
+    }
+    selfHostedOperationID = nil
+    isConnecting = false
+  }
+
+  private func recordSubscriptionConfigurationChange() {
+    diagnostics?.record(
+      source: .auth,
+      title: "Subscription session stopped",
+      message: "reason=connectionModeChanged"
+    )
+  }
+
+  private func recordSubscriptionRestoreConfigurationChange() {
+    diagnostics?.record(
+      source: .auth,
+      title: "Subscription restore stopped",
+      message: "reason=connectionModeChanged"
+    )
+  }
+
+  private func recordSubscriptionRecoveryConfigurationChange() {
+    diagnostics?.record(
+      source: .auth,
+      title: "Subscription recovery stopped",
+      message: "reason=connectionModeChanged"
+    )
+  }
+
+  private func recordSelfHostedConfigurationChange() {
+    diagnostics?.record(
+      source: .auth,
+      title: "Self-hosted session stopped",
+      message: "reason=connectionModeChanged"
+    )
+  }
+
+  private func recordRefreshConfigurationChange() {
+    diagnostics?.record(
+      source: .auth,
+      title: "Renewable session refresh stopped",
+      message: "reason=connectionModeChanged"
+    )
+  }
+
   private func recordSubscriptionSessionFailure(_ error: Error) {
     guard let apiError = error as? APIClientError,
           apiError.backendCode == "invalid_app_store_transaction" else {
@@ -934,6 +1320,14 @@ final class AuthService {
 private struct SubscriptionSessionTimeoutError: LocalizedError {
   var errorDescription: String? { "Connecting to PumpSync timed out. Please try again." }
 }
+
+private struct SubscriptionConfigurationChangedError: Error {}
+
+private struct SubscriptionEnrollmentStateChangedError: Error {}
+
+private struct BackendConfigurationChangedError: Error {}
+
+private struct SelfHostedOperationSupersededError: Error {}
 
 private struct HostedServiceWarmupError: LocalizedError {
   static let userMessage = "The PumpSync service is temporarily unavailable. Try again."

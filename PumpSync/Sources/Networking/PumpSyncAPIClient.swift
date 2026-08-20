@@ -109,11 +109,12 @@ final class PumpSyncAPIClient {
     timeoutInterval: TimeInterval? = nil
   ) async throws -> Response {
     var lastError: Error?
+    let requestBaseURL = baseURL
 
     for attempt in 0...maxRetryCount {
       do {
         return try await sendOnce(
-          path: path, method: method, body: body, accessToken: accessToken,
+          baseURL: requestBaseURL, path: path, method: method, body: body, accessToken: accessToken,
           timeoutInterval: timeoutInterval
         )
       } catch {
@@ -130,6 +131,7 @@ final class PumpSyncAPIClient {
   }
 
   private func sendOnce<Request: Encodable, Response: Decodable>(
+    baseURL: URL,
     path: String,
     method: String,
     body: Request,
@@ -244,8 +246,12 @@ enum APIClientError: LocalizedError {
   }
 
   var hasAmbiguousOutcome: Bool {
-    if case .invalidResponse = self { return true }
-    return false
+    switch self {
+    case .invalidResponse:
+      return true
+    case .httpStatus(let status, _, _, _):
+      return status == 408 || status >= 500
+    }
   }
 
   /// 424: the backend reached Tandem Source but Tandem rejected the stored

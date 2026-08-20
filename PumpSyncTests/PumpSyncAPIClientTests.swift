@@ -101,6 +101,47 @@ final class PumpSyncAPIClientTests: XCTestCase {
     XCTAssertEqual(timeout.value, 75)
   }
 
+  func testRequestRetriesKeepTheBaseURLCapturedAtRequestStart() async throws {
+    let firstRequestStarted = expectation(description: "first request started")
+    let allowFirstRequestToFail = DispatchSemaphore(value: 0)
+    let hosts = LockIsolated<[String]>([])
+    URLProtocolStub.requestHandler = { request in
+      hosts.modify { $0.append(request.url?.host ?? "missing") }
+      if hosts.value.count == 1 {
+        firstRequestStarted.fulfill()
+        allowFirstRequestToFail.wait()
+        throw URLError(.cannotConnectToHost)
+      }
+
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, Data(#"{"protocolVersion":3,"proofKind":"appAttest","challengeToken":"challenge","expiresAt":"2099-01-01T00:00:00Z"}"#.utf8))
+    }
+    let client = PumpSyncAPIClient(
+      baseURL: URL(string: "https://hosted.example/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 1
+    )
+
+    let request = Task {
+      try await client.createSessionChallenge(SessionChallengeRequest(
+        installationId: "installation-1",
+        purpose: "hostedEnrollment",
+        requestHash: "request-hash"
+      ))
+    }
+    await fulfillment(of: [firstRequestStarted], timeout: 1)
+    client.updateBaseURL(URL(string: "https://self-hosted.example/api")!)
+    allowFirstRequestToFail.signal()
+    _ = try await request.value
+
+    XCTAssertEqual(hosts.value, ["hosted.example", "hosted.example"])
+  }
+
   func testSubscriptionEnrollmentDoesNotRetryServerFailure() async {
     let calls = LockIsolated(0)
     URLProtocolStub.requestHandler = { request in

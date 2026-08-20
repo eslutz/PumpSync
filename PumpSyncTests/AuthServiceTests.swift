@@ -73,6 +73,218 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
   }
 
+  func testExplicitActivationQueuedBehindInFlightSubscriptionOperationEventuallyExecutes() async {
+    let diagnostics = makeDiagnostics()
+    let firstRequestGate = AsyncGate()
+    let firstJWS = "first-explicit-transaction-jws"
+    let secondJWS = "second-explicit-transaction-jws"
+    var firstRequestStarted = false
+    var submittedTransactions: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if request.signedTransactionInfo == firstJWS {
+          firstRequestStarted = true
+          await firstRequestGate.wait()
+        }
+        return BackendSessionResponse(
+          accessToken: "token-\(submittedTransactions.count)",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let firstActivation = Task {
+      await service.activateSubscription(signedTransactionInfo: firstJWS)
+    }
+    await waitUntil { firstRequestStarted }
+    let secondActivation = Task {
+      await service.activateSubscription(signedTransactionInfo: secondJWS)
+    }
+    await waitUntil {
+      diagnostics.entries.contains { $0.title == "Subscription operation coalesced" }
+    }
+
+    await firstRequestGate.open()
+    await firstActivation.value
+    await secondActivation.value
+
+    XCTAssertEqual(submittedTransactions, [firstJWS, secondJWS])
+    XCTAssertEqual(service.accessToken, "token-2")
+  }
+
+  func testExplicitRestoreQueuedBehindInFlightSubscriptionOperationEventuallyExecutes() async {
+    let diagnostics = makeDiagnostics()
+    let firstRequestGate = AsyncGate()
+    let firstJWS = "in-flight-explicit-transaction-jws"
+    let restoredJWS = "restored-explicit-transaction-jws"
+    var firstRequestStarted = false
+    var restoreEntitlementCalls = 0
+    var submittedTransactions: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      syncedCurrentEntitlementJWS: {
+        restoreEntitlementCalls += 1
+        return restoredJWS
+      },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if request.signedTransactionInfo == firstJWS {
+          firstRequestStarted = true
+          await firstRequestGate.wait()
+        }
+        return BackendSessionResponse(
+          accessToken: "token-\(submittedTransactions.count)",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let firstActivation = Task {
+      await service.activateSubscription(signedTransactionInfo: firstJWS)
+    }
+    await waitUntil { firstRequestStarted }
+    let restore = Task {
+      await service.connectUsingCurrentSubscription()
+    }
+    await waitUntil {
+      diagnostics.entries.contains { $0.title == "Subscription operation coalesced" }
+    }
+
+    await firstRequestGate.open()
+    await firstActivation.value
+    await restore.value
+
+    XCTAssertEqual(restoreEntitlementCalls, 1)
+    XCTAssertEqual(submittedTransactions, [firstJWS, restoredJWS])
+    XCTAssertEqual(service.accessToken, "token-2")
+  }
+
+  func testQueuedExplicitActivationDoesNotCrossConnectionGeneration() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let firstRequestGate = AsyncGate()
+    let firstJWS = "obsolete-in-flight-transaction-jws"
+    let queuedJWS = "obsolete-queued-transaction-jws"
+    let replacementJWS = "replacement-transaction-jws"
+    var firstRequestStarted = false
+    var submittedTransactions: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if request.signedTransactionInfo == firstJWS {
+          firstRequestStarted = true
+          await firstRequestGate.wait()
+        }
+        return BackendSessionResponse(
+          accessToken: "token-\(request.signedTransactionInfo)",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let obsoleteOperation = Task {
+      await service.activateSubscription(signedTransactionInfo: firstJWS)
+    }
+    await waitUntil { firstRequestStarted }
+    let obsoleteQueuedActivation = Task {
+      await service.activateSubscription(signedTransactionInfo: queuedJWS)
+    }
+    await waitUntil {
+      diagnostics.entries.contains { $0.title == "Subscription operation coalesced" }
+    }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    configuration.mode = .hosted
+    service.clearSessionForConnectionChange()
+    await service.activateSubscription(signedTransactionInfo: replacementJWS)
+
+    await firstRequestGate.open()
+    await obsoleteOperation.value
+    await obsoleteQueuedActivation.value
+
+    XCTAssertEqual(submittedTransactions, [firstJWS, replacementJWS])
+    XCTAssertEqual(service.accessToken, "token-\(replacementJWS)")
+  }
+
+  func testCancelledExplicitActivationDoesNotExecuteAfterCoalescedWait() async {
+    let diagnostics = makeDiagnostics()
+    let firstRequestGate = AsyncGate()
+    let firstJWS = "in-flight-before-cancellation-jws"
+    let cancelledJWS = "cancelled-queued-transaction-jws"
+    var firstRequestStarted = false
+    var submittedTransactions: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if request.signedTransactionInfo == firstJWS {
+          firstRequestStarted = true
+          await firstRequestGate.wait()
+        }
+        return BackendSessionResponse(
+          accessToken: "token-\(request.signedTransactionInfo)",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let firstActivation = Task {
+      await service.activateSubscription(signedTransactionInfo: firstJWS)
+    }
+    await waitUntil { firstRequestStarted }
+    let cancelledActivation = Task {
+      await service.activateSubscription(signedTransactionInfo: cancelledJWS)
+    }
+    await waitUntil {
+      diagnostics.entries.contains { $0.title == "Subscription operation coalesced" }
+    }
+
+    cancelledActivation.cancel()
+    await firstRequestGate.open()
+    await firstActivation.value
+    await cancelledActivation.value
+
+    XCTAssertEqual(submittedTransactions, [firstJWS])
+    XCTAssertEqual(service.accessToken, "token-\(firstJWS)")
+  }
+
   func testUncachedSubscriptionSessionTimesOutWithoutDiscardingEntitlementState() async {
     let diagnostics = makeDiagnostics()
     let service = AuthService(
@@ -327,6 +539,39 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSignedIn)
   }
 
+  func testServerFailureAfterEnrollmentSubmissionKeepsPendingAppAttestState() async {
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [
+      .success(Data("attestation-1".utf8)),
+      .success(Data("attestation-2".utf8))
+    ]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.ambiguous-server-enrollment.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    var backendCalls = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        throw APIClientError.httpStatus(500, code: "server_error", message: "request failed")
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider
+    )
+
+    await service.connectUsingCurrentSubscription()
+    await service.connectUsingCurrentSubscription()
+
+    XCTAssertEqual(backendCalls, 1, "a server failure after submission may follow backend registration")
+    XCTAssertEqual(appAttest.generatedKeyCount, 1, "an ambiguous server response must retain the submitted App Attest key")
+    XCTAssertFalse(service.isSignedIn)
+  }
+
   func testSubscriptionSessionTimeoutCancelsTheInFlightBackendOperation() async throws {
     var backendOperationWasCancelled = false
     let service = AuthService(
@@ -440,6 +685,910 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), session)
     XCTAssertTrue(diagnostics.entries.map(\.title).contains("Subscription session timing"))
     XCTAssertTrue(diagnostics.entries.map(\.title).contains("PumpSync subscription purchased"))
+  }
+
+  func testAutomaticTransactionUpdateActivatesSubscriptionForUnattemptedJWS() async {
+    var submittedTransactions: [String] = []
+    var finishCount = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.handleActiveSubscriptionTransactionUpdate(
+      signedTransactionInfo: "automatic-transaction-jws",
+      diagnosticSummary: "productID=subscription, active=true",
+      finish: { finishCount += 1 }
+    )
+
+    XCTAssertEqual(finishCount, 1)
+    XCTAssertEqual(submittedTransactions, ["automatic-transaction-jws"])
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testAutomaticTransactionUpdateSkipsSameJWSAfterDefinitiveSessionFailure() async {
+    let signedTransactionInfo = "duplicate-transaction-jws-secret"
+    let diagnostics = makeDiagnostics()
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [
+      .success(Data("attestation-1".utf8)),
+      .success(Data("attestation-2".utf8))
+    ]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.automatic-dedup.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    var challengeCount = 0
+    var backendCalls = 0
+    var finishCount = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        throw APIClientError.httpStatus(
+          401,
+          code: "device_proof_rejected",
+          message: "The device proof was rejected. Reconnect and try again."
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    await service.handleActiveSubscriptionTransactionUpdate(
+      signedTransactionInfo: signedTransactionInfo,
+      diagnosticSummary: "productID=subscription, id=…0001, active=true",
+      finish: { finishCount += 1 }
+    )
+
+    XCTAssertEqual(finishCount, 1)
+    XCTAssertEqual(backendCalls, 1, "an automatic replay must not resubmit a definitively failed session")
+    XCTAssertEqual(challengeCount, 1, "an automatic replay must not request another challenge")
+    XCTAssertEqual(appAttest.generatedKeyCount, 1, "an automatic replay must not generate another App Attest key")
+    let skipped = diagnostics.entries.first { $0.title == "PumpSync subscription transaction update skipped" }
+    XCTAssertTrue(skipped?.message?.contains("reason=duplicateSessionAttempt") == true)
+    XCTAssertFalse(diagnostics.entries.compactMap(\.message).joined(separator: " ").contains(signedTransactionInfo))
+  }
+
+  func testAutomaticTransactionUpdateSkipsSameJWSAfterSuccessfulSession() async {
+    let signedTransactionInfo = "successful-transaction-jws"
+    let diagnostics = makeDiagnostics()
+    var backendCalls = 0
+    var finishCount = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    await service.handleActiveSubscriptionTransactionUpdate(
+      signedTransactionInfo: signedTransactionInfo,
+      diagnosticSummary: "productID=subscription, id=…0002, active=true",
+      finish: { finishCount += 1 }
+    )
+
+    XCTAssertEqual(finishCount, 1)
+    XCTAssertEqual(backendCalls, 1)
+    XCTAssertTrue(service.isSignedIn)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "PumpSync subscription transaction update skipped"
+        && $0.message?.contains("reason=duplicateSessionAttempt") == true
+    })
+  }
+
+  func testAutomaticTransactionUpdateSkipsSameJWSAfterAmbiguousSessionFailure() async {
+    let signedTransactionInfo = "ambiguous-transaction-jws"
+    let diagnostics = makeDiagnostics()
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [.success(Data("attestation".utf8))]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.automatic-ambiguous-dedup.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    var challengeCount = 0
+    var backendCalls = 0
+    var finishCount = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        throw URLError(.networkConnectionLost)
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    await service.handleActiveSubscriptionTransactionUpdate(
+      signedTransactionInfo: signedTransactionInfo,
+      diagnosticSummary: "productID=subscription, id=…0003, active=true",
+      finish: { finishCount += 1 }
+    )
+
+    XCTAssertEqual(finishCount, 1)
+    XCTAssertEqual(backendCalls, 1)
+    XCTAssertEqual(challengeCount, 1)
+    XCTAssertEqual(appAttest.generatedKeyCount, 1)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "PumpSync subscription transaction update skipped"
+        && $0.message?.contains("reason=duplicateSessionAttempt") == true
+    })
+  }
+
+  func testConfigurationChangeAfterAttestationDiscardsUnsubmittedEnrollmentForExplicitRetry() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let attestationGate = AsyncGate()
+    var attestationStarted = false
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [
+      .success(Data("attestation-1".utf8)),
+      .success(Data("attestation-2".utf8))
+    ]
+    appAttest.attestationStarted = { attestationStarted = true }
+    appAttest.attestationGate = attestationGate
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.mode-change-attestation.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    var challengeCount = 0
+    var backendCalls = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        return BackendSessionResponse(
+          accessToken: "retry-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    let interruptedEnrollment = Task {
+      await service.activateSubscription(signedTransactionInfo: "first-transaction-jws")
+    }
+    await waitUntil { attestationStarted }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await attestationGate.open()
+    await interruptedEnrollment.value
+
+    configuration.mode = .hosted
+    service.clearSessionForConnectionChange()
+    await service.activateSubscription(signedTransactionInfo: "different-transaction-jws")
+
+    XCTAssertEqual(appAttest.generatedKeyCount, 2)
+    XCTAssertEqual(backendCalls, 1)
+    XCTAssertEqual(service.accessToken, "retry-token")
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "Unsubmitted App Attest enrollment discarded"
+        && $0.message == "reason=connectionModeChanged backendSubmitted=false"
+    })
+    XCTAssertFalse(diagnostics.entries.contains {
+      $0.title == "App Attest enrollment outcome is pending"
+    })
+  }
+
+  func testAutomaticTransactionUpdateSkipsSameJWSAfterWarmupFailure() async {
+    let signedTransactionInfo = "warmup-failure-transaction-jws"
+    let diagnostics = makeDiagnostics()
+    var warmupCalls = 0
+    var backendCalls = 0
+    var finishCount = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      warmupHostedService: {
+        warmupCalls += 1
+        throw URLError(.cannotConnectToHost)
+      },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    await service.handleActiveSubscriptionTransactionUpdate(
+      signedTransactionInfo: signedTransactionInfo,
+      diagnosticSummary: "productID=subscription, id=…0004, active=true",
+      finish: { finishCount += 1 }
+    )
+
+    XCTAssertEqual(finishCount, 1)
+    XCTAssertEqual(warmupCalls, 1, "the JWS must be recorded before hosted warm-up begins")
+    XCTAssertEqual(backendCalls, 0)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "PumpSync subscription transaction update skipped"
+        && $0.message?.contains("reason=duplicateSessionAttempt") == true
+    })
+  }
+
+  func testAutomaticTransactionUpdateActivatesDifferentJWSAfterPriorAttempt() async {
+    var submittedTransactions: [String] = []
+    var finishCount = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if submittedTransactions.count == 1 {
+          throw APIClientError.httpStatus(
+            401,
+            code: "invalid_app_store_transaction",
+            message: "The App Store transaction was rejected."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.activateSubscription(signedTransactionInfo: "first-transaction-jws")
+    await service.handleActiveSubscriptionTransactionUpdate(
+      signedTransactionInfo: "different-transaction-jws",
+      diagnosticSummary: "productID=subscription, id=…0004, active=true",
+      finish: { finishCount += 1 }
+    )
+
+    XCTAssertEqual(finishCount, 1)
+    XCTAssertEqual(submittedTransactions, ["first-transaction-jws", "different-transaction-jws"])
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testAutomaticTransactionUpdateQueuesDifferentJWSWhilePriorAttemptIsInFlight() async {
+    let diagnostics = makeDiagnostics()
+    let firstRequestGate = AsyncGate()
+    var submittedTransactions: [String] = []
+    var finishCount = 0
+    var firstRequestStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if submittedTransactions.count == 1 {
+          firstRequestStarted = true
+          await firstRequestGate.wait()
+          throw APIClientError.httpStatus(
+            401,
+            code: "invalid_app_store_transaction",
+            message: "The App Store transaction was rejected."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let firstAttempt = Task {
+      await service.activateSubscription(signedTransactionInfo: "first-transaction-jws")
+    }
+    await waitUntil { firstRequestStarted }
+
+    let automaticUpdate = Task {
+      await service.handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: "different-transaction-jws",
+        diagnosticSummary: "productID=subscription, id=…0005, active=true",
+        finish: { finishCount += 1 }
+      )
+    }
+    await waitUntil {
+      finishCount == 1 && diagnostics.entries.contains {
+        $0.title == "Subscription operation coalesced"
+      }
+    }
+
+    await firstRequestGate.open()
+    await firstAttempt.value
+    await automaticUpdate.value
+
+    XCTAssertEqual(finishCount, 1)
+    XCTAssertEqual(submittedTransactions, ["first-transaction-jws", "different-transaction-jws"])
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testAutomaticTransactionUpdatesQueueEveryDistinctJWSAcrossRepeatedCoalescing() async {
+    let diagnostics = makeDiagnostics()
+    let firstRequestGate = AsyncGate()
+    let secondRequestGate = AsyncGate()
+    let firstJWS = "first-transaction-jws"
+    let secondJWS = "second-transaction-jws"
+    let thirdJWS = "third-transaction-jws"
+    var submittedTransactions: [String] = []
+    var finishCount = 0
+    var firstRequestStarted = false
+    var secondRequestStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if request.signedTransactionInfo == firstJWS {
+          firstRequestStarted = true
+          await firstRequestGate.wait()
+          throw APIClientError.httpStatus(
+            401,
+            code: "invalid_app_store_transaction",
+            message: "The App Store transaction was rejected."
+          )
+        }
+        if submittedTransactions.count == 2 {
+          secondRequestStarted = true
+          await secondRequestGate.wait()
+        }
+        return BackendSessionResponse(
+          accessToken: "token-\(submittedTransactions.count)",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let firstAttempt = Task {
+      await service.activateSubscription(signedTransactionInfo: firstJWS)
+    }
+    await waitUntil { firstRequestStarted }
+
+    let secondUpdate = Task {
+      await service.handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: secondJWS,
+        diagnosticSummary: "productID=subscription, id=…0006, active=true",
+        finish: { finishCount += 1 }
+      )
+    }
+    let thirdUpdate = Task {
+      await service.handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: thirdJWS,
+        diagnosticSummary: "productID=subscription, id=…0007, active=true",
+        finish: { finishCount += 1 }
+      )
+    }
+    await waitUntil {
+      diagnostics.entries.filter { $0.title == "Subscription operation coalesced" }.count == 2
+    }
+
+    await firstRequestGate.open()
+    await firstAttempt.value
+    await waitUntil { secondRequestStarted }
+    await waitUntil {
+      diagnostics.entries.filter { $0.title == "Subscription operation coalesced" }.count == 3
+    }
+    await secondRequestGate.open()
+    await secondUpdate.value
+    await thirdUpdate.value
+
+    XCTAssertEqual(finishCount, 2)
+    XCTAssertEqual(submittedTransactions.first, firstJWS)
+    XCTAssertEqual(Set(submittedTransactions), Set([firstJWS, secondJWS, thirdJWS]))
+    XCTAssertEqual(submittedTransactions.count, 3)
+  }
+
+  func testConnectionChangeLetsExplicitRestoreBypassObsoleteSubscriptionOperation() async {
+    let configuration = makeConfigurationStore()
+    let warmupGate = AsyncGate()
+    var firstWarmupStarted = false
+    var warmupCount = 0
+    var restoreEntitlementCalls = 0
+    var submittedTransactions: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      syncedCurrentEntitlementJWS: {
+        restoreEntitlementCalls += 1
+        return "restored-transaction-jws"
+      },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        return BackendSessionResponse(
+          accessToken: "restored-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      warmupHostedService: {
+        warmupCount += 1
+        if warmupCount == 1 {
+          firstWarmupStarted = true
+          await warmupGate.wait()
+        }
+      },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let obsoleteOperation = Task {
+      await service.activateSubscription(signedTransactionInfo: "obsolete-transaction-jws")
+    }
+    await waitUntil { firstWarmupStarted }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    configuration.mode = .hosted
+    service.clearSessionForConnectionChange()
+
+    let restore = Task {
+      await service.connectUsingCurrentSubscription()
+    }
+    await waitUntil { restoreEntitlementCalls == 1 }
+    await warmupGate.open()
+    await restore.value
+    await obsoleteOperation.value
+
+    XCTAssertEqual(restoreEntitlementCalls, 1)
+    XCTAssertEqual(submittedTransactions, ["restored-transaction-jws"])
+    XCTAssertEqual(service.accessToken, "restored-token")
+  }
+
+  func testAutomaticTransactionUpdateDoesNotActivateAfterSwitchingToSelfHostedDuringFinish() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let finishGate = AsyncGate()
+    let signedTransactionInfo = "hosted-transaction-jws"
+    var finishStarted = false
+    var submittedTransactions: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        return BackendSessionResponse(
+          accessToken: "unexpected-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let automaticUpdate = Task {
+      await service.handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: signedTransactionInfo,
+        diagnosticSummary: "productID=subscription, id=…0008, active=true",
+        finish: {
+          finishStarted = true
+          await finishGate.wait()
+        }
+      )
+    }
+    await waitUntil { finishStarted }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await finishGate.open()
+    await automaticUpdate.value
+
+    XCTAssertTrue(submittedTransactions.isEmpty)
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "PumpSync subscription transaction update skipped"
+        && $0.message?.contains("reason=connectionModeChanged") == true
+    })
+  }
+
+  func testAutomaticTransactionUpdateDoesNotActivateAfterSwitchingToSelfHostedDuringCoalescedWait() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let firstRequestGate = AsyncGate()
+    let firstJWS = "first-transaction-jws"
+    let automaticJWS = "automatic-transaction-jws"
+    var submittedTransactions: [String] = []
+    var firstRequestStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if request.signedTransactionInfo == firstJWS {
+          firstRequestStarted = true
+          await firstRequestGate.wait()
+          throw APIClientError.httpStatus(
+            401,
+            code: "invalid_app_store_transaction",
+            message: "The App Store transaction was rejected."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "unexpected-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let firstAttempt = Task {
+      await service.activateSubscription(signedTransactionInfo: firstJWS)
+    }
+    await waitUntil { firstRequestStarted }
+    let automaticUpdate = Task {
+      await service.handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: automaticJWS,
+        diagnosticSummary: "productID=subscription, id=…0009, active=true",
+        finish: {}
+      )
+    }
+    await waitUntil {
+      diagnostics.entries.contains { $0.title == "Subscription operation coalesced" }
+    }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await firstRequestGate.open()
+    await firstAttempt.value
+    await automaticUpdate.value
+
+    XCTAssertEqual(submittedTransactions, [firstJWS])
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "PumpSync subscription transaction update skipped"
+        && $0.message?.contains("reason=connectionModeChanged") == true
+    })
+  }
+
+  func testAutomaticTransactionUpdateStopsEnrollmentAfterSwitchingToSelfHostedDuringWarmup() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let warmupGate = AsyncGate()
+    var warmupStarted = false
+    var challengeCalls = 0
+    var backendCalls = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        return BackendSessionResponse(
+          accessToken: "unexpected-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      warmupHostedService: {
+        warmupStarted = true
+        await warmupGate.wait()
+      },
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in
+        challengeCalls += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    let automaticUpdate = Task {
+      await service.handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: "warmup-mode-change-jws",
+        diagnosticSummary: "productID=subscription, id=…0010, active=true",
+        finish: {}
+      )
+    }
+    await waitUntil { warmupStarted }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await warmupGate.open()
+    await automaticUpdate.value
+
+    XCTAssertEqual(challengeCalls, 0)
+    XCTAssertEqual(backendCalls, 0)
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "PumpSync subscription transaction update skipped"
+        && $0.message?.contains("reason=connectionModeChanged") == true
+    })
+  }
+
+  func testAutomaticTransactionUpdateDoesNotCommitHostedResponseAfterSwitchingToSelfHosted() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let backendGate = AsyncGate()
+    var backendStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        backendStarted = true
+        await backendGate.wait()
+        return BackendSessionResponse(
+          accessToken: "stale-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let automaticUpdate = Task {
+      await service.handleActiveSubscriptionTransactionUpdate(
+        signedTransactionInfo: "backend-mode-change-jws",
+        diagnosticSummary: "productID=subscription, id=…0011, active=true",
+        finish: {}
+      )
+    }
+    await waitUntil { backendStarted }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await backendGate.open()
+    await automaticUpdate.value
+
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertNil(service.accessToken)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "PumpSync subscription transaction update skipped"
+        && $0.message?.contains("reason=connectionModeChanged") == true
+    })
+  }
+
+  func testSubscriptionRecoveryDoesNotClearSelfHostedReplacementAfterStoreKitSuspends() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let entitlementGate = AsyncGate()
+    var entitlementStarted = false
+    let sessionStore = makeSessionStore()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        entitlementStarted = true
+        await entitlementGate.wait()
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in
+        BackendSessionResponse(
+          accessToken: "self-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in Self.selfHostedChallenge(token: "self-hosted-challenge") }
+    )
+
+    let staleRecovery = Task {
+      await service.recoverSessionIfNeeded()
+    }
+    await waitUntil { entitlementStarted }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await service.connectSelfHosted()
+    await entitlementGate.open()
+    await staleRecovery.value
+
+    XCTAssertEqual(service.accessToken, "self-hosted-token")
+    XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "self-hosted-token")
+    XCTAssertNil(service.errorMessage)
+    XCTAssertEqual(service.statusMessage, "Connected to self-hosted service")
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "Subscription recovery stopped" && $0.message == "reason=connectionModeChanged"
+    })
+  }
+
+  func testSubscriptionRestoreDoesNotPublishStaleFailureAfterModeChange() async {
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let entitlementGate = AsyncGate()
+    var entitlementStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      syncedCurrentEntitlementJWS: {
+        entitlementStarted = true
+        await entitlementGate.wait()
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in
+        BackendSessionResponse(
+          accessToken: "self-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in Self.selfHostedChallenge(token: "self-hosted-challenge") }
+    )
+
+    let staleRestore = Task {
+      await service.connectUsingCurrentSubscription()
+    }
+    await waitUntil { entitlementStarted }
+
+    configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await service.connectSelfHosted()
+    await entitlementGate.open()
+    await staleRestore.value
+
+    XCTAssertEqual(service.accessToken, "self-hosted-token")
+    XCTAssertNil(service.errorMessage)
+    XCTAssertEqual(service.statusMessage, "Connected to self-hosted service")
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "Subscription restore stopped" && $0.message == "reason=connectionModeChanged"
+    })
+  }
+
+  func testExplicitActivationAllowsSameJWSRetryAfterDefinitiveSessionFailure() async {
+    let signedTransactionInfo = "explicit-retry-transaction-jws"
+    var submittedTransactions: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { request in
+        submittedTransactions.append(request.signedTransactionInfo)
+        if submittedTransactions.count == 1 {
+          throw APIClientError.httpStatus(
+            401,
+            code: "invalid_app_store_transaction",
+            message: "The App Store transaction was rejected."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+
+    XCTAssertEqual(submittedTransactions, [signedTransactionInfo, signedTransactionInfo])
+    XCTAssertTrue(service.isSignedIn)
   }
 
   func testSubscriptionRestorePublishesUserSafeErrorAndDiagnostics() async {
@@ -710,6 +1859,126 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "self-hosted-token")
   }
 
+  func testSelfHostedConnectionStopsIfTheBaseURLChangesDuringChallenge() async {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+    configuration.selfHostedBaseURLString = "https://old-self-host.example/api"
+    let diagnostics = makeDiagnostics()
+    let sessionStore = makeSessionStore()
+    let oldChallengeGate = AsyncGate()
+    var challengeCount = 0
+    var oldChallengeStarted = false
+    var submittedChallengeTokens: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { request in
+        submittedChallengeTokens.append(request.deviceEnrollment.challengeToken)
+        return BackendSessionResponse(
+          accessToken: request.deviceEnrollment.challengeToken == "new-challenge" ? "new-token" : "stale-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        if challengeCount == 1 {
+          oldChallengeStarted = true
+          await oldChallengeGate.wait()
+          return Self.selfHostedChallenge(token: "old-challenge")
+        }
+        return Self.selfHostedChallenge(token: "new-challenge")
+      }
+    )
+
+    let oldConnection = Task {
+      await service.connectSelfHosted()
+    }
+    await waitUntil { oldChallengeStarted }
+
+    configuration.selfHostedBaseURLString = "https://new-self-host.example/api"
+    service.clearSessionForConnectionChange()
+    await service.connectSelfHosted()
+
+    XCTAssertEqual(service.accessToken, "new-token")
+    await oldChallengeGate.open()
+    await oldConnection.value
+
+    XCTAssertEqual(submittedChallengeTokens, ["new-challenge"])
+    XCTAssertEqual(service.accessToken, "new-token")
+    XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "new-token")
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Self-hosted session stopped" && $0.message == "reason=connectionModeChanged"
+    })
+  }
+
+  func testSelfHostedRecoveryDoesNotCommitAResponseFromAnOldBaseURL() async {
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+    configuration.selfHostedBaseURLString = "https://old-self-host.example/api"
+    let diagnostics = makeDiagnostics()
+    let sessionStore = makeSessionStore()
+    let staleResponseGate = AsyncGate()
+    var challengeCount = 0
+    var staleResponseStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { request in
+        if request.deviceEnrollment.challengeToken == "old-challenge" {
+          staleResponseStarted = true
+          await staleResponseGate.wait()
+          return BackendSessionResponse(
+            accessToken: "stale-token",
+            expiresAt: Date(timeIntervalSince1970: 1_800),
+            serviceMode: "selfHosted",
+            dataSourceMode: "tandemSource"
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "new-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return Self.selfHostedChallenge(token: challengeCount == 1 ? "old-challenge" : "new-challenge")
+      }
+    )
+
+    let oldRecovery = Task {
+      await service.recoverSessionIfNeeded()
+    }
+    await waitUntil { staleResponseStarted }
+
+    configuration.selfHostedBaseURLString = "https://new-self-host.example/api"
+    service.clearSessionForConnectionChange()
+    await service.connectSelfHosted()
+
+    XCTAssertEqual(service.accessToken, "new-token")
+    await staleResponseGate.open()
+    await oldRecovery.value
+
+    XCTAssertEqual(service.accessToken, "new-token")
+    XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "new-token")
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Self-hosted session stopped" && $0.message == "reason=connectionModeChanged"
+    })
+  }
+
   func testSelfHostedBaseURLRequiresHttpsForNonLoopbackHosts() {
     let configuration = makeConfigurationStore()
     configuration.mode = .selfHosted
@@ -876,6 +2145,138 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), refreshed)
   }
 
+  func testRenewableRefreshStopsBeforeRequestIfConfigurationChangesDuringProof() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let proofGate = AsyncGate()
+    var proofStarted = false
+    let unexpectedRefreshRequest = expectation(description: "stale refresh request")
+    unexpectedRefreshRequest.isInverted = true
+    let staleResponseData = try JSONCodec.encoder.encode(BackendSessionResponse(
+      accessToken: "stale-refreshed-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
+    ))
+    URLProtocolStub.requestHandler = { request in
+      unexpectedRefreshRequest.fulfill()
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, staleResponseData)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in
+        BackendSessionResponse(
+          accessToken: "new-self-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 3_000),
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+        proofStarted = true
+        await proofGate.wait()
+        return SessionRefreshRequest(
+          installationId: installationId,
+          refreshToken: session.refreshToken,
+          requestId: "request-1",
+          issuedAt: Date(timeIntervalSince1970: 2_000),
+          proof: "proof"
+        )
+      }),
+      createSessionChallenge: { _ in Self.selfHostedChallenge(token: "new-challenge") }
+    )
+
+    let staleRefresh = Task {
+      await service.recoverSessionIfNeeded(allowInteractiveRecovery: false)
+    }
+    await waitUntil { proofStarted }
+
+    configuration.selfHostedBaseURLString = "https://new-self-host.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await service.connectSelfHosted()
+    await proofGate.open()
+    await staleRefresh.value
+
+    await fulfillment(of: [unexpectedRefreshRequest], timeout: 0.1)
+    XCTAssertEqual(service.accessToken, "new-self-hosted-token")
+    XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "new-self-hosted-token")
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Renewable session refresh stopped" && $0.message == "reason=connectionModeChanged"
+    })
+  }
+
+  func testRenewableRefreshFailureDoesNotClearAReplacementConnection() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    let configuration = makeConfigurationStore()
+    let diagnostics = makeDiagnostics()
+    let refreshStarted = expectation(description: "refresh request started")
+    let allowRefreshToFail = DispatchSemaphore(value: 0)
+    URLProtocolStub.requestHandler = { request in
+      refreshStarted.fulfill()
+      allowRefreshToFail.wait()
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 401,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, Data(#"{"code":"invalid_token","message":"Expired"}"#.utf8))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in
+        BackendSessionResponse(
+          accessToken: "new-self-hosted-token",
+          expiresAt: Date(timeIntervalSince1970: 3_000),
+          serviceMode: "selfHosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in Self.selfHostedChallenge(token: "new-challenge") }
+    )
+
+    let staleRefresh = Task {
+      await service.recoverSessionIfNeeded(allowInteractiveRecovery: false)
+    }
+    await fulfillment(of: [refreshStarted], timeout: 1)
+
+    configuration.selfHostedBaseURLString = "https://new-self-host.example/api"
+    configuration.mode = .selfHosted
+    service.clearSessionForConnectionChange()
+    await service.connectSelfHosted()
+    allowRefreshToFail.signal()
+    await staleRefresh.value
+
+    XCTAssertEqual(service.accessToken, "new-self-hosted-token")
+    XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "new-self-hosted-token")
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Renewable session refresh stopped" && $0.message == "reason=connectionModeChanged"
+    })
+  }
+
   func testSubscriptionConnectionRequiredMessageUsesSubscriptionTerminology() {
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -906,6 +2307,17 @@ final class AuthServiceTests: XCTestCase {
     )
   }
 
+  private func waitUntil(
+    timeout: TimeInterval = 2,
+    condition: @escaping @MainActor () -> Bool
+  ) async {
+    let deadline = Date().addingTimeInterval(timeout)
+    while !condition(), Date() < deadline {
+      await Task.yield()
+    }
+    XCTAssertTrue(condition(), "condition was not met before timeout")
+  }
+
   private func makeConfigurationStore() -> BackendConfigurationStore {
     let defaults = UserDefaults(suiteName: "AuthServiceTests-\(UUID().uuidString)")!
     return BackendConfigurationStore(defaults: defaults)
@@ -934,7 +2346,66 @@ final class AuthServiceTests: XCTestCase {
     DiagnosticsLogStore(defaults: UserDefaults(suiteName: "AuthServiceTests-\(UUID().uuidString)")!)
   }
 
+  private static func selfHostedChallenge(token: String) -> SessionChallengeResponse {
+    SessionChallengeResponse(
+      protocolVersion: 3,
+      proofKind: "secureEnclaveP256",
+      challengeToken: token,
+      expiresAt: .distantFuture
+    )
+  }
+
+  private static func expiredRenewableSession() -> BackendSessionResponse {
+    BackendSessionResponse(
+      accessToken: "expired-access-token",
+      expiresAt: Date(timeIntervalSince1970: 1_999),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "family-1",
+      refreshToken: "refresh-token-1",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_000),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+  }
+
+  private actor AsyncGate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+      guard !isOpen else {
+        return
+      }
+
+      await withCheckedContinuation { continuation in
+        waiters.append(continuation)
+      }
+    }
+
+    func open() {
+      isOpen = true
+      let currentWaiters = waiters
+      waiters.removeAll()
+      currentWaiters.forEach { $0.resume() }
+    }
+  }
+
   private final class AcceptingProofProvider: DeviceSessionProofProviding {
+    private let refreshRequestHandler: (@MainActor (
+      BackendSessionResponse,
+      String,
+      BackendAccessMode
+    ) async throws -> SessionRefreshRequest)?
+
+    init(refreshRequestHandler: (@MainActor (
+      BackendSessionResponse,
+      String,
+      BackendAccessMode
+    ) async throws -> SessionRefreshRequest)? = nil) {
+      self.refreshRequestHandler = refreshRequestHandler
+    }
+
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
@@ -969,7 +2440,11 @@ final class AuthServiceTests: XCTestCase {
       installationId: String,
       mode: BackendAccessMode
     ) async throws -> SessionRefreshRequest {
-      SessionRefreshRequest(
+      if let refreshRequestHandler {
+        return try await refreshRequestHandler(session, installationId, mode)
+      }
+
+      return SessionRefreshRequest(
         installationId: installationId,
         refreshToken: session.refreshToken,
         requestId: "request-1",
@@ -983,6 +2458,8 @@ final class AuthServiceTests: XCTestCase {
     var isSupported = true
     var generatedKeyCount = 0
     var attestationResults: [Result<Data, Error>] = []
+    var attestationStarted: (() -> Void)?
+    var attestationGate: AsyncGate?
 
     func generateKey() async throws -> String {
       generatedKeyCount += 1
@@ -990,7 +2467,11 @@ final class AuthServiceTests: XCTestCase {
     }
 
     func attestKey(_ keyId: String, clientDataHash: Data) async throws -> Data {
-      try attestationResults.removeFirst().get()
+      attestationStarted?()
+      if let attestationGate {
+        await attestationGate.wait()
+      }
+      return try attestationResults.removeFirst().get()
     }
 
     func generateAssertion(_ keyId: String, clientDataHash: Data) async throws -> Data {

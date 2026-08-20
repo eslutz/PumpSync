@@ -60,9 +60,12 @@ protocol DeviceSessionProofProviding {
     signedTransactionInfo: String,
     existingSession: BackendSessionResponse?
   ) async throws -> HostedDeviceEnrollment
-  func markHostedEnrollmentRegistered(keyId: String) throws
-  func markHostedEnrollmentResponseAmbiguous(keyId: String) throws
-  func discardRejectedHostedEnrollment(keyId: String) throws -> Bool
+  func markHostedEnrollmentSubmissionStarted(keyId: String, requestId: String) throws -> Bool
+  func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool
+  func markHostedEnrollmentResponseAmbiguous(keyId: String, requestId: String) throws -> Bool
+  func discardRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool
+  func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool
+  func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool
 
   func selfHostedEnrollment(
     challenge: SessionChallengeResponse,
@@ -77,9 +80,12 @@ protocol DeviceSessionProofProviding {
 }
 
 extension DeviceSessionProofProviding {
-  func markHostedEnrollmentRegistered(keyId: String) throws {}
-  func markHostedEnrollmentResponseAmbiguous(keyId: String) throws {}
-  func discardRejectedHostedEnrollment(keyId: String) throws -> Bool { false }
+  func markHostedEnrollmentSubmissionStarted(keyId: String, requestId: String) throws -> Bool { true }
+  func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool { true }
+  func markHostedEnrollmentResponseAmbiguous(keyId: String, requestId: String) throws -> Bool { false }
+  func discardRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+  func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+  func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
 }
 
 private enum AppAttestKeyPhase: String, Codable {
@@ -93,6 +99,7 @@ private struct PendingHostedEnrollment: Codable, Equatable {
   let challengeExpiresAt: Date
   let transactionHash: String
   var responseAmbiguous: Bool
+  var backendSubmissionStarted: Bool?
 }
 
 private struct PersistedAppAttestKeyState: Codable, Equatable {
@@ -109,6 +116,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
   private let keychain: SecureKeychainStore
   private let now: () -> Date
   private let appAttest: AppAttestClient
+  private var hostedEnrollmentOperationID: UUID?
 
   init(
     keychain: SecureKeychainStore,
@@ -126,6 +134,15 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     signedTransactionInfo: String,
     existingSession: BackendSessionResponse?
   ) async throws -> HostedDeviceEnrollment {
+    let replacesInFlightEnrollment = hostedEnrollmentOperationID != nil
+    let operationID = UUID()
+    hostedEnrollmentOperationID = operationID
+    defer {
+      if hostedEnrollmentOperationID == operationID {
+        hostedEnrollmentOperationID = nil
+      }
+    }
+
     guard appAttest.isSupported else { throw DeviceSessionProofError.appAttestUnavailable }
 
     var state = try loadState()
@@ -135,12 +152,14 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
         keyId: state.keyId,
         challenge: challenge,
         installationId: installationId,
-        signedTransactionInfo: signedTransactionInfo
+        signedTransactionInfo: signedTransactionInfo,
+        operationID: operationID
       )
     }
 
     let transactionHash = Self.base64URL(Data(SHA256.hash(data: Data(signedTransactionInfo.utf8))))
-    if state?.pendingEnrollment?.responseAmbiguous == true {
+    if let pending = state?.pendingEnrollment,
+       pending.responseAmbiguous || pending.backendSubmissionStarted != false {
       throw DeviceSessionProofError.enrollmentOutcomeAmbiguous
     }
     if let pending = state?.pendingEnrollment,
@@ -157,10 +176,11 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     }
 
     let keyId: String
-    if let state, state.phase == .attesting {
+    if let state, state.phase == .attesting, !replacesInFlightEnrollment {
       keyId = state.keyId
     } else {
       keyId = try await appAttest.generateKey()
+      try ensureCurrentHostedEnrollmentOperation(operationID)
       try saveState(PersistedAppAttestKeyState(keyId: keyId, phase: .attesting, pendingEnrollment: nil))
     }
 
@@ -177,9 +197,13 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     let attestation: Data
     do {
       attestation = try await appAttest.attestKey(keyId, clientDataHash: payload.hash)
+      try ensureCurrentHostedEnrollmentOperation(operationID)
     } catch AppAttestClientError.serverUnavailable {
       throw AppAttestClientError.serverUnavailable
+    } catch is HostedEnrollmentSupersededError {
+      throw HostedEnrollmentSupersededError()
     } catch {
+      try ensureCurrentHostedEnrollmentOperation(operationID)
       try? clearState()
       throw error
     }
@@ -199,29 +223,98 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
         enrollment: enrollment,
         challengeExpiresAt: challenge.expiresAt,
         transactionHash: transactionHash,
-        responseAmbiguous: false
+        responseAmbiguous: false,
+        backendSubmissionStarted: false
       )
     ))
     return enrollment
   }
 
-  func markHostedEnrollmentRegistered(keyId: String) throws {
-    guard let state = try loadState(), state.keyId == keyId else { return }
-    try saveState(PersistedAppAttestKeyState(keyId: keyId, phase: .registered, pendingEnrollment: nil))
+  func markHostedEnrollmentSubmissionStarted(keyId: String, requestId: String) throws -> Bool {
+    guard var state = try loadState(), state.keyId == keyId else { return false }
+    if state.phase == .registered {
+      return true
+    }
+    guard state.phase == .enrolling,
+          var pending = state.pendingEnrollment,
+          pending.enrollment.requestId == requestId,
+          !pending.responseAmbiguous else {
+      return false
+    }
+    pending.backendSubmissionStarted = true
+    state.pendingEnrollment = pending
+    try saveState(state)
+    return true
   }
 
-  func markHostedEnrollmentResponseAmbiguous(keyId: String) throws {
-    guard var state = try loadState(), state.keyId == keyId, var pending = state.pendingEnrollment else { return }
+  func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool {
+    guard let state = try loadState(), state.keyId == keyId else { return false }
+    if state.phase == .registered {
+      return true
+    }
+    guard state.phase == .enrolling,
+          state.pendingEnrollment?.enrollment.requestId == requestId else {
+      return false
+    }
+    try saveState(PersistedAppAttestKeyState(keyId: keyId, phase: .registered, pendingEnrollment: nil))
+    return true
+  }
+
+  func markHostedEnrollmentResponseAmbiguous(keyId: String, requestId: String) throws -> Bool {
+    guard var state = try loadState(),
+          state.keyId == keyId,
+          state.phase == .enrolling,
+          var pending = state.pendingEnrollment,
+          pending.enrollment.requestId == requestId else {
+      return false
+    }
     pending.responseAmbiguous = true
     state.pendingEnrollment = pending
     try saveState(state)
+    return true
   }
 
-  func discardRejectedHostedEnrollment(keyId: String) throws -> Bool {
+  func discardRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool {
+    try discardPendingHostedAttestation(keyId: keyId, requestId: requestId)
+  }
+
+  func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool {
     guard let state = try loadState(),
           state.keyId == keyId,
           state.phase == .enrolling,
-          state.pendingEnrollment?.enrollment.proofKind == "attestation" else {
+          let pendingEnrollment = state.pendingEnrollment,
+          pendingEnrollment.enrollment.requestId == requestId,
+          pendingEnrollment.enrollment.proofKind == "attestation",
+          pendingEnrollment.backendSubmissionStarted != nil,
+          !pendingEnrollment.responseAmbiguous else {
+      return false
+    }
+    try clearState()
+    return true
+  }
+
+  func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool {
+    guard let state = try loadState(),
+          state.keyId == keyId,
+          state.phase == .enrolling,
+          let pendingEnrollment = state.pendingEnrollment,
+          pendingEnrollment.enrollment.requestId == requestId,
+          pendingEnrollment.enrollment.proofKind == "attestation",
+          pendingEnrollment.backendSubmissionStarted == true,
+          !pendingEnrollment.responseAmbiguous else {
+      return false
+    }
+    try clearState()
+    return true
+  }
+
+  private func discardPendingHostedAttestation(keyId: String, requestId: String) throws -> Bool {
+    guard let state = try loadState(),
+          state.keyId == keyId,
+          state.phase == .enrolling,
+          let pendingEnrollment = state.pendingEnrollment,
+          pendingEnrollment.enrollment.requestId == requestId,
+          pendingEnrollment.enrollment.proofKind == "attestation" else {
       return false
     }
     try clearState()
@@ -232,7 +325,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     keyId: String,
     challenge: SessionChallengeResponse,
     installationId: String,
-    signedTransactionInfo: String
+    signedTransactionInfo: String,
+    operationID: UUID
   ) async throws -> HostedDeviceEnrollment {
     let requestId = UUID().uuidString
     let issuedAt = now()
@@ -247,7 +341,9 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     let assertion: Data
     do {
       assertion = try await appAttest.generateAssertion(keyId, clientDataHash: payload.hash)
+      try ensureCurrentHostedEnrollmentOperation(operationID)
     } catch AppAttestClientError.invalidKey {
+      try ensureCurrentHostedEnrollmentOperation(operationID)
       try? clearState()
       throw AppAttestClientError.invalidKey
     }
@@ -327,6 +423,12 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     guard let data = try keychain.readData(account: Self.appAttestStateAccount) else { return nil }
     do { return try JSONCodec.decoder.decode(PersistedAppAttestKeyState.self, from: data) }
     catch { try? clearState(); return nil }
+  }
+
+  private func ensureCurrentHostedEnrollmentOperation(_ operationID: UUID) throws {
+    guard hostedEnrollmentOperationID == operationID else {
+      throw HostedEnrollmentSupersededError()
+    }
   }
 
   private func saveState(_ state: PersistedAppAttestKeyState) throws {
@@ -416,3 +518,5 @@ enum DeviceSessionProofError: LocalizedError {
     }
   }
 }
+
+private struct HostedEnrollmentSupersededError: Error {}

@@ -83,6 +83,16 @@ final class JSONCodecTests: XCTestCase {
     XCTAssertFalse(APIClientError.httpStatus(500, code: nil, message: nil).isRateLimited)
   }
 
+  func testAPIClientErrorClassifiesResponsesThatMayFollowBackendMutationAsAmbiguous() {
+    XCTAssertTrue(APIClientError.invalidResponse.hasAmbiguousOutcome)
+    XCTAssertTrue(APIClientError.httpStatus(408, code: nil, message: nil).hasAmbiguousOutcome)
+    XCTAssertTrue(APIClientError.httpStatus(500, code: nil, message: nil).hasAmbiguousOutcome)
+    XCTAssertTrue(APIClientError.httpStatus(503, code: nil, message: nil).hasAmbiguousOutcome)
+    XCTAssertFalse(APIClientError.httpStatus(400, code: nil, message: nil).hasAmbiguousOutcome)
+    XCTAssertFalse(APIClientError.httpStatus(401, code: nil, message: nil).hasAmbiguousOutcome)
+    XCTAssertFalse(APIClientError.httpStatus(429, code: nil, message: nil).hasAmbiguousOutcome)
+  }
+
   func testHostedProofPreparationDiagnosticIsNotEncodedIntoAPIRequest() throws {
     let enrollment = HostedDeviceEnrollment(
       requestId: "request-1",
