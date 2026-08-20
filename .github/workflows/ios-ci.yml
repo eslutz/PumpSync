@@ -30,7 +30,7 @@ permissions:
 jobs:
   ios:
     name: Generate, build, and test iOS
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
