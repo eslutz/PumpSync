@@ -8,7 +8,7 @@ final class PumpSyncAPIClientTests: XCTestCase {
     super.tearDown()
   }
 
-  func testWarmupRequestsCapabilitiesWithoutAuthentication() async {
+  func testWarmupRequestsCapabilitiesWithoutAuthentication() async throws {
     let path = LockIsolated<String?>(nil)
     URLProtocolStub.requestHandler = { request in
       path.set(request.url?.path)
@@ -27,9 +27,78 @@ final class PumpSyncAPIClientTests: XCTestCase {
       maxRetryCount: 0
     )
 
-    await client.warmup()
+    try await client.warmup()
 
     XCTAssertEqual(path.value, "/api/v1/capabilities")
+  }
+
+  func testWarmupRetriesOneTransientFailure() async throws {
+    let calls = LockIsolated(0)
+    URLProtocolStub.requestHandler = { request in
+      let call = calls.value
+      calls.modify { $0 += 1 }
+      if call == 0 {
+        throw URLError(.timedOut)
+      }
+      let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+      return (response, Data())
+    }
+    let client = PumpSyncAPIClient(
+      baseURL: URL(string: "https://example.com/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 0
+    )
+
+    try await client.warmup()
+
+    XCTAssertEqual(calls.value, 2)
+  }
+
+  func testWarmupStopsAfterOneRetry() async {
+    let calls = LockIsolated(0)
+    URLProtocolStub.requestHandler = { _ in
+      calls.modify { $0 += 1 }
+      throw URLError(.cannotConnectToHost)
+    }
+    let client = PumpSyncAPIClient(
+      baseURL: URL(string: "https://example.com/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 0
+    )
+
+    do {
+      try await client.warmup()
+      XCTFail("Expected warm-up failure")
+    } catch {}
+
+    XCTAssertEqual(calls.value, 2)
+  }
+
+  func testHostedEnrollmentChallengeAllowsContainerColdStart() async throws {
+    let timeout = LockIsolated<TimeInterval?>(nil)
+    URLProtocolStub.requestHandler = { request in
+      timeout.set(request.timeoutInterval)
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, Data(#"{"protocolVersion":3,"proofKind":"appAttest","challengeToken":"challenge","expiresAt":"2099-01-01T00:00:00Z"}"#.utf8))
+    }
+    let client = PumpSyncAPIClient(
+      baseURL: URL(string: "https://example.com/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 0
+    )
+
+    _ = try await client.createSessionChallenge(SessionChallengeRequest(
+      installationId: "installation-1",
+      purpose: "hostedEnrollment",
+      requestHash: "request-hash"
+    ))
+
+    XCTAssertEqual(timeout.value, 75)
   }
 
   func testSubscriptionEnrollmentDoesNotRetryServerFailure() async {
@@ -76,7 +145,7 @@ final class PumpSyncAPIClientTests: XCTestCase {
       _ = try await client.refreshSession(SessionRefreshRequest(
         installationId: "installation-1", refreshToken: "refresh", requestId: "request-1",
         issuedAt: Date(), proof: "proof"
-      ))
+      ), mode: .hosted)
       XCTFail("Expected server failure")
     } catch {}
 

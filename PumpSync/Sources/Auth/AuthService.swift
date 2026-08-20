@@ -117,6 +117,7 @@ final class AuthService {
   private let createSubscriptionSession: @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse
   private let createSelfHostedSession: @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse
   private let createSessionChallenge: @MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse
+  private let warmupHostedService: @MainActor () async throws -> Void
   private let subscriptionSessionTimeout: TimeInterval
 
   private(set) var isConnecting = false
@@ -138,7 +139,7 @@ final class AuthService {
     self.sessionStore = sessionStore
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
-    subscriptionSessionTimeout = 75
+    subscriptionSessionTimeout = ConnectionTimeouts.hosted
     currentEntitlementJWS = {
       try await StoreKitSubscriptionProvider.currentEntitlementJWS(
         productId: AppConstants.subscriptionProductId,
@@ -160,6 +161,9 @@ final class AuthService {
     createSessionChallenge = { request in
       try await apiClient.createSessionChallenge(request)
     }
+    warmupHostedService = {
+      try await apiClient.warmup()
+    }
     session = sessionStore?.loadValidSession()
   }
 
@@ -173,7 +177,8 @@ final class AuthService {
     createSubscriptionSession: @escaping @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse,
     createSelfHostedSession: @escaping @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse,
     diagnostics: DiagnosticsLogStore? = nil,
-    subscriptionSessionTimeout: TimeInterval = 20,
+    subscriptionSessionTimeout: TimeInterval = ConnectionTimeouts.hosted,
+    warmupHostedService: @escaping @MainActor () async throws -> Void = {},
     proofProvider: DeviceSessionProofProviding,
     createSessionChallenge: (@MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse)? = nil
   ) {
@@ -187,6 +192,7 @@ final class AuthService {
     self.syncedCurrentEntitlementJWS = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
     self.createSubscriptionSession = createSubscriptionSession
     self.createSelfHostedSession = createSelfHostedSession
+    self.warmupHostedService = warmupHostedService
     self.createSessionChallenge = createSessionChallenge ?? { _ in
       SessionChallengeResponse(
         protocolVersion: 3,
@@ -514,9 +520,22 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Subscription session started")
 
     let backendStartedAt = Date()
-    var timedOut = false
+    var timeoutKind = SubscriptionSessionTimeoutKind.none
     var enrollmentKeyId: String?
     do {
+      do {
+        try await warmupHostedService()
+      } catch {
+        let timeoutKind = SubscriptionSessionTimeoutKind(error: error)
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Hosted service warm-up failed",
+          message: "timeoutKind=\(timeoutKind.rawValue) \(DiagnosticsLogStore.redacted(error.localizedDescription))"
+        )
+        throw HostedServiceWarmupError(timeoutKind: timeoutKind)
+      }
+
       let request = try await makeSubscriptionSessionRequest(
         signedTransactionInfo: signedTransactionInfo,
         existingSession: previousSession
@@ -530,9 +549,9 @@ final class AuthService {
       statusMessage = "PumpSync subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
-      timedOut = error is SubscriptionSessionTimeoutError
+      timeoutKind = SubscriptionSessionTimeoutKind(error: error)
       if let enrollmentKeyId,
-         timedOut || (error as? APIClientError)?.hasAmbiguousOutcome == true || (error as NSError).domain == NSURLErrorDomain {
+         timeoutKind != .none || (error as? APIClientError)?.hasAmbiguousOutcome == true || (error as NSError).domain == NSURLErrorDomain {
         try? proofProvider.markHostedEnrollmentResponseAmbiguous(keyId: enrollmentKeyId)
         diagnostics?.record(
           source: .auth,
@@ -547,8 +566,10 @@ final class AuthService {
         session = nil
         try? sessionStore?.delete()
       }
-      if publishesErrors {
-        let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
+      if publishesErrors || error is HostedServiceWarmupError {
+        let message = error is HostedServiceWarmupError
+          ? HostedServiceWarmupError.userMessage
+          : subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
         errorMessage = message
         statusMessage = message
       } else {
@@ -564,9 +585,9 @@ final class AuthService {
     let backendMs = Int(Date().timeIntervalSince(backendStartedAt) * 1_000)
     diagnostics?.record(
       source: .auth,
-      severity: timedOut ? .warning : .info,
+      severity: timeoutKind == .none ? .info : .warning,
       title: "Subscription session timing",
-      message: "backendMs=\(backendMs) timedOut=\(timedOut) cacheHit=false"
+      message: "backendMs=\(backendMs) timedOut=\(timeoutKind != .none) timeoutKind=\(timeoutKind.rawValue) cacheHit=false"
     )
 
     isConnecting = false
@@ -575,12 +596,6 @@ final class AuthService {
   private func recoverSubscriptionSession() async {
     let startedAt = Date()
     diagnostics?.record(source: .auth, title: "Subscription recovery started")
-
-    // Begin Container Apps activation while StoreKit resolves the entitlement.
-    // This is best-effort and does not change the subscription decision.
-    Task { [apiClient] in
-      await apiClient.warmup()
-    }
 
     do {
       let entitlementStartedAt = Date()
@@ -700,7 +715,7 @@ final class AuthService {
         installationId: configurationStore.installationId,
         mode: configurationStore.mode
       )
-      let refreshed = try await apiClient.refreshSession(request)
+      let refreshed = try await apiClient.refreshSession(request, mode: configurationStore.mode)
       guard refreshed.protocolVersion == 3, refreshed.serviceMode == currentSession.serviceMode else {
         throw APIClientError.invalidResponse
       }
@@ -838,6 +853,10 @@ final class AuthService {
   }
 
   private func subscriptionConnectionMessage(for message: String) -> String {
+    if message == HostedServiceWarmupError.userMessage {
+      return message
+    }
+
     switch configurationStore.mode {
     case .hosted:
       return "PumpSync could not verify your App Store subscription. Check your Apple Account subscription, then try Restore Subscription again."
@@ -849,6 +868,31 @@ final class AuthService {
 
 private struct SubscriptionSessionTimeoutError: LocalizedError {
   var errorDescription: String? { "Connecting to PumpSync timed out. Please try again." }
+}
+
+private struct HostedServiceWarmupError: LocalizedError {
+  static let userMessage = "The PumpSync service is temporarily unavailable. Try again."
+
+  let timeoutKind: SubscriptionSessionTimeoutKind
+
+  var errorDescription: String? { Self.userMessage }
+}
+
+private enum SubscriptionSessionTimeoutKind: String {
+  case none
+  case networkRequest
+  case connectionOperation
+
+  init(error: Error) {
+    if let error = error as? HostedServiceWarmupError {
+      self = error.timeoutKind
+    } else if error is SubscriptionSessionTimeoutError {
+      self = .connectionOperation
+    } else {
+      let error = error as NSError
+      self = error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut ? .networkRequest : .none
+    }
+  }
 }
 
 enum StoreKitSubscriptionError: LocalizedError {

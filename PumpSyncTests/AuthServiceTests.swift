@@ -94,7 +94,97 @@ final class AuthServiceTests: XCTestCase {
 
     XCTAssertFalse(service.isConnecting)
     XCTAssertFalse(service.isSignedIn)
-    XCTAssertTrue(diagnostics.entries.contains { $0.message?.contains("timedOut=true") == true })
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.message?.contains("timedOut=true timeoutKind=connectionOperation") == true
+    })
+  }
+
+  func testNetworkRequestTimeoutIsDistinguishedFromConnectionOperationTimeout() async {
+    let diagnostics = makeDiagnostics()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in
+        throw URLError(.timedOut)
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.message?.contains("timedOut=true timeoutKind=networkRequest") == true
+    })
+  }
+
+  func testHostedWarmupCompletesBeforeChallengeAndEnrollment() async {
+    var events: [String] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in
+        events.append("enrollment")
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      warmupHostedService: {
+        events.append("warmup")
+      },
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in
+        events.append("challenge")
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertEqual(events, ["warmup", "challenge", "enrollment"])
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testHostedWarmupFailureStopsEnrollmentAndOffersRetry() async {
+    let diagnostics = makeDiagnostics()
+    var enrollmentCalls = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in
+        enrollmentCalls += 1
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      warmupHostedService: {
+        throw URLError(.cannotConnectToHost)
+      },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertEqual(enrollmentCalls, 0)
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertTrue(service.errorMessage?.contains("temporarily unavailable") == true)
+    XCTAssertTrue(diagnostics.entries.contains { $0.title == "Hosted service warm-up failed" })
   }
 
   func testSubscriptionSessionTimeoutCancelsTheInFlightBackendOperation() async throws {

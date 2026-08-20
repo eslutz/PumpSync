@@ -1,6 +1,18 @@
 import Foundation
 import Observation
 
+enum ConnectionTimeouts {
+  static let hosted: TimeInterval = 75
+  static let selfHosted: TimeInterval = 7
+
+  static func value(for mode: BackendAccessMode) -> TimeInterval {
+    switch mode {
+    case .hosted: hosted
+    case .selfHosted: selfHosted
+    }
+  }
+}
+
 @MainActor
 @Observable
 final class PumpSyncAPIClient {
@@ -24,19 +36,32 @@ final class PumpSyncAPIClient {
   }
 
   func createSubscriptionSession(_ request: SubscriptionSessionRequest) async throws -> BackendSessionResponse {
-    try await send(path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil, allowsRetry: false)
+    try await send(
+      path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil,
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.hosted
+    )
   }
 
   func createSelfHostedSession(_ request: SelfHostedSessionRequest) async throws -> BackendSessionResponse {
-    try await send(path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil, allowsRetry: false)
+    try await send(
+      path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil,
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.selfHosted
+    )
   }
 
   func createSessionChallenge(_ request: SessionChallengeRequest) async throws -> SessionChallengeResponse {
-    try await send(path: "/v1/session/challenge", method: "POST", body: request, accessToken: nil)
+    let timeout = request.purpose == "hostedEnrollment" ? ConnectionTimeouts.hosted : ConnectionTimeouts.selfHosted
+    return try await send(
+      path: "/v1/session/challenge", method: "POST", body: request, accessToken: nil,
+      timeoutInterval: timeout
+    )
   }
 
-  func refreshSession(_ request: SessionRefreshRequest) async throws -> BackendSessionResponse {
-    try await send(path: "/v1/session/refresh", method: "POST", body: request, accessToken: nil, allowsRetry: false)
+  func refreshSession(_ request: SessionRefreshRequest, mode: BackendAccessMode) async throws -> BackendSessionResponse {
+    try await send(
+      path: "/v1/session/refresh", method: "POST", body: request, accessToken: nil,
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.value(for: mode)
+    )
   }
 
   func syncTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
@@ -48,14 +73,31 @@ final class PumpSyncAPIClient {
   }
 
   /// Starts hosted Container Apps activation without requiring an authenticated
-  /// operation. The caller intentionally ignores failures because this is a
-  /// latency optimization, not a required connection step.
-  func warmup() async {
+  /// operation. This GET is safe to retry once because it does not create or
+  /// mutate authentication state.
+  func warmup() async throws {
     var request = URLRequest(url: baseURL.appendingPathComponent("v1/capabilities"))
     request.httpMethod = "GET"
-    request.timeoutInterval = 75
+    request.timeoutInterval = ConnectionTimeouts.hosted
     request.setValue("application/json", forHTTPHeaderField: "Accept")
-    _ = try? await urlSession.data(for: request)
+
+    for attempt in 0...1 {
+      do {
+        let (_, response) = try await urlSession.data(for: request)
+        guard let response = response as? HTTPURLResponse else {
+          throw APIClientError.invalidResponse
+        }
+        guard (200..<300).contains(response.statusCode) else {
+          throw APIClientError.httpStatus(response.statusCode, code: nil, message: nil)
+        }
+        return
+      } catch {
+        guard attempt == 0, shouldRetryWarmup(error: error) else {
+          throw error
+        }
+        try await Task.sleep(for: .milliseconds(250))
+      }
+    }
   }
 
   private func send<Request: Encodable, Response: Decodable>(
@@ -63,13 +105,17 @@ final class PumpSyncAPIClient {
     method: String,
     body: Request,
     accessToken: String?,
-    allowsRetry: Bool = true
+    allowsRetry: Bool = true,
+    timeoutInterval: TimeInterval? = nil
   ) async throws -> Response {
     var lastError: Error?
 
     for attempt in 0...maxRetryCount {
       do {
-        return try await sendOnce(path: path, method: method, body: body, accessToken: accessToken)
+        return try await sendOnce(
+          path: path, method: method, body: body, accessToken: accessToken,
+          timeoutInterval: timeoutInterval
+        )
       } catch {
         lastError = error
         guard allowsRetry, shouldRetry(error: error), attempt < maxRetryCount else {
@@ -87,7 +133,8 @@ final class PumpSyncAPIClient {
     path: String,
     method: String,
     body: Request,
-    accessToken: String?
+    accessToken: String?,
+    timeoutInterval: TimeInterval?
   ) async throws -> Response {
     var urlRequest = URLRequest(url: baseURL.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))))
     urlRequest.httpMethod = method
@@ -102,7 +149,7 @@ final class PumpSyncAPIClient {
       urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
     }
 
-    urlRequest.timeoutInterval = timeoutInterval(for: path)
+    urlRequest.timeoutInterval = timeoutInterval ?? self.timeoutInterval(for: path)
     let (data, response) = try await urlSession.data(for: urlRequest)
     guard let httpResponse = response as? HTTPURLResponse else {
       throw APIClientError.invalidResponse
@@ -122,14 +169,6 @@ final class PumpSyncAPIClient {
   }
 
   private func timeoutInterval(for path: String) -> TimeInterval {
-    if path.contains("subscription/session") {
-      return 75
-    }
-
-    if path.contains("session/challenge") || path.contains("session/refresh") || path.contains("self-host/session") {
-      return 7
-    }
-
     if path.contains("sync/tandem") || path.contains("tandem/credentials/validate") {
       return 120
     }
@@ -156,6 +195,17 @@ final class PumpSyncAPIClient {
 
     let nsError = error as NSError
     return nsError.domain == NSURLErrorDomain && Self.retryableURLErrorCodes.contains(nsError.code)
+  }
+
+  private func shouldRetryWarmup(error: Error) -> Bool {
+    if let apiError = error as? APIClientError {
+      return apiError.isTransient
+    }
+
+    let error = error as NSError
+    return error.domain == NSURLErrorDomain && (
+      error.code == NSURLErrorTimedOut || Self.retryableURLErrorCodes.contains(error.code)
+    )
   }
 }
 
