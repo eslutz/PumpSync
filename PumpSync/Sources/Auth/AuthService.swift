@@ -522,9 +522,16 @@ final class AuthService {
     let backendStartedAt = Date()
     var timeoutKind = SubscriptionSessionTimeoutKind.none
     var enrollmentKeyId: String?
+    var enrollmentProofKind: String?
     do {
+      let warmupStartedAt = Date()
       do {
         try await warmupHostedService()
+        diagnostics?.record(
+          source: .auth,
+          title: "Hosted service warm-up completed",
+          message: "elapsedMs=\(elapsedMilliseconds(since: warmupStartedAt))"
+        )
       } catch {
         let timeoutKind = SubscriptionSessionTimeoutKind(error: error)
         diagnostics?.record(
@@ -541,7 +548,24 @@ final class AuthService {
         existingSession: previousSession
       )
       enrollmentKeyId = request.deviceEnrollment.keyId
-      session = try await createSubscriptionSessionWithTimeout(request)
+      enrollmentProofKind = request.deviceEnrollment.proofKind
+      let sessionRequestStartedAt = Date()
+      do {
+        session = try await createSubscriptionSessionWithTimeout(request)
+        diagnostics?.record(
+          source: .auth,
+          title: "Subscription session request completed",
+          message: "elapsedMs=\(elapsedMilliseconds(since: sessionRequestStartedAt)) proofKind=\(request.deviceEnrollment.proofKind) outcome=success"
+        )
+      } catch {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Subscription session request failed",
+          message: "elapsedMs=\(elapsedMilliseconds(since: sessionRequestStartedAt)) proofKind=\(request.deviceEnrollment.proofKind) outcome=failure backendCode=\((error as? APIClientError)?.backendCode ?? "none")"
+        )
+        throw error
+      }
       if let session {
         try proofProvider.markHostedEnrollmentRegistered(keyId: request.deviceEnrollment.keyId)
         try? sessionStore?.save(session)
@@ -550,8 +574,19 @@ final class AuthService {
       diagnostics?.record(source: .auth, title: title)
     } catch {
       timeoutKind = SubscriptionSessionTimeoutKind(error: error)
+      let apiError = error as? APIClientError
       if let enrollmentKeyId,
-         timeoutKind != .none || (error as? APIClientError)?.hasAmbiguousOutcome == true || (error as NSError).domain == NSURLErrorDomain {
+         enrollmentProofKind == "attestation",
+         apiError?.isDeviceProofRejected == true,
+         (try? proofProvider.discardRejectedHostedEnrollment(keyId: enrollmentKeyId)) == true {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Rejected App Attest enrollment discarded",
+          message: "protocolVersion=3 proofKind=attestation backendCode=device_proof_rejected"
+        )
+      } else if let enrollmentKeyId,
+                timeoutKind != .none || apiError?.hasAmbiguousOutcome == true || (error as NSError).domain == NSURLErrorDomain {
         try? proofProvider.markHostedEnrollmentResponseAmbiguous(keyId: enrollmentKeyId)
         diagnostics?.record(
           source: .auth,
@@ -579,7 +614,7 @@ final class AuthService {
           resetDisconnectedStatus()
         }
       }
-      diagnostics?.record(error: error, source: .auth, title: "Subscription session failed")
+      recordSubscriptionSessionFailure(error)
     }
 
     let backendMs = Int(Date().timeIntervalSince(backendStartedAt) * 1_000)
@@ -662,6 +697,7 @@ final class AuthService {
     let requestHash = DeviceSessionProofProvider.base64URL(
       Data(SHA256.hash(data: Data(signedTransactionInfo.utf8)))
     )
+    let challengeStartedAt = Date()
     let challenge = try await createSessionChallenge(SessionChallengeRequest(
       installationId: configurationStore.installationId,
       purpose: "hostedEnrollment",
@@ -670,11 +706,22 @@ final class AuthService {
     guard challenge.protocolVersion == 3, challenge.proofKind == "appAttest", challenge.expiresAt > Date() else {
       throw DeviceSessionProofError.appAttestUnavailable
     }
+    diagnostics?.record(
+      source: .auth,
+      title: "Hosted session challenge received",
+      message: "elapsedMs=\(elapsedMilliseconds(since: challengeStartedAt)) proofKind=\(challenge.proofKind)"
+    )
+    let proofStartedAt = Date()
     let enrollment = try await proofProvider.hostedEnrollment(
       challenge: challenge,
       installationId: configurationStore.installationId,
       signedTransactionInfo: signedTransactionInfo,
       existingSession: existingSession
+    )
+    diagnostics?.record(
+      source: .auth,
+      title: "Hosted device proof prepared",
+      message: "elapsedMs=\(elapsedMilliseconds(since: proofStartedAt)) proofKind=\(enrollment.proofKind) preparation=\(enrollment.preparation.rawValue)"
     )
     return SubscriptionSessionRequest(
       signedTransactionInfo: signedTransactionInfo,
@@ -850,6 +897,24 @@ final class AuthService {
     }
 
     return DiagnosticsLogStore.redacted(description)
+  }
+
+  private func elapsedMilliseconds(since startedAt: Date) -> Int {
+    Int(Date().timeIntervalSince(startedAt) * 1_000)
+  }
+
+  private func recordSubscriptionSessionFailure(_ error: Error) {
+    guard let apiError = error as? APIClientError,
+          apiError.backendCode == "invalid_app_store_transaction" else {
+      diagnostics?.record(error: error, source: .auth, title: "Subscription session failed")
+      return
+    }
+
+    var message = "The App Store subscription credential was rejected by PumpSync. backendCode=invalid_app_store_transaction"
+    if let correlationId = apiError.correlationId, !correlationId.isEmpty {
+      message += " Reference: \(correlationId)."
+    }
+    diagnostics?.record(source: .auth, severity: .error, title: "Subscription session failed", message: message)
   }
 
   private func subscriptionConnectionMessage(for message: String) -> String {

@@ -24,6 +24,11 @@ struct SessionChallengeResponse: Decodable, Equatable {
   let expiresAt: Date
 }
 
+enum HostedDeviceProofPreparation: String, Equatable {
+  case generated
+  case reused
+}
+
 struct HostedDeviceEnrollment: Codable, Equatable {
   let requestId: String
   let issuedAt: Date
@@ -31,6 +36,16 @@ struct HostedDeviceEnrollment: Codable, Equatable {
   let keyId: String
   let proofKind: String
   let proof: String
+  var preparation: HostedDeviceProofPreparation = .generated
+
+  private enum CodingKeys: String, CodingKey {
+    case requestId
+    case issuedAt
+    case challengeToken
+    case keyId
+    case proofKind
+    case proof
+  }
 }
 
 struct SelfHostedDeviceEnrollment: Encodable, Equatable {

@@ -82,4 +82,23 @@ final class JSONCodecTests: XCTestCase {
     XCTAssertTrue(APIClientError.httpStatus(429, code: "rate_limit_exceeded", message: nil).isRateLimited)
     XCTAssertFalse(APIClientError.httpStatus(500, code: nil, message: nil).isRateLimited)
   }
+
+  func testHostedProofPreparationDiagnosticIsNotEncodedIntoAPIRequest() throws {
+    let enrollment = HostedDeviceEnrollment(
+      requestId: "request-1",
+      issuedAt: Date(timeIntervalSince1970: 1_000),
+      challengeToken: "challenge-1",
+      keyId: "key-1",
+      proofKind: "attestation",
+      proof: "proof",
+      preparation: .reused
+    )
+
+    let object = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: JSONCodec.encoder.encode(enrollment)) as? [String: Any]
+    )
+
+    XCTAssertNil(object["preparation"])
+    XCTAssertEqual(object["proofKind"] as? String, "attestation")
+  }
 }

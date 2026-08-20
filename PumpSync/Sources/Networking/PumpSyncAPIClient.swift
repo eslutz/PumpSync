@@ -219,6 +219,21 @@ enum APIClientError: LocalizedError {
   case invalidResponse
   case httpStatus(Int, code: String?, message: String?, correlationId: String? = nil)
 
+  var backendCode: String? {
+    guard case .httpStatus(_, let code, _, _) = self else { return nil }
+    return code
+  }
+
+  var correlationId: String? {
+    guard case .httpStatus(_, _, _, let correlationId) = self else { return nil }
+    return correlationId
+  }
+
+  var isDeviceProofRejected: Bool {
+    guard case .httpStatus(401, let code, _, _) = self else { return false }
+    return code == "device_proof_rejected"
+  }
+
   var isAuthenticationFailure: Bool {
     switch self {
     case .invalidResponse:

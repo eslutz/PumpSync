@@ -187,6 +187,146 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(diagnostics.entries.contains { $0.title == "Hosted service warm-up failed" })
   }
 
+  func testSuccessfulHostedConnectionRecordsSafePhaseDiagnostics() async {
+    let diagnostics = makeDiagnostics()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction-secret" },
+      createSubscriptionSession: { _ in
+        BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      warmupHostedService: {},
+      proofProvider: AcceptingProofProvider(),
+      createSessionChallenge: { _ in
+        SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-secret",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    let warmup = diagnostics.entries.first { $0.title == "Hosted service warm-up completed" }
+    let challenge = diagnostics.entries.first { $0.title == "Hosted session challenge received" }
+    let proof = diagnostics.entries.first { $0.title == "Hosted device proof prepared" }
+    let post = diagnostics.entries.first { $0.title == "Subscription session request completed" }
+    XCTAssertTrue(warmup?.message?.contains("elapsedMs=") == true)
+    XCTAssertTrue(challenge?.message?.contains("elapsedMs=") == true)
+    XCTAssertTrue(challenge?.message?.contains("proofKind=appAttest") == true)
+    XCTAssertTrue(proof?.message?.contains("elapsedMs=") == true)
+    XCTAssertTrue(proof?.message?.contains("proofKind=attestation") == true)
+    XCTAssertTrue(proof?.message?.contains("preparation=generated") == true)
+    XCTAssertTrue(post?.message?.contains("elapsedMs=") == true)
+    XCTAssertTrue(post?.message?.contains("proofKind=attestation") == true)
+    XCTAssertTrue(post?.message?.contains("outcome=success") == true)
+
+    let recorded = diagnostics.entries.compactMap(\.message).joined(separator: " ")
+    XCTAssertFalse(recorded.contains("signed-transaction-secret"))
+    XCTAssertFalse(recorded.contains("challenge-secret"))
+    XCTAssertFalse(recorded.contains("app-attest-key"))
+    XCTAssertFalse(recorded.contains("raw-proof-secret"), "diagnostics must not include raw proof material")
+  }
+
+  func testDefinitiveDeviceProofRejectionGivesExplicitRetryCleanEnrollmentState() async {
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [
+      .success(Data("attestation-1".utf8)),
+      .success(Data("attestation-2".utf8))
+    ]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.rejected-enrollment.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    var challengeCount = 0
+    var requests: [SubscriptionSessionRequest] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { request in
+        requests.append(request)
+        if requests.count == 1 {
+          throw APIClientError.httpStatus(
+            401,
+            code: "device_proof_rejected",
+            message: "The device proof was rejected. Reconnect and try again."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.connectUsingCurrentSubscription()
+    await service.connectUsingCurrentSubscription()
+
+    XCTAssertEqual(requests.count, 2)
+    XCTAssertEqual(requests[0].deviceEnrollment.challengeToken, "challenge-1")
+    XCTAssertEqual(requests[1].deviceEnrollment.challengeToken, "challenge-2")
+    XCTAssertNotEqual(requests[1].deviceEnrollment.keyId, requests[0].deviceEnrollment.keyId)
+    XCTAssertEqual(appAttest.generatedKeyCount, 2)
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testAmbiguousEnrollmentTransportFailureKeepsPendingAppAttestState() async {
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [.success(Data("attestation".utf8))]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.ambiguous-enrollment.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    var backendCalls = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in
+        backendCalls += 1
+        throw URLError(.networkConnectionLost)
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider
+    )
+
+    await service.connectUsingCurrentSubscription()
+    await service.connectUsingCurrentSubscription()
+
+    XCTAssertEqual(backendCalls, 1, "an ambiguous enrollment must not be submitted again")
+    XCTAssertEqual(appAttest.generatedKeyCount, 1, "an ambiguous enrollment must retain its original App Attest key")
+    XCTAssertFalse(service.isSignedIn)
+  }
+
   func testSubscriptionSessionTimeoutCancelsTheInFlightBackendOperation() async throws {
     var backendOperationWasCancelled = false
     let service = AuthService(
@@ -312,7 +452,11 @@ final class AuthServiceTests: XCTestCase {
         "signed-transaction"
       },
       createSubscriptionSession: { _ in
-        throw APIClientError.httpStatus(401, code: "invalid_token", message: "Subscription validation failed for user@example.com.")
+        throw APIClientError.httpStatus(
+          401,
+          code: "invalid_app_store_transaction",
+          message: "Subscription validation failed for user@example.com."
+        )
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
@@ -330,7 +474,10 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(service.errorMessage, expectedMessage)
     XCTAssertEqual(service.connectionRequiredMessage, expectedMessage)
     let failure = diagnostics.entries.first { $0.title == "Subscription session failed" }
-    XCTAssertEqual(failure?.message, "Subscription validation failed for [redacted email].")
+    XCTAssertEqual(
+      failure?.message,
+      "The App Store subscription credential was rejected by PumpSync. backendCode=invalid_app_store_transaction"
+    )
   }
 
   func testSubscriptionRestoreFailurePreservesExistingSession() async throws {
@@ -354,7 +501,11 @@ final class AuthServiceTests: XCTestCase {
         "signed-transaction"
       },
       createSubscriptionSession: { _ in
-        throw APIClientError.httpStatus(401, code: "invalid_token", message: "Signed App Store payload validation failed.")
+        throw APIClientError.httpStatus(
+          401,
+          code: "invalid_app_store_transaction",
+          message: "Signed App Store payload validation failed."
+        )
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
@@ -796,7 +947,7 @@ final class AuthServiceTests: XCTestCase {
         challengeToken: challenge.challengeToken,
         keyId: "app-attest-key",
         proofKind: "attestation",
-        proof: "attestation"
+        proof: "raw-proof-secret"
       )
     }
 
@@ -825,6 +976,25 @@ final class AuthServiceTests: XCTestCase {
         issuedAt: Date(timeIntervalSince1970: 2_000),
         proof: "proof"
       )
+    }
+  }
+
+  private final class SequencedAppAttestClient: AppAttestClient {
+    var isSupported = true
+    var generatedKeyCount = 0
+    var attestationResults: [Result<Data, Error>] = []
+
+    func generateKey() async throws -> String {
+      generatedKeyCount += 1
+      return "key-\(generatedKeyCount)"
+    }
+
+    func attestKey(_ keyId: String, clientDataHash: Data) async throws -> Data {
+      try attestationResults.removeFirst().get()
+    }
+
+    func generateAssertion(_ keyId: String, clientDataHash: Data) async throws -> Data {
+      throw AppAttestClientError.nonRetryable
     }
   }
 }

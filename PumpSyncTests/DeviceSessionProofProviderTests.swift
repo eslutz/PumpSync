@@ -77,6 +77,48 @@ final class DeviceSessionProofProviderTests: XCTestCase {
     XCTAssertEqual(recovered.keyId, first.keyId)
   }
 
+  func testPendingEnrollmentDoesNotReplaceANewChallenge() async throws {
+    let fixture = makeFixture()
+    fixture.client.attestationResults = [
+      .success(Data("attestation-1".utf8)),
+      .success(Data("attestation-2".utf8))
+    ]
+
+    let first = try await fixture.provider.hostedEnrollment(
+      challenge: challenge("challenge-1"), installationId: "installation-1",
+      signedTransactionInfo: "transaction", existingSession: nil
+    )
+    let second = try await fixture.provider.hostedEnrollment(
+      challenge: challenge("challenge-2"), installationId: "installation-1",
+      signedTransactionInfo: "transaction", existingSession: nil
+    )
+
+    XCTAssertEqual(first.challengeToken, "challenge-1")
+    XCTAssertEqual(second.challengeToken, "challenge-2")
+    XCTAssertNotEqual(second.keyId, first.keyId)
+    XCTAssertEqual(fixture.client.generatedKeyCount, 2)
+  }
+
+  func testPendingEnrollmentForSameChallengeReportsProofReuse() async throws {
+    let fixture = makeFixture()
+    fixture.client.attestationResults = [.success(Data("attestation".utf8))]
+    let challenge = challenge("challenge-1")
+
+    let generated = try await fixture.provider.hostedEnrollment(
+      challenge: challenge, installationId: "installation-1",
+      signedTransactionInfo: "transaction", existingSession: nil
+    )
+    let reused = try await fixture.provider.hostedEnrollment(
+      challenge: challenge, installationId: "installation-1",
+      signedTransactionInfo: "transaction", existingSession: nil
+    )
+
+    XCTAssertEqual(generated.preparation, .generated)
+    XCTAssertEqual(reused.preparation, .reused)
+    XCTAssertEqual(reused.keyId, generated.keyId)
+    XCTAssertEqual(fixture.client.generatedKeyCount, 1)
+  }
+
   func testInvalidAssertionKeyIsDiscarded() async throws {
     let fixture = makeFixture()
     fixture.client.attestationResults = [

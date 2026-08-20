@@ -62,6 +62,7 @@ protocol DeviceSessionProofProviding {
   ) async throws -> HostedDeviceEnrollment
   func markHostedEnrollmentRegistered(keyId: String) throws
   func markHostedEnrollmentResponseAmbiguous(keyId: String) throws
+  func discardRejectedHostedEnrollment(keyId: String) throws -> Bool
 
   func selfHostedEnrollment(
     challenge: SessionChallengeResponse,
@@ -78,6 +79,7 @@ protocol DeviceSessionProofProviding {
 extension DeviceSessionProofProviding {
   func markHostedEnrollmentRegistered(keyId: String) throws {}
   func markHostedEnrollmentResponseAmbiguous(keyId: String) throws {}
+  func discardRejectedHostedEnrollment(keyId: String) throws -> Bool { false }
 }
 
 private enum AppAttestKeyPhase: String, Codable {
@@ -143,8 +145,11 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     }
     if let pending = state?.pendingEnrollment,
        pending.transactionHash == transactionHash,
+       pending.enrollment.challengeToken == challenge.challengeToken,
        pending.challengeExpiresAt > now() {
-      return pending.enrollment
+      var enrollment = pending.enrollment
+      enrollment.preparation = .reused
+      return enrollment
     }
     if state?.phase == .enrolling {
       try clearState()
@@ -210,6 +215,17 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     pending.responseAmbiguous = true
     state.pendingEnrollment = pending
     try saveState(state)
+  }
+
+  func discardRejectedHostedEnrollment(keyId: String) throws -> Bool {
+    guard let state = try loadState(),
+          state.keyId == keyId,
+          state.phase == .enrolling,
+          state.pendingEnrollment?.enrollment.proofKind == "attestation" else {
+      return false
+    }
+    try clearState()
+    return true
   }
 
   private func assertionEnrollment(

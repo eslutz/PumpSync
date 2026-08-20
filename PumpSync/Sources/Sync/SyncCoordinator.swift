@@ -224,7 +224,7 @@ final class SyncCoordinator {
     healthKitService.refreshAuthorizationStatus()
 
     guard let accessToken = await authService.accessTokenRecoveringIfNeeded(
-      allowInteractiveRecovery: reason != .background
+      allowInteractiveRecovery: reason == .manual
     ) else {
       fail("Connect PumpSync before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")

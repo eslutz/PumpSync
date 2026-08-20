@@ -488,6 +488,51 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.lastMessage, "No new pump samples were returned.")
   }
 
+  func testAppOpenSyncDoesNotRepeatFailedEnrollmentButManualSyncCanRetry() async {
+    var entitlementCalls = 0
+    var enrollmentCalls = 0
+    let authService = AuthService(
+      apiClient: PumpSyncAPIClient(
+        baseURL: URL(string: "https://example.com/api")!,
+        urlSession: URLProtocolStub.makeSession(),
+        maxRetryCount: 0
+      ),
+      configurationStore: BackendConfigurationStore(
+        defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!
+      ),
+      sessionStore: nil,
+      currentEntitlementJWS: {
+        entitlementCalls += 1
+        return "signed-transaction"
+      },
+      createSubscriptionSession: { _ in
+        enrollmentCalls += 1
+        throw APIClientError.httpStatus(
+          401,
+          code: "device_proof_rejected",
+          message: "The device proof was rejected."
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: RecoveringDeviceSessionProofProvider()
+    )
+    let coordinator = makeCoordinator(
+      authService: authService,
+      credentialStore: makeCredentialStore()
+    )
+
+    await authService.recoverSessionIfNeeded()
+    await coordinator.refreshIfStale(reason: .appOpen)
+
+    XCTAssertEqual(entitlementCalls, 1)
+    XCTAssertEqual(enrollmentCalls, 1)
+
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(entitlementCalls, 2)
+    XCTAssertEqual(enrollmentCalls, 2)
+  }
+
   func testSamplesDroppedByHealthKitAreNotMarkedImported() async throws {
     // A sample skipped by save() (missing per-type permission or unknown
     // type) must stay out of the dedupe ledger so a later permission grant
@@ -738,6 +783,39 @@ final class SyncCoordinatorTests: XCTestCase {
       existingSession: BackendSessionResponse?
     ) async throws -> HostedDeviceEnrollment {
       throw APIClientError.invalidResponse
+    }
+
+    func selfHostedEnrollment(
+      challenge: SessionChallengeResponse,
+      installationId: String
+    ) throws -> SelfHostedDeviceEnrollment {
+      throw APIClientError.invalidResponse
+    }
+
+    func refreshRequest(
+      session: BackendSessionResponse,
+      installationId: String,
+      mode: BackendAccessMode
+    ) async throws -> SessionRefreshRequest {
+      throw APIClientError.invalidResponse
+    }
+  }
+
+  private final class RecoveringDeviceSessionProofProvider: DeviceSessionProofProviding {
+    func hostedEnrollment(
+      challenge: SessionChallengeResponse,
+      installationId: String,
+      signedTransactionInfo: String,
+      existingSession: BackendSessionResponse?
+    ) async throws -> HostedDeviceEnrollment {
+      HostedDeviceEnrollment(
+        requestId: UUID().uuidString,
+        issuedAt: Date(),
+        challengeToken: challenge.challengeToken,
+        keyId: "key",
+        proofKind: "attestation",
+        proof: "proof"
+      )
     }
 
     func selfHostedEnrollment(
