@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Observation
 import StoreKit
@@ -188,7 +189,7 @@ final class AuthService {
     self.createSelfHostedSession = createSelfHostedSession
     self.createSessionChallenge = createSessionChallenge ?? { _ in
       SessionChallengeResponse(
-        protocolVersion: 2,
+        protocolVersion: 3,
         proofKind: configurationStore.mode == .hosted ? "appAttest" : "secureEnclaveP256",
         challengeToken: "test-session-challenge",
         expiresAt: .distantFuture
@@ -448,6 +449,13 @@ final class AuthService {
         return
       }
 
+      // A transport/server failure leaves the renewable session and App Attest
+      // registration intact. Do not convert an ambiguous refresh result into a
+      // new enrollment/key; retry recovery later.
+      if session != nil {
+        return
+      }
+
       if !allowInteractiveRecovery {
         return
       }
@@ -507,20 +515,32 @@ final class AuthService {
 
     let backendStartedAt = Date()
     var timedOut = false
+    var enrollmentKeyId: String?
     do {
-      session = try await createSubscriptionSessionWithTimeout(
-        try await makeSubscriptionSessionRequest(
-          signedTransactionInfo: signedTransactionInfo,
-          existingSession: previousSession
-        )
+      let request = try await makeSubscriptionSessionRequest(
+        signedTransactionInfo: signedTransactionInfo,
+        existingSession: previousSession
       )
+      enrollmentKeyId = request.deviceEnrollment.keyId
+      session = try await createSubscriptionSessionWithTimeout(request)
       if let session {
+        try proofProvider.markHostedEnrollmentRegistered(keyId: request.deviceEnrollment.keyId)
         try? sessionStore?.save(session)
       }
       statusMessage = "PumpSync subscription active"
       diagnostics?.record(source: .auth, title: title)
     } catch {
       timedOut = error is SubscriptionSessionTimeoutError
+      if let enrollmentKeyId,
+         timedOut || (error as? APIClientError)?.hasAmbiguousOutcome == true || (error as NSError).domain == NSURLErrorDomain {
+        try? proofProvider.markHostedEnrollmentResponseAmbiguous(keyId: enrollmentKeyId)
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "App Attest enrollment outcome is pending",
+          message: "protocolVersion=3 responseAmbiguous=true"
+        )
+      }
       if hasValidPreviousSession {
         session = previousSession
       } else {
@@ -624,15 +644,21 @@ final class AuthService {
     signedTransactionInfo: String,
     existingSession: BackendSessionResponse?
   ) async throws -> SubscriptionSessionRequest {
-    let challenge = try await createSessionChallenge(
-      SessionChallengeRequest(installationId: configurationStore.installationId)
+    let requestHash = DeviceSessionProofProvider.base64URL(
+      Data(SHA256.hash(data: Data(signedTransactionInfo.utf8)))
     )
-    guard challenge.protocolVersion == 2, challenge.proofKind == "appAttest", challenge.expiresAt > Date() else {
+    let challenge = try await createSessionChallenge(SessionChallengeRequest(
+      installationId: configurationStore.installationId,
+      purpose: "hostedEnrollment",
+      requestHash: requestHash
+    ))
+    guard challenge.protocolVersion == 3, challenge.proofKind == "appAttest", challenge.expiresAt > Date() else {
       throw DeviceSessionProofError.appAttestUnavailable
     }
     let enrollment = try await proofProvider.hostedEnrollment(
       challenge: challenge,
       installationId: configurationStore.installationId,
+      signedTransactionInfo: signedTransactionInfo,
       existingSession: existingSession
     )
     return SubscriptionSessionRequest(
@@ -643,10 +669,12 @@ final class AuthService {
   }
 
   private func makeSelfHostedSessionRequest() async throws -> SelfHostedSessionRequest {
-    let challenge = try await createSessionChallenge(
-      SessionChallengeRequest(installationId: configurationStore.installationId)
-    )
-    guard challenge.protocolVersion == 2, challenge.proofKind == "secureEnclaveP256", challenge.expiresAt > Date() else {
+    let challenge = try await createSessionChallenge(SessionChallengeRequest(
+      installationId: configurationStore.installationId,
+      purpose: "selfHostedEnrollment",
+      requestHash: nil
+    ))
+    guard challenge.protocolVersion == 3, challenge.proofKind == "secureEnclaveP256", challenge.expiresAt > Date() else {
       throw DeviceSessionProofError.secureEnclaveUnavailable
     }
     return SelfHostedSessionRequest(
@@ -664,7 +692,7 @@ final class AuthService {
     diagnostics?.record(
       source: .auth,
       title: "Renewable session refresh started",
-      message: "protocolVersion=2 serviceMode=\(currentSession.serviceMode)"
+      message: "protocolVersion=3 serviceMode=\(currentSession.serviceMode)"
     )
     do {
       let request = try await proofProvider.refreshRequest(
@@ -673,7 +701,7 @@ final class AuthService {
         mode: configurationStore.mode
       )
       let refreshed = try await apiClient.refreshSession(request)
-      guard refreshed.protocolVersion == 2, refreshed.serviceMode == currentSession.serviceMode else {
+      guard refreshed.protocolVersion == 3, refreshed.serviceMode == currentSession.serviceMode else {
         throw APIClientError.invalidResponse
       }
 
@@ -684,11 +712,17 @@ final class AuthService {
       diagnostics?.record(
         source: .auth,
         title: "Renewable session refresh completed",
-        message: "protocolVersion=2 elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000))"
+        message: "protocolVersion=3 elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000))"
       )
       return true
     } catch {
-      let permanentlyRejected = (error as? APIClientError)?.isAuthenticationFailure == true
+      let invalidAppAttestKey: Bool
+      if case .invalidKey? = error as? AppAttestClientError {
+        invalidAppAttestKey = true
+      } else {
+        invalidAppAttestKey = false
+      }
+      let permanentlyRejected = (error as? APIClientError)?.isAuthenticationFailure == true || invalidAppAttestKey
       if permanentlyRejected {
         session = nil
         try? sessionStore?.delete()

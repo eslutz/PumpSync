@@ -31,6 +31,57 @@ final class PumpSyncAPIClientTests: XCTestCase {
 
     XCTAssertEqual(path.value, "/api/v1/capabilities")
   }
+
+  func testSubscriptionEnrollmentDoesNotRetryServerFailure() async {
+    let calls = LockIsolated(0)
+    URLProtocolStub.requestHandler = { request in
+      calls.modify { $0 += 1 }
+      let response = HTTPURLResponse(url: request.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!
+      return (response, Data())
+    }
+    let client = PumpSyncAPIClient(
+      baseURL: URL(string: "https://example.com/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 2
+    )
+    let enrollment = HostedDeviceEnrollment(
+      requestId: "request-1", issuedAt: Date(), challengeToken: "challenge",
+      keyId: "key-1", proofKind: "attestation", proof: "proof"
+    )
+
+    do {
+      _ = try await client.createSubscriptionSession(SubscriptionSessionRequest(
+        signedTransactionInfo: "transaction", installationId: "installation-1", deviceEnrollment: enrollment
+      ))
+      XCTFail("Expected server failure")
+    } catch {}
+
+    XCTAssertEqual(calls.value, 1)
+  }
+
+  func testSessionRefreshDoesNotRetryServerFailure() async {
+    let calls = LockIsolated(0)
+    URLProtocolStub.requestHandler = { request in
+      calls.modify { $0 += 1 }
+      let response = HTTPURLResponse(url: request.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!
+      return (response, Data())
+    }
+    let client = PumpSyncAPIClient(
+      baseURL: URL(string: "https://example.com/api")!,
+      urlSession: URLProtocolStub.makeSession(),
+      maxRetryCount: 2
+    )
+
+    do {
+      _ = try await client.refreshSession(SessionRefreshRequest(
+        installationId: "installation-1", refreshToken: "refresh", requestId: "request-1",
+        issuedAt: Date(), proof: "proof"
+      ))
+      XCTFail("Expected server failure")
+    } catch {}
+
+    XCTAssertEqual(calls.value, 1)
+  }
 }
 
 private final class LockIsolated<Value>: @unchecked Sendable {
@@ -44,6 +95,12 @@ private final class LockIsolated<Value>: @unchecked Sendable {
   func set(_ value: Value) {
     lock.lock()
     storedValue = value
+    lock.unlock()
+  }
+
+  func modify(_ body: (inout Value) -> Void) {
+    lock.lock()
+    body(&storedValue)
     lock.unlock()
   }
 

@@ -13,6 +13,8 @@ struct SelfHostedSessionRequest: Encodable {
 
 struct SessionChallengeRequest: Encodable {
   let installationId: String
+  let purpose: String
+  let requestHash: String?
 }
 
 struct SessionChallengeResponse: Decodable, Equatable {
@@ -22,13 +24,13 @@ struct SessionChallengeResponse: Decodable, Equatable {
   let expiresAt: Date
 }
 
-struct HostedDeviceEnrollment: Encodable, Equatable {
+struct HostedDeviceEnrollment: Codable, Equatable {
   let requestId: String
   let issuedAt: Date
   let challengeToken: String
   let keyId: String
-  let attestationObject: String?
-  let assertion: String?
+  let proofKind: String
+  let proof: String
 }
 
 struct SelfHostedDeviceEnrollment: Encodable, Equatable {
@@ -63,7 +65,7 @@ struct BackendSessionResponse: Codable, Equatable {
   }
 
   var hasRenewableCredential: Bool {
-    protocolVersion == 2 &&
+    protocolVersion == 3 &&
       !refreshToken.isEmpty &&
       refreshTokenExpiresAt > Date() &&
       refreshTokenAbsoluteExpiresAt > Date()
@@ -78,7 +80,7 @@ extension BackendSessionResponse {
       expiresAt: expiresAt,
       serviceMode: serviceMode,
       dataSourceMode: dataSourceMode,
-      protocolVersion: 2,
+      protocolVersion: 3,
       sessionFamilyId: "debug-session-family",
       refreshToken: "debug-refresh-token",
       refreshTokenExpiresAt: .distantFuture,

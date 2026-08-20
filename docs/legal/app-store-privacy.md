@@ -24,6 +24,7 @@ Reference sources:
 Declare these as linked to the user and used for App Functionality:
 
 - Identifiers: User ID, consisting of the PumpSync internal ID, App Store original transaction ID, and app installation ID.
+- Identifiers: Device ID, representing the hosted App Attest key and encrypted receipt associated with the installation and subscription session. Use it for App Functionality, including service security and fraud prevention; it is not used for tracking.
 - Purchases: Purchase History, for the PumpSync subscription.
 
 The hosted backend also retains the installation's App Attest public key, a one-way renewable-session token verifier, expiry/revocation state, and replay counter. Treat these as part of the disclosed app/account identifier and app-functionality data, not as a device identifier used for tracking.

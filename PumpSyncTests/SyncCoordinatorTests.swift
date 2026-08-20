@@ -734,6 +734,7 @@ final class SyncCoordinatorTests: XCTestCase {
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
+      signedTransactionInfo: String,
       existingSession: BackendSessionResponse?
     ) async throws -> HostedDeviceEnrollment {
       throw APIClientError.invalidResponse

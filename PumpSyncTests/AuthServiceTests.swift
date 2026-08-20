@@ -361,23 +361,16 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), session)
   }
 
-  func testAccessTokenRecoveringIfNeededRefreshesStaleInMemorySession() async throws {
+  func testAccessTokenRecoveryPreservesStaleSessionAfterAmbiguousRefreshFailure() async throws {
     var now = Date(timeIntervalSince1970: 1_000)
     let sessionStore = makeSessionStore(now: { now })
-    try sessionStore.save(
-      BackendSessionResponse(
-        accessToken: "stale-token",
-        expiresAt: Date(timeIntervalSince1970: 2_000),
-        serviceMode: "hosted",
-        dataSourceMode: "tandemSource"
-      )
-    )
-    let recoveredSession = BackendSessionResponse(
-      accessToken: "recovered-token",
-      expiresAt: Date(timeIntervalSince1970: 3_000),
+    let staleSession = BackendSessionResponse(
+      accessToken: "stale-token",
+      expiresAt: Date(timeIntervalSince1970: 2_000),
       serviceMode: "hosted",
       dataSourceMode: "tandemSource"
     )
+    try sessionStore.save(staleSession)
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
@@ -390,7 +383,8 @@ final class AuthServiceTests: XCTestCase {
         throw StoreKitSubscriptionError.noActiveSubscription
       },
       createSubscriptionSession: { _ in
-        recoveredSession
+        XCTFail("An ambiguous refresh failure must not fall back to enrollment")
+        throw APIClientError.invalidResponse
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
@@ -403,8 +397,8 @@ final class AuthServiceTests: XCTestCase {
     now = Date(timeIntervalSince1970: 1_800)
     let accessToken = await service.accessTokenRecoveringIfNeeded()
 
-    XCTAssertEqual(accessToken, "recovered-token")
-    XCTAssertEqual(sessionStore.loadValidSession(), recoveredSession)
+    XCTAssertNil(accessToken)
+    XCTAssertEqual(sessionStore.loadRecoverableSession(), staleSession)
   }
 
   func testSilentSubscriptionRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
@@ -546,22 +540,15 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSignedIn)
   }
 
-  func testExpiredCachedSessionTriggersSubscriptionRecovery() async throws {
+  func testExpiredCachedSessionIsPreservedAfterAmbiguousRefreshFailure() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
-    try sessionStore.save(
-      BackendSessionResponse(
-        accessToken: "expired-token",
-        expiresAt: Date(timeIntervalSince1970: 1_999),
-        serviceMode: "hosted",
-        dataSourceMode: "tandemSource"
-      )
-    )
-    let recoveredSession = BackendSessionResponse(
-      accessToken: "recovered-token",
-      expiresAt: Date(timeIntervalSince1970: 3_000),
+    let expiredSession = BackendSessionResponse(
+      accessToken: "expired-token",
+      expiresAt: Date(timeIntervalSince1970: 1_999),
       serviceMode: "hosted",
       dataSourceMode: "tandemSource"
     )
+    try sessionStore.save(expiredSession)
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
@@ -570,7 +557,8 @@ final class AuthServiceTests: XCTestCase {
         "signed-transaction"
       },
       createSubscriptionSession: { _ in
-        recoveredSession
+        XCTFail("An ambiguous refresh failure must not fall back to enrollment")
+        throw APIClientError.invalidResponse
       },
       createSelfHostedSession: { _ in
         throw APIClientError.invalidResponse
@@ -580,8 +568,8 @@ final class AuthServiceTests: XCTestCase {
 
     await service.recoverSessionIfNeeded()
 
-    XCTAssertEqual(service.accessToken, "recovered-token")
-    XCTAssertEqual(sessionStore.loadValidSession(), recoveredSession)
+    XCTAssertNil(service.accessToken)
+    XCTAssertEqual(sessionStore.loadRecoverableSession(), expiredSession)
   }
 
   func testBackgroundRecoveryRefreshesRenewableSessionWithoutStoreKit() async throws {
@@ -591,7 +579,7 @@ final class AuthServiceTests: XCTestCase {
       expiresAt: Date(timeIntervalSince1970: 1_999),
       serviceMode: "hosted",
       dataSourceMode: "tandemSource",
-      protocolVersion: 2,
+      protocolVersion: 3,
       sessionFamilyId: "family-1",
       refreshToken: "refresh-token-1",
       refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_000),
@@ -602,7 +590,7 @@ final class AuthServiceTests: XCTestCase {
       expiresAt: Date(timeIntervalSince1970: 3_000),
       serviceMode: "hosted",
       dataSourceMode: "tandemSource",
-      protocolVersion: 2,
+      protocolVersion: 3,
       sessionFamilyId: "family-2",
       refreshToken: "refresh-token-2",
       refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
@@ -709,6 +697,7 @@ final class AuthServiceTests: XCTestCase {
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
+      signedTransactionInfo: String,
       existingSession: BackendSessionResponse?
     ) async throws -> HostedDeviceEnrollment {
       HostedDeviceEnrollment(
@@ -716,8 +705,8 @@ final class AuthServiceTests: XCTestCase {
         issuedAt: Date(timeIntervalSince1970: 2_000),
         challengeToken: challenge.challengeToken,
         keyId: "app-attest-key",
-        attestationObject: "attestation",
-        assertion: nil
+        proofKind: "attestation",
+        proof: "attestation"
       )
     }
 

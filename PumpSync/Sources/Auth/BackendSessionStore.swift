@@ -77,7 +77,7 @@ final class BackendSessionStore {
   }
 
   func isValid(_ session: BackendSessionResponse) -> Bool {
-    guard !session.accessToken.isEmpty else {
+    guard session.protocolVersion == 3, !session.accessToken.isEmpty else {
       return false
     }
 
@@ -86,7 +86,7 @@ final class BackendSessionStore {
 
   func isRenewable(_ session: BackendSessionResponse) -> Bool {
     guard
-      session.protocolVersion == 2,
+      session.protocolVersion == 3,
       !session.refreshToken.isEmpty
     else {
       return false

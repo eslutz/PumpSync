@@ -38,7 +38,7 @@ final class BackendSessionStoreTests: XCTestCase {
       expiresAt: Date(timeIntervalSince1970: 1_999),
       serviceMode: "selfHosted",
       dataSourceMode: "tandemSource",
-      protocolVersion: 2,
+      protocolVersion: 3,
       sessionFamilyId: "family-1",
       refreshToken: "refresh-token",
       refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_000),
@@ -76,6 +76,26 @@ final class BackendSessionStoreTests: XCTestCase {
     )
 
     XCTAssertNil(store.loadValidSession())
+  }
+
+  func testRejectsPreProtocol3SessionEvenWhileAccessTokenIsFresh() throws {
+    let store = makeStore(now: { Date(timeIntervalSince1970: 1_000) })
+    try store.save(
+      BackendSessionResponse(
+        accessToken: "old-token",
+        expiresAt: Date(timeIntervalSince1970: 2_000),
+        serviceMode: "hosted",
+        dataSourceMode: "tandemSource",
+        protocolVersion: 2,
+        sessionFamilyId: "old-family",
+        refreshToken: "",
+        refreshTokenExpiresAt: .distantPast,
+        refreshTokenAbsoluteExpiresAt: .distantPast
+      )
+    )
+
+    XCTAssertNil(store.loadValidSession())
+    XCTAssertNil(store.loadRecoverableSession())
   }
 
   func testDiscardsCorruptedStoredData() throws {

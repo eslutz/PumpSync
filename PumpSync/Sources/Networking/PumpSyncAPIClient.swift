@@ -24,11 +24,11 @@ final class PumpSyncAPIClient {
   }
 
   func createSubscriptionSession(_ request: SubscriptionSessionRequest) async throws -> BackendSessionResponse {
-    try await send(path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil)
+    try await send(path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil, allowsRetry: false)
   }
 
   func createSelfHostedSession(_ request: SelfHostedSessionRequest) async throws -> BackendSessionResponse {
-    try await send(path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil)
+    try await send(path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil, allowsRetry: false)
   }
 
   func createSessionChallenge(_ request: SessionChallengeRequest) async throws -> SessionChallengeResponse {
@@ -36,7 +36,7 @@ final class PumpSyncAPIClient {
   }
 
   func refreshSession(_ request: SessionRefreshRequest) async throws -> BackendSessionResponse {
-    try await send(path: "/v1/session/refresh", method: "POST", body: request, accessToken: nil)
+    try await send(path: "/v1/session/refresh", method: "POST", body: request, accessToken: nil, allowsRetry: false)
   }
 
   func syncTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
@@ -62,7 +62,8 @@ final class PumpSyncAPIClient {
     path: String,
     method: String,
     body: Request,
-    accessToken: String?
+    accessToken: String?,
+    allowsRetry: Bool = true
   ) async throws -> Response {
     var lastError: Error?
 
@@ -71,7 +72,7 @@ final class PumpSyncAPIClient {
         return try await sendOnce(path: path, method: method, body: body, accessToken: accessToken)
       } catch {
         lastError = error
-        guard shouldRetry(error: error), attempt < maxRetryCount else {
+        guard allowsRetry, shouldRetry(error: error), attempt < maxRetryCount else {
           throw error
         }
 
@@ -175,6 +176,11 @@ enum APIClientError: LocalizedError {
     case .httpStatus(let status, _, _, _):
       return status == 401 || status == 403
     }
+  }
+
+  var hasAmbiguousOutcome: Bool {
+    if case .invalidResponse = self { return true }
+    return false
   }
 
   /// 424: the backend reached Tandem Source but Tandem rejected the stored

@@ -77,7 +77,7 @@ enum SupportBundleBuilder {
         appDiagnostics: Array(services.diagnosticsLogStore.entries.prefix(50)),
         nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50)),
         sessionProtocolVersion: services.authService.session?.protocolVersion,
-        deviceProofKind: services.authService.session?.protocolVersion == 2
+        deviceProofKind: services.authService.session?.protocolVersion == 3
           ? (services.backendConfigurationStore.mode == .hosted ? "App Attest" : "Secure Enclave P-256")
           : nil,
         refreshCredentialExpiresAt: services.authService.session?.refreshTokenExpiresAt,
