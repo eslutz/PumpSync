@@ -236,6 +236,11 @@ enum APIClientError: LocalizedError {
     return code == "device_proof_rejected"
   }
 
+  var isDeviceEnrollmentRequired: Bool {
+    guard case .httpStatus(401, let code, _, _) = self else { return false }
+    return code == "device_enrollment_required"
+  }
+
   var isAuthenticationFailure: Bool {
     switch self {
     case .invalidResponse:

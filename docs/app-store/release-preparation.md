@@ -25,7 +25,7 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 
 ### Installation and First Launch
 
-- [ ] Install the new build over the previous build and verify valid settings and credentials remain usable.
+- [ ] Install the current build over an older TestFlight build and verify user settings and Tandem credentials remain usable; the prior hosted session and App Attest state must not be read or migrated, and PumpSync must perform one fresh current-protocol enrollment.
 - [ ] Delete PumpSync, reinstall it, and verify Tandem credentials are removed.
 - [ ] Confirm a clean installation starts disconnected with no Tandem account configured.
 - [ ] Force-quit and reopen the app several times.
@@ -42,7 +42,8 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 - [ ] Cancel the purchase sheet and verify the app remains usable.
 - [ ] Complete a sandbox subscription purchase and verify PumpSync connects.
 - [ ] Force-quit and relaunch; verify the subscription session recovers promptly.
-- [ ] Verify the hosted session reports protocol v2 with an App Attest proof in the support bundle; confirm the bundle contains no proof, challenge, transaction JWS, or refresh credential values.
+- [ ] Verify the hosted session uses protocol v3 exclusively with an App Attest proof in the support bundle; confirm the bundle contains no proof, challenge, transaction JWS, or refresh credential values.
+- [ ] Upgrade from Build 10 on a physical iPhone and verify PumpSync performs a fresh App Attest enrollment without showing the stale “reconciling a previous secure connection attempt” failure.
 - [ ] Leave the app backgrounded past the refresh target and verify the backend records a successful credential refresh and sync without a StoreKit request.
 - [ ] Restore an active subscription.
 - [ ] Attempt restore with an account that has no entitlement, if available.
@@ -332,7 +333,7 @@ gh release create v1.0.0 --verify-tag --title "PumpSync v1.0.0" --notes-from-tag
 
 - [ ] App and subscription are both approved.
 - [ ] Production backend is deployed from the recorded commit and revision.
-- [ ] The hosted backend reports session protocol `2`, App Attest enrollment and refresh telemetry are healthy, and the current iOS build completes foreground and system-launched background renewal.
+- [ ] The hosted backend accepts only session protocol `3`, App Attest enrollment and refresh telemetry are healthy, and the current iOS build completes foreground and system-launched background renewal.
 - [ ] Production health, capabilities, authorization, DNS, and TLS checks pass.
 - [ ] Production and sandbox notification URLs point to the correct environments.
 - [ ] Alerts and rollback procedures are operational.

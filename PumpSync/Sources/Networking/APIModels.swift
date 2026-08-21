@@ -26,6 +26,7 @@ struct SessionChallengeResponse: Decodable, Equatable {
 
 enum HostedDeviceProofPreparation: String, Equatable {
   case generated
+  case reconciliation
   case reused
 }
 

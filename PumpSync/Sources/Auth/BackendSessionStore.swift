@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 final class BackendSessionStore {
-  private static let account = "backend.session.v1"
+  private static let account = "backend.session.current"
   private static let refreshWindow: TimeInterval = 5 * 60
 
   private let keychain: SecureKeychainStore

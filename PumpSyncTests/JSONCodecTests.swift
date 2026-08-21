@@ -93,6 +93,20 @@ final class JSONCodecTests: XCTestCase {
     XCTAssertFalse(APIClientError.httpStatus(429, code: nil, message: nil).hasAmbiguousOutcome)
   }
 
+  func testAPIClientErrorDistinguishesEnrollmentRequiredFromRejectedProof() {
+    let enrollmentRequired = APIClientError.httpStatus(
+      401, code: "device_enrollment_required", message: nil
+    )
+    let rejectedProof = APIClientError.httpStatus(
+      401, code: "device_proof_rejected", message: nil
+    )
+
+    XCTAssertTrue(enrollmentRequired.isDeviceEnrollmentRequired)
+    XCTAssertFalse(enrollmentRequired.isDeviceProofRejected)
+    XCTAssertFalse(rejectedProof.isDeviceEnrollmentRequired)
+    XCTAssertTrue(rejectedProof.isDeviceProofRejected)
+  }
+
   func testHostedProofPreparationDiagnosticIsNotEncodedIntoAPIRequest() throws {
     let enrollment = HostedDeviceEnrollment(
       requestId: "request-1",

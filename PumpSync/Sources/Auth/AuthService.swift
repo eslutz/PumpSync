@@ -630,7 +630,8 @@ final class AuthService {
     activityMessage: String,
     title: String,
     publishesErrors: Bool,
-    expectedConfigurationRevision: Int? = nil
+    expectedConfigurationRevision: Int? = nil,
+    allowsRejectedAssertionRetry: Bool = true
   ) async -> Bool {
     let configurationRevision = expectedConfigurationRevision ?? configurationStore.revision
     attemptedSubscriptionSessionJWSHashes.insert(Self.subscriptionJWSHash(signedTransactionInfo))
@@ -653,8 +654,10 @@ final class AuthService {
     var enrollmentKeyId: String?
     var enrollmentRequestId: String?
     var enrollmentProofKind: String?
+    var enrollmentPreparation: HostedDeviceProofPreparation?
     var enrollmentSubmissionStarted = false
     var enrollmentRegistered = false
+    var rejectedAssertionRetry: RejectedAssertionRetry?
     do {
       let warmupStartedAt = Date()
       do {
@@ -678,12 +681,15 @@ final class AuthService {
 
       let request = try await makeSubscriptionSessionRequest(
         signedTransactionInfo: signedTransactionInfo,
-        existingSession: previousSession,
         configurationRevision: configurationRevision
       )
+      defer {
+        _ = proofProvider.releaseHostedProofOperation(requestId: request.deviceEnrollment.requestId)
+      }
       enrollmentKeyId = request.deviceEnrollment.keyId
       enrollmentRequestId = request.deviceEnrollment.requestId
       enrollmentProofKind = request.deviceEnrollment.proofKind
+      enrollmentPreparation = request.deviceEnrollment.preparation
       try prepareHostedRequest(configurationRevision: configurationRevision)
       guard try proofProvider.markHostedEnrollmentSubmissionStarted(
         keyId: request.deviceEnrollment.keyId,
@@ -728,10 +734,18 @@ final class AuthService {
     } catch {
       timeoutKind = SubscriptionSessionTimeoutKind(error: error)
       let apiError = error as? APIClientError
+      if let proofError = error as? DeviceSessionProofError,
+         case .hostedProofOperationInProgress = proofError {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Hosted security operation deferred",
+          message: "reason=proofOperationInProgress"
+        )
+      }
       if let enrollmentKeyId,
          let enrollmentRequestId,
          !enrollmentRegistered,
-         enrollmentProofKind == "attestation",
          error is SubscriptionConfigurationChangedError,
          (try? proofProvider.discardUnsubmittedHostedEnrollment(
            keyId: enrollmentKeyId,
@@ -745,33 +759,46 @@ final class AuthService {
         )
       } else if let enrollmentKeyId,
          let enrollmentRequestId,
-         enrollmentProofKind == "attestation",
-         apiError?.isDeviceProofRejected == true,
-         (try? proofProvider.discardRejectedHostedEnrollment(
+         apiError?.isDeviceEnrollmentRequired == true,
+         (try? proofProvider.discardDefinitivelyFailedHostedEnrollment(
            keyId: enrollmentKeyId,
            requestId: enrollmentRequestId
          )) == true {
+        if allowsRejectedAssertionRetry, enrollmentProofKind == "assertion" {
+          rejectedAssertionRetry = .freshAttestation
+        }
         diagnostics?.record(
           source: .auth,
           severity: .warning,
-          title: "Rejected App Attest enrollment discarded",
-          message: "protocolVersion=3 proofKind=attestation backendCode=device_proof_rejected"
+          title: "App Attest enrollment required",
+          message: "protocolVersion=3 proofKind=\(enrollmentProofKind ?? "unknown") preparation=\(enrollmentPreparation?.rawValue ?? "unknown") backendCode=device_enrollment_required localAction=discardKey"
         )
       } else if let enrollmentKeyId,
-                let enrollmentRequestId,
+         let enrollmentRequestId,
+         apiError?.isDeviceProofRejected == true,
+         (try? proofProvider.resolveRejectedHostedEnrollment(
+           keyId: enrollmentKeyId,
+           requestId: enrollmentRequestId
+         )) == true {
+        if allowsRejectedAssertionRetry, enrollmentProofKind == "assertion" {
+          rejectedAssertionRetry = .freshAssertion
+        }
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Rejected App Attest proof handled",
+          message: "protocolVersion=3 proofKind=\(enrollmentProofKind ?? "unknown") preparation=\(enrollmentPreparation?.rawValue ?? "unknown") backendCode=device_proof_rejected localAction=\(enrollmentProofKind == "assertion" ? "retainKey" : "discardKey")"
+        )
+      } else if enrollmentSubmissionStarted,
                 !enrollmentRegistered,
                 timeoutKind != .none
                   || apiError?.hasAmbiguousOutcome == true
                   || (error as NSError).domain == NSURLErrorDomain {
-        _ = try? proofProvider.markHostedEnrollmentResponseAmbiguous(
-          keyId: enrollmentKeyId,
-          requestId: enrollmentRequestId
-        )
         diagnostics?.record(
           source: .auth,
           severity: .warning,
-          title: "App Attest enrollment outcome is pending",
-          message: "protocolVersion=3 responseAmbiguous=true"
+          title: "App Attest enrollment requires reconciliation",
+          message: "protocolVersion=3 recovery=freshAssertion"
         )
       } else if let enrollmentKeyId,
                 let enrollmentRequestId,
@@ -791,11 +818,28 @@ final class AuthService {
           message: "protocolVersion=3 proofKind=attestation backendOutcome=definitive"
         )
       }
-
       if error is SubscriptionConfigurationChangedError
         || !isCurrentHostedConfiguration(configurationRevision) {
         recordSubscriptionConfigurationChange()
         return true
+      }
+
+      if let rejectedAssertionRetry {
+        let backendMs = Int(Date().timeIntervalSince(backendStartedAt) * 1_000)
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "App Attest assertion rejected; retrying secure connection",
+          message: "backendMs=\(backendMs) protocolVersion=3 retry=\(rejectedAssertionRetry.rawValue)"
+        )
+        return await establishSubscriptionSession(
+          signedTransactionInfo: signedTransactionInfo,
+          activityMessage: activityMessage,
+          title: title,
+          publishesErrors: publishesErrors,
+          expectedConfigurationRevision: configurationRevision,
+          allowsRejectedAssertionRetry: false
+        )
       }
 
       if hasValidPreviousSession {
@@ -940,7 +984,6 @@ final class AuthService {
 
   private func makeSubscriptionSessionRequest(
     signedTransactionInfo: String,
-    existingSession: BackendSessionResponse?,
     configurationRevision: Int
   ) async throws -> SubscriptionSessionRequest {
     let requestHash = DeviceSessionProofProvider.base64URL(
@@ -966,8 +1009,7 @@ final class AuthService {
     let enrollment = try await proofProvider.hostedEnrollment(
       challenge: challenge,
       installationId: configurationStore.installationId,
-      signedTransactionInfo: signedTransactionInfo,
-      existingSession: existingSession
+      signedTransactionInfo: signedTransactionInfo
     )
     diagnostics?.record(
       source: .auth,
@@ -1027,6 +1069,11 @@ final class AuthService {
         installationId: configurationStore.installationId,
         mode: mode
       )
+      defer {
+        if mode == .hosted {
+          _ = proofProvider.releaseHostedProofOperation(requestId: request.requestId)
+        }
+      }
       try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
       let refreshed = try await apiClient.refreshSession(request, mode: mode)
       try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
@@ -1045,6 +1092,15 @@ final class AuthService {
       )
       return true
     } catch {
+      if let proofError = error as? DeviceSessionProofError,
+         case .hostedProofOperationInProgress = proofError {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Hosted security operation deferred",
+          message: "reason=proofOperationInProgress"
+        )
+      }
       if error is BackendConfigurationChangedError
         || !isCurrentConfiguration(configurationRevision, mode: mode) {
         recordRefreshConfigurationChange()
@@ -1352,6 +1408,11 @@ private enum SubscriptionSessionTimeoutKind: String {
       self = error.domain == NSURLErrorDomain && error.code == NSURLErrorTimedOut ? .networkRequest : .none
     }
   }
+}
+
+private enum RejectedAssertionRetry: String {
+  case freshAssertion
+  case freshAttestation
 }
 
 enum StoreKitSubscriptionError: LocalizedError {

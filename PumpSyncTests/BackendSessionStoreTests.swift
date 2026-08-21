@@ -3,6 +3,28 @@ import XCTest
 
 @MainActor
 final class BackendSessionStoreTests: XCTestCase {
+  private let currentAccount = "backend.session.current"
+
+  func testDoesNotLoadOrRecoverSessionFromObsoleteAccount() throws {
+    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)")
+    let obsoleteAccount = ["backend", "session", "v1"].joined(separator: ".")
+    let obsoleteSession = BackendSessionResponse(
+      accessToken: "obsolete-token",
+      expiresAt: Date(timeIntervalSince1970: 2_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
+    )
+    let obsoleteData = try JSONCodec.encoder.encode(obsoleteSession)
+    try keychain.writeData(obsoleteData, account: obsoleteAccount)
+    defer { try? keychain.deleteAll() }
+
+    let store = BackendSessionStore(keychain: keychain, now: { Date(timeIntervalSince1970: 1_000) })
+
+    XCTAssertNil(store.loadValidSession())
+    XCTAssertNil(store.loadRecoverableSession())
+    XCTAssertEqual(try keychain.readData(account: obsoleteAccount), obsoleteData)
+  }
+
   func testPersistsAndReloadsValidSession() throws {
     let store = makeStore(now: { Date(timeIntervalSince1970: 1_000) })
     let session = BackendSessionResponse(
@@ -100,11 +122,11 @@ final class BackendSessionStoreTests: XCTestCase {
 
   func testDiscardsCorruptedStoredData() throws {
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)")
-    try keychain.writeData(Data("not valid json".utf8), account: "backend.session.v1")
+    try keychain.writeData(Data("not valid json".utf8), account: currentAccount)
     let store = BackendSessionStore(keychain: keychain, now: { Date(timeIntervalSince1970: 1_000) })
 
     XCTAssertNil(store.loadValidSession())
-    XCTAssertNil(try keychain.readData(account: "backend.session.v1"))
+    XCTAssertNil(try keychain.readData(account: currentAccount))
   }
 
   func testDiscardsSessionWithoutRenewableCredentialFields() throws {
@@ -117,11 +139,11 @@ final class BackendSessionStoreTests: XCTestCase {
         "dataSourceMode": "tandemSource"
       }
       """
-    try keychain.writeData(Data(storedSession.utf8), account: "backend.session.v1")
+    try keychain.writeData(Data(storedSession.utf8), account: currentAccount)
     let store = BackendSessionStore(keychain: keychain, now: { Date(timeIntervalSince1970: 1_000) })
 
     XCTAssertNil(store.loadValidSession())
-    XCTAssertNil(try keychain.readData(account: "backend.session.v1"))
+    XCTAssertNil(try keychain.readData(account: currentAccount))
   }
 
   func testDeleteRemovesStoredSession() throws {

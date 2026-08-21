@@ -779,11 +779,17 @@ final class SyncCoordinatorTests: XCTestCase {
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
-      signedTransactionInfo: String,
-      existingSession: BackendSessionResponse?
+      signedTransactionInfo: String
     ) async throws -> HostedDeviceEnrollment {
       throw APIClientError.invalidResponse
     }
+
+    func markHostedEnrollmentSubmissionStarted(keyId: String, requestId: String) throws -> Bool { false }
+    func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool { false }
+    func resolveRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func releaseHostedProofOperation(requestId: String) -> Bool { false }
 
     func selfHostedEnrollment(
       challenge: SessionChallengeResponse,
@@ -805,8 +811,7 @@ final class SyncCoordinatorTests: XCTestCase {
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
-      signedTransactionInfo: String,
-      existingSession: BackendSessionResponse?
+      signedTransactionInfo: String
     ) async throws -> HostedDeviceEnrollment {
       HostedDeviceEnrollment(
         requestId: UUID().uuidString,
@@ -817,6 +822,13 @@ final class SyncCoordinatorTests: XCTestCase {
         proof: "proof"
       )
     }
+
+    func markHostedEnrollmentSubmissionStarted(keyId: String, requestId: String) throws -> Bool { true }
+    func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool { true }
+    func resolveRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func releaseHostedProofOperation(requestId: String) -> Bool { false }
 
     func selfHostedEnrollment(
       challenge: SessionChallengeResponse,

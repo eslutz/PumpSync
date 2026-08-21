@@ -2,11 +2,13 @@ import XCTest
 @testable import PumpSync
 
 final class InstallStateReconcilerTests: XCTestCase {
+  private let currentBackendSessionAccount = "backend.session.current"
+
   func testFreshInstallCleanupIsScopedToPumpSyncKeychainService() throws {
     let appKeychain = SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.app.\(UUID().uuidString)")
     let unrelatedKeychain = SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.other.\(UUID().uuidString)")
     try appKeychain.writeData(Data("credential".utf8), account: "tandem-source-credentials")
-    try appKeychain.writeData(Data("session".utf8), account: "backend.session.v1")
+    try appKeychain.writeData(Data("session".utf8), account: currentBackendSessionAccount)
     try unrelatedKeychain.writeData(Data("keep".utf8), account: "unrelated")
     defer {
       try? appKeychain.deleteAll()
@@ -19,7 +21,7 @@ final class InstallStateReconcilerTests: XCTestCase {
     }
 
     XCTAssertNil(try appKeychain.readData(account: "tandem-source-credentials"))
-    XCTAssertNil(try appKeychain.readData(account: "backend.session.v1"))
+    XCTAssertNil(try appKeychain.readData(account: currentBackendSessionAccount))
     XCTAssertEqual(try unrelatedKeychain.readData(account: "unrelated"), Data("keep".utf8))
   }
 

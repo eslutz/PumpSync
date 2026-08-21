@@ -499,6 +499,8 @@ final class AuthServiceTests: XCTestCase {
     )
 
     await service.connectUsingCurrentSubscription()
+    XCTAssertEqual(requests.count, 1, "A rejected initial attestation must not retry automatically")
+    XCTAssertEqual(appAttest.generatedKeyCount, 1)
     await service.connectUsingCurrentSubscription()
 
     XCTAssertEqual(requests.count, 2)
@@ -509,66 +511,424 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
   }
 
-  func testAmbiguousEnrollmentTransportFailureKeepsPendingAppAttestState() async {
+  func testAmbiguousEnrollmentTransportFailureReconcilesOnNextExplicitConnect() async {
     let appAttest = SequencedAppAttestClient()
     appAttest.attestationResults = [.success(Data("attestation".utf8))]
+    appAttest.assertionResults = [.success(Data("assertion".utf8))]
     let proofProvider = DeviceSessionProofProvider(
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.ambiguous-enrollment.\(UUID().uuidString)"),
       now: { Date(timeIntervalSince1970: 1_000) },
       appAttest: appAttest
     )
-    var backendCalls = 0
+    var backendRegistered = false
+    var challengeCount = 0
+    var requests: [SubscriptionSessionRequest] = []
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
       sessionStore: makeSessionStore(),
       currentEntitlementJWS: { "signed-transaction" },
-      createSubscriptionSession: { _ in
-        backendCalls += 1
-        throw URLError(.networkConnectionLost)
+      createSubscriptionSession: { request in
+        requests.append(request)
+        if requests.count == 1 {
+          backendRegistered = true
+          throw URLError(.networkConnectionLost)
+        }
+        guard backendRegistered, request.deviceEnrollment.proofKind == "assertion" else {
+          throw APIClientError.httpStatus(
+            401,
+            code: "device_proof_rejected",
+            message: "The device proof was rejected."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
       },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
-      proofProvider: proofProvider
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
     )
 
     await service.connectUsingCurrentSubscription()
     await service.connectUsingCurrentSubscription()
 
-    XCTAssertEqual(backendCalls, 1, "an ambiguous enrollment must not be submitted again")
-    XCTAssertEqual(appAttest.generatedKeyCount, 1, "an ambiguous enrollment must retain its original App Attest key")
-    XCTAssertFalse(service.isSignedIn)
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["attestation", "assertion"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2"])
+    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 2)
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-1"])
+    XCTAssertEqual(requests[1].deviceEnrollment.preparation, .reconciliation)
+    XCTAssertEqual(challengeCount, 2)
+    XCTAssertEqual(appAttest.generatedKeyCount, 1)
+    XCTAssertTrue(service.isSignedIn)
   }
 
-  func testServerFailureAfterEnrollmentSubmissionKeepsPendingAppAttestState() async {
+  func testServerFailureBeforeRegistrationRejectsReconciliationAndRetriesFreshAttestation() async {
     let appAttest = SequencedAppAttestClient()
     appAttest.attestationResults = [
       .success(Data("attestation-1".utf8)),
       .success(Data("attestation-2".utf8))
     ]
+    appAttest.assertionResults = [.success(Data("assertion".utf8))]
     let proofProvider = DeviceSessionProofProvider(
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.ambiguous-server-enrollment.\(UUID().uuidString)"),
       now: { Date(timeIntervalSince1970: 1_000) },
       appAttest: appAttest
     )
-    var backendCalls = 0
+    var challengeCount = 0
+    var requests: [SubscriptionSessionRequest] = []
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: makeConfigurationStore(),
       sessionStore: makeSessionStore(),
       currentEntitlementJWS: { "signed-transaction" },
-      createSubscriptionSession: { _ in
-        backendCalls += 1
-        throw APIClientError.httpStatus(500, code: "server_error", message: "request failed")
+      createSubscriptionSession: { request in
+        requests.append(request)
+        if requests.count == 1 {
+          throw APIClientError.httpStatus(500, code: "server_error", message: "request failed")
+        }
+        if request.deviceEnrollment.proofKind == "assertion" {
+          throw APIClientError.httpStatus(
+            401,
+            code: "device_enrollment_required",
+            message: "Device enrollment is required."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
       },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
-      proofProvider: proofProvider
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
     )
 
     await service.connectUsingCurrentSubscription()
     await service.connectUsingCurrentSubscription()
 
-    XCTAssertEqual(backendCalls, 1, "a server failure after submission may follow backend registration")
-    XCTAssertEqual(appAttest.generatedKeyCount, 1, "an ambiguous server response must retain the submitted App Attest key")
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["attestation", "assertion", "attestation"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2", "challenge-3"])
+    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 3)
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-1", "key-2"])
+    XCTAssertEqual(requests[1].deviceEnrollment.preparation, .reconciliation)
+    XCTAssertEqual(challengeCount, 3)
+    XCTAssertEqual(appAttest.generatedKeyCount, 2)
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testEnrollmentRequiredForReconciliationRetriesOnceWithFreshAttestation() async throws {
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [
+      .success(Data("initial-attestation".utf8)),
+      .success(Data("replacement-attestation".utf8))
+    ]
+    appAttest.assertionResults = [.success(Data("reconciliation-assertion".utf8))]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.rejected-reconciliation.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    let configuration = makeConfigurationStore()
+    let submitted = try await proofProvider.hostedEnrollment(
+      challenge: SessionChallengeResponse(
+        protocolVersion: 3,
+        proofKind: "appAttest",
+        challengeToken: "initial-challenge",
+        expiresAt: .distantFuture
+      ),
+      installationId: configuration.installationId,
+      signedTransactionInfo: "signed-transaction"
+    )
+    XCTAssertTrue(try proofProvider.markHostedEnrollmentSubmissionStarted(
+      keyId: submitted.keyId,
+      requestId: submitted.requestId
+    ))
+    XCTAssertTrue(proofProvider.releaseHostedProofOperation(requestId: submitted.requestId))
+
+    var challengeCount = 0
+    var requests: [SubscriptionSessionRequest] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { request in
+        requests.append(request)
+        if requests.count == 1 {
+          throw APIClientError.httpStatus(
+            401,
+            code: "device_enrollment_required",
+            message: "Device enrollment is required."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.connectUsingCurrentSubscription()
+
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion", "attestation"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-2"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2"])
+    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 2)
+    XCTAssertEqual(challengeCount, 2)
+    XCTAssertEqual(appAttest.generatedKeyCount, 2)
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testRejectedRegisteredAssertionRetriesOnceWithFreshAssertion() async throws {
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [.success(Data("initial-attestation".utf8))]
+    appAttest.assertionResults = [
+      .success(Data("rejected-registered-assertion".utf8)),
+      .success(Data("replacement-registered-assertion".utf8))
+    ]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.rejected-registered-assertion.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    let configuration = makeConfigurationStore()
+    let initial = try await proofProvider.hostedEnrollment(
+      challenge: SessionChallengeResponse(
+        protocolVersion: 3,
+        proofKind: "appAttest",
+        challengeToken: "initial-challenge",
+        expiresAt: .distantFuture
+      ),
+      installationId: configuration.installationId,
+      signedTransactionInfo: "signed-transaction"
+    )
+    XCTAssertTrue(try proofProvider.markHostedEnrollmentSubmissionStarted(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+    XCTAssertTrue(try proofProvider.markHostedEnrollmentRegistered(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+
+    var challengeCount = 0
+    var requests: [SubscriptionSessionRequest] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { request in
+        requests.append(request)
+        if requests.count == 1 {
+          throw APIClientError.httpStatus(
+            401,
+            code: "device_proof_rejected",
+            message: "The device proof was rejected."
+          )
+        }
+        return BackendSessionResponse(
+          accessToken: "token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.connectUsingCurrentSubscription()
+
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion", "assertion"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-1"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2"])
+    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 2)
+    XCTAssertEqual(challengeCount, 2)
+    XCTAssertEqual(appAttest.generatedKeyCount, 1)
+    XCTAssertTrue(service.isSignedIn)
+  }
+
+  func testRejectedRegisteredAssertionRetriesOnlyOnceWhenFreshAssertionIsRejected() async throws {
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [.success(Data("initial-attestation".utf8))]
+    appAttest.assertionResults = [
+      .success(Data("rejected-registered-assertion".utf8)),
+      .success(Data("second-rejected-registered-assertion".utf8))
+    ]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.rejected-registered-assertion-bound.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    let configuration = makeConfigurationStore()
+    let initial = try await proofProvider.hostedEnrollment(
+      challenge: SessionChallengeResponse(
+        protocolVersion: 3,
+        proofKind: "appAttest",
+        challengeToken: "initial-challenge",
+        expiresAt: .distantFuture
+      ),
+      installationId: configuration.installationId,
+      signedTransactionInfo: "signed-transaction"
+    )
+    XCTAssertTrue(try proofProvider.markHostedEnrollmentSubmissionStarted(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+    XCTAssertTrue(try proofProvider.markHostedEnrollmentRegistered(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+
+    var challengeCount = 0
+    var requests: [SubscriptionSessionRequest] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { request in
+        requests.append(request)
+        throw APIClientError.httpStatus(
+          401,
+          code: "device_proof_rejected",
+          message: "The device proof was rejected."
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.connectUsingCurrentSubscription()
+
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion", "assertion"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-1"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2"])
+    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 2)
+    XCTAssertEqual(challengeCount, 2)
+    XCTAssertEqual(appAttest.generatedKeyCount, 1)
+    XCTAssertFalse(service.isSignedIn)
+  }
+
+  func testEnrollmentRequiredRetriesOnlyOnceWhenFreshAttestationIsRejected() async throws {
+    let appAttest = SequencedAppAttestClient()
+    appAttest.attestationResults = [
+      .success(Data("initial-attestation".utf8)),
+      .success(Data("replacement-attestation".utf8))
+    ]
+    appAttest.assertionResults = [.success(Data("registered-assertion".utf8))]
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.enrollment-required-bound.\(UUID().uuidString)"),
+      now: { Date(timeIntervalSince1970: 1_000) },
+      appAttest: appAttest
+    )
+    let configuration = makeConfigurationStore()
+    let initial = try await proofProvider.hostedEnrollment(
+      challenge: SessionChallengeResponse(
+        protocolVersion: 3,
+        proofKind: "appAttest",
+        challengeToken: "initial-challenge",
+        expiresAt: .distantFuture
+      ),
+      installationId: configuration.installationId,
+      signedTransactionInfo: "signed-transaction"
+    )
+    XCTAssertTrue(try proofProvider.markHostedEnrollmentSubmissionStarted(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+    XCTAssertTrue(try proofProvider.markHostedEnrollmentRegistered(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+
+    var challengeCount = 0
+    var requests: [SubscriptionSessionRequest] = []
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { request in
+        requests.append(request)
+        let code = requests.count == 1 ? "device_enrollment_required" : "device_proof_rejected"
+        throw APIClientError.httpStatus(401, code: code, message: "The device proof was rejected.")
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        challengeCount += 1
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge-\(challengeCount)",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    await service.connectUsingCurrentSubscription()
+
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion", "attestation"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-2"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2"])
+    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 2)
+    XCTAssertEqual(challengeCount, 2)
+    XCTAssertEqual(appAttest.generatedKeyCount, 2)
     XCTAssertFalse(service.isSignedIn)
   }
 
@@ -941,7 +1301,7 @@ final class AuthServiceTests: XCTestCase {
         && $0.message == "reason=connectionModeChanged backendSubmitted=false"
     })
     XCTAssertFalse(diagnostics.entries.contains {
-      $0.title == "App Attest enrollment outcome is pending"
+      $0.title == "App Attest enrollment requires reconciliation"
     })
   }
 
@@ -2123,6 +2483,7 @@ final class AuthServiceTests: XCTestCase {
       urlSession: URLProtocolStub.makeSession(),
       maxRetryCount: 0
     )
+    let proofProvider = AcceptingProofProvider()
     let service = AuthService(
       apiClient: apiClient,
       configurationStore: makeConfigurationStore(),
@@ -2136,13 +2497,126 @@ final class AuthServiceTests: XCTestCase {
         throw APIClientError.invalidResponse
       },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
-      proofProvider: AcceptingProofProvider()
+      proofProvider: proofProvider
     )
 
     let token = await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false)
 
     XCTAssertEqual(token, "refreshed-access-token")
     XCTAssertEqual(sessionStore.loadValidSession(), refreshed)
+    XCTAssertEqual(proofProvider.releasedHostedProofRequestIds, ["request-1"])
+  }
+
+  func testHostedRenewableRefreshBackendFailureReleasesExactProofRequest() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    URLProtocolStub.requestHandler = { request in
+      XCTAssertEqual(request.url?.path, "/api/v1/session/refresh")
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 400,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, Data(#"{"code":"refresh_failed","message":"Refresh failed"}"#.utf8))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let proofProvider = AcceptingProofProvider()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        XCTFail("A renewable-session refresh failure must not fall back to StoreKit")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in
+        XCTFail("A renewable-session refresh failure must not fall back to enrollment")
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider
+    )
+
+    let token = await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false)
+
+    XCTAssertNil(token)
+    XCTAssertEqual(sessionStore.loadRecoverableSession(), Self.expiredRenewableSession())
+    XCTAssertEqual(proofProvider.releasedHostedProofRequestIds, ["request-1"])
+  }
+
+  func testSelfHostedProtocol3RenewableRefreshDoesNotUseHostedProofLease() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    let expired = BackendSessionResponse(
+      accessToken: "expired-self-hosted-token",
+      expiresAt: Date(timeIntervalSince1970: 1_999),
+      serviceMode: "selfHosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "self-hosted-family-1",
+      refreshToken: "self-hosted-refresh-token-1",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_000),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    try sessionStore.save(expired)
+    let refreshed = BackendSessionResponse(
+      accessToken: "refreshed-self-hosted-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "selfHosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "self-hosted-family-2",
+      refreshToken: "self-hosted-refresh-token-2",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    let responseData = try JSONCodec.encoder.encode(refreshed)
+    URLProtocolStub.requestHandler = { request in
+      XCTAssertEqual(request.url?.host, "self-host.example")
+      XCTAssertEqual(request.url?.path, "/api/v1/session/refresh")
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, responseData)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let configuration = makeConfigurationStore()
+    configuration.selfHostedBaseURLString = "https://self-host.example/api"
+    configuration.mode = .selfHosted
+    let proofProvider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, mode in
+      XCTAssertEqual(mode, .selfHosted)
+      return SessionRefreshRequest(
+        installationId: installationId,
+        refreshToken: session.refreshToken,
+        requestId: "self-hosted-request-1",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        proof: "self-hosted-proof"
+      )
+    })
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        XCTFail("Self-hosted renewable refresh must not call StoreKit")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in
+        XCTFail("A renewable self-hosted session must refresh instead of reenrolling")
+        throw APIClientError.invalidResponse
+      },
+      proofProvider: proofProvider
+    )
+
+    let token = await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false)
+
+    XCTAssertEqual(token, "refreshed-self-hosted-token")
+    XCTAssertEqual(sessionStore.loadValidSession(), refreshed)
+    XCTAssertTrue(proofProvider.releasedHostedProofRequestIds.isEmpty)
   }
 
   func testRenewableRefreshStopsBeforeRequestIfConfigurationChangesDuringProof() async throws {
@@ -2171,6 +2645,17 @@ final class AuthServiceTests: XCTestCase {
       return (response, staleResponseData)
     }
     defer { URLProtocolStub.requestHandler = nil }
+    let proofProvider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+      proofStarted = true
+      await proofGate.wait()
+      return SessionRefreshRequest(
+        installationId: installationId,
+        refreshToken: session.refreshToken,
+        requestId: "request-1",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        proof: "proof"
+      )
+    })
     let service = AuthService(
       apiClient: makeAPIClient(),
       configurationStore: configuration,
@@ -2186,17 +2671,7 @@ final class AuthServiceTests: XCTestCase {
         )
       },
       diagnostics: diagnostics,
-      proofProvider: AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
-        proofStarted = true
-        await proofGate.wait()
-        return SessionRefreshRequest(
-          installationId: installationId,
-          refreshToken: session.refreshToken,
-          requestId: "request-1",
-          issuedAt: Date(timeIntervalSince1970: 2_000),
-          proof: "proof"
-        )
-      }),
+      proofProvider: proofProvider,
       createSessionChallenge: { _ in Self.selfHostedChallenge(token: "new-challenge") }
     )
 
@@ -2215,6 +2690,7 @@ final class AuthServiceTests: XCTestCase {
     await fulfillment(of: [unexpectedRefreshRequest], timeout: 0.1)
     XCTAssertEqual(service.accessToken, "new-self-hosted-token")
     XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "new-self-hosted-token")
+    XCTAssertEqual(proofProvider.releasedHostedProofRequestIds, ["request-1"])
     XCTAssertNotNil(diagnostics.entries.first {
       $0.title == "Renewable session refresh stopped" && $0.message == "reason=connectionModeChanged"
     })
@@ -2392,6 +2868,7 @@ final class AuthServiceTests: XCTestCase {
   }
 
   private final class AcceptingProofProvider: DeviceSessionProofProviding {
+    private(set) var releasedHostedProofRequestIds: [String] = []
     private let refreshRequestHandler: (@MainActor (
       BackendSessionResponse,
       String,
@@ -2409,8 +2886,7 @@ final class AuthServiceTests: XCTestCase {
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
-      signedTransactionInfo: String,
-      existingSession: BackendSessionResponse?
+      signedTransactionInfo: String
     ) async throws -> HostedDeviceEnrollment {
       HostedDeviceEnrollment(
         requestId: "request-1",
@@ -2420,6 +2896,16 @@ final class AuthServiceTests: XCTestCase {
         proofKind: "attestation",
         proof: "raw-proof-secret"
       )
+    }
+
+    func markHostedEnrollmentSubmissionStarted(keyId: String, requestId: String) throws -> Bool { true }
+    func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool { true }
+    func resolveRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func releaseHostedProofOperation(requestId: String) -> Bool {
+      releasedHostedProofRequestIds.append(requestId)
+      return true
     }
 
     func selfHostedEnrollment(
@@ -2458,6 +2944,7 @@ final class AuthServiceTests: XCTestCase {
     var isSupported = true
     var generatedKeyCount = 0
     var attestationResults: [Result<Data, Error>] = []
+    var assertionResults: [Result<Data, Error>] = []
     var attestationStarted: (() -> Void)?
     var attestationGate: AsyncGate?
 
@@ -2475,7 +2962,7 @@ final class AuthServiceTests: XCTestCase {
     }
 
     func generateAssertion(_ keyId: String, clientDataHash: Data) async throws -> Data {
-      throw AppAttestClientError.nonRetryable
+      try assertionResults.removeFirst().get()
     }
   }
 }
