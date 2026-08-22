@@ -714,13 +714,13 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
   }
 
-  func testRejectedRegisteredAssertionRetriesOnceWithFreshAssertion() async throws {
+  func testAssertionSignatureMismatchReattestsWithFreshKey() async throws {
     let appAttest = SequencedAppAttestClient()
-    appAttest.attestationResults = [.success(Data("initial-attestation".utf8))]
-    appAttest.assertionResults = [
-      .success(Data("rejected-registered-assertion".utf8)),
-      .success(Data("replacement-registered-assertion".utf8))
+    appAttest.attestationResults = [
+      .success(Data("initial-attestation".utf8)),
+      .success(Data("replacement-attestation".utf8))
     ]
+    appAttest.assertionResults = [.success(Data("rejected-registered-assertion".utf8))]
     let proofProvider = DeviceSessionProofProvider(
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.rejected-registered-assertion.\(UUID().uuidString)"),
       now: { Date(timeIntervalSince1970: 1_000) },
@@ -758,8 +758,8 @@ final class AuthServiceTests: XCTestCase {
         if requests.count == 1 {
           throw APIClientError.httpStatus(
             401,
-            code: "device_proof_rejected",
-            message: "The device proof was rejected."
+            code: "device_key_reenrollment_required",
+            message: "The device security key needs to be re-enrolled."
           )
         }
         return BackendSessionResponse(
@@ -784,12 +784,12 @@ final class AuthServiceTests: XCTestCase {
 
     await service.connectUsingCurrentSubscription()
 
-    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion", "assertion"])
-    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-1"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion", "attestation"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-2"])
     XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2"])
     XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 2)
     XCTAssertEqual(challengeCount, 2)
-    XCTAssertEqual(appAttest.generatedKeyCount, 1)
+    XCTAssertEqual(appAttest.generatedKeyCount, 2)
     XCTAssertTrue(service.isSignedIn)
   }
 

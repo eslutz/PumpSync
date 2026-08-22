@@ -770,6 +770,22 @@ final class AuthService {
         )
       } else if let enrollmentKeyId,
          let enrollmentRequestId,
+         apiError?.isDeviceKeyReenrollmentRequired == true,
+         (try? proofProvider.discardDefinitivelyFailedHostedEnrollment(
+           keyId: enrollmentKeyId,
+           requestId: enrollmentRequestId
+         )) == true {
+        if allowsRejectedAssertionRetry, enrollmentProofKind == "assertion" {
+          rejectedAssertionRetry = .freshAttestation
+        }
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "App Attest key re-enrollment required",
+          message: "protocolVersion=3 proofKind=\(enrollmentProofKind ?? "unknown") preparation=\(enrollmentPreparation?.rawValue ?? "unknown") backendCode=device_key_reenrollment_required localAction=discardKey"
+        )
+      } else if let enrollmentKeyId,
+         let enrollmentRequestId,
          apiError?.isDeviceEnrollmentRequired == true,
          (try? proofProvider.discardDefinitivelyFailedHostedEnrollment(
            keyId: enrollmentKeyId,
@@ -1025,7 +1041,7 @@ final class AuthService {
     diagnostics?.record(
       source: .auth,
       title: "Hosted device proof prepared",
-      message: "elapsedMs=\(elapsedMilliseconds(since: proofStartedAt)) proofKind=\(enrollment.proofKind) preparation=\(enrollment.preparation.rawValue)"
+      message: "elapsedMs=\(elapsedMilliseconds(since: proofStartedAt)) proofKind=\(enrollment.proofKind) preparation=\(enrollment.preparation.rawValue) clientDataFingerprint=\(enrollment.clientDataFingerprint)"
     )
     return SubscriptionSessionRequest(
       signedTransactionInfo: signedTransactionInfo,

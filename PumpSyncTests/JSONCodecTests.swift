@@ -93,18 +93,23 @@ final class JSONCodecTests: XCTestCase {
     XCTAssertFalse(APIClientError.httpStatus(429, code: nil, message: nil).hasAmbiguousOutcome)
   }
 
-  func testAPIClientErrorDistinguishesEnrollmentRequiredFromRejectedProof() {
+  func testAPIClientErrorDistinguishesEnrollmentRequiredFromRejectedProofAndKeyReenrollment() {
     let enrollmentRequired = APIClientError.httpStatus(
       401, code: "device_enrollment_required", message: nil
     )
     let rejectedProof = APIClientError.httpStatus(
       401, code: "device_proof_rejected", message: nil
     )
+    let keyReenrollmentRequired = APIClientError.httpStatus(
+      401, code: "device_key_reenrollment_required", message: nil
+    )
 
     XCTAssertTrue(enrollmentRequired.isDeviceEnrollmentRequired)
     XCTAssertFalse(enrollmentRequired.isDeviceProofRejected)
     XCTAssertFalse(rejectedProof.isDeviceEnrollmentRequired)
     XCTAssertTrue(rejectedProof.isDeviceProofRejected)
+    XCTAssertTrue(keyReenrollmentRequired.isDeviceKeyReenrollmentRequired)
+    XCTAssertFalse(keyReenrollmentRequired.isDeviceProofRejected)
   }
 
   func testHostedProofPreparationDiagnosticIsNotEncodedIntoAPIRequest() throws {
@@ -115,7 +120,8 @@ final class JSONCodecTests: XCTestCase {
       keyId: "key-1",
       proofKind: "attestation",
       proof: "proof",
-      preparation: .reused
+      preparation: .reused,
+      clientDataFingerprint: "safe-fingerprint"
     )
 
     let object = try XCTUnwrap(
@@ -123,6 +129,7 @@ final class JSONCodecTests: XCTestCase {
     )
 
     XCTAssertNil(object["preparation"])
+    XCTAssertNil(object["clientDataFingerprint"])
     XCTAssertEqual(object["proofKind"] as? String, "attestation")
   }
 }

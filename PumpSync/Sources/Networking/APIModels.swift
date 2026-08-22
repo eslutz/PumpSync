@@ -38,6 +38,7 @@ struct HostedDeviceEnrollment: Codable, Equatable {
   let proofKind: String
   let proof: String
   var preparation: HostedDeviceProofPreparation = .generated
+  var clientDataFingerprint: String = ""
 
   private enum CodingKeys: String, CodingKey {
     case requestId

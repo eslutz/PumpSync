@@ -267,7 +267,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
       challengeToken: challenge.challengeToken,
       keyId: keyId,
       proofKind: "attestation",
-      proof: attestation.base64EncodedString()
+      proof: attestation.base64EncodedString(),
+      clientDataFingerprint: Self.clientDataFingerprint(payload.encoded)
     )
     try saveState(PersistedAppAttestKeyState(
       keyId: keyId,
@@ -403,7 +404,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
       keyId: keyId,
       proofKind: "assertion",
       proof: assertion.base64EncodedString(),
-      preparation: preparation
+      preparation: preparation,
+      clientDataFingerprint: Self.clientDataFingerprint(payload.encoded)
     )
   }
 
@@ -593,6 +595,10 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
   static func base64URL(_ data: Data) -> String {
     data.base64EncodedString().replacingOccurrences(of: "+", with: "-")
       .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+  }
+
+  private static func clientDataFingerprint(_ clientData: Data) -> String {
+    String(base64URL(Data(SHA256.hash(data: clientData))).prefix(16))
   }
 }
 
