@@ -54,6 +54,12 @@ enum SyncOperationState: Equatable {
   case failed(SyncFailure)
 }
 
+enum SyncRunOutcome: Equatable {
+  case completed
+  case skippedFresh
+  case failed
+}
+
 /// The slice of HealthKitService's surface SyncCoordinator depends on,
 /// extracted as a seam so tests can substitute a fake — real HealthKit
 /// authorization/writes require device interaction and aren't something a
@@ -90,6 +96,8 @@ final class SyncCoordinator {
   private let importedSampleLedger: ImportedSampleLedger
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
+  private var syncTask: Task<Bool, Never>?
+  private var syncOperationID: UUID?
 
   private(set) var operationState: SyncOperationState = .idle
 
@@ -150,7 +158,8 @@ final class SyncCoordinator {
     self.diagnostics = diagnostics
   }
 
-  func refreshIfStale(reason: SyncTriggerReason) async {
+  @discardableResult
+  func refreshIfStale(reason: SyncTriggerReason) async -> SyncRunOutcome {
     let lastSuccessfulSyncAt = syncMetadataStore.metadata.lastSuccessfulSyncAt
     let ageSeconds = lastSuccessfulSyncAt.map { max(0, Date().timeIntervalSince($0)) }
     let shouldRefresh = ageSeconds.map { $0 >= AppConstants.staleSyncInterval } ?? true
@@ -163,19 +172,19 @@ final class SyncCoordinator {
 
     guard shouldRefresh else {
       diagnostics?.record(source: .sync, title: "Sync skipped", message: "Last successful sync is within the four-hour freshness target.")
-      return
+      return .skippedFresh
     }
 
-    await sync(reason: reason)
+    return await sync(reason: reason) ? .completed : .failed
   }
 
   func startManualSync() {
-    guard beginSync(reason: .manual) else {
+    guard syncTask == nil,
+          let task = makeSyncTask(reason: .manual) else {
       return
     }
-
-    Task { [weak self] in
-      await self?.performSync(reason: .manual)
+    Task {
+      _ = await task.value
     }
   }
 
@@ -195,12 +204,38 @@ final class SyncCoordinator {
     }
   }
 
-  func sync(reason: SyncTriggerReason) async {
-    guard beginSync(reason: reason) else {
-      return
+  @discardableResult
+  func sync(reason: SyncTriggerReason) async -> Bool {
+    if let syncTask {
+      return await syncTask.value
     }
 
-    await performSync(reason: reason)
+    guard let task = makeSyncTask(reason: reason) else {
+      return false
+    }
+    return await task.value
+  }
+
+  private func makeSyncTask(reason: SyncTriggerReason) -> Task<Bool, Never>? {
+    guard beginSync(reason: reason) else {
+      return nil
+    }
+
+    let operationID = UUID()
+    let task = Task { @MainActor [weak self] in
+      guard let self else {
+        return false
+      }
+      let result = await self.performSync(reason: reason)
+      if self.syncOperationID == operationID {
+        self.syncTask = nil
+        self.syncOperationID = nil
+      }
+      return result
+    }
+    syncOperationID = operationID
+    syncTask = task
+    return task
   }
 
   private func beginSync(reason: SyncTriggerReason) -> Bool {
@@ -211,12 +246,12 @@ final class SyncCoordinator {
     return true
   }
 
-  private func performSync(reason: SyncTriggerReason) async {
+  private func performSync(reason: SyncTriggerReason) async -> Bool {
     let startedAt: Date
     if case .running(let progress) = operationState {
       startedAt = progress.startedAt
     } else {
-      return
+      return false
     }
 
     // A background launch has no view lifecycle to refresh permission state,
@@ -228,25 +263,25 @@ final class SyncCoordinator {
     ) else {
       fail("Connect PumpSync before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")
-      return
+      return false
     }
 
     guard credentialStore.hasValidatedCredentials else {
       fail("Save your pump account credentials before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Pump account credentials are not validated.")
-      return
+      return false
     }
 
     guard let credentials = try? credentialStore.load() else {
       fail("Add your pump account before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing pump account credentials.")
-      return
+      return false
     }
 
     guard healthKitService.hasAnyWritePermission else {
       fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "No Apple Health write permissions are enabled.")
-      return
+      return false
     }
 
     syncMetadataStore.recordAttempt()
@@ -308,6 +343,7 @@ final class SyncCoordinator {
       } else {
         operationState = .succeeded(SyncCompletion(message: completionMessage, completedAt: Date()))
       }
+      return true
     } catch {
       let apiError = error as? APIClientError
       if apiError?.isAuthenticationFailure == true {
@@ -338,8 +374,8 @@ final class SyncCoordinator {
         fail("Sync could not be completed. Try again.", recovery: .none)
       }
       diagnostics?.record(error: error, source: .sync, title: "Sync failed")
+      return false
     }
-
   }
 
   private func fail(_ message: String, recovery: SyncRecovery) {
@@ -388,8 +424,13 @@ final class SyncCoordinator {
     ].contains(error.code)
   }
 
-  func performBackgroundSync() async {
-    await refreshIfStale(reason: .background)
+  func performBackgroundSync() async -> Bool {
+    switch await refreshIfStale(reason: .background) {
+    case .completed, .skippedFresh:
+      return true
+    case .failed:
+      return false
+    }
   }
 
   private func message(sampleCount: Int, importedCount: Int, reason: SyncTriggerReason) -> String {

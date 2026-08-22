@@ -134,6 +134,14 @@ final class AuthService {
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
   private var subscriptionOperationID: UUID?
+  private struct RenewableRefreshOperationKey: Equatable {
+    let configurationRevision: Int
+    let mode: BackendAccessMode
+    let sessionFamilyId: String
+  }
+  private var renewableRefreshTask: Task<Bool, Never>?
+  private var renewableRefreshOperationID: UUID?
+  private var renewableRefreshOperationKey: RenewableRefreshOperationKey?
   private var selfHostedOperationID: UUID?
   // Process-local by design: explicit purchase/restore actions may retry the
   // same JWS, while StoreKit's automatic update stream must not replay it.
@@ -566,7 +574,7 @@ final class AuthService {
         return
       }
 
-      if await refreshRenewableSession(recoverableSession) {
+      if await runCoalescedRenewableRefresh(recoverableSession) {
         return
       }
 
@@ -607,6 +615,9 @@ final class AuthService {
   func clearSessionForConnectionChange() {
     subscriptionOperationID = nil
     subscriptionOperationTask = nil
+    renewableRefreshOperationID = nil
+    renewableRefreshOperationKey = nil
+    renewableRefreshTask = nil
     selfHostedOperationID = nil
     session = nil
     try? sessionStore?.delete()
@@ -1080,6 +1091,14 @@ final class AuthService {
       guard refreshed.protocolVersion == 3, refreshed.serviceMode == currentSession.serviceMode else {
         throw APIClientError.invalidResponse
       }
+      guard isCurrentRefreshSource(currentSession) else {
+        diagnostics?.record(
+          source: .auth,
+          title: "Renewable session refresh stopped",
+          message: "reason=sessionSuperseded"
+        )
+        return isSignedIn
+      }
 
       session = refreshed
       try sessionStore?.save(refreshed)
@@ -1106,6 +1125,14 @@ final class AuthService {
         recordRefreshConfigurationChange()
         return false
       }
+      guard isCurrentRefreshSource(currentSession) else {
+        diagnostics?.record(
+          source: .auth,
+          title: "Renewable session refresh stopped",
+          message: "reason=sessionSuperseded"
+        )
+        return isSignedIn
+      }
       let invalidAppAttestKey: Bool
       if case .invalidKey? = error as? AppAttestClientError {
         invalidAppAttestKey = true
@@ -1127,6 +1154,51 @@ final class AuthService {
       )
       return false
     }
+  }
+
+  private func runCoalescedRenewableRefresh(_ source: BackendSessionResponse) async -> Bool {
+    let key = RenewableRefreshOperationKey(
+      configurationRevision: configurationStore.revision,
+      mode: configurationStore.mode,
+      sessionFamilyId: source.sessionFamilyId
+    )
+    if let renewableRefreshTask,
+       renewableRefreshOperationKey == key {
+      diagnostics?.record(
+        source: .auth,
+        title: "Renewable session refresh coalesced",
+        message: "coalesced=true"
+      )
+      return await renewableRefreshTask.value
+    }
+
+    let operationID = UUID()
+    let task = Task { @MainActor [weak self] in
+      guard let self else {
+        return false
+      }
+      let result = await self.refreshRenewableSession(source)
+      if self.renewableRefreshOperationID == operationID {
+        self.renewableRefreshTask = nil
+        self.renewableRefreshOperationID = nil
+        self.renewableRefreshOperationKey = nil
+      }
+      return result
+    }
+    renewableRefreshOperationID = operationID
+    renewableRefreshOperationKey = key
+    renewableRefreshTask = task
+    return await task.value
+  }
+
+  private func isCurrentRefreshSource(_ source: BackendSessionResponse) -> Bool {
+    guard let current = session else {
+      return false
+    }
+    return current.protocolVersion == source.protocolVersion
+      && current.serviceMode == source.serviceMode
+      && current.sessionFamilyId == source.sessionFamilyId
+      && current.refreshToken == source.refreshToken
   }
 
   private func resetDisconnectedStatus() {

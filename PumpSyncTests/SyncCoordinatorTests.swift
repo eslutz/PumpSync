@@ -437,6 +437,59 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertTrue(freshnessEntry?.message?.contains("targetSeconds=14400") == true)
   }
 
+  func testBackgroundSyncReportsFailureWhenConnectionRecoveryFails() async throws {
+    let coordinator = makeCoordinator(
+      authService: makeSignedOutAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: FakeHealthKitService(hasAnyWritePermission: true)
+    )
+
+    let succeeded = await coordinator.performBackgroundSync()
+
+    XCTAssertFalse(succeeded)
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(message: "Connect PumpSync before syncing.", recovery: .openSettings))
+    )
+  }
+
+  func testBackgroundSyncWaitsForConcurrentAppOpenSync() async throws {
+    let requestStarted = expectation(description: "sync request started")
+    let allowResponse = DispatchSemaphore(value: 0)
+    let responseData = try JSONCodec.encoder.encode(StubTandemSyncResponse(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    ))
+    URLProtocolStub.requestHandler = { request in
+      requestStarted.fulfill()
+      allowResponse.wait()
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, responseData)
+    }
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: FakeHealthKitService(hasAnyWritePermission: true)
+    )
+
+    let appOpen = Task { await coordinator.refreshIfStale(reason: .appOpen) }
+    await fulfillment(of: [requestStarted], timeout: 1)
+    let background = Task { await coordinator.performBackgroundSync() }
+    await Task.yield()
+    allowResponse.signal()
+
+    let appOpenOutcome = await appOpen.value
+    let backgroundSucceeded = await background.value
+    XCTAssertEqual(appOpenOutcome, .completed)
+    XCTAssertTrue(backgroundSucceeded)
+  }
+
   func testRefreshIfStaleDoesNotImmediatelyReSyncAfterARealSyncCompletes() async throws {
     // Regression test: recording the watermark (~24h before "now") into
     // lastSuccessfulSyncAt instead of the real completion time made every

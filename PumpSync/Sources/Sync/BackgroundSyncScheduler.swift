@@ -20,7 +20,7 @@ final class BackgroundSyncScheduler {
     self.onEvent = onEvent
   }
 
-  func register(handler: @escaping @Sendable () async -> Void) {
+  func register(handler: @escaping @Sendable () async -> Bool) {
     guard !isRegistered else {
       return
     }
@@ -82,7 +82,7 @@ final class BackgroundSyncScheduler {
     }
   }
 
-  private func handle(task: BGTask, handler: @escaping @Sendable () async -> Void) {
+  private func handle(task: BGTask, handler: @escaping @Sendable () async -> Bool) {
     scheduleDailySync(trigger: "taskLaunch")
 
     let onEvent = onEvent
@@ -96,7 +96,7 @@ final class BackgroundSyncScheduler {
     // A local nested func isn't inferred @Sendable even when its captures
     // are, so this is called from both the Task body and expirationHandler
     // below as an explicitly @Sendable closure instead.
-    let complete: @Sendable (Bool) -> Void = { success in
+    let complete: @Sendable (Bool, Bool) -> Void = { success, cancelled in
       let shouldComplete = hasCompleted.withLock { completed in
         guard !completed else {
           return false
@@ -109,22 +109,23 @@ final class BackgroundSyncScheduler {
         let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
         onEvent?(
           success ? "Background sync task completed" : "Background sync task failed",
-          "build=\(BackgroundSyncDiagnostics.buildNumber) elapsedMs=\(elapsedMs) cancelled=\(!success)"
+          "build=\(BackgroundSyncDiagnostics.buildNumber) elapsedMs=\(elapsedMs) cancelled=\(cancelled)"
         )
         taskBox.value.setTaskCompleted(success: success)
       }
     }
 
     let work = Task {
-      await handler()
-      complete(!Task.isCancelled)
+      let succeeded = await handler()
+      let cancelled = Task.isCancelled
+      complete(succeeded && !cancelled, cancelled)
     }
 
     task.expirationHandler = {
       work.cancel()
       let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
       onEvent?("Background sync task expired", "build=\(BackgroundSyncDiagnostics.buildNumber) elapsedMs=\(elapsedMs)")
-      complete(false)
+      complete(false, true)
     }
   }
 

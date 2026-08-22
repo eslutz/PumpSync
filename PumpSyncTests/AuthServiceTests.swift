@@ -2507,6 +2507,209 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(proofProvider.releasedHostedProofRequestIds, ["request-1"])
   }
 
+  func testConcurrentRenewableRecoveryUsesOneRefreshAndSharesReplacementSession() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    let replacement = BackendSessionResponse(
+      accessToken: "replacement-access-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "family-2",
+      refreshToken: "refresh-token-2",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    let responseData = try JSONCodec.encoder.encode(replacement)
+    let requestCount = LockedCounter()
+    let refreshStarted = expectation(description: "refresh request started")
+    let allowResponse = DispatchSemaphore(value: 0)
+    URLProtocolStub.requestHandler = { request in
+      requestCount.increment()
+      refreshStarted.fulfill()
+      allowResponse.wait()
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, responseData)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    var proofCount = 0
+    let proofProvider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+      proofCount += 1
+      return SessionRefreshRequest(
+        installationId: installationId,
+        refreshToken: session.refreshToken,
+        requestId: "shared-request",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        proof: "proof"
+      )
+    })
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider
+    )
+
+    let first = Task { await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false) }
+    let second = Task { await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false) }
+    await fulfillment(of: [refreshStarted], timeout: 1)
+    allowResponse.signal()
+    allowResponse.signal()
+    let tokens = await (first.value, second.value)
+
+    XCTAssertEqual(proofCount, 1)
+    XCTAssertEqual(requestCount.value, 1)
+    XCTAssertEqual(tokens.0, replacement.accessToken)
+    XCTAssertEqual(tokens.1, replacement.accessToken)
+    XCTAssertEqual(sessionStore.loadValidSession(), replacement)
+  }
+
+  func testConcurrentRenewableRecoverySharesAmbiguousFailureWithoutEnrollment() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    let expired = Self.expiredRenewableSession()
+    try sessionStore.save(expired)
+    let requestCount = LockedCounter()
+    let refreshStarted = expectation(description: "refresh request started")
+    let allowFailure = DispatchSemaphore(value: 0)
+    URLProtocolStub.requestHandler = { _ in
+      requestCount.increment()
+      refreshStarted.fulfill()
+      allowFailure.wait()
+      throw URLError(.timedOut)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    var proofCount = 0
+    var enrollmentCount = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { "unused" },
+      createSubscriptionSession: { _ in
+        enrollmentCount += 1
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+        proofCount += 1
+        return SessionRefreshRequest(
+          installationId: installationId,
+          refreshToken: session.refreshToken,
+          requestId: "shared-request",
+          issuedAt: Date(timeIntervalSince1970: 2_000),
+          proof: "proof"
+        )
+      })
+    )
+
+    let first = Task { await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false) }
+    let second = Task { await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false) }
+    await fulfillment(of: [refreshStarted], timeout: 1)
+    allowFailure.signal()
+    allowFailure.signal()
+    let tokens = await (first.value, second.value)
+
+    XCTAssertNil(tokens.0)
+    XCTAssertNil(tokens.1)
+    XCTAssertEqual(proofCount, 1)
+    XCTAssertEqual(requestCount.value, 1)
+    XCTAssertEqual(enrollmentCount, 0)
+    XCTAssertEqual(sessionStore.loadRecoverableSession(), expired)
+  }
+
+  func testRejectedRefreshDoesNotDeleteNewerSameConfigurationSession() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    let replacement = BackendSessionResponse(
+      accessToken: "replacement-access-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "family-2",
+      refreshToken: "refresh-token-2",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    let refreshStarted = expectation(description: "refresh request started")
+    let allowRejection = DispatchSemaphore(value: 0)
+    URLProtocolStub.requestHandler = { request in
+      refreshStarted.fulfill()
+      allowRejection.wait()
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 401,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, Data(#"{"code":"invalid_token","message":"Expired"}"#.utf8))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let diagnostics = makeDiagnostics()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in replacement },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let staleRefresh = Task {
+      await service.recoverSessionIfNeeded(allowInteractiveRecovery: false)
+    }
+    await fulfillment(of: [refreshStarted], timeout: 1)
+    await service.connectUsingCurrentSubscription()
+    allowRejection.signal()
+    await staleRefresh.value
+
+    XCTAssertEqual(service.accessToken, replacement.accessToken)
+    XCTAssertEqual(sessionStore.loadValidSession(), replacement)
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Renewable session refresh stopped" && $0.message == "reason=sessionSuperseded"
+    })
+  }
+
+  func testPermanentRefreshRejectionClearsCurrentSourceSession() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    URLProtocolStub.requestHandler = { request in
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 401,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, Data(#"{"code":"invalid_token","message":"Expired"}"#.utf8))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let token = await service.accessTokenRecoveringIfNeeded(allowInteractiveRecovery: false)
+
+    XCTAssertNil(token)
+    XCTAssertNil(sessionStore.loadRecoverableSession())
+  }
+
   func testHostedRenewableRefreshBackendFailureReleasesExactProofRequest() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
     try sessionStore.save(Self.expiredRenewableSession())
@@ -2937,6 +3140,19 @@ final class AuthServiceTests: XCTestCase {
         issuedAt: Date(timeIntervalSince1970: 2_000),
         proof: "proof"
       )
+    }
+  }
+
+  private final class LockedCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int {
+      lock.withLock { count }
+    }
+
+    func increment() {
+      lock.withLock { count += 1 }
     }
   }
 
