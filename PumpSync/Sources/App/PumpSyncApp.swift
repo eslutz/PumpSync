@@ -22,22 +22,22 @@ struct PumpSyncApp: App {
     WindowGroup {
       AppView()
         .environment(services)
-    }
-    .onChange(of: scenePhase) { _, newPhase in
-      switch newPhase {
-      case .active:
-        // AppView's .task only runs on cold launch. Re-check on every
-        // foreground and keep a future task submitted for the next window.
-        services.backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
-        Task {
-          await services.authService.recoverSessionIfNeeded()
-          await services.syncCoordinator.refreshIfStale(reason: .appOpen)
+        .task(id: scenePhase) {
+          switch scenePhase {
+          case .active:
+            // This is the only foreground bootstrap path. AppView is also
+            // constructed for a BGTask launch, so it must not own app-open
+            // recovery or sync work.
+            services.backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
+            services.healthKitService.refreshAuthorizationStatus()
+            await services.authService.recoverSessionIfNeeded()
+            await services.syncCoordinator.refreshIfStale(reason: .appOpen)
+          case .background:
+            services.backgroundSyncScheduler.scheduleDailySync(trigger: "appBackground")
+          default:
+            break
+          }
         }
-      case .background:
-        services.backgroundSyncScheduler.scheduleDailySync(trigger: "appBackground")
-      default:
-        break
-      }
     }
   }
 }

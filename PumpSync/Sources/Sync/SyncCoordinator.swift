@@ -207,13 +207,21 @@ final class SyncCoordinator {
   @discardableResult
   func sync(reason: SyncTriggerReason) async -> Bool {
     if let syncTask {
-      return await syncTask.value
+      return await awaitSyncTask(syncTask)
     }
 
     guard let task = makeSyncTask(reason: reason) else {
       return false
     }
-    return await task.value
+    return await awaitSyncTask(task)
+  }
+
+  private func awaitSyncTask(_ task: Task<Bool, Never>) async -> Bool {
+    await withTaskCancellationHandler(operation: {
+      await task.value
+    }, onCancel: {
+      task.cancel()
+    })
   }
 
   private func makeSyncTask(reason: SyncTriggerReason) -> Task<Bool, Never>? {
@@ -345,6 +353,15 @@ final class SyncCoordinator {
       }
       return true
     } catch {
+      if Task.isCancelled || error is CancellationError {
+        operationState = .idle
+        diagnostics?.record(
+          source: .sync,
+          title: "Sync cancelled",
+          message: "Reason: \(reason.rawValue)"
+        )
+        return false
+      }
       let apiError = error as? APIClientError
       if apiError?.isAuthenticationFailure == true {
         authService.clearSessionForAuthenticationFailure()

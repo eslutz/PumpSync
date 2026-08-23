@@ -1127,6 +1127,15 @@ final class AuthService {
       )
       return true
     } catch {
+      if Task.isCancelled || error is CancellationError {
+        session = currentSession
+        diagnostics?.record(
+          source: .auth,
+          title: "Renewable session refresh stopped",
+          message: "reason=cancelled"
+        )
+        return false
+      }
       if let proofError = error as? DeviceSessionProofError,
          case .hostedProofOperationInProgress = proofError {
         diagnostics?.record(
@@ -1185,7 +1194,7 @@ final class AuthService {
         title: "Renewable session refresh coalesced",
         message: "coalesced=true"
       )
-      return await renewableRefreshTask.value
+      return await awaitRenewableRefresh(renewableRefreshTask)
     }
 
     let operationID = UUID()
@@ -1204,7 +1213,15 @@ final class AuthService {
     renewableRefreshOperationID = operationID
     renewableRefreshOperationKey = key
     renewableRefreshTask = task
-    return await task.value
+    return await awaitRenewableRefresh(task)
+  }
+
+  private func awaitRenewableRefresh(_ task: Task<Bool, Never>) async -> Bool {
+    await withTaskCancellationHandler(operation: {
+      await task.value
+    }, onCancel: {
+      task.cancel()
+    })
   }
 
   private func isCurrentRefreshSource(_ source: BackendSessionResponse) -> Bool {

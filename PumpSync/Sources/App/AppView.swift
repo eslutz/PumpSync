@@ -38,11 +38,6 @@ struct AppView: View {
         .padding(.vertical, 8)
       }
     }
-    .task {
-      services.healthKitService.refreshAuthorizationStatus()
-      await services.authService.recoverSessionIfNeeded()
-      await services.syncCoordinator.refreshIfStale(reason: .appOpen)
-    }
   }
 }
 
