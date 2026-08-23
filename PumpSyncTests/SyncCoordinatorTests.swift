@@ -842,6 +842,7 @@ final class SyncCoordinatorTests: XCTestCase {
     func resolveRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
     func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
     func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardRegisteredHostedKey() throws -> Bool { false }
     func releaseHostedProofOperation(requestId: String) -> Bool { false }
 
     func selfHostedEnrollment(
@@ -881,6 +882,7 @@ final class SyncCoordinatorTests: XCTestCase {
     func resolveRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
     func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
     func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }
+    func discardRegisteredHostedKey() throws -> Bool { false }
     func releaseHostedProofOperation(requestId: String) -> Bool { false }
 
     func selfHostedEnrollment(

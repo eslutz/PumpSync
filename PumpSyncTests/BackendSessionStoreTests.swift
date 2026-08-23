@@ -162,6 +162,17 @@ final class BackendSessionStoreTests: XCTestCase {
     XCTAssertNil(store.loadValidSession())
   }
 
+  func testPersistsAndClearsHostedReenrollmentMarker() throws {
+    let store = makeStore(now: { Date(timeIntervalSince1970: 1_000) })
+
+    XCTAssertFalse(store.isHostedReenrollmentPending())
+    try store.markHostedReenrollmentPending()
+    XCTAssertTrue(store.isHostedReenrollmentPending())
+
+    try store.clearHostedReenrollmentPending()
+    XCTAssertFalse(store.isHostedReenrollmentPending())
+  }
+
   private func makeStore(now: @escaping () -> Date) -> BackendSessionStore {
     BackendSessionStore(
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)"),

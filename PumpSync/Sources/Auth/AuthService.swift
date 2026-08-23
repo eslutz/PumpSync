@@ -111,6 +111,16 @@ final class BackendConfigurationStore {
   }
 }
 
+enum SessionRecoveryPolicy: Equatable {
+  case foreground
+  case background
+  case backgroundWithReenrollment
+
+  var allowsInteractiveRecovery: Bool {
+    self == .foreground
+  }
+}
+
 @MainActor
 @Observable
 final class AuthService {
@@ -245,8 +255,8 @@ final class AuthService {
     return session?.accessToken
   }
 
-  func accessTokenRecoveringIfNeeded(allowInteractiveRecovery: Bool = true) async -> String? {
-    await recoverSessionIfNeeded(allowInteractiveRecovery: allowInteractiveRecovery)
+  func accessTokenRecoveringIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> String? {
+    await recoverSessionIfNeeded(policy: policy)
     return accessToken
   }
 
@@ -553,7 +563,7 @@ final class AuthService {
     finishSelfHostedOperation(operationID)
   }
 
-  func recoverSessionIfNeeded(allowInteractiveRecovery: Bool = true) async {
+  func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground) async {
     if let session, sessionStore?.isValid(session) ?? !session.accessToken.isEmpty {
       diagnostics?.record(source: .auth, title: "Connection session cache hit", message: "cacheHit=true totalMs=0")
       return
@@ -585,12 +595,26 @@ final class AuthService {
         return
       }
 
-      if !allowInteractiveRecovery {
+      if policy == .backgroundWithReenrollment,
+         configurationStore.mode == .hosted,
+         sessionStore?.isHostedReenrollmentPending() == true {
+        await recoverSubscriptionSession(policy: policy)
+        return
+      }
+
+      if !policy.allowsInteractiveRecovery {
         return
       }
     }
 
-    if !allowInteractiveRecovery {
+    if policy == .backgroundWithReenrollment,
+       configurationStore.mode == .hosted,
+       sessionStore?.isHostedReenrollmentPending() == true {
+      await recoverSubscriptionSession(policy: policy)
+      return
+    }
+
+    if !policy.allowsInteractiveRecovery {
       diagnostics?.record(
         source: .auth,
         severity: .warning,
@@ -605,7 +629,7 @@ final class AuthService {
     switch configurationStore.mode {
     case .hosted:
       await runCoalescedSubscriptionOperation {
-        await self.recoverSubscriptionSession()
+        await self.recoverSubscriptionSession(policy: policy)
       }
     case .selfHosted:
       await recoverSelfHostedSession()
@@ -903,7 +927,7 @@ final class AuthService {
     return false
   }
 
-  private func recoverSubscriptionSession() async {
+  private func recoverSubscriptionSession(policy: SessionRecoveryPolicy = .foreground) async {
     let configurationRevision = configurationStore.revision
     do {
       try prepareHostedRequest(configurationRevision: configurationRevision)
@@ -913,6 +937,13 @@ final class AuthService {
     }
     let startedAt = Date()
     diagnostics?.record(source: .auth, title: "Subscription recovery started")
+    if policy == .backgroundWithReenrollment {
+      diagnostics?.record(
+        source: .auth,
+        title: "Background App Attest re-enrollment started",
+        message: "entitlementSource=cachedStoreKit"
+      )
+    }
 
     do {
       let entitlementStartedAt = Date()
@@ -929,6 +960,15 @@ final class AuthService {
       if configurationChanged {
         return
       }
+      if session != nil, sessionStore?.isHostedReenrollmentPending() == true {
+        try? sessionStore?.clearHostedReenrollmentPending()
+        diagnostics?.record(
+          source: .auth,
+          title: policy == .backgroundWithReenrollment
+            ? "Background App Attest re-enrollment completed"
+            : "App Attest re-enrollment completed"
+        )
+      }
       diagnostics?.record(source: .auth, title: "Subscription recovery timing", message: "entitlementMs=\(entitlementMs) totalMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000)) cacheHit=false")
     } catch StoreKitSubscriptionError.noActiveSubscription {
       guard isCurrentHostedConfiguration(configurationRevision) else {
@@ -937,6 +977,7 @@ final class AuthService {
       }
       session = nil
       try? sessionStore?.delete()
+      try? sessionStore?.clearHostedReenrollmentPending()
       resetDisconnectedStatus()
       diagnostics?.record(
         source: .auth,
@@ -950,9 +991,25 @@ final class AuthService {
         recordSubscriptionRecoveryConfigurationChange()
         return
       }
-      session = nil
-      try? sessionStore?.delete()
+      if policy != .backgroundWithReenrollment || (error as? APIClientError)?.isAuthenticationFailure == true {
+        session = nil
+        try? sessionStore?.delete()
+      }
+      if (error as? APIClientError)?.isAuthenticationFailure == true {
+        try? sessionStore?.clearHostedReenrollmentPending()
+      }
       resetDisconnectedStatus()
+      if policy == .backgroundWithReenrollment {
+        let reason = (error as? APIClientError)?.hasAmbiguousOutcome == true
+          ? "ambiguousBackendOutcome"
+          : (error is URLError ? "network" : "unavailable")
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Background App Attest re-enrollment deferred",
+          message: "reason=\(reason) retry=nextRecovery"
+        )
+      }
       diagnostics?.record(error: error, source: .auth, title: "Subscription recovery failed")
     }
   }
@@ -1157,6 +1214,19 @@ final class AuthService {
           message: "reason=sessionSuperseded"
         )
         return isSignedIn
+      }
+      if mode == .hosted, (error as? APIClientError)?.isDeviceKeyReenrollmentRequired == true {
+        session = nil
+        try? sessionStore?.delete()
+        _ = try? proofProvider.discardRegisteredHostedKey()
+        try? sessionStore?.markHostedReenrollmentPending()
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "App Attest key re-enrollment required",
+          message: "backendCode=device_key_reenrollment_required localAction=discardKey retry=background"
+        )
+        return false
       }
       let invalidAppAttestKey: Bool
       if case .invalidKey? = error as? AppAttestClientError {

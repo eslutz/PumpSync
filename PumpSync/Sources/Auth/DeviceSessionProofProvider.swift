@@ -64,6 +64,7 @@ protocol DeviceSessionProofProviding {
   func resolveRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool
   func discardUnsubmittedHostedEnrollment(keyId: String, requestId: String) throws -> Bool
   func discardDefinitivelyFailedHostedEnrollment(keyId: String, requestId: String) throws -> Bool
+  func discardRegisteredHostedKey() throws -> Bool
   func releaseHostedProofOperation(requestId: String) -> Bool
 
   func selfHostedEnrollment(
@@ -369,6 +370,12 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
       return false
     }
     defer { _ = releaseHostedProofOperation(requestId: requestId) }
+    try clearState()
+    return true
+  }
+
+  func discardRegisteredHostedKey() throws -> Bool {
+    guard let state = try loadState(), state.phase == .registered else { return false }
     try clearState()
     return true
   }

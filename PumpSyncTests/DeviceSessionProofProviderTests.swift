@@ -102,6 +102,36 @@ final class DeviceSessionProofProviderTests: XCTestCase {
     XCTAssertEqual(recovered.keyId, first.keyId)
   }
 
+  func testDiscardRegisteredKeyForcesFreshAttestation() async throws {
+    let fixture = makeFixture()
+    fixture.client.attestationResults = [
+      .success(Data("initial-attestation".utf8)),
+      .success(Data("replacement-attestation".utf8))
+    ]
+    let initial = try await fixture.provider.hostedEnrollment(
+      challenge: challenge("challenge-1"), installationId: "installation-1",
+      signedTransactionInfo: "transaction"
+    )
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentSubmissionStarted(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentRegistered(
+      keyId: initial.keyId,
+      requestId: initial.requestId
+    ))
+
+    XCTAssertTrue(try fixture.provider.discardRegisteredHostedKey())
+    let replacement = try await fixture.provider.hostedEnrollment(
+      challenge: challenge("challenge-2"), installationId: "installation-1",
+      signedTransactionInfo: "transaction"
+    )
+
+    XCTAssertEqual(replacement.proofKind, "attestation")
+    XCTAssertNotEqual(replacement.keyId, initial.keyId)
+    XCTAssertEqual(fixture.client.generatedKeyCount, 2)
+  }
+
   func testRejectedSubmittedAssertionRestoresRegisteredKeyForFreshAssertion() async throws {
     let fixture = makeFixture()
     fixture.client.attestationResults = [.success(Data("initial-attestation".utf8))]

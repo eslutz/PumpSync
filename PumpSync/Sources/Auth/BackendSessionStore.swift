@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class BackendSessionStore {
   private static let account = "backend.session.current"
+  private static let hostedReenrollmentAccount = "backend.session.hosted-reenrollment-pending"
   private static let refreshWindow: TimeInterval = 5 * 60
 
   private let keychain: SecureKeychainStore
@@ -74,6 +75,18 @@ final class BackendSessionStore {
 
   func delete() throws {
     try keychain.delete(account: Self.account)
+  }
+
+  func markHostedReenrollmentPending() throws {
+    try keychain.writeData(Data([1]), account: Self.hostedReenrollmentAccount)
+  }
+
+  func isHostedReenrollmentPending() -> Bool {
+    (try? keychain.readData(account: Self.hostedReenrollmentAccount)) != nil
+  }
+
+  func clearHostedReenrollmentPending() throws {
+    try keychain.delete(account: Self.hostedReenrollmentAccount)
   }
 
   func isValid(_ session: BackendSessionResponse) -> Bool {
