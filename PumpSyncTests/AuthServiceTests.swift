@@ -2111,6 +2111,44 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), session)
   }
 
+  func testForegroundSubscriptionRecoverySyncsAppStoreAfterCachedEntitlementMiss() async {
+    let configuration = makeConfigurationStore()
+    let sessionStore = makeSessionStore()
+    let session = BackendSessionResponse(
+      accessToken: "recovered-token",
+      expiresAt: Date(timeIntervalSince1970: 1_800),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
+    )
+    var syncedEntitlementCalls = 0
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: configuration,
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      syncedCurrentEntitlementJWS: {
+        syncedEntitlementCalls += 1
+        return "synced-transaction"
+      },
+      createSubscriptionSession: { request in
+        XCTAssertEqual(request.signedTransactionInfo, "synced-transaction")
+        return session
+      },
+      createSelfHostedSession: { _ in
+        throw APIClientError.invalidResponse
+      },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.recoverSessionIfNeeded(policy: .foreground)
+
+    XCTAssertEqual(syncedEntitlementCalls, 1)
+    XCTAssertEqual(service.accessToken, "recovered-token")
+    XCTAssertEqual(sessionStore.loadValidSession(), session)
+  }
+
   func testAccessTokenRecoveryPreservesStaleSessionAfterAmbiguousRefreshFailure() async throws {
     var now = Date(timeIntervalSince1970: 1_000)
     let sessionStore = makeSessionStore(now: { now })
@@ -2161,7 +2199,6 @@ final class AuthServiceTests: XCTestCase {
         throw StoreKitSubscriptionError.noActiveSubscription
       },
       syncedCurrentEntitlementJWS: {
-        XCTFail("Silent recovery should not call AppStore.sync")
         throw StoreKitSubscriptionError.noActiveSubscription
       },
       createSubscriptionSession: { _ in
@@ -2831,6 +2868,40 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertNil(token)
     XCTAssertTrue(sessionStore.isHostedReenrollmentPending())
     XCTAssertTrue(diagnostics.entries.contains { $0.title == "Background App Attest re-enrollment deferred" && $0.message?.contains("reason=network") == true })
+  }
+
+  func testBackgroundReenrollmentWithoutCachedEntitlementRetainsPendingMarker() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.markHostedReenrollmentPending()
+    let diagnostics = makeDiagnostics()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      syncedCurrentEntitlementJWS: {
+        XCTFail("Background recovery must not call AppStore.sync")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in
+        XCTFail("Enrollment must not start without a cached entitlement")
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let token = await service.accessTokenRecoveringIfNeeded(policy: .backgroundWithReenrollment)
+
+    XCTAssertNil(token)
+    XCTAssertTrue(sessionStore.isHostedReenrollmentPending())
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "Background App Attest re-enrollment deferred"
+        && $0.message == "reason=noCachedEntitlement retry=nextRecovery"
+    })
   }
 
   func testSelfHostedProtocol3RenewableRefreshDoesNotUseHostedProofLease() async throws {

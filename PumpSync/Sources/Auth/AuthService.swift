@@ -947,7 +947,7 @@ final class AuthService {
 
     do {
       let entitlementStartedAt = Date()
-      let signedTransactionInfo = try await currentEntitlementJWS()
+      let signedTransactionInfo = try await subscriptionEntitlementJWS(for: policy)
       try prepareHostedRequest(configurationRevision: configurationRevision)
       let entitlementMs = Int(Date().timeIntervalSince(entitlementStartedAt) * 1_000)
       let configurationChanged = await establishSubscriptionSession(
@@ -977,8 +977,17 @@ final class AuthService {
       }
       session = nil
       try? sessionStore?.delete()
-      try? sessionStore?.clearHostedReenrollmentPending()
       resetDisconnectedStatus()
+      if policy == .backgroundWithReenrollment {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Background App Attest re-enrollment deferred",
+          message: "reason=noCachedEntitlement retry=nextRecovery"
+        )
+        return
+      }
+      try? sessionStore?.clearHostedReenrollmentPending()
       diagnostics?.record(
         source: .auth,
         severity: .warning,
@@ -1011,6 +1020,19 @@ final class AuthService {
         )
       }
       diagnostics?.record(error: error, source: .auth, title: "Subscription recovery failed")
+    }
+  }
+
+  private func subscriptionEntitlementJWS(for policy: SessionRecoveryPolicy) async throws -> String {
+    do {
+      return try await currentEntitlementJWS()
+    } catch StoreKitSubscriptionError.noActiveSubscription where policy.allowsInteractiveRecovery {
+      diagnostics?.record(
+        source: .auth,
+        title: "Subscription entitlement cache miss",
+        message: "retry=appStoreSync"
+      )
+      return try await syncedCurrentEntitlementJWS()
     }
   }
 
