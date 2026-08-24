@@ -3,6 +3,7 @@ import SwiftUI
 enum SyncStatusAction: Equatable {
   case viewSync
   case retry
+  case openSubscription
   case openSettings
   case dismiss
 }
@@ -39,13 +40,15 @@ struct SyncStatusPresentation: Equatable {
       let action: (String, SyncStatusAction) = switch failure.recovery {
       case .retry:
         ("Try Again", .retry)
+      case .openSubscription:
+        ("View Subscription", .openSubscription)
       case .openSettings:
         ("Open Settings", .openSettings)
       case .waitAndRetry, .none:
         ("Dismiss", .dismiss)
       }
       return SyncStatusPresentation(
-        title: "Sync needs attention",
+        title: failure.recovery == .openSubscription ? "Subscription required" : "Sync needs attention",
         detail: failure.message,
         systemImage: "exclamationmark.triangle.fill",
         actionTitle: action.0,
@@ -85,6 +88,7 @@ struct SyncStatusBanner: View {
   let operationState: SyncOperationState
   let onViewSync: () -> Void
   let onRetry: () -> Void
+  let onOpenSubscription: () -> Void
   let onOpenSettings: () -> Void
   let onDismiss: () -> Void
 
@@ -177,6 +181,8 @@ struct SyncStatusBanner: View {
       onViewSync()
     case .retry:
       onRetry()
+    case .openSubscription:
+      onOpenSubscription()
     case .openSettings:
       onOpenSettings()
     case .dismiss:

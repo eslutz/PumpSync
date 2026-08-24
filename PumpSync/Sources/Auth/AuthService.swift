@@ -141,6 +141,7 @@ final class AuthService {
   private(set) var session: BackendSessionResponse?
   private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
   private(set) var errorMessage: String?
+  private var recoveryRequiresActiveSubscription = false
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
   private var subscriptionOperationID: UUID?
@@ -253,6 +254,14 @@ final class AuthService {
     }
 
     return session?.accessToken
+  }
+
+  /// True only when hosted session recovery reached StoreKit and found no
+  /// active entitlement. A missing session by itself is not a subscription
+  /// failure: self-hosted and generic authentication failures remain Settings
+  /// recovery paths.
+  var requiresSubscriptionAction: Bool {
+    configurationStore.mode == .hosted && recoveryRequiresActiveSubscription
   }
 
   func accessTokenRecoveringIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> String? {
@@ -644,6 +653,7 @@ final class AuthService {
     renewableRefreshTask = nil
     selfHostedOperationID = nil
     session = nil
+    recoveryRequiresActiveSubscription = false
     try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Connect to PumpSync or a self-hosted service"
@@ -653,6 +663,7 @@ final class AuthService {
 
   func clearSessionForAuthenticationFailure() {
     session = nil
+    recoveryRequiresActiveSubscription = false
     try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Connect to PumpSync or a self-hosted service"
@@ -763,6 +774,7 @@ final class AuthService {
       enrollmentRegistered = true
       try prepareHostedRequest(configurationRevision: configurationRevision)
       session = createdSession
+      recoveryRequiresActiveSubscription = false
       try? sessionStore?.save(createdSession)
       statusMessage = "PumpSync subscription active"
       diagnostics?.record(source: .auth, title: title)
@@ -936,6 +948,7 @@ final class AuthService {
       return
     }
     let startedAt = Date()
+    recoveryRequiresActiveSubscription = false
     diagnostics?.record(source: .auth, title: "Subscription recovery started")
     if policy == .backgroundWithReenrollment {
       diagnostics?.record(
@@ -977,6 +990,7 @@ final class AuthService {
       }
       session = nil
       try? sessionStore?.delete()
+      recoveryRequiresActiveSubscription = true
       resetDisconnectedStatus()
       if policy == .backgroundWithReenrollment {
         diagnostics?.record(

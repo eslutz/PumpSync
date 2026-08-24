@@ -476,7 +476,7 @@ private struct ConnectionModeButtonLabel: View {
   }
 }
 
-private struct SubscriptionScreenshotView: View {
+struct SubscriptionScreenshotView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 24) {
       VStack(alignment: .leading, spacing: 8) {
@@ -525,7 +525,7 @@ private struct SubscriptionScreenshotView: View {
   }
 }
 
-private struct PumpSyncSubscriptionStoreView: View {
+struct PumpSyncSubscriptionStoreView: View {
   @Environment(AppServices.self) private var services
   @Binding var isPresented: Bool
   @State private var purchaseAlert: ConnectionAlert?

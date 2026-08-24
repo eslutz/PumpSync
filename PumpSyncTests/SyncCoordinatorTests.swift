@@ -290,7 +290,7 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.operationState, .idle)
   }
 
-  func testSyncBlockedWhenNotAuthenticated() async throws {
+  func testHostedSyncWithNoActiveSubscriptionOffersSubscription() async throws {
     let diagnostics = makeDiagnostics()
     let coordinator = makeCoordinator(
       authService: makeSignedOutAuthService(),
@@ -300,9 +300,43 @@ final class SyncCoordinatorTests: XCTestCase {
 
     await coordinator.sync(reason: .manual)
 
-    XCTAssertEqual(coordinator.lastMessage, "Connect PumpSync before syncing.")
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(
+        message: "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
+        recovery: .openSubscription
+      ))
+    )
     XCTAssertFalse(coordinator.isSyncing)
     XCTAssertEqual(diagnostics.entries.first?.title, "Sync blocked")
+  }
+
+  func testSelfHostedSyncWithoutConnectionStillOpensSettings() async throws {
+    let configuration = BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!)
+    configuration.mode = .selfHosted
+    let authService = AuthService(
+      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      configurationStore: configuration,
+      sessionStore: nil,
+      currentEntitlementJWS: {
+        XCTFail("Self-hosted recovery must not read StoreKit entitlements")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: StubDeviceSessionProofProvider()
+    )
+    let coordinator = makeCoordinator(
+      authService: authService,
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(message: "Connect PumpSync before syncing.", recovery: .openSettings))
+    )
   }
 
   func testSyncBlockedWhenCredentialsNotValidated() async {

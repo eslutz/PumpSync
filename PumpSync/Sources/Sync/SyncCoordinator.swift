@@ -26,6 +26,7 @@ enum SyncPhase: String, Equatable {
 
 enum SyncRecovery: Equatable {
   case retry
+  case openSubscription
   case openSettings
   case waitAndRetry
   case none
@@ -276,7 +277,14 @@ final class SyncCoordinator {
       recoveryPolicy = .backgroundWithReenrollment
     }
     guard let accessToken = await authService.accessTokenRecoveringIfNeeded(policy: recoveryPolicy) else {
-      fail("Connect PumpSync before syncing.", recovery: .openSettings)
+      if authService.requiresSubscriptionAction {
+        fail(
+          "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
+          recovery: .openSubscription
+        )
+      } else {
+        fail("Connect PumpSync before syncing.", recovery: .openSettings)
+      }
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")
       return false
     }

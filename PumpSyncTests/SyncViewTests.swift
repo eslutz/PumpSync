@@ -83,6 +83,13 @@ final class SyncViewTests: XCTestCase {
       for: .failed(SyncFailure(message: "Fix settings.", recovery: .openSettings)),
       now: now
     ))
+    let subscription = try XCTUnwrap(SyncStatusPresentation.make(
+      for: .failed(SyncFailure(
+        message: "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
+        recovery: .openSubscription
+      )),
+      now: now
+    ))
     let wait = try XCTUnwrap(SyncStatusPresentation.make(
       for: .failed(SyncFailure(message: "Wait.", recovery: .waitAndRetry)),
       now: now
@@ -96,6 +103,10 @@ final class SyncViewTests: XCTestCase {
     XCTAssertEqual(retry.action, .retry)
     XCTAssertEqual(settings.actionTitle, "Open Settings")
     XCTAssertEqual(settings.action, .openSettings)
+    XCTAssertEqual(subscription.title, "Subscription required")
+    XCTAssertEqual(subscription.detail, "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.")
+    XCTAssertEqual(subscription.actionTitle, "View Subscription")
+    XCTAssertEqual(subscription.action, .openSubscription)
     XCTAssertEqual(wait.actionTitle, "Dismiss")
     XCTAssertEqual(wait.action, .dismiss)
     XCTAssertEqual(dismiss.actionTitle, "Dismiss")

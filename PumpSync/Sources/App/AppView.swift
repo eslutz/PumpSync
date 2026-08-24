@@ -3,6 +3,7 @@ import SwiftUI
 struct AppView: View {
   @Environment(AppServices.self) private var services
   @State private var selectedTab: AppTab = .sync
+  @State private var isShowingSubscriptionStore = false
 
   var body: some View {
     // A single TabView hierarchy adapts between a tab bar (iPhone/compact) and
@@ -27,6 +28,10 @@ struct AppView: View {
           operationState: services.syncCoordinator.operationState,
           onViewSync: { selectedTab = .sync },
           onRetry: { services.syncCoordinator.retry() },
+          onOpenSubscription: {
+            isShowingSubscriptionStore = true
+            services.syncCoordinator.dismissResult()
+          },
           onOpenSettings: {
             selectedTab = .settings
             services.syncCoordinator.dismissResult()
@@ -37,6 +42,17 @@ struct AppView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
       }
+    }
+    .sheet(isPresented: $isShowingSubscriptionStore) {
+#if DEBUG
+      if AppLaunchEnvironment.isScreenshotMode {
+        SubscriptionScreenshotView()
+      } else {
+        PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
+      }
+#else
+      PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
+#endif
     }
   }
 }

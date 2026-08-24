@@ -2747,6 +2747,22 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertNil(sessionStore.loadRecoverableSession())
   }
 
+  func testHostedRecoveryClassifiesNoActiveEntitlementForSubscriptionAction() async {
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      syncedCurrentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.recoverSessionIfNeeded()
+
+    XCTAssertTrue(service.requiresSubscriptionAction)
+  }
+
   func testHostedRenewableRefreshBackendFailureReleasesExactProofRequest() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
     try sessionStore.save(Self.expiredRenewableSession())
