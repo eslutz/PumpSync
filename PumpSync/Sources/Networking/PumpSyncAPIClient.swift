@@ -255,6 +255,11 @@ enum APIClientError: LocalizedError {
     }
   }
 
+  var isActiveSubscriptionRequired: Bool {
+    guard case .httpStatus(401, let code, _, _) = self else { return false }
+    return code == "active_subscription_required"
+  }
+
   var hasAmbiguousOutcome: Bool {
     switch self {
     case .invalidResponse:

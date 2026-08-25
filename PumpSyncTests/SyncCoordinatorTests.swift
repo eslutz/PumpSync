@@ -448,6 +448,30 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertNotNil(syncMetadataStore.metadata.lastErrorMessage)
   }
 
+  func testHostedSyncWithExpiredSubscriptionOffersSubscriptionWithoutClearingSession() async throws {
+    let authService = makeSignedInAuthService()
+    URLProtocolStub.requestHandler = errorResponseHandler(
+      statusCode: 401,
+      code: "active_subscription_required",
+      message: "An active PumpSync subscription is required."
+    )
+    let coordinator = makeCoordinator(
+      authService: authService,
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertTrue(authService.isSignedIn, "an expired subscription must not discard a valid renewable session")
+    XCTAssertEqual(
+      coordinator.operationState,
+      .failed(SyncFailure(
+        message: "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
+        recovery: .openSubscription
+      ))
+    )
+  }
+
   func testRefreshIfStaleSkipsSyncWhenRecentlySuccessful() async throws {
     let syncMetadataStore = makeSyncMetadataStore()
     syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date())

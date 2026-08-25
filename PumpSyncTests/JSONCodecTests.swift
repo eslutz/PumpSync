@@ -83,6 +83,15 @@ final class JSONCodecTests: XCTestCase {
     XCTAssertFalse(APIClientError.httpStatus(500, code: nil, message: nil).isRateLimited)
   }
 
+  func testAPIClientErrorClassifiesActiveSubscriptionRequirement() {
+    XCTAssertTrue(APIClientError.httpStatus(
+      401, code: "active_subscription_required", message: nil
+    ).isActiveSubscriptionRequired)
+    XCTAssertFalse(APIClientError.httpStatus(
+      401, code: "unauthorized", message: nil
+    ).isActiveSubscriptionRequired)
+  }
+
   func testAPIClientErrorClassifiesResponsesThatMayFollowBackendMutationAsAmbiguous() {
     XCTAssertTrue(APIClientError.invalidResponse.hasAmbiguousOutcome)
     XCTAssertTrue(APIClientError.httpStatus(408, code: nil, message: nil).hasAmbiguousOutcome)

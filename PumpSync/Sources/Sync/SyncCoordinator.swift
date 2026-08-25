@@ -378,7 +378,8 @@ final class SyncCoordinator {
         return false
       }
       let apiError = error as? APIClientError
-      if apiError?.isAuthenticationFailure == true {
+      let subscriptionRequired = authService.isHostedMode && apiError?.isActiveSubscriptionRequired == true
+      if apiError?.isAuthenticationFailure == true && !subscriptionRequired {
         authService.clearSessionForAuthenticationFailure()
       }
       if apiError?.isTandemCredentialFailure == true {
@@ -393,6 +394,11 @@ final class SyncCoordinator {
           apiError?.errorDescription
             ?? "Tandem Source did not accept your pump account credentials. Re-save your Tandem account.",
           recovery: .openSettings
+        )
+      } else if subscriptionRequired {
+        fail(
+          "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
+          recovery: .openSubscription
         )
       } else if apiError?.isAuthenticationFailure == true {
         fail("Sync could not be completed. Try again.", recovery: .openSettings)

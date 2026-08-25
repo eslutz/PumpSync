@@ -264,6 +264,10 @@ final class AuthService {
     configurationStore.mode == .hosted && recoveryRequiresActiveSubscription
   }
 
+  var isHostedMode: Bool {
+    configurationStore.mode == .hosted
+  }
+
   func accessTokenRecoveringIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> String? {
     await recoverSessionIfNeeded(policy: policy)
     return accessToken
