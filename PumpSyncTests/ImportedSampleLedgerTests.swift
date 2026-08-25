@@ -1,4 +1,5 @@
 import XCTest
+import Security
 @testable import PumpSync
 
 final class ImportedSampleLedgerTests: XCTestCase {
@@ -38,6 +39,34 @@ final class ImportedSampleLedgerTests: XCTestCase {
     let result = try second.filterUnseen([sample])
 
     XCTAssertTrue(result.isEmpty)
+  }
+
+  func testMigratingLegacyHmacKeyPreservesKeyAndMakesItAvailableAfterFirstUnlock() throws {
+    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)")
+    let keyData = Data(repeating: 0x42, count: 32)
+    let account = "imported-sample-ledger-hmac-key"
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: keychain.service,
+      kSecAttrAccount as String: account,
+      kSecValueData as String: keyData,
+      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    ]
+    XCTAssertEqual(SecItemAdd(query as CFDictionary, nil), errSecSuccess)
+    defer { try? keychain.deleteAll() }
+
+    let ledger = ImportedSampleLedger(
+      keychain: keychain,
+      defaults: UserDefaults(suiteName: "ImportedSampleLedgerTests-\(UUID().uuidString)")!
+    )
+
+    try ledger.migrateHmacKeyForBackgroundAccess()
+
+    XCTAssertEqual(try keychain.readData(account: account), keyData)
+    XCTAssertEqual(
+      try accessibility(of: keychain, account: account),
+      kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String
+    )
   }
 
   func testPruneDropsEntriesOlderThanRetentionWindow() throws {
@@ -89,6 +118,22 @@ final class ImportedSampleLedgerTests: XCTestCase {
       keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)"),
       defaults: UserDefaults(suiteName: "ImportedSampleLedgerTests-\(UUID().uuidString)")!
     )
+  }
+
+  private func accessibility(of keychain: SecureKeychainStore, account: String) throws -> String? {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: keychain.service,
+      kSecAttrAccount as String: account,
+      kSecReturnAttributes as String: kCFBooleanTrue,
+      kSecMatchLimit as String: kSecMatchLimitOne
+    ]
+    var result: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    guard status == errSecSuccess else {
+      throw KeychainStoreError.unexpectedStatus(status)
+    }
+    return (result as? [String: Any])?[kSecAttrAccessible as String] as? String
   }
 
   private func sample(externalId: String) -> SampleDTO {

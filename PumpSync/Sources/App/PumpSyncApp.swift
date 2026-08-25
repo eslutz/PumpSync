@@ -28,6 +28,21 @@ struct PumpSyncApp: App {
             // This is the only foreground bootstrap path. AppView is also
             // constructed for a BGTask launch, so it must not own app-open
             // recovery or sync work.
+            do {
+              if try services.importedSampleLedger.migrateHmacKeyForBackgroundAccess() {
+                services.diagnosticsLogStore.record(
+                  source: .sync,
+                  title: "Background sync ledger key migrated"
+                )
+              }
+            } catch {
+              services.diagnosticsLogStore.record(
+                source: .sync,
+                severity: .warning,
+                title: "Background sync ledger migration deferred",
+                message: error.localizedDescription
+              )
+            }
             services.backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
             services.healthKitService.refreshAuthorizationStatus()
             await services.authService.recoverSessionIfNeeded()

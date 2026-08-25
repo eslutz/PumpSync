@@ -41,6 +41,14 @@ final class ImportedSampleLedger {
     defaults.set(prune(ledger, now: importedAt, protecting: batchDigests), forKey: Self.defaultsKey)
   }
 
+  /// Upgrades only a ledger key created before background Keychain access was
+  /// enabled. It deliberately preserves the key: regenerating it would make
+  /// the existing ledger digests unusable and could re-import Health samples.
+  @discardableResult
+  func migrateHmacKeyForBackgroundAccess() throws -> Bool {
+    try keychain.migrateAccessibilityToAfterFirstUnlock(account: Self.hmacKeyAccount)
+  }
+
   private func loadLedger() -> [String: TimeInterval] {
     defaults.dictionary(forKey: Self.defaultsKey) as? [String: TimeInterval] ?? [:]
   }

@@ -56,6 +56,42 @@ struct SecureKeychainStore {
     }
   }
 
+  /// Preserves an existing item while upgrading it for access by a task that
+  /// runs after the device has been unlocked at least once. Call only for
+  /// records whose background use is intentional.
+  @discardableResult
+  func migrateAccessibilityToAfterFirstUnlock(account: String) throws -> Bool {
+    var query = baseQuery(account: account)
+    query[kSecReturnData as String] = kCFBooleanTrue
+    query[kSecReturnAttributes as String] = kCFBooleanTrue
+    query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+    var result: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    if status == errSecItemNotFound {
+      return false
+    }
+    guard status == errSecSuccess else {
+      throw KeychainStoreError.unexpectedStatus(status)
+    }
+    guard
+      let attributes = result as? [String: Any],
+      let accessibility = attributes[kSecAttrAccessible as String] as? String,
+      accessibility != (kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
+    else {
+      return false
+    }
+
+    let updateAttributes: [String: Any] = [
+      kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    ]
+    let updateStatus = SecItemUpdate(baseQuery(account: account) as CFDictionary, updateAttributes as CFDictionary)
+    guard updateStatus == errSecSuccess else {
+      throw KeychainStoreError.unexpectedStatus(updateStatus)
+    }
+    return true
+  }
+
   func delete(account: String) throws {
     let status = SecItemDelete(baseQuery(account: account) as CFDictionary)
 
