@@ -3,19 +3,71 @@ import Foundation
 import Synchronization
 import UIKit
 
+enum BackgroundExecutionOutcome: Equatable {
+  case completed(Bool)
+  case timedOut
+}
+
+enum BackgroundExecutionDeadline {
+  static func run(
+    timeout: Duration,
+    operation: @escaping @Sendable () async -> Bool
+  ) async -> BackgroundExecutionOutcome {
+    await withCheckedContinuation { continuation in
+      let completed = Mutex(false)
+      let timeoutTaskBox = Mutex<Task<Void, Never>?>(nil)
+      let finish: @Sendable (BackgroundExecutionOutcome) -> Void = { outcome in
+        let shouldFinish = completed.withLock { completed in
+          guard !completed else { return false }
+          completed = true
+          return true
+        }
+        guard shouldFinish else { return }
+        timeoutTaskBox.withLock { task in
+          task?.cancel()
+          task = nil
+        }
+        continuation.resume(returning: outcome)
+      }
+
+      let work = Task {
+        finish(.completed(await operation()))
+      }
+      let timeoutTask = Task {
+        do {
+          try await Task.sleep(for: timeout)
+        } catch {
+          return
+        }
+        work.cancel()
+        finish(.timedOut)
+      }
+      let shouldStoreTimeout = completed.withLock { !$0 }
+      if shouldStoreTimeout {
+        timeoutTaskBox.withLock { $0 = timeoutTask }
+      } else {
+        timeoutTask.cancel()
+      }
+    }
+  }
+}
+
 @MainActor
 final class BackgroundSyncScheduler {
   private let identifier: String
   private var isRegistered = false
   private let onScheduleFailure: (@Sendable (any Error) -> Void)?
   private let onEvent: (@Sendable (String, String?) -> Void)?
+  private let executionTimeout: Duration
 
   init(
     identifier: String,
+    executionTimeout: Duration = .seconds(20),
     onScheduleFailure: (@Sendable (any Error) -> Void)? = nil,
     onEvent: (@Sendable (String, String?) -> Void)? = nil
   ) {
     self.identifier = identifier
+    self.executionTimeout = executionTimeout
     self.onScheduleFailure = onScheduleFailure
     self.onEvent = onEvent
   }
@@ -115,10 +167,21 @@ final class BackgroundSyncScheduler {
       }
     }
 
+    let executionTimeout = executionTimeout
     let work = Task {
-      let succeeded = await handler()
+      let outcome = await BackgroundExecutionDeadline.run(timeout: executionTimeout, operation: handler)
       let cancelled = Task.isCancelled
-      complete(succeeded && !cancelled, cancelled)
+      switch outcome {
+      case .completed(let succeeded):
+        complete(succeeded && !cancelled, cancelled)
+      case .timedOut:
+        let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+        onEvent?(
+          "Background sync task deferred",
+          "build=\(BackgroundSyncDiagnostics.buildNumber) reason=executionBudget elapsedMs=\(elapsedMs)"
+        )
+        complete(false, true)
+      }
     }
 
     task.expirationHandler = {

@@ -669,6 +669,40 @@ final class DeviceSessionProofProviderTests: XCTestCase {
     XCTAssertTrue(provider.releaseHostedProofOperation(requestId: request.requestId))
   }
 
+  func testHostedRefreshTimesOutStalledAssertionAndAllowsRetryWithoutDiscardingKey() async throws {
+    let fixture = try await registeredFixture()
+    let stalledAssertion = ProofAsyncGate()
+    let provider = DeviceSessionProofProvider(
+      keychain: fixture.keychain,
+      now: { Date(timeIntervalSince1970: 1_786_795_200) },
+      appAttest: fixture.client,
+      appAttestAssertionTimeout: .milliseconds(50)
+    )
+    fixture.client.assertionResults = [
+      .success(Data("late-assertion".utf8)),
+      .success(Data("retry-assertion".utf8))
+    ]
+    fixture.client.assertionGates = [stalledAssertion]
+
+    do {
+      _ = try await provider.refreshRequest(
+        session: renewableSession(), installationId: "installation-1", mode: .hosted
+      )
+      XCTFail("A stalled App Attest assertion must not consume the background task indefinitely")
+    } catch DeviceSessionProofError.appAttestTimedOut {
+      // Expected: the timeout is transient and must release only the in-memory operation lease.
+    }
+
+    await stalledAssertion.open()
+    await Task.yield()
+
+    let retry = try await provider.refreshRequest(
+      session: renewableSession(), installationId: "installation-1", mode: .hosted
+    )
+    XCTAssertEqual(Data(base64Encoded: retry.proof), Data("retry-assertion".utf8))
+    XCTAssertTrue(provider.releaseHostedProofOperation(requestId: retry.requestId))
+  }
+
   func testHostedProofLeaseIsNotPersistedAcrossProviderRecreation() async throws {
     let fixture = try await registeredFixture()
     fixture.client.assertionResults = [

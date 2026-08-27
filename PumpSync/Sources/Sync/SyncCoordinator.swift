@@ -99,6 +99,7 @@ final class SyncCoordinator {
   private let diagnostics: DiagnosticsLogStore?
   private var syncTask: Task<Bool, Never>?
   private var syncOperationID: UUID?
+  private var syncWaiterCount = 0
 
   private(set) var operationState: SyncOperationState = .idle
 
@@ -232,10 +233,19 @@ final class SyncCoordinator {
   }
 
   private func awaitSyncTask(_ task: Task<Bool, Never>) async -> Bool {
-    await withTaskCancellationHandler(operation: {
-      await task.value
+    syncWaiterCount += 1
+    defer { syncWaiterCount -= 1 }
+    return await withTaskCancellationHandler(operation: {
+      let result = await task.value
+      return Task.isCancelled ? false : result
     }, onCancel: {
-      task.cancel()
+      Task { @MainActor [weak self] in
+        guard let self,
+              self.syncWaiterCount == 1 else {
+          return
+        }
+        task.cancel()
+      }
     })
   }
 

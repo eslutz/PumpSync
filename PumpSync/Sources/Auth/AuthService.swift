@@ -153,6 +153,7 @@ final class AuthService {
   private var renewableRefreshTask: Task<Bool, Never>?
   private var renewableRefreshOperationID: UUID?
   private var renewableRefreshOperationKey: RenewableRefreshOperationKey?
+  private var renewableRefreshWaiterCount = 0
   private var selfHostedOperationID: UUID?
   private var hostedSubscriptionSessionEstablished: (@MainActor () -> Void)?
   // Process-local by design: explicit purchase/restore actions may retry the
@@ -1384,7 +1385,7 @@ final class AuthService {
         title: "Renewable session refresh coalesced",
         message: "coalesced=true"
       )
-      return await awaitRenewableRefresh(renewableRefreshTask)
+      return await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
     }
 
     let operationID = UUID()
@@ -1403,14 +1404,27 @@ final class AuthService {
     renewableRefreshOperationID = operationID
     renewableRefreshOperationKey = key
     renewableRefreshTask = task
-    return await awaitRenewableRefresh(task)
+    return await awaitRenewableRefresh(task, operationID: operationID)
   }
 
-  private func awaitRenewableRefresh(_ task: Task<Bool, Never>) async -> Bool {
-    await withTaskCancellationHandler(operation: {
-      await task.value
+  private func awaitRenewableRefresh(
+    _ task: Task<Bool, Never>,
+    operationID: UUID?
+  ) async -> Bool {
+    renewableRefreshWaiterCount += 1
+    defer { renewableRefreshWaiterCount -= 1 }
+    return await withTaskCancellationHandler(operation: {
+      let result = await task.value
+      return Task.isCancelled ? false : result
     }, onCancel: {
-      task.cancel()
+      Task { @MainActor [weak self] in
+        guard let self,
+              self.renewableRefreshOperationID == operationID,
+              self.renewableRefreshWaiterCount == 1 else {
+          return
+        }
+        task.cancel()
+      }
     })
   }
 
@@ -1562,6 +1576,9 @@ final class AuthService {
     }
     if let urlError = error as? URLError {
       return urlError.code == .timedOut ? "timeout" : "network"
+    }
+    if case .appAttestTimedOut? = error as? DeviceSessionProofError {
+      return "timeout"
     }
     if let apiError = error as? APIClientError {
       if apiError.isAuthenticationFailure {

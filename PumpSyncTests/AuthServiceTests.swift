@@ -2667,6 +2667,73 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), replacement)
   }
 
+  func testCancellingBackgroundWaiterDoesNotCancelSharedForegroundRefresh() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    let replacement = BackendSessionResponse(
+      accessToken: "foreground-replacement-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "family-2",
+      refreshToken: "refresh-token-2",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    let responseData = try JSONCodec.encoder.encode(replacement)
+    URLProtocolStub.requestHandler = { request in
+      let response = HTTPURLResponse(
+        url: request.url!, statusCode: 200, httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, responseData)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+
+    let proofStarted = expectation(description: "shared proof preparation started")
+    let proofGate = AsyncGate()
+    let diagnostics = makeDiagnostics()
+    let proofProvider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+      proofStarted.fulfill()
+      await proofGate.wait()
+      return SessionRefreshRequest(
+        installationId: installationId,
+        refreshToken: session.refreshToken,
+        requestId: "shared-request",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        proof: "proof"
+      )
+    })
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: proofProvider
+    )
+
+    let background = Task { await service.accessTokenRecoveringIfNeeded(policy: .background) }
+    await fulfillment(of: [proofStarted], timeout: 1)
+    let foreground = Task { await service.accessTokenRecoveringIfNeeded(policy: .foreground) }
+    await waitUntil {
+      diagnostics.entries.contains { $0.title == "Renewable session refresh coalesced" }
+    }
+
+    background.cancel()
+    await proofGate.open()
+
+    let backgroundToken = await background.value
+    let foregroundToken = await foreground.value
+    XCTAssertNil(backgroundToken)
+    XCTAssertEqual(foregroundToken, replacement.accessToken)
+    XCTAssertEqual(service.accessToken, replacement.accessToken)
+    XCTAssertEqual(sessionStore.loadValidSession(), replacement)
+  }
+
   func testConcurrentRenewableRecoverySharesAmbiguousFailureWithoutEnrollment() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
     let expired = Self.expiredRenewableSession()

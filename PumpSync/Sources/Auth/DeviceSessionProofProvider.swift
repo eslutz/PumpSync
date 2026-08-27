@@ -114,18 +114,21 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
   private let now: () -> Date
   private let appAttest: AppAttestClient
   private let diagnostics: DiagnosticsLogStore?
+  private let appAttestAssertionTimeout: Duration
   private var hostedProofOperation: HostedProofOperation?
 
   init(
     keychain: SecureKeychainStore,
     now: @escaping () -> Date = Date.init,
     appAttest: AppAttestClient = LiveAppAttestClient(),
-    diagnostics: DiagnosticsLogStore? = nil
+    diagnostics: DiagnosticsLogStore? = nil,
+    appAttestAssertionTimeout: Duration = .seconds(8)
   ) {
     self.keychain = keychain
     self.now = now
     self.appAttest = appAttest
     self.diagnostics = diagnostics
+    self.appAttestAssertionTimeout = appAttestAssertionTimeout
   }
 
   func hostedEnrollment(
@@ -582,7 +585,10 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
           message: "operation=sessionRefresh"
         )
         do {
-          let assertion = try await appAttest.generateAssertion(state.keyId, clientDataHash: payload.hash)
+          let assertion = try await generateAssertionWithTimeout(
+            keyId: state.keyId,
+            clientDataHash: payload.hash
+          )
           diagnostics?.record(
             source: .auth,
             title: "App Attest assertion generation completed",
@@ -645,9 +651,49 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     Int(Date().timeIntervalSince(startedAt) * 1_000)
   }
 
+  private func generateAssertionWithTimeout(
+    keyId: String,
+    clientDataHash: Data
+  ) async throws -> Data {
+    try await withCheckedThrowingContinuation { continuation in
+      var hasResumed = false
+      var timeoutTask: Task<Void, Never>?
+
+      let assertionTask = Task { @MainActor in
+        do {
+          let assertion = try await appAttest.generateAssertion(keyId, clientDataHash: clientDataHash)
+          guard !hasResumed else { return }
+          hasResumed = true
+          timeoutTask?.cancel()
+          continuation.resume(returning: assertion)
+        } catch {
+          guard !hasResumed else { return }
+          hasResumed = true
+          timeoutTask?.cancel()
+          continuation.resume(throwing: error)
+        }
+      }
+
+      timeoutTask = Task { @MainActor in
+        do {
+          try await Task.sleep(for: appAttestAssertionTimeout)
+        } catch {
+          return
+        }
+        guard !hasResumed else { return }
+        hasResumed = true
+        assertionTask.cancel()
+        continuation.resume(throwing: DeviceSessionProofError.appAttestTimedOut)
+      }
+    }
+  }
+
   private static func assertionFailureReason(_ error: Error) -> String {
     if Task.isCancelled || error is CancellationError {
       return "cancelled"
+    }
+    if case .appAttestTimedOut? = error as? DeviceSessionProofError {
+      return "timeout"
     }
     switch error as? AppAttestClientError {
     case .serverUnavailable:
@@ -731,6 +777,7 @@ struct DeviceProofPayload: Equatable {
 
 enum DeviceSessionProofError: LocalizedError {
   case appAttestUnavailable
+  case appAttestTimedOut
   case hostedProofOperationInProgress
   case secureEnclaveUnavailable
   case missingRenewableCredential
@@ -738,6 +785,7 @@ enum DeviceSessionProofError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .appAttestUnavailable: "This device could not create the hosted security proof. Restart PumpSync and try again."
+    case .appAttestTimedOut: "The hosted security proof took too long. PumpSync will try again later."
     case .hostedProofOperationInProgress: "Another PumpSync security operation is already in progress. Try again shortly."
     case .secureEnclaveUnavailable: "This device does not provide the Secure Enclave key required for self-hosted access."
     case .missingRenewableCredential: "The renewable session credential is missing. Reconnect and try again."
