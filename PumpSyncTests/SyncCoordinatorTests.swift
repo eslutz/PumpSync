@@ -480,17 +480,18 @@ final class SyncCoordinatorTests: XCTestCase {
       effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
       effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
     )
+    let subscriptionRequiredHandler = errorResponseHandler(
+      statusCode: 401,
+      code: "active_subscription_required",
+      message: "An active PumpSync subscription is required."
+    )
     URLProtocolStub.requestHandler = { request in
       let attempt = attempts.withValue { value in
         value += 1
         return value
       }
       if attempt == 1 {
-        return try errorResponseHandler(
-          statusCode: 401,
-          code: "active_subscription_required",
-          message: "An active PumpSync subscription is required."
-        )(request)
+        return try subscriptionRequiredHandler(request)
       }
       return try responseHandler(request)
     }
