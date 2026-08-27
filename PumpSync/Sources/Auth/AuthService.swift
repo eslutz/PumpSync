@@ -272,6 +272,9 @@ final class AuthService {
 
   func accessTokenRecoveringIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> String? {
     await recoverSessionIfNeeded(policy: policy)
+    guard !Task.isCancelled else {
+      return nil
+    }
     return accessToken
   }
 
