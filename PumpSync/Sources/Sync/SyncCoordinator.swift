@@ -205,6 +205,20 @@ final class SyncCoordinator {
     }
   }
 
+  /// A successful subscription purchase or restore can finish after the
+  /// original sync has already failed. Replace only that subscription warning
+  /// with a single manual sync; generic authentication and Tandem failures
+  /// remain visible for the user to address.
+  func retryAfterSubscriptionAccessRestored() {
+    guard case .failed(let failure) = operationState,
+          failure.recovery == .openSubscription else {
+      return
+    }
+    operationState = .idle
+    diagnostics?.record(source: .sync, title: "Subscription access recovered", message: "retry=sync reason=subscriptionSessionEstablished")
+    startManualSync()
+  }
+
   @discardableResult
   func sync(reason: SyncTriggerReason) async -> Bool {
     if let syncTask {
@@ -255,7 +269,10 @@ final class SyncCoordinator {
     return true
   }
 
-  private func performSync(reason: SyncTriggerReason) async -> Bool {
+  private func performSync(
+    reason: SyncTriggerReason,
+    allowsSubscriptionRecovery: Bool = true
+  ) async -> Bool {
     let startedAt: Date
     if case .running(let progress) = operationState {
       startedAt = progress.startedAt
@@ -395,6 +412,15 @@ final class SyncCoordinator {
             ?? "Tandem Source did not accept your pump account credentials. Re-save your Tandem account.",
           recovery: .openSettings
         )
+      } else if subscriptionRequired,
+                allowsSubscriptionRecovery,
+                await authService.recoverHostedSubscriptionAfterAccessDenied(policy: recoveryPolicy) {
+        diagnostics?.record(
+          source: .sync,
+          title: "Subscription access recovered",
+          message: "retry=sync reason=\(reason.rawValue)"
+        )
+        return await performSync(reason: reason, allowsSubscriptionRecovery: false)
       } else if subscriptionRequired {
         fail(
           "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",

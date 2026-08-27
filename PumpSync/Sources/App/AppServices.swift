@@ -88,6 +88,9 @@ final class AppServices {
       syncMetadataStore: syncMetadataStore,
       diagnostics: diagnosticsLogStore
     )
+    authService.setHostedSubscriptionSessionEstablishedHandler { [weak syncCoordinator] in
+      syncCoordinator?.retryAfterSubscriptionAccessRestored()
+    }
     let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier) { error in
       Task { @MainActor in
         diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync scheduling failed")

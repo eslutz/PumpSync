@@ -37,7 +37,7 @@ struct SyncStatusPresentation: Equatable {
         autoDismissAfter: 8
       )
     case .failed(let failure):
-      let action: (String, SyncStatusAction) = switch failure.recovery {
+      let action: (String, SyncStatusAction)? = switch failure.recovery {
       case .retry:
         ("Try Again", .retry)
       case .openSubscription:
@@ -45,14 +45,14 @@ struct SyncStatusPresentation: Equatable {
       case .openSettings:
         ("Open Settings", .openSettings)
       case .waitAndRetry, .none:
-        ("Dismiss", .dismiss)
+        nil
       }
       return SyncStatusPresentation(
         title: failure.recovery == .openSubscription ? "Subscription required" : "Sync needs attention",
         detail: failure.message,
         systemImage: "exclamationmark.triangle.fill",
-        actionTitle: action.0,
-        action: action.1,
+        actionTitle: action?.0,
+        action: action?.1,
         showsProgress: false,
         autoDismissAfter: nil
       )
@@ -151,6 +151,14 @@ struct SyncStatusBanner: View {
           }
           .buttonStyle(.bordered)
           .controlSize(.small)
+        }
+
+        if !presentation.showsProgress {
+          Button(action: onDismiss) {
+            Image(systemName: "xmark")
+          }
+          .buttonStyle(.borderless)
+          .accessibilityLabel("Dismiss notification")
         }
       }
       .padding(.horizontal, 14)

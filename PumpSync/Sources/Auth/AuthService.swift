@@ -154,6 +154,7 @@ final class AuthService {
   private var renewableRefreshOperationID: UUID?
   private var renewableRefreshOperationKey: RenewableRefreshOperationKey?
   private var selfHostedOperationID: UUID?
+  private var hostedSubscriptionSessionEstablished: (@MainActor () -> Void)?
   // Process-local by design: explicit purchase/restore actions may retry the
   // same JWS, while StoreKit's automatic update stream must not replay it.
   private var attemptedSubscriptionSessionJWSHashes = Set<Data>()
@@ -649,6 +650,39 @@ final class AuthService {
     }
   }
 
+  /// Re-establishes a hosted session after the backend has explicitly rejected
+  /// an otherwise valid session because its subscription entitlement is no
+  /// longer active. This deliberately bypasses the normal cache-hit path.
+  ///
+  /// A successful replacement must mint a different access token; retaining
+  /// the existing token after an unsuccessful recovery prevents callers from
+  /// retrying a request that the backend has already rejected for entitlement
+  /// access.
+  func recoverHostedSubscriptionAfterAccessDenied(
+    policy: SessionRecoveryPolicy = .foreground
+  ) async -> Bool {
+    guard configurationStore.mode == .hosted else {
+      return false
+    }
+
+    let previousAccessToken = session?.accessToken
+    await runCoalescedSubscriptionOperation {
+      await self.recoverSubscriptionSession(policy: policy)
+    }
+
+    guard let session,
+          session.accessToken != previousAccessToken else {
+      return false
+    }
+    return true
+  }
+
+  func setHostedSubscriptionSessionEstablishedHandler(
+    _ handler: @escaping @MainActor () -> Void
+  ) {
+    hostedSubscriptionSessionEstablished = handler
+  }
+
   func clearSessionForConnectionChange() {
     subscriptionOperationID = nil
     subscriptionOperationTask = nil
@@ -781,6 +815,7 @@ final class AuthService {
       recoveryRequiresActiveSubscription = false
       try? sessionStore?.save(createdSession)
       statusMessage = "PumpSync subscription active"
+      hostedSubscriptionSessionEstablished?()
       diagnostics?.record(source: .auth, title: title)
     } catch {
       timeoutKind = SubscriptionSessionTimeoutKind(error: error)

@@ -324,7 +324,7 @@ final class SyncCoordinatorTests: XCTestCase {
       },
       createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
-      proofProvider: StubDeviceSessionProofProvider()
+      proofProvider: RecoveringDeviceSessionProofProvider()
     )
     let coordinator = makeCoordinator(
       authService: authService,
@@ -448,7 +448,7 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertNotNil(syncMetadataStore.metadata.lastErrorMessage)
   }
 
-  func testHostedSyncWithExpiredSubscriptionOffersSubscriptionWithoutClearingSession() async throws {
+  func testHostedSyncWithExpiredSubscriptionClearsSessionAndOffersSubscription() async throws {
     let authService = makeSignedInAuthService()
     URLProtocolStub.requestHandler = errorResponseHandler(
       statusCode: 401,
@@ -462,7 +462,7 @@ final class SyncCoordinatorTests: XCTestCase {
 
     await coordinator.sync(reason: .manual)
 
-    XCTAssertTrue(authService.isSignedIn, "an expired subscription must not discard a valid renewable session")
+    XCTAssertFalse(authService.isSignedIn, "an explicitly inactive subscription must not retain a usable PumpSync session")
     XCTAssertEqual(
       coordinator.operationState,
       .failed(SyncFailure(
@@ -470,6 +470,97 @@ final class SyncCoordinatorTests: XCTestCase {
         recovery: .openSubscription
       ))
     )
+  }
+
+  func testHostedSyncRetriesOnceAfterSubscriptionAccessIsRecovered() async throws {
+    let attempts = LockIsolated(0)
+    let subscriptionSessions = LockIsolated(0)
+    let responseHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      let attempt = attempts.withValue { value in
+        value += 1
+        return value
+      }
+      if attempt == 1 {
+        return try errorResponseHandler(
+          statusCode: 401,
+          code: "active_subscription_required",
+          message: "An active PumpSync subscription is required."
+        )(request)
+      }
+      return try responseHandler(request)
+    }
+    let authService = AuthService(
+      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
+      sessionStore: nil,
+      currentEntitlementJWS: { "active-transaction" },
+      createSubscriptionSession: { _ in
+        subscriptionSessions.withValue { $0 += 1 }
+        return BackendSessionResponse(
+          accessToken: "replacement-access-token",
+          expiresAt: Date().addingTimeInterval(3_600),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: RecoveringDeviceSessionProofProvider()
+    )
+    authService.applyScreenshotSession(serviceMode: "hosted")
+    let coordinator = makeCoordinator(
+      authService: authService,
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    let result = await coordinator.sync(reason: .manual)
+
+    XCTAssertTrue(result)
+    XCTAssertEqual(attempts.value, 2)
+    XCTAssertEqual(subscriptionSessions.value, 1)
+    guard case .succeeded = coordinator.operationState else {
+      return XCTFail("expected successful retry after subscription recovery")
+    }
+  }
+
+  func testSubscriptionSessionRecoveryClearsWarningAndStartsOneSync() async throws {
+    URLProtocolStub.requestHandler = errorResponseHandler(
+      statusCode: 401,
+      code: "active_subscription_required",
+      message: "An active PumpSync subscription is required."
+    )
+    let authService = AuthService(
+      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
+      sessionStore: nil,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: StubDeviceSessionProofProvider()
+    )
+    authService.applyScreenshotSession(serviceMode: "hosted")
+    let coordinator = makeCoordinator(
+      authService: authService,
+      credentialStore: try makeValidatedCredentialStore()
+    )
+    await coordinator.sync(reason: .manual)
+
+    authService.applyScreenshotSession(serviceMode: "hosted")
+    URLProtocolStub.requestHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    coordinator.retryAfterSubscriptionAccessRestored()
+
+    await waitUntil { !coordinator.isSyncing }
+    guard case .succeeded = coordinator.operationState else {
+      return XCTFail("expected subscription recovery to replace the stale warning with a successful sync")
+    }
   }
 
   func testRefreshIfStaleSkipsSyncWhenRecentlySuccessful() async throws {

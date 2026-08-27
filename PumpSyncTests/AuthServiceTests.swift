@@ -38,6 +38,46 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
   }
 
+  func testHostedSubscriptionRecoveryAfterAccessDeniedReplacesCachedSession() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
+    try sessionStore.save(BackendSessionResponse(
+      accessToken: "cached-token",
+      expiresAt: Date(timeIntervalSince1970: 2_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource"
+    ))
+    var submittedTransaction: String?
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { "active-transaction" },
+      createSubscriptionSession: { request in
+        submittedTransaction = request.signedTransactionInfo
+        return BackendSessionResponse(
+          accessToken: "replacement-token",
+          expiresAt: Date(timeIntervalSince1970: 2_000),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    await service.recoverSessionIfNeeded()
+    var establishedSessionCallbacks = 0
+    service.setHostedSubscriptionSessionEstablishedHandler {
+      establishedSessionCallbacks += 1
+    }
+    let recovered = await service.recoverHostedSubscriptionAfterAccessDenied()
+
+    XCTAssertTrue(recovered)
+    XCTAssertEqual(submittedTransaction, "active-transaction")
+    XCTAssertEqual(service.accessToken, "replacement-token")
+    XCTAssertEqual(establishedSessionCallbacks, 1)
+  }
+
   func testConcurrentSubscriptionRecoveryCoalescesStoreKitAndBackendWork() async {
     var entitlementCalls = 0
     var backendCalls = 0

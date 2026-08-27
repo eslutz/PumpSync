@@ -107,10 +107,10 @@ final class SyncViewTests: XCTestCase {
     XCTAssertEqual(subscription.detail, "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.")
     XCTAssertEqual(subscription.actionTitle, "View Subscription")
     XCTAssertEqual(subscription.action, .openSubscription)
-    XCTAssertEqual(wait.actionTitle, "Dismiss")
-    XCTAssertEqual(wait.action, .dismiss)
-    XCTAssertEqual(dismiss.actionTitle, "Dismiss")
-    XCTAssertEqual(dismiss.action, .dismiss)
+    XCTAssertNil(wait.actionTitle)
+    XCTAssertNil(wait.action)
+    XCTAssertNil(dismiss.actionTitle)
+    XCTAssertNil(dismiss.action)
   }
 
   func testSyncPhaseMessagesExplainLongRunningActivation() {
