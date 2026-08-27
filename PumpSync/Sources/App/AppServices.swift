@@ -63,7 +63,10 @@ final class AppServices {
     let diagnosticsLogStore = DiagnosticsLogStore()
     let nativeDiagnosticsStore = NativeDiagnosticsStore()
     let sessionStore = BackendSessionStore(keychain: keychain)
-    let proofProvider = DeviceSessionProofProvider(keychain: keychain)
+    let proofProvider = DeviceSessionProofProvider(
+      keychain: keychain,
+      diagnostics: diagnosticsLogStore
+    )
     let credentialStore = TandemCredentialStore(keychain: keychain)
     let authService = AuthService(
       apiClient: apiClient,
@@ -162,7 +165,10 @@ final class AppServices {
         )
       },
       diagnostics: diagnosticsLogStore,
-      proofProvider: DeviceSessionProofProvider(keychain: keychain)
+      proofProvider: DeviceSessionProofProvider(
+        keychain: keychain,
+        diagnostics: diagnosticsLogStore
+      )
     )
     let syncCoordinator = SyncCoordinator(
       apiClient: apiClient,

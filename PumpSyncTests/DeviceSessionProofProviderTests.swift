@@ -631,6 +631,44 @@ final class DeviceSessionProofProviderTests: XCTestCase {
     XCTAssertTrue(fixture.client.assertionResults.isEmpty)
   }
 
+  func testHostedRefreshRecordsStateReadAndAssertionGenerationStagesWithoutSecrets() async throws {
+    let fixture = try await registeredFixture()
+    let diagnostics = DiagnosticsLogStore(
+      defaults: UserDefaults(suiteName: "DeviceSessionProofProviderTests-\(UUID().uuidString)")!
+    )
+    let provider = DeviceSessionProofProvider(
+      keychain: fixture.keychain,
+      now: { Date(timeIntervalSince1970: 1_786_795_200) },
+      appAttest: fixture.client,
+      diagnostics: diagnostics
+    )
+    fixture.client.assertionResults = [.success(Data("private-assertion-material".utf8))]
+
+    let request = try await provider.refreshRequest(
+      session: renewableSession(), installationId: "installation-1", mode: .hosted
+    )
+
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Hosted proof state read started" && $0.message == "operation=sessionRefresh"
+    })
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Hosted proof state read completed"
+        && $0.message?.contains("operation=sessionRefresh outcome=registered elapsedMs=") == true
+    })
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "App Attest assertion generation started" && $0.message == "operation=sessionRefresh"
+    })
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "App Attest assertion generation completed"
+        && $0.message?.contains("operation=sessionRefresh outcome=success elapsedMs=") == true
+    })
+    let recorded = diagnostics.entries.compactMap(\.message).joined(separator: " ")
+    XCTAssertFalse(recorded.contains("key-1"))
+    XCTAssertFalse(recorded.contains("refresh-token"))
+    XCTAssertFalse(recorded.contains("private-assertion-material"))
+    XCTAssertTrue(provider.releaseHostedProofOperation(requestId: request.requestId))
+  }
+
   func testHostedProofLeaseIsNotPersistedAcrossProviderRecreation() async throws {
     let fixture = try await registeredFixture()
     fixture.client.assertionResults = [

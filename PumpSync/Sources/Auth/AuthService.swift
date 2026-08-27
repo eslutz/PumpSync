@@ -1223,18 +1223,63 @@ final class AuthService {
       message: "protocolVersion=3 serviceMode=\(currentSession.serviceMode)"
     )
     do {
-      let request = try await proofProvider.refreshRequest(
-        session: currentSession,
-        installationId: configurationStore.installationId,
-        mode: mode
+      let proofKind = mode == .hosted ? "appAttest" : "secureEnclaveP256"
+      let proofStartedAt = Date()
+      diagnostics?.record(
+        source: .auth,
+        title: "Renewable session proof preparation started",
+        message: "serviceMode=\(currentSession.serviceMode) proofKind=\(proofKind)"
       )
+      let request: SessionRefreshRequest
+      do {
+        request = try await proofProvider.refreshRequest(
+          session: currentSession,
+          installationId: configurationStore.installationId,
+          mode: mode
+        )
+        diagnostics?.record(
+          source: .auth,
+          title: "Renewable session proof prepared",
+          message: "serviceMode=\(currentSession.serviceMode) proofKind=\(proofKind) elapsedMs=\(elapsedMilliseconds(since: proofStartedAt))"
+        )
+      } catch {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Renewable session proof preparation failed",
+          message: "serviceMode=\(currentSession.serviceMode) proofKind=\(proofKind) reason=\(renewableRefreshFailureReason(error)) elapsedMs=\(elapsedMilliseconds(since: proofStartedAt))"
+        )
+        throw error
+      }
       defer {
         if mode == .hosted {
           _ = proofProvider.releaseHostedProofOperation(requestId: request.requestId)
         }
       }
       try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
-      let refreshed = try await apiClient.refreshSession(request, mode: mode)
+      let requestStartedAt = Date()
+      diagnostics?.record(
+        source: .auth,
+        title: "Renewable session request started",
+        message: "serviceMode=\(currentSession.serviceMode)"
+      )
+      let refreshed: BackendSessionResponse
+      do {
+        refreshed = try await apiClient.refreshSession(request, mode: mode)
+        diagnostics?.record(
+          source: .auth,
+          title: "Renewable session request completed",
+          message: "serviceMode=\(currentSession.serviceMode) outcome=success elapsedMs=\(elapsedMilliseconds(since: requestStartedAt))"
+        )
+      } catch {
+        diagnostics?.record(
+          source: .auth,
+          severity: .warning,
+          title: "Renewable session request completed",
+          message: "serviceMode=\(currentSession.serviceMode) outcome=failure reason=\(renewableRefreshFailureReason(error)) elapsedMs=\(elapsedMilliseconds(since: requestStartedAt))"
+        )
+        throw error
+      }
       try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
       guard refreshed.protocolVersion == 3, refreshed.serviceMode == currentSession.serviceMode else {
         throw APIClientError.invalidResponse
@@ -1509,6 +1554,37 @@ final class AuthService {
 
   private func elapsedMilliseconds(since startedAt: Date) -> Int {
     Int(Date().timeIntervalSince(startedAt) * 1_000)
+  }
+
+  private func renewableRefreshFailureReason(_ error: Error) -> String {
+    if Task.isCancelled || error is CancellationError {
+      return "cancelled"
+    }
+    if let urlError = error as? URLError {
+      return urlError.code == .timedOut ? "timeout" : "network"
+    }
+    if let apiError = error as? APIClientError {
+      if apiError.isAuthenticationFailure {
+        return "authentication"
+      }
+      if apiError.isRateLimited {
+        return "rateLimited"
+      }
+      if apiError.hasAmbiguousOutcome {
+        return "backendUnavailable"
+      }
+      return "backendRejected"
+    }
+    switch error as? AppAttestClientError {
+    case .serverUnavailable:
+      return "appAttestUnavailable"
+    case .invalidKey:
+      return "invalidAppAttestKey"
+    case .nonRetryable:
+      return "appAttestRejected"
+    case nil:
+      return "unavailable"
+    }
   }
 
   private static func subscriptionJWSHash(_ signedTransactionInfo: String) -> Data {

@@ -113,16 +113,19 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
   private let keychain: SecureKeychainStore
   private let now: () -> Date
   private let appAttest: AppAttestClient
+  private let diagnostics: DiagnosticsLogStore?
   private var hostedProofOperation: HostedProofOperation?
 
   init(
     keychain: SecureKeychainStore,
     now: @escaping () -> Date = Date.init,
-    appAttest: AppAttestClient = LiveAppAttestClient()
+    appAttest: AppAttestClient = LiveAppAttestClient(),
+    diagnostics: DiagnosticsLogStore? = nil
   ) {
     self.keychain = keychain
     self.now = now
     self.appAttest = appAttest
+    self.diagnostics = diagnostics
   }
 
   func hostedEnrollment(
@@ -523,9 +526,41 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     switch mode {
     case .hosted:
       proof = try await withHostedProofOperation(requestId: requestId) {
-        guard appAttest.isSupported, let state = try loadState() else {
+        guard appAttest.isSupported else {
           throw DeviceSessionProofError.appAttestUnavailable
         }
+        let stateReadStartedAt = Date()
+        diagnostics?.record(
+          source: .auth,
+          title: "Hosted proof state read started",
+          message: "operation=sessionRefresh"
+        )
+        let persistedState: PersistedAppAttestKeyState?
+        do {
+          persistedState = try loadState()
+        } catch {
+          diagnostics?.record(
+            source: .auth,
+            severity: .warning,
+            title: "Hosted proof state read failed",
+            message: "operation=sessionRefresh reason=keychainAccess elapsedMs=\(elapsedMilliseconds(since: stateReadStartedAt))"
+          )
+          throw error
+        }
+        guard let state = persistedState else {
+          diagnostics?.record(
+            source: .auth,
+            severity: .warning,
+            title: "Hosted proof state read completed",
+            message: "operation=sessionRefresh outcome=missing elapsedMs=\(elapsedMilliseconds(since: stateReadStartedAt))"
+          )
+          throw DeviceSessionProofError.appAttestUnavailable
+        }
+        diagnostics?.record(
+          source: .auth,
+          title: "Hosted proof state read completed",
+          message: "operation=sessionRefresh outcome=\(state.phase.rawValue) elapsedMs=\(elapsedMilliseconds(since: stateReadStartedAt))"
+        )
         switch state.phase {
         case .registered:
           break
@@ -540,11 +575,37 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
           refreshToken: session.refreshToken,
           keyId: state.keyId
         )
+        let assertionStartedAt = Date()
+        diagnostics?.record(
+          source: .auth,
+          title: "App Attest assertion generation started",
+          message: "operation=sessionRefresh"
+        )
         do {
-          return try await appAttest.generateAssertion(state.keyId, clientDataHash: payload.hash)
+          let assertion = try await appAttest.generateAssertion(state.keyId, clientDataHash: payload.hash)
+          diagnostics?.record(
+            source: .auth,
+            title: "App Attest assertion generation completed",
+            message: "operation=sessionRefresh outcome=success elapsedMs=\(elapsedMilliseconds(since: assertionStartedAt))"
+          )
+          return assertion
         } catch AppAttestClientError.invalidKey {
+          diagnostics?.record(
+            source: .auth,
+            severity: .warning,
+            title: "App Attest assertion generation failed",
+            message: "operation=sessionRefresh reason=invalidKey elapsedMs=\(elapsedMilliseconds(since: assertionStartedAt))"
+          )
           try? clearState()
           throw AppAttestClientError.invalidKey
+        } catch {
+          diagnostics?.record(
+            source: .auth,
+            severity: .warning,
+            title: "App Attest assertion generation failed",
+            message: "operation=sessionRefresh reason=\(Self.assertionFailureReason(error)) elapsedMs=\(elapsedMilliseconds(since: assertionStartedAt))"
+          )
+          throw error
         }
       }
     case .selfHosted:
@@ -578,6 +639,26 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
 
   private func clearState() throws {
     try keychain.delete(account: Self.appAttestStateAccount)
+  }
+
+  private func elapsedMilliseconds(since startedAt: Date) -> Int {
+    Int(Date().timeIntervalSince(startedAt) * 1_000)
+  }
+
+  private static func assertionFailureReason(_ error: Error) -> String {
+    if Task.isCancelled || error is CancellationError {
+      return "cancelled"
+    }
+    switch error as? AppAttestClientError {
+    case .serverUnavailable:
+      return "serviceUnavailable"
+    case .invalidKey:
+      return "invalidKey"
+    case .nonRetryable:
+      return "rejected"
+    case nil:
+      return "unavailable"
+    }
   }
 
   private func secureEnclaveKey() throws -> SecureEnclave.P256.Signing.PrivateKey {

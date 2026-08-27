@@ -2561,6 +2561,7 @@ final class AuthServiceTests: XCTestCase {
       maxRetryCount: 0
     )
     let proofProvider = AcceptingProofProvider()
+    let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: apiClient,
       configurationStore: makeConfigurationStore(),
@@ -2574,6 +2575,7 @@ final class AuthServiceTests: XCTestCase {
         throw APIClientError.invalidResponse
       },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
       proofProvider: proofProvider
     )
 
@@ -2582,6 +2584,21 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(token, "refreshed-access-token")
     XCTAssertEqual(sessionStore.loadValidSession(), refreshed)
     XCTAssertEqual(proofProvider.releasedHostedProofRequestIds, ["request-1"])
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Renewable session proof preparation started"
+        && $0.message == "serviceMode=hosted proofKind=appAttest"
+    })
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Renewable session proof prepared"
+        && $0.message?.contains("serviceMode=hosted proofKind=appAttest elapsedMs=") == true
+    })
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Renewable session request started" && $0.message == "serviceMode=hosted"
+    })
+    XCTAssertNotNil(diagnostics.entries.first {
+      $0.title == "Renewable session request completed"
+        && $0.message?.contains("serviceMode=hosted outcome=success elapsedMs=") == true
+    })
   }
 
   func testConcurrentRenewableRecoveryUsesOneRefreshAndSharesReplacementSession() async throws {
