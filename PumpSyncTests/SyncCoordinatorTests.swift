@@ -449,7 +449,16 @@ final class SyncCoordinatorTests: XCTestCase {
   }
 
   func testHostedSyncWithExpiredSubscriptionClearsSessionAndOffersSubscription() async throws {
-    let authService = makeSignedInAuthService()
+    let authService = AuthService(
+      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
+      sessionStore: nil,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: StubDeviceSessionProofProvider()
+    )
+    authService.applyScreenshotSession(serviceMode: "hosted")
     URLProtocolStub.requestHandler = errorResponseHandler(
       statusCode: 401,
       code: "active_subscription_required",
