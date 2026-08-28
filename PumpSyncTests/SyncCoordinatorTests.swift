@@ -596,6 +596,38 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertTrue(freshnessEntry?.message?.contains("targetSeconds=14400") == true)
   }
 
+  func testBackgroundSyncRunsWhenRecentlySuccessful() async throws {
+    let syncMetadataStore = makeSyncMetadataStore()
+    syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date())
+    let diagnostics = makeDiagnostics()
+    let requestCount = LockIsolated(0)
+    let responseHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      requestCount.withValue { $0 += 1 }
+      return try responseHandler(request)
+    }
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      syncMetadataStore: syncMetadataStore,
+      diagnostics: diagnostics
+    )
+
+    let succeeded = await coordinator.performBackgroundSync()
+
+    XCTAssertTrue(succeeded)
+    XCTAssertEqual(requestCount.value, 1)
+    XCTAssertTrue(diagnostics.entries.contains {
+      $0.title == "Background sync policy evaluated"
+        && $0.message?.contains("reason=background decision=sync policy=grantedTask") == true
+    })
+    XCTAssertFalse(diagnostics.entries.contains { $0.title == "Sync skipped" })
+  }
+
   func testBackgroundSyncReportsFailureWhenConnectionRecoveryFails() async throws {
     let coordinator = makeCoordinator(
       authService: makeSignedOutAuthService(),

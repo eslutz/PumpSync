@@ -2,8 +2,8 @@ import Foundation
 
 enum AppConstants {
   static let backgroundTaskIdentifier = "dev.ericslutz.PumpSync.daily-sync"
-  /// Background execution is system-scheduled, so this is a freshness target,
-  /// not a guarantee that iOS will wake the app every four hours.
+  /// App-open synchronization uses this freshness target. A system-granted
+  /// background task always syncs because another opportunity is not assured.
   static let staleSyncInterval: TimeInterval = 4 * 60 * 60
   static let subscriptionProductId =
     Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_PRODUCT_ID") as? String

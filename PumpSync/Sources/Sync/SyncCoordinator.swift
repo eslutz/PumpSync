@@ -162,6 +162,15 @@ final class SyncCoordinator {
 
   @discardableResult
   func refreshIfStale(reason: SyncTriggerReason) async -> SyncRunOutcome {
+    if reason == .background {
+      diagnostics?.record(
+        source: .sync,
+        title: "Background sync policy evaluated",
+        message: "build=\(BackgroundSyncDiagnostics.buildNumber) reason=background decision=sync policy=grantedTask"
+      )
+      return await sync(reason: reason) ? .completed : .failed
+    }
+
     let lastSuccessfulSyncAt = syncMetadataStore.metadata.lastSuccessfulSyncAt
     let ageSeconds = lastSuccessfulSyncAt.map { max(0, Date().timeIntervalSince($0)) }
     let shouldRefresh = ageSeconds.map { $0 >= AppConstants.staleSyncInterval } ?? true
