@@ -124,6 +124,20 @@ enum SessionRecoveryPolicy: Equatable {
 @MainActor
 @Observable
 final class AuthService {
+  private enum MissingEntitlementDisposition {
+    case clearUnusableSession
+    case preserveRenewableSession
+
+    var diagnosticName: String {
+      switch self {
+      case .clearUnusableSession:
+        "clearUnusableSession"
+      case .preserveRenewableSession:
+        "preserveRenewableSession"
+      }
+    }
+  }
+
   private let apiClient: PumpSyncAPIClient
   private let configurationStore: BackendConfigurationStore
   private let sessionStore: BackendSessionStore?
@@ -671,7 +685,10 @@ final class AuthService {
 
     let previousAccessToken = session?.accessToken
     await runCoalescedSubscriptionOperation {
-      await self.recoverSubscriptionSession(policy: policy)
+      await self.recoverSubscriptionSession(
+        policy: policy,
+        missingEntitlementDisposition: .preserveRenewableSession
+      )
     }
 
     guard let session,
@@ -982,7 +999,10 @@ final class AuthService {
     return false
   }
 
-  private func recoverSubscriptionSession(policy: SessionRecoveryPolicy = .foreground) async {
+  private func recoverSubscriptionSession(
+    policy: SessionRecoveryPolicy = .foreground,
+    missingEntitlementDisposition: MissingEntitlementDisposition = .clearUnusableSession
+  ) async {
     let configurationRevision = configurationStore.revision
     do {
       try prepareHostedRequest(configurationRevision: configurationRevision)
@@ -1031,10 +1051,20 @@ final class AuthService {
         recordSubscriptionRecoveryConfigurationChange()
         return
       }
-      session = nil
-      try? sessionStore?.delete()
+      let credentialRetained = missingEntitlementDisposition == .preserveRenewableSession
+        && session.map { sessionStore?.isRenewable($0) == true } == true
+      if !credentialRetained {
+        session = nil
+        try? sessionStore?.delete()
+      }
       recoveryRequiresActiveSubscription = true
       resetDisconnectedStatus()
+      diagnostics?.record(
+        source: .auth,
+        severity: .warning,
+        title: "Subscription access unavailable",
+        message: "credentialRetained=\(credentialRetained) policy=\(missingEntitlementDisposition.diagnosticName) retry=nextGrantedTask"
+      )
       if policy == .backgroundWithReenrollment {
         diagnostics?.record(
           source: .auth,

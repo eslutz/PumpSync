@@ -78,6 +78,109 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(establishedSessionCallbacks, 1)
   }
 
+  func testHostedSubscriptionAccessDeniedRetainsRenewableSessionWhenEntitlementIsMissing() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let original = BackendSessionResponse(
+      accessToken: "access-token",
+      expiresAt: Date(timeIntervalSince1970: 2_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "session-family",
+      refreshToken: "refresh-token",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_000),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    try sessionStore.save(original)
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      syncedCurrentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        XCTFail("A missing entitlement must not create a subscription session")
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let recovered = await service.recoverHostedSubscriptionAfterAccessDenied()
+
+    XCTAssertFalse(recovered)
+    XCTAssertTrue(service.isSignedIn)
+    XCTAssertTrue(service.requiresSubscriptionAction)
+    let saved = try XCTUnwrap(sessionStore.loadRecoverableSession())
+    XCTAssertEqual(saved.refreshToken, original.refreshToken)
+  }
+
+  func testHostedSubscriptionAccessDeniedClearsNonrenewableSessionWhenEntitlementIsMissing() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let original = BackendSessionResponse(
+      accessToken: "access-token",
+      expiresAt: Date(timeIntervalSince1970: 2_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "session-family",
+      refreshToken: "refresh-token",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 999),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    try sessionStore.save(original)
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      syncedCurrentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        XCTFail("A missing entitlement must not create a subscription session")
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    let recovered = await service.recoverHostedSubscriptionAfterAccessDenied()
+
+    XCTAssertFalse(recovered)
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertTrue(service.requiresSubscriptionAction)
+    XCTAssertNil(sessionStore.loadRecoverableSession())
+  }
+
+  func testGenericAuthenticationFailureClearsRenewableSession() throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
+    let original = BackendSessionResponse(
+      accessToken: "access-token",
+      expiresAt: Date(timeIntervalSince1970: 2_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "session-family",
+      refreshToken: "refresh-token",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_000),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    try sessionStore.save(original)
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+
+    service.clearSessionForAuthenticationFailure()
+
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertNil(sessionStore.loadRecoverableSession())
+  }
+
   func testConcurrentSubscriptionRecoveryCoalescesStoreKitAndBackendWork() async {
     var entitlementCalls = 0
     var backendCalls = 0
