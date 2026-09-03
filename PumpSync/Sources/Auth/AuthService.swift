@@ -729,6 +729,19 @@ final class AuthService {
     diagnostics?.record(source: .auth, severity: .warning, title: "Connection session expired")
   }
 
+  /// A successful protected hosted request is authoritative evidence that the
+  /// backend entitlement gate is open again. Clear only the subscription
+  /// attention state; the device credential itself was never invalid.
+  func markHostedSubscriptionAccessRestored() {
+    guard configurationStore.mode == .hosted,
+          recoveryRequiresActiveSubscription else {
+      return
+    }
+
+    recoveryRequiresActiveSubscription = false
+    diagnostics?.record(source: .auth, title: "Subscription access restored", message: "source=protectedRequest")
+  }
+
   @discardableResult
   private func establishSubscriptionSession(
     signedTransactionInfo: String,

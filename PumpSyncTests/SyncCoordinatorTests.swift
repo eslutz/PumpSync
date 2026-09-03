@@ -448,11 +448,13 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertNotNil(syncMetadataStore.metadata.lastErrorMessage)
   }
 
-  func testHostedSyncWithExpiredSubscriptionClearsSessionAndOffersSubscription() async throws {
+  func testHostedSyncWithInactiveSubscriptionRetainsRenewableSessionAndOffersSubscription() async throws {
+    let sessionStore = makeSessionStore()
+    try sessionStore.save(renewableHostedSession())
     let authService = AuthService(
       apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
       configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
-      sessionStore: nil,
+      sessionStore: sessionStore,
       currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
       createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
@@ -471,7 +473,9 @@ final class SyncCoordinatorTests: XCTestCase {
 
     await coordinator.sync(reason: .manual)
 
-    XCTAssertFalse(authService.isSignedIn, "an explicitly inactive subscription must not retain a usable PumpSync session")
+    XCTAssertTrue(authService.isSignedIn, "a renewable session should survive a subscription lapse")
+    XCTAssertTrue(authService.requiresSubscriptionAction)
+    XCTAssertNotNil(sessionStore.loadRecoverableSession())
     XCTAssertEqual(
       coordinator.operationState,
       .failed(SyncFailure(
@@ -479,6 +483,67 @@ final class SyncCoordinatorTests: XCTestCase {
         recovery: .openSubscription
       ))
     )
+  }
+
+  func testBackgroundSyncRetriesAfterServerEntitlementRestorationWithoutStoreKitEnrollment() async throws {
+    let syncRequestCount = LockIsolated(0)
+    let subscriptionSessionRequestCount = LockIsolated(0)
+    let subscriptionRequiredHandler = errorResponseHandler(
+      statusCode: 401,
+      code: "active_subscription_required",
+      message: "An active PumpSync subscription is required."
+    )
+    let successfulSyncHandler = syncResponseHandler(
+      samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      let requestCount = syncRequestCount.withValue { value in
+        value += 1
+        return value
+      }
+      if requestCount == 1 {
+        return try subscriptionRequiredHandler(request)
+      }
+      return try successfulSyncHandler(request)
+    }
+
+    let sessionStore = makeSessionStore()
+    try sessionStore.save(renewableHostedSession())
+    let authService = AuthService(
+      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      syncedCurrentEntitlementJWS: {
+        XCTFail("a background retry must not request an interactive StoreKit refresh")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in
+        subscriptionSessionRequestCount.withValue { $0 += 1 }
+        throw APIClientError.invalidResponse
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: StubDeviceSessionProofProvider()
+    )
+    let coordinator = makeCoordinator(
+      authService: authService,
+      credentialStore: try makeValidatedCredentialStore()
+    )
+
+    let firstResult = await coordinator.performBackgroundSync()
+
+    XCTAssertFalse(firstResult)
+    XCTAssertTrue(authService.requiresSubscriptionAction)
+    XCTAssertTrue(authService.isSignedIn)
+
+    let secondResult = await coordinator.performBackgroundSync()
+
+    XCTAssertTrue(secondResult)
+    XCTAssertFalse(authService.requiresSubscriptionAction)
+    XCTAssertEqual(syncRequestCount.value, 2)
+    XCTAssertEqual(subscriptionSessionRequestCount.value, 0)
   }
 
   func testHostedSyncRetriesOnceAfterSubscriptionAccessIsRecovered() async throws {
@@ -1002,6 +1067,26 @@ final class SyncCoordinatorTests: XCTestCase {
         throw APIClientError.invalidResponse
       },
       proofProvider: StubDeviceSessionProofProvider()
+    )
+  }
+
+  private func makeSessionStore() -> BackendSessionStore {
+    BackendSessionStore(
+      keychain: SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.\(UUID().uuidString)")
+    )
+  }
+
+  private func renewableHostedSession() -> BackendSessionResponse {
+    BackendSessionResponse(
+      accessToken: "hosted-access-token",
+      expiresAt: .distantFuture,
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "session-family",
+      refreshToken: "refresh-token",
+      refreshTokenExpiresAt: .distantFuture,
+      refreshTokenAbsoluteExpiresAt: .distantFuture
     )
   }
 

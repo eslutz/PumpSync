@@ -362,6 +362,7 @@ final class SyncCoordinator {
       operationState = .running(SyncProgress(phase: .downloading, trigger: reason, startedAt: startedAt))
       recordBackgroundStage(.downloading, startedAt: startedAt, reason: reason)
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
+      authService.markHostedSubscriptionAccessRestored()
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
       // Record only what Apple Health confirmed: save() drops samples whose
       // per-type permission is missing, and marking those imported would
