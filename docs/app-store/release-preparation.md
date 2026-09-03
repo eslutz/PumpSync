@@ -47,6 +47,9 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 - [ ] Leave the app backgrounded past the refresh target and verify the backend records a successful credential refresh and sync without a StoreKit request.
 - [ ] Restore an active subscription.
 - [ ] Attempt restore with an account that has no entitlement, if available.
+- [ ] Verify a sandbox expiration returns `active_subscription_required` while the support bundle still reports protocol 3/App Attest and finite refresh credential expiries, rather than reporting “Connection session expired.”
+- [ ] While the entitlement remains inactive, verify a later iOS-granted background task reaches session refresh or Tandem sync and Azure returns `401`; it must not stop with `renewableCredential=false`.
+- [ ] After a verified sandbox renewal notification, verify a later background or foreground attempt succeeds without interactive StoreKit recovery and has a matching durable `SyncAttempts` record in Azure.
 - [ ] Test purchase or restore while offline, then restore connectivity and retry.
 - [ ] Confirm repeated taps cannot start overlapping purchase, restore, or activation operations.
 - [ ] Open Apple subscription management from PumpSync.
