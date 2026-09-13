@@ -1352,6 +1352,14 @@ final class AuthService {
       return true
     } catch {
       if Task.isCancelled || error is CancellationError {
+        guard isCurrentRefreshSource(currentSession) else {
+          diagnostics?.record(
+            source: .auth,
+            title: "Renewable session refresh stopped",
+            message: "reason=sessionSuperseded"
+          )
+          return isSignedIn
+        }
         session = currentSession
         diagnostics?.record(
           source: .auth,
@@ -1426,12 +1434,23 @@ final class AuthService {
     )
     if let renewableRefreshTask,
        renewableRefreshOperationKey == key {
-      diagnostics?.record(
-        source: .auth,
-        title: "Renewable session refresh coalesced",
-        message: "coalesced=true"
-      )
-      return await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+      if renewableRefreshTask.isCancelled {
+        self.renewableRefreshTask = nil
+        self.renewableRefreshOperationID = nil
+        self.renewableRefreshOperationKey = nil
+        diagnostics?.record(
+          source: .auth,
+          title: "Renewable session refresh discarded",
+          message: "reason=cancelledOperation"
+        )
+      } else {
+        diagnostics?.record(
+          source: .auth,
+          title: "Renewable session refresh coalesced",
+          message: "coalesced=true"
+        )
+        return await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+      }
     }
 
     let operationID = UUID()
@@ -1470,6 +1489,14 @@ final class AuthService {
           return
         }
         task.cancel()
+        self.renewableRefreshTask = nil
+        self.renewableRefreshOperationID = nil
+        self.renewableRefreshOperationKey = nil
+        self.diagnostics?.record(
+          source: .auth,
+          title: "Renewable session refresh discarded",
+          message: "reason=cancelledWaiter"
+        )
       }
     })
   }

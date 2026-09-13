@@ -62,7 +62,7 @@ final class BackgroundSyncScheduler {
 
   init(
     identifier: String,
-    executionTimeout: Duration = .seconds(20),
+    executionTimeout: Duration = .seconds(30),
     onScheduleFailure: (@Sendable (any Error) -> Void)? = nil,
     onEvent: (@Sendable (String, String?) -> Void)? = nil
   ) {
