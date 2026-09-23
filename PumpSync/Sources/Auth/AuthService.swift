@@ -797,6 +797,13 @@ final class AuthService {
         message: "elapsedMs=\(elapsedMilliseconds(since: warmupStartedAt))"
       )
 
+      // App Attest permits only one hosted proof operation at a time. A cold-start
+      // subscription recovery must let an already-running session refresh finish.
+      if let renewableRefreshTask {
+        _ = await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+        try prepareHostedRequest(configurationRevision: configurationRevision)
+      }
+
       let request = try await makeSubscriptionSessionRequest(
         signedTransactionInfo: signedTransactionInfo,
         configurationRevision: configurationRevision

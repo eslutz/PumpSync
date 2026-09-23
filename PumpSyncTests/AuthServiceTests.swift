@@ -2837,6 +2837,92 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), replacement)
   }
 
+  func testSubscriptionActivationWaitsForInFlightHostedRefreshProof() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    let refreshed = BackendSessionResponse(
+      accessToken: "refreshed-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "family-2",
+      refreshToken: "refresh-token-2",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    let responseData = try JSONCodec.encoder.encode(refreshed)
+    URLProtocolStub.requestHandler = { request in
+      let response = HTTPURLResponse(
+        url: request.url!, statusCode: 200, httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, responseData)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+
+    let refreshProofStarted = expectation(description: "refresh proof started")
+    let proofGate = AsyncGate()
+    var refreshProofCompleted = false
+    var challengeDuringRefresh = false
+    let proofProvider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+      refreshProofStarted.fulfill()
+      await proofGate.wait()
+      refreshProofCompleted = true
+      return SessionRefreshRequest(
+        installationId: installationId,
+        refreshToken: session.refreshToken,
+        requestId: "refresh-request",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        proof: "proof"
+      )
+    })
+    let diagnostics = makeDiagnostics()
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: { "active-transaction" },
+      createSubscriptionSession: { _ in
+        BackendSessionResponse(
+          accessToken: "subscription-token",
+          expiresAt: Date(timeIntervalSince1970: 3_000),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
+      proofProvider: proofProvider,
+      createSessionChallenge: { _ in
+        if !refreshProofCompleted {
+          challengeDuringRefresh = true
+        }
+        return SessionChallengeResponse(
+          protocolVersion: 3,
+          proofKind: "appAttest",
+          challengeToken: "challenge",
+          expiresAt: .distantFuture
+        )
+      }
+    )
+
+    let refresh = Task { await service.recoverSessionIfNeeded(policy: .foreground) }
+    await fulfillment(of: [refreshProofStarted], timeout: 1)
+    let activation = Task { await service.activateSubscription(signedTransactionInfo: "active-transaction") }
+    await waitUntil {
+      diagnostics.entries.contains { $0.title == "Subscription session started" }
+    }
+    try await Task.sleep(for: .milliseconds(100))
+    await proofGate.open()
+    await refresh.value
+    await activation.value
+
+    XCTAssertFalse(challengeDuringRefresh)
+    XCTAssertEqual(service.accessToken, "subscription-token")
+    XCTAssertFalse(diagnostics.entries.contains { $0.title == "Hosted security operation deferred" })
+  }
+
   func testCancelledBackgroundRefreshDoesNotBlockLaterRecoveryOrRestoreStaleSession() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
     let expired = Self.expiredRenewableSession()
@@ -2959,7 +3045,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadRecoverableSession(), expired)
   }
 
-  func testRejectedRefreshDoesNotDeleteNewerSameConfigurationSession() async throws {
+  func testSubscriptionConnectionAfterRejectedRefreshReplacesSession() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
     try sessionStore.save(Self.expiredRenewableSession())
     let replacement = BackendSessionResponse(
@@ -3003,15 +3089,14 @@ final class AuthServiceTests: XCTestCase {
       await service.recoverSessionIfNeeded(policy: .background)
     }
     await fulfillment(of: [refreshStarted], timeout: 1)
-    await service.connectUsingCurrentSubscription()
+    let connection = Task { await service.connectUsingCurrentSubscription() }
     allowRejection.signal()
     await staleRefresh.value
+    await connection.value
 
     XCTAssertEqual(service.accessToken, replacement.accessToken)
     XCTAssertEqual(sessionStore.loadValidSession(), replacement)
-    XCTAssertNotNil(diagnostics.entries.first {
-      $0.title == "Renewable session refresh stopped" && $0.message == "reason=sessionSuperseded"
-    })
+    XCTAssertFalse(diagnostics.entries.contains { $0.title == "Hosted security operation deferred" })
   }
 
   func testPermanentRefreshRejectionClearsCurrentSourceSession() async throws {
