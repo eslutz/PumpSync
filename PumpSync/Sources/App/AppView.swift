@@ -82,6 +82,7 @@ enum AppTab: String, CaseIterable, Identifiable {
   }
 
   @ViewBuilder
+  @MainActor
   var content: some View {
     switch self {
     case .sync:
