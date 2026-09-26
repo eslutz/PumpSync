@@ -59,6 +59,7 @@ final class BackgroundSyncScheduler {
   private let onScheduleFailure: (@Sendable (any Error) -> Void)?
   private let onEvent: (@Sendable (String, String?) -> Void)?
   private let executionTimeout: Duration
+  private var backgroundRefreshStatusObserver: NSObjectProtocol?
 
   init(
     identifier: String,
@@ -77,6 +78,7 @@ final class BackgroundSyncScheduler {
       return
     }
 
+    observeBackgroundRefreshStatusChanges()
     let onEvent = onEvent
     let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { [weak self] task in
       guard let self else {
@@ -84,13 +86,13 @@ final class BackgroundSyncScheduler {
         return
       }
 
-      onEvent?("Background sync task started", Self.runtimeContext())
+      onEvent?("Background sync task started", Self.runtimeContext(phase: "taskCallback"))
       self.handle(task: task, handler: handler)
     }
     isRegistered = registered
     onEvent?(
       registered ? "Background sync task registered" : "Background sync task registration failed",
-      Self.runtimeContext()
+      Self.runtimeContext(phase: "registration")
     )
   }
 
@@ -98,7 +100,7 @@ final class BackgroundSyncScheduler {
     let identifier = identifier
     let onScheduleFailure = onScheduleFailure
     let onEvent = onEvent
-    let runtimeContext = Self.runtimeContext()
+    let runtimeContext = Self.runtimeContext(phase: trigger)
     BGTaskScheduler.shared.getPendingTaskRequests { requests in
       let matchingRequests = requests.filter { $0.identifier == identifier }
       let descriptions = matchingRequests.map {
@@ -107,8 +109,11 @@ final class BackgroundSyncScheduler {
           earliestBeginDate: $0.earliestBeginDate
         )
       }
-      let pendingMessage = ([runtimeContext, "trigger=\(trigger)", "count=\(matchingRequests.count)"] + descriptions)
-        .joined(separator: " ")
+      let pendingMessage = BackgroundSyncDiagnostics.pendingRequestsContext(
+        runtimeContext: runtimeContext,
+        trigger: trigger,
+        requests: descriptions
+      )
 
       guard !requests.contains(where: { $0.identifier == identifier }) else {
         onEvent?("Background sync task already scheduled", pendingMessage)
@@ -125,6 +130,25 @@ final class BackgroundSyncScheduler {
           earliestBeginDate: request.earliestBeginDate
         )
         onEvent?("Background sync task scheduled", "\(runtimeContext) trigger=\(trigger) \(requestMessage)")
+        BGTaskScheduler.shared.getPendingTaskRequests { pendingRequests in
+          let matchingPendingRequests = pendingRequests.filter { $0.identifier == identifier }
+          let pendingDescriptions = matchingPendingRequests.map {
+            BackgroundSyncDiagnostics.pendingRequestDescription(
+              identifier: $0.identifier,
+              earliestBeginDate: $0.earliestBeginDate
+            )
+          }
+          Task { @MainActor in
+            onEvent?(
+              "Background sync pending state checked",
+              BackgroundSyncDiagnostics.pendingRequestsContext(
+                runtimeContext: Self.runtimeContext(phase: "postSubmit"),
+                trigger: trigger,
+                requests: pendingDescriptions
+              )
+            )
+          }
+        }
       } catch {
         // A swallowed submit failure (unregistered identifier, simulator
         // restrictions, too many pending requests) makes background sync
@@ -192,7 +216,24 @@ final class BackgroundSyncScheduler {
     }
   }
 
-  private static func runtimeContext() -> String {
+  private func observeBackgroundRefreshStatusChanges() {
+    guard backgroundRefreshStatusObserver == nil else { return }
+    let onEvent = onEvent
+    backgroundRefreshStatusObserver = NotificationCenter.default.addObserver(
+      forName: UIApplication.backgroundRefreshStatusDidChangeNotification,
+      object: nil,
+      queue: .main
+    ) { _ in
+      Task { @MainActor in
+        onEvent?(
+          "Background refresh status changed",
+          Self.runtimeContext(phase: "statusChanged")
+        )
+      }
+    }
+  }
+
+  private static func runtimeContext(phase: String) -> String {
     let refreshStatus: BackgroundRefreshAvailability
     switch UIApplication.shared.backgroundRefreshStatus {
     case .available:
@@ -207,6 +248,7 @@ final class BackgroundSyncScheduler {
 
     return BackgroundSyncDiagnostics.schedulingContext(
       buildNumber: BackgroundSyncDiagnostics.buildNumber,
+      phase: phase,
       refreshStatus: refreshStatus,
       isLowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled
     )

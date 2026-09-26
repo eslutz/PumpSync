@@ -14,10 +14,20 @@ enum BackgroundSyncDiagnostics {
 
   static func schedulingContext(
     buildNumber: String,
+    phase: String,
     refreshStatus: BackgroundRefreshAvailability,
     isLowPowerModeEnabled: Bool
   ) -> String {
-    "build=\(buildNumber) refreshStatus=\(refreshStatus.rawValue) lowPowerMode=\(isLowPowerModeEnabled)"
+    "build=\(buildNumber) phase=\(phase) refreshStatus=\(refreshStatus.rawValue) lowPowerMode=\(isLowPowerModeEnabled)"
+  }
+
+  static func pendingRequestsContext(
+    runtimeContext: String,
+    trigger: String,
+    requests: [String]
+  ) -> String {
+    ([runtimeContext, "trigger=\(trigger)", "count=\(requests.count)"] + requests)
+      .joined(separator: " ")
   }
 
   static func pendingRequestDescription(identifier: String, earliestBeginDate: Date?) -> String {

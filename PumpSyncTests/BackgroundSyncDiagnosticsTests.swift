@@ -5,11 +5,25 @@ final class BackgroundSyncDiagnosticsTests: XCTestCase {
   func testSchedulingContextIncludesBuildRefreshStatusAndLowPowerMode() {
     let context = BackgroundSyncDiagnostics.schedulingContext(
       buildNumber: "4",
+      phase: "registration",
       refreshStatus: .available,
       isLowPowerModeEnabled: true
     )
 
-    XCTAssertEqual(context, "build=4 refreshStatus=available lowPowerMode=true")
+    XCTAssertEqual(context, "build=4 phase=registration refreshStatus=available lowPowerMode=true")
+  }
+
+  func testPendingRequestsContextIncludesPhaseTriggerAndPendingState() {
+    let context = BackgroundSyncDiagnostics.pendingRequestsContext(
+      runtimeContext: "build=4 phase=appBackground refreshStatus=available lowPowerMode=false",
+      trigger: "appBackground",
+      requests: ["identifier=task earliestBeginDate=2026-08-13T03:00:00Z"]
+    )
+
+    XCTAssertEqual(
+      context,
+      "build=4 phase=appBackground refreshStatus=available lowPowerMode=false trigger=appBackground count=1 identifier=task earliestBeginDate=2026-08-13T03:00:00Z"
+    )
   }
 
   func testPendingRequestDescriptionIncludesIdentifierAndEarliestBeginDate() {
