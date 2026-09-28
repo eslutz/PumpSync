@@ -5,6 +5,7 @@ import UIKit
 
 enum BackgroundExecutionOutcome: Equatable {
   case completed(Bool)
+  case cancelled
   case timedOut
 }
 
@@ -13,41 +14,68 @@ enum BackgroundExecutionDeadline {
     timeout: Duration,
     operation: @escaping @Sendable () async -> Bool
   ) async -> BackgroundExecutionOutcome {
-    await withCheckedContinuation { continuation in
-      let completed = Mutex(false)
-      let timeoutTaskBox = Mutex<Task<Void, Never>?>(nil)
-      let finish: @Sendable (BackgroundExecutionOutcome) -> Void = { outcome in
-        let shouldFinish = completed.withLock { completed in
-          guard !completed else { return false }
-          completed = true
-          return true
-        }
-        guard shouldFinish else { return }
-        timeoutTaskBox.withLock { task in
-          task?.cancel()
-          task = nil
-        }
-        continuation.resume(returning: outcome)
-      }
+    let workTaskBox = Mutex<Task<Void, Never>?>(nil)
+    let finishBox = Mutex<(@Sendable (BackgroundExecutionOutcome) -> Void)?>(nil)
 
-      let work = Task {
-        finish(.completed(await operation()))
-      }
-      let timeoutTask = Task {
-        do {
-          try await Task.sleep(for: timeout)
-        } catch {
+    return await withTaskCancellationHandler {
+      await withCheckedContinuation { continuation in
+        let completed = Mutex(false)
+        let timeoutTaskBox = Mutex<Task<Void, Never>?>(nil)
+        let finish: @Sendable (BackgroundExecutionOutcome) -> Void = { outcome in
+          let shouldFinish = completed.withLock { completed in
+            guard !completed else { return false }
+            completed = true
+            return true
+          }
+          guard shouldFinish else { return }
+          timeoutTaskBox.withLock { task in
+            task?.cancel()
+            task = nil
+          }
+          workTaskBox.withLock { $0 = nil }
+          finishBox.withLock { $0 = nil }
+          continuation.resume(returning: outcome)
+        }
+
+        finishBox.withLock { $0 = finish }
+        if Task.isCancelled {
+          finish(.cancelled)
           return
         }
-        work.cancel()
-        finish(.timedOut)
+
+        let work = Task {
+          guard !Task.isCancelled else { return }
+          finish(.completed(await operation()))
+        }
+        workTaskBox.withLock { $0 = work }
+
+        // Cancellation can race task installation. If it already finished the
+        // continuation, do not leave a newly created operation running.
+        let shouldCancelWork = completed.withLock { $0 }
+        if shouldCancelWork {
+          work.cancel()
+        }
+
+        let timeoutTask = Task {
+          do {
+            try await Task.sleep(for: timeout)
+          } catch {
+            return
+          }
+          work.cancel()
+          finish(.timedOut)
+        }
+        let shouldStoreTimeout = completed.withLock { !$0 }
+        if shouldStoreTimeout {
+          timeoutTaskBox.withLock { $0 = timeoutTask }
+        } else {
+          timeoutTask.cancel()
+        }
       }
-      let shouldStoreTimeout = completed.withLock { !$0 }
-      if shouldStoreTimeout {
-        timeoutTaskBox.withLock { $0 = timeoutTask }
-      } else {
-        timeoutTask.cancel()
-      }
+    } onCancel: {
+      workTaskBox.withLock { $0?.cancel() }
+      let finish = finishBox.withLock { $0 }
+      finish?(.cancelled)
     }
   }
 }
@@ -198,6 +226,8 @@ final class BackgroundSyncScheduler {
       switch outcome {
       case .completed(let succeeded):
         complete(succeeded && !cancelled, cancelled)
+      case .cancelled:
+        complete(false, true)
       case .timedOut:
         let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
         onEvent?(

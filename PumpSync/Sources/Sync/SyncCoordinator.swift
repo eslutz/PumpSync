@@ -312,7 +312,13 @@ final class SyncCoordinator {
     case .background:
       recoveryPolicy = .backgroundWithReenrollment
     }
-    guard let accessToken = await authService.accessTokenRecoveringIfNeeded(policy: recoveryPolicy) else {
+    let recoveredAccessToken = await authService.accessTokenRecoveringIfNeeded(policy: recoveryPolicy)
+    guard !Task.isCancelled else {
+      recordCancellation(reason: reason)
+      return false
+    }
+
+    guard let accessToken = recoveredAccessToken else {
       if authService.requiresSubscriptionAction {
         fail(
           "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
@@ -343,6 +349,13 @@ final class SyncCoordinator {
       return false
     }
 
+    // Cancellation can arrive while validating local prerequisites after auth
+    // recovery. Do not issue a new request after the BGTask budget has expired.
+    guard !Task.isCancelled else {
+      recordCancellation(reason: reason)
+      return false
+    }
+
     syncMetadataStore.recordAttempt()
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
     recordBackgroundStage(.preparing, startedAt: startedAt, reason: reason)
@@ -361,6 +374,10 @@ final class SyncCoordinator {
       )
       operationState = .running(SyncProgress(phase: .downloading, trigger: reason, startedAt: startedAt))
       recordBackgroundStage(.downloading, startedAt: startedAt, reason: reason)
+      guard !Task.isCancelled else {
+        recordCancellation(reason: reason)
+        return false
+      }
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       authService.markHostedSubscriptionAccessRestored()
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
@@ -406,12 +423,7 @@ final class SyncCoordinator {
       return true
     } catch {
       if Task.isCancelled || error is CancellationError {
-        operationState = .idle
-        diagnostics?.record(
-          source: .sync,
-          title: "Sync cancelled",
-          message: "Reason: \(reason.rawValue)"
-        )
+        recordCancellation(reason: reason)
         return false
       }
       let apiError = error as? APIClientError
@@ -464,6 +476,15 @@ final class SyncCoordinator {
 
   private func fail(_ message: String, recovery: SyncRecovery) {
     operationState = .failed(SyncFailure(message: message, recovery: recovery))
+  }
+
+  private func recordCancellation(reason: SyncTriggerReason) {
+    operationState = .idle
+    diagnostics?.record(
+      source: .sync,
+      title: "Sync cancelled",
+      message: "Reason: \(reason.rawValue)"
+    )
   }
 
   private func recordBackgroundStage(_ phase: SyncPhase, startedAt: Date, reason: SyncTriggerReason) {
