@@ -3,6 +3,31 @@ import XCTest
 
 @MainActor
 final class PumpSyncAPIClientTests: XCTestCase {
+  func testDeterministicTandemRejectionIsNotTransient() {
+    XCTAssertFalse(APIClientError.httpStatus(502, code: "tandem_source_request_rejected", message: "Rejected").isTransient)
+    XCTAssertTrue(APIClientError.httpStatus(502, code: "tandem_source_error", message: "Unavailable").isTransient)
+  }
+
+  func testRejectedTandemRequestMakesOnlyOneNetworkAttempt() async {
+    let calls = LockIsolated(0)
+    URLProtocolStub.requestHandler = { request in
+      calls.modify { $0 += 1 }
+      let response = HTTPURLResponse(url: request.url!, statusCode: 502, httpVersion: nil, headerFields: nil)!
+      return (response, Data(#"{"code":"tandem_source_request_rejected","message":"Rejected","correlationId":"safe-reference"}"#.utf8))
+    }
+    let client = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 2)
+    do {
+      _ = try await client.syncTandem(TandemSyncRequest(
+        tandem: TandemCredentials(username: "fixture", password: "fixture", region: "us"),
+        minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC"
+      ), accessToken: "fixture")
+      XCTFail("Expected rejection")
+    } catch {
+      XCTAssertTrue(error.localizedDescription.contains("safe-reference"))
+    }
+    XCTAssertEqual(calls.value, 1)
+  }
+
   override func tearDown() {
     URLProtocolStub.requestHandler = nil
     super.tearDown()

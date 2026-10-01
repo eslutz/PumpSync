@@ -73,6 +73,47 @@ final class SyncCoordinatorTests: XCTestCase {
     super.tearDown()
   }
 
+  func testAllCancelledWaitersCannotPublishSuccessAfterHealthSaveCompletes() async throws {
+    try await verifySharedCancellation(cancelSecond: true)
+  }
+
+  func testCancellingOneSyncWaiterPreservesTheOtherCallersWork() async throws {
+    try await verifySharedCancellation(cancelSecond: false)
+  }
+
+  private func verifySharedCancellation(cancelSecond: Bool) async throws {
+    let saveStarted = expectation(description: "save started")
+    let health = FakeHealthKitService()
+    health.suspendsSave = true
+    health.saveStarted = { saveStarted.fulfill() }
+    let metadata = makeSyncMetadataStore()
+    URLProtocolStub.requestHandler = syncResponseHandler(
+      samples: [sample(externalId: "cancelled-import")],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date()
+    )
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: health,
+      syncMetadataStore: metadata
+    )
+    let first = Task { await coordinator.sync(reason: .background) }
+    await fulfillment(of: [saveStarted], timeout: 2)
+    let second = Task { await coordinator.sync(reason: .appOpen) }
+    for _ in 0..<10 { await Task.yield() }
+    first.cancel()
+    if cancelSecond { second.cancel() }
+    for _ in 0..<10 { await Task.yield() }
+    health.resumeSave()
+    let firstResult = await first.value
+    let secondResult = await second.value
+    XCTAssertFalse(firstResult)
+    XCTAssertEqual(secondResult, !cancelSecond)
+    XCTAssertEqual(metadata.metadata.lastSuccessfulSyncAt == nil, cancelSecond)
+    XCTAssertFalse(coordinator.isSyncing)
+  }
+
   func testManualSyncPublishesEveryOperationPhaseBeforeSuccess() async throws {
     let requestStarted = expectation(description: "sync request started")
     let saveStarted = expectation(description: "HealthKit save started")
@@ -887,6 +928,24 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.lastMessage, backendMessage, "the backend's remediation guidance is user-facing and must reach the user")
     XCTAssertFalse(credentialStore.hasValidatedCredentials, "a Tandem rejection means the stored credentials need re-validation")
     XCTAssertTrue(authService.isSignedIn, "a Tandem credential failure is not a PumpSync session failure")
+  }
+
+  func testTandemSourceFailureExplainsProviderErrorAndPreservesConnection() async throws {
+    let authService = makeSignedInAuthService()
+    let credentialStore = try makeValidatedCredentialStore()
+    let backendMessage = "Tandem Source returned an unexpected response. Try again later."
+    URLProtocolStub.requestHandler = errorResponseHandler(statusCode: 502, code: "tandem_source_error", message: backendMessage)
+
+    let coordinator = makeCoordinator(authService: authService, credentialStore: credentialStore)
+    await coordinator.sync(reason: .manual)
+
+    XCTAssertEqual(coordinator.lastMessage, backendMessage)
+    XCTAssertTrue(authService.isSignedIn)
+    XCTAssertTrue(credentialStore.hasValidatedCredentials)
+    guard case .failed(let failure) = coordinator.operationState else {
+      return XCTFail("Expected a visible sync failure")
+    }
+    XCTAssertEqual(failure.recovery, .waitAndRetry)
   }
 
   func testRateLimitedSyncShowsWaitMessage() async throws {

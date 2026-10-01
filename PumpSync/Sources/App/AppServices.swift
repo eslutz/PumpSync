@@ -16,6 +16,7 @@ final class AppServices {
   let syncMetadataStore: SyncMetadataStore
   let syncCoordinator: SyncCoordinator
   let backgroundSyncScheduler: BackgroundSyncScheduler
+  let foregroundRecovery: ForegroundRecoveryController
   private let metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector
 
   private init(
@@ -46,6 +47,22 @@ final class AppServices {
     self.syncCoordinator = syncCoordinator
     self.backgroundSyncScheduler = backgroundSyncScheduler
     self.metricKitDiagnosticsCollector = metricKitDiagnosticsCollector
+    foregroundRecovery = ForegroundRecoveryController(
+      setVisible: { authService.setConnectionProgressVisible($0) }
+    ) {
+      do {
+        if try importedSampleLedger.migrateHmacKeyForBackgroundAccess() {
+          diagnosticsLogStore.record(source: .sync, title: "Background sync ledger key migrated")
+        }
+      } catch {
+        diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync ledger migration deferred")
+      }
+      backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
+      healthKitService.refreshAuthorizationStatus()
+      await authService.recoverSessionIfNeeded()
+      guard !Task.isCancelled, authService.isSignedIn else { return }
+      await syncCoordinator.refreshIfStale(reason: .appOpen)
+    }
   }
 
   static func live() -> AppServices {

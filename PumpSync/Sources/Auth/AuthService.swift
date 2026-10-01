@@ -152,6 +152,9 @@ final class AuthService {
   private let subscriptionSessionTimeout: TimeInterval
 
   private(set) var isConnecting = false
+  private var connectionProgressVisible = false
+  private var connectionProgressGeneration = UUID()
+  private var connectionProgressLeases: [UUID: UUID] = [:]
   private(set) var session: BackendSessionResponse?
   private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
   private(set) var errorMessage: String?
@@ -159,6 +162,7 @@ final class AuthService {
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
   private var subscriptionOperationID: UUID?
+  private var subscriptionWaiters: [UUID: Set<UUID>] = [:]
   private struct RenewableRefreshOperationKey: Equatable {
     let configurationRevision: Int
     let mode: BackendAccessMode
@@ -167,7 +171,7 @@ final class AuthService {
   private var renewableRefreshTask: Task<Bool, Never>?
   private var renewableRefreshOperationID: UUID?
   private var renewableRefreshOperationKey: RenewableRefreshOperationKey?
-  private var renewableRefreshWaiterCount = 0
+  private var renewableRefreshWaiters: [UUID: Set<UUID>] = [:]
   private var selfHostedOperationID: UUID?
   private var hostedSubscriptionSessionEstablished: (@MainActor () -> Void)?
   // Process-local by design: explicit purchase/restore actions may retry the
@@ -284,6 +288,37 @@ final class AuthService {
     configurationStore.mode == .hosted
   }
 
+  func setConnectionProgressVisible(_ visible: Bool) {
+    guard connectionProgressVisible != visible else {
+      return
+    }
+    connectionProgressVisible = visible
+    updateConnectionProgress()
+  }
+
+  private func beginConnectionProgressLease() -> UUID {
+    let leaseID = UUID()
+    connectionProgressLeases[leaseID] = connectionProgressGeneration
+    updateConnectionProgress()
+    return leaseID
+  }
+
+  private func endConnectionProgressLease(_ leaseID: UUID) {
+    connectionProgressLeases.removeValue(forKey: leaseID)
+    updateConnectionProgress()
+  }
+
+  private func invalidateConnectionProgressGeneration() {
+    connectionProgressGeneration = UUID()
+    connectionProgressLeases.removeAll()
+    updateConnectionProgress()
+  }
+
+  private func updateConnectionProgress() {
+    isConnecting = connectionProgressVisible
+      && connectionProgressLeases.values.contains(connectionProgressGeneration)
+  }
+
   func accessTokenRecoveringIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> String? {
     await recoverSessionIfNeeded(policy: policy)
     guard !Task.isCancelled else {
@@ -294,7 +329,7 @@ final class AuthService {
 
   var connectionRequiredMessage: String {
     if let errorMessage {
-      return subscriptionConnectionMessage(for: errorMessage)
+      return errorMessage
     }
 
     switch configurationStore.mode {
@@ -319,7 +354,6 @@ final class AuthService {
       recordSubscriptionRestoreConfigurationChange()
       return
     }
-    isConnecting = true
     errorMessage = nil
     statusMessage = "Checking Subscription…"
     diagnostics?.record(source: .auth, title: "Subscription restore started")
@@ -349,7 +383,6 @@ final class AuthService {
         title: "Subscription restore failed",
         message: "No current StoreKit entitlement was available for subscription restore."
       )
-      isConnecting = false
     } catch {
       guard !(error is SubscriptionConfigurationChangedError),
             isCurrentHostedConfiguration(configurationRevision) else {
@@ -357,11 +390,10 @@ final class AuthService {
         return
       }
       preserveValidSessionOrClear()
-      let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
+      let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error), error: error)
       errorMessage = message
       statusMessage = message
       diagnostics?.record(error: error, source: .auth, title: "Subscription restore failed")
-      isConnecting = false
     }
   }
 
@@ -463,6 +495,8 @@ final class AuthService {
     finish: @MainActor () async -> Void
   ) async {
     let configurationRevision = configurationStore.revision
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     await finish()
 
     let transactionHash = Self.subscriptionJWSHash(signedTransactionInfo)
@@ -519,7 +553,6 @@ final class AuthService {
     preserveValidSessionOrClear()
     errorMessage = nil
     statusMessage = "Subscription purchase cancelled."
-    isConnecting = false
     diagnostics?.record(source: .auth, title: "PumpSync subscription purchase cancelled")
   }
 
@@ -527,7 +560,6 @@ final class AuthService {
     preserveValidSessionOrClear()
     errorMessage = nil
     statusMessage = "Subscription purchase is pending App Store approval."
-    isConnecting = false
     diagnostics?.record(source: .auth, title: "PumpSync subscription purchase pending")
   }
 
@@ -536,7 +568,6 @@ final class AuthService {
     let message = safeMessage("Subscription purchase could not be completed.", error: error)
     errorMessage = message
     statusMessage = message
-    isConnecting = false
     diagnostics?.record(error: error, source: .auth, title: "PumpSync subscription purchase failed")
   }
 
@@ -551,7 +582,8 @@ final class AuthService {
 
     let operationID = UUID()
     selfHostedOperationID = operationID
-    isConnecting = true
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     errorMessage = nil
     statusMessage = "Connecting to self-hosted service..."
     diagnostics?.record(source: .auth, title: "Self-hosted session started")
@@ -607,6 +639,13 @@ final class AuthService {
       }
       return nil
     } ?? sessionStore?.loadRecoverableSession()
+    var progressLeaseID: UUID?
+    defer {
+      if let progressLeaseID {
+        endConnectionProgressLease(progressLeaseID)
+      }
+    }
+
     if let recoverableSession {
       session = recoverableSession
       if sessionStore?.isValid(recoverableSession) == true {
@@ -616,6 +655,7 @@ final class AuthService {
         return
       }
 
+      progressLeaseID = beginConnectionProgressLease()
       if await runCoalescedRenewableRefresh(recoverableSession) {
         return
       }
@@ -630,6 +670,9 @@ final class AuthService {
       if policy == .backgroundWithReenrollment,
          configurationStore.mode == .hosted,
          sessionStore?.isHostedReenrollmentPending() == true {
+        if progressLeaseID == nil {
+          progressLeaseID = beginConnectionProgressLease()
+        }
         await recoverSubscriptionSession(policy: policy)
         return
       }
@@ -642,6 +685,9 @@ final class AuthService {
     if policy == .backgroundWithReenrollment,
        configurationStore.mode == .hosted,
        sessionStore?.isHostedReenrollmentPending() == true {
+      if progressLeaseID == nil {
+        progressLeaseID = beginConnectionProgressLease()
+      }
       await recoverSubscriptionSession(policy: policy)
       return
     }
@@ -657,6 +703,9 @@ final class AuthService {
     }
 
     session = nil
+    if progressLeaseID == nil {
+      progressLeaseID = beginConnectionProgressLease()
+    }
 
     switch configurationStore.mode {
     case .hosted:
@@ -684,6 +733,8 @@ final class AuthService {
     }
 
     let previousAccessToken = session?.accessToken
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     await runCoalescedSubscriptionOperation {
       await self.recoverSubscriptionSession(
         policy: policy,
@@ -711,12 +762,12 @@ final class AuthService {
     renewableRefreshOperationKey = nil
     renewableRefreshTask = nil
     selfHostedOperationID = nil
+    invalidateConnectionProgressGeneration()
     session = nil
     recoveryRequiresActiveSubscription = false
     try? sessionStore?.delete()
     errorMessage = nil
     statusMessage = "Connect to PumpSync or a self-hosted service"
-    isConnecting = false
     diagnostics?.record(source: .auth, title: "Connection session reset")
   }
 
@@ -751,6 +802,8 @@ final class AuthService {
     expectedConfigurationRevision: Int? = nil,
     allowsRejectedAssertionRetry: Bool = true
   ) async -> Bool {
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     let configurationRevision = expectedConfigurationRevision ?? configurationStore.revision
     attemptedSubscriptionSessionJWSHashes.insert(Self.subscriptionJWSHash(signedTransactionInfo))
     do {
@@ -762,7 +815,6 @@ final class AuthService {
 
     let previousSession = session
     let hasValidPreviousSession = previousSession.map { sessionStore?.isValid($0) ?? !$0.accessToken.isEmpty } ?? false
-    isConnecting = true
     errorMessage = nil
     statusMessage = activityMessage
     diagnostics?.record(source: .auth, title: "Subscription session started")
@@ -860,6 +912,7 @@ final class AuthService {
       diagnostics?.record(source: .auth, title: title)
     } catch {
       timeoutKind = SubscriptionSessionTimeoutKind(error: error)
+      if Task.isCancelled || error is CancellationError { return false }
       let apiError = error as? APIClientError
       if let proofError = error as? DeviceSessionProofError,
          case .hostedProofOperationInProgress = proofError {
@@ -991,10 +1044,10 @@ final class AuthService {
         session = nil
         try? sessionStore?.delete()
       }
-      if publishesErrors || error is HostedServiceWarmupError {
+      if publishesErrors || !hasValidPreviousSession || error is HostedServiceWarmupError {
         let message = error is HostedServiceWarmupError
           ? HostedServiceWarmupError.userMessage
-          : subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error))
+          : subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error), error: error)
         errorMessage = message
         statusMessage = message
       } else {
@@ -1015,7 +1068,6 @@ final class AuthService {
       message: "backendMs=\(backendMs) timedOut=\(timeoutKind != .none) timeoutKind=\(timeoutKind.rawValue) cacheHit=false"
     )
 
-    isConnecting = false
     return false
   }
 
@@ -1023,6 +1075,8 @@ final class AuthService {
     policy: SessionRecoveryPolicy = .foreground,
     missingEntitlementDisposition: MissingEntitlementDisposition = .clearUnusableSession
   ) async {
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     let configurationRevision = configurationStore.revision
     do {
       try prepareHostedRequest(configurationRevision: configurationRevision)
@@ -1067,6 +1121,7 @@ final class AuthService {
       }
       diagnostics?.record(source: .auth, title: "Subscription recovery timing", message: "entitlementMs=\(entitlementMs) totalMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000)) cacheHit=false")
     } catch StoreKitSubscriptionError.noActiveSubscription {
+      guard !Task.isCancelled else { return }
       guard isCurrentHostedConfiguration(configurationRevision) else {
         recordSubscriptionRecoveryConfigurationChange()
         return
@@ -1079,6 +1134,7 @@ final class AuthService {
       }
       recoveryRequiresActiveSubscription = true
       resetDisconnectedStatus()
+      errorMessage = "Your PumpSync subscription could not be verified. Review your subscription to reconnect."
       diagnostics?.record(
         source: .auth,
         severity: .warning,
@@ -1102,6 +1158,7 @@ final class AuthService {
         message: "No current StoreKit entitlement was available for subscription recovery."
       )
     } catch {
+      if Task.isCancelled || error is CancellationError { return }
       guard !(error is SubscriptionConfigurationChangedError),
             isCurrentHostedConfiguration(configurationRevision) else {
         recordSubscriptionRecoveryConfigurationChange()
@@ -1115,6 +1172,8 @@ final class AuthService {
         try? sessionStore?.clearHostedReenrollmentPending()
       }
       resetDisconnectedStatus()
+      errorMessage = safeMessage("Your PumpSync subscription could not be checked. Retry Connection to try again.", error: error)
+      statusMessage = errorMessage ?? "Connection recovery failed."
       if policy == .backgroundWithReenrollment {
         let reason = (error as? APIClientError)?.hasAmbiguousOutcome == true
           ? "ambiguousBackendOutcome"
@@ -1153,7 +1212,8 @@ final class AuthService {
 
     let operationID = UUID()
     selfHostedOperationID = operationID
-    isConnecting = true
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     errorMessage = nil
     statusMessage = "Connecting to self-hosted service..."
     diagnostics?.record(source: .auth, title: "Self-hosted recovery started")
@@ -1186,9 +1246,15 @@ final class AuthService {
         )
         return
       }
+      if Task.isCancelled || error is CancellationError {
+        finishSelfHostedOperation(operationID)
+        return
+      }
       session = nil
       try? sessionStore?.delete()
       resetDisconnectedStatus()
+      errorMessage = safeMessage("The self-hosted connection could not be restored. Retry Connection or review Connection Settings.", error: error)
+      statusMessage = errorMessage ?? "Connection recovery failed."
       diagnostics?.record(error: error, source: .auth, title: "Self-hosted recovery failed")
     }
 
@@ -1429,6 +1495,8 @@ final class AuthService {
         title: "Renewable session refresh failed",
         message: "permanentlyRejected=\(permanentlyRejected) elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000)) error=\(safeMessage("refresh failed", error: error))"
       )
+      errorMessage = safeMessage("Your secure connection could not be restored. Retry Connection to try again.", error: error)
+      statusMessage = errorMessage ?? "Connection recovery failed."
       return false
     }
   }
@@ -1483,16 +1551,19 @@ final class AuthService {
     _ task: Task<Bool, Never>,
     operationID: UUID?
   ) async -> Bool {
-    renewableRefreshWaiterCount += 1
-    defer { renewableRefreshWaiterCount -= 1 }
+    guard let operationID else { return false }
+    let waiterID = UUID()
+    renewableRefreshWaiters[operationID, default: []].insert(waiterID)
+    defer { removeRefreshWaiter(waiterID, operationID: operationID) }
     return await withTaskCancellationHandler(operation: {
       let result = await task.value
       return Task.isCancelled ? false : result
     }, onCancel: {
       Task { @MainActor [weak self] in
-        guard let self,
-              self.renewableRefreshOperationID == operationID,
-              self.renewableRefreshWaiterCount == 1 else {
+        guard let self else { return }
+        self.removeRefreshWaiter(waiterID, operationID: operationID)
+        guard self.renewableRefreshOperationID == operationID,
+              self.renewableRefreshWaiters[operationID] == nil else {
           return
         }
         task.cancel()
@@ -1506,6 +1577,11 @@ final class AuthService {
         )
       }
     })
+  }
+
+  private func removeRefreshWaiter(_ waiterID: UUID, operationID: UUID) {
+    renewableRefreshWaiters[operationID]?.remove(waiterID)
+    if renewableRefreshWaiters[operationID]?.isEmpty == true { renewableRefreshWaiters[operationID] = nil }
   }
 
   private func isCurrentRefreshSource(_ source: BackendSessionResponse) -> Bool {
@@ -1526,6 +1602,8 @@ final class AuthService {
   private func runQueuedExplicitSubscriptionOperation(
     _ operation: @escaping @MainActor () async -> Void
   ) async {
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     let configurationRevision = configurationStore.revision
     while !Task.isCancelled,
           configurationStore.revision == configurationRevision {
@@ -1545,9 +1623,14 @@ final class AuthService {
   private func runCoalescedSubscriptionOperation(
     _ operation: @escaping @MainActor () async -> Void
   ) async -> Bool {
+    guard !Task.isCancelled else { return false }
+    if subscriptionOperationTask?.isCancelled == true {
+      subscriptionOperationTask = nil
+      subscriptionOperationID = nil
+    }
     if let subscriptionOperationTask {
       diagnostics?.record(source: .auth, title: "Subscription operation coalesced", message: "coalesced=true")
-      await subscriptionOperationTask.value
+      await awaitSubscriptionOperation(subscriptionOperationTask, operationID: subscriptionOperationID)
       return false
     }
 
@@ -1562,46 +1645,66 @@ final class AuthService {
     }
     subscriptionOperationID = operationID
     subscriptionOperationTask = task
-    await task.value
+    await awaitSubscriptionOperation(task, operationID: operationID)
     return true
+  }
+
+  private func awaitSubscriptionOperation(_ task: Task<Void, Never>, operationID: UUID?) async {
+    guard let operationID else { return }
+    let waiterID = UUID()
+    subscriptionWaiters[operationID, default: []].insert(waiterID)
+    defer { removeSubscriptionWaiter(waiterID, operationID: operationID) }
+    await withTaskCancellationHandler(operation: { await task.value }, onCancel: {
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        self.removeSubscriptionWaiter(waiterID, operationID: operationID)
+        if self.subscriptionOperationID == operationID, self.subscriptionWaiters[operationID] == nil {
+          task.cancel()
+        }
+      }
+    })
+  }
+
+  private func removeSubscriptionWaiter(_ waiterID: UUID, operationID: UUID) {
+    subscriptionWaiters[operationID]?.remove(waiterID)
+    if subscriptionWaiters[operationID]?.isEmpty == true { subscriptionWaiters[operationID] = nil }
   }
 
   private func createSubscriptionSessionWithTimeout(
     _ request: SubscriptionSessionRequest,
     configurationRevision: Int
   ) async throws -> BackendSessionResponse {
-    try await withCheckedThrowingContinuation { continuation in
-      var hasResumed = false
-      var timeoutTask: Task<Void, Never>?
-
-      let backendTask = Task { @MainActor in
-        do {
-          try prepareHostedRequest(configurationRevision: configurationRevision)
-          let response = try await createSubscriptionSession(request)
-          guard !hasResumed else { return }
-          hasResumed = true
-          timeoutTask?.cancel()
-          continuation.resume(returning: response)
-        } catch {
-          guard !hasResumed else { return }
-          hasResumed = true
-          timeoutTask?.cancel()
-          continuation.resume(throwing: error)
-        }
-      }
-
-      timeoutTask = Task { @MainActor in
-        do {
-          try await Task.sleep(for: .seconds(subscriptionSessionTimeout))
-        } catch {
+    let race = SubscriptionRequestRace()
+    return try await withTaskCancellationHandler(operation: {
+      try await withCheckedThrowingContinuation { continuation in
+        race.continuation = continuation
+        if Task.isCancelled {
+          race.finish(.failure(CancellationError()))
           return
         }
-        guard !hasResumed else { return }
-        hasResumed = true
-        backendTask.cancel()
-        continuation.resume(throwing: SubscriptionSessionTimeoutError())
+        race.backendTask = Task { @MainActor in
+          do {
+            try prepareHostedRequest(configurationRevision: configurationRevision)
+            let response = try await createSubscriptionSession(request)
+            try Task.checkCancellation()
+            race.finish(.success(response))
+          } catch {
+            race.finish(.failure(error))
+          }
+        }
+
+        race.timeoutTask = Task { @MainActor in
+          do {
+            try await Task.sleep(for: .seconds(subscriptionSessionTimeout))
+          } catch {
+            return
+          }
+          race.finish(.failure(SubscriptionSessionTimeoutError()))
+        }
       }
-    }
+    }, onCancel: {
+      Task { @MainActor in race.finish(.failure(CancellationError())) }
+    })
   }
 
   private func preserveValidSessionOrClear() {
@@ -1697,6 +1800,7 @@ final class AuthService {
   }
 
   private func prepareHostedRequest(configurationRevision: Int) throws {
+    try Task.checkCancellation()
     guard isCurrentHostedConfiguration(configurationRevision),
           configurationStore.apply(to: apiClient) else {
       throw SubscriptionConfigurationChangedError()
@@ -1704,6 +1808,7 @@ final class AuthService {
   }
 
   private func prepareSelfHostedRequest(configurationRevision: Int, operationID: UUID) throws {
+    try Task.checkCancellation()
     guard isCurrentConfiguration(configurationRevision, mode: .selfHosted),
           configurationStore.apply(to: apiClient) else {
       throw BackendConfigurationChangedError()
@@ -1725,7 +1830,6 @@ final class AuthService {
       return
     }
     selfHostedOperationID = nil
-    isConnecting = false
   }
 
   private func recordSubscriptionConfigurationChange() {
@@ -1782,7 +1886,10 @@ final class AuthService {
     diagnostics?.record(source: .auth, severity: .error, title: "Subscription session failed", message: message)
   }
 
-  private func subscriptionConnectionMessage(for message: String) -> String {
+  private func subscriptionConnectionMessage(for message: String, error: Error? = nil) -> String {
+    if let error, (error as? APIClientError)?.backendCode != "invalid_app_store_transaction" {
+      return message
+    }
     if message == HostedServiceWarmupError.userMessage {
       return message
     }
@@ -1793,6 +1900,23 @@ final class AuthService {
     case .selfHosted:
       return message
     }
+  }
+}
+
+@MainActor
+private final class SubscriptionRequestRace {
+  var continuation: CheckedContinuation<BackendSessionResponse, Error>?
+  var backendTask: Task<Void, Never>?
+  var timeoutTask: Task<Void, Never>?
+
+  func finish(_ result: Result<BackendSessionResponse, Error>) {
+    guard let continuation else { return }
+    self.continuation = nil
+    backendTask?.cancel()
+    timeoutTask?.cancel()
+    backendTask = nil
+    timeoutTask = nil
+    continuation.resume(with: result)
   }
 }
 
@@ -1948,7 +2072,6 @@ extension AuthService {
     )
     statusMessage = serviceMode == "hosted" ? "PumpSync subscription active" : "Connected to self-hosted service"
     errorMessage = nil
-    isConnecting = false
   }
 }
 #endif

@@ -3,6 +3,12 @@ import XCTest
 
 @MainActor
 final class SyncViewTests: XCTestCase {
+  func testDisconnectedReadinessExplainsRecoveryAction() {
+    XCTAssertNotNil(SyncView.readinessMessage(
+      isBackendConnected: false, hasValidatedCredentials: true, hasAnyHealthWritePermission: true
+    ))
+  }
+
   func testPreparingPresentationExplainsMeasuredColdStartAfterThreeSeconds() throws {
     let startedAt = Date(timeIntervalSince1970: 100)
     let state = SyncOperationState.running(
@@ -150,7 +156,7 @@ final class SyncViewTests: XCTestCase {
   }
 
   func testReadinessMessagePromptsForSignInFirst() {
-    XCTAssertNil(SyncView.readinessMessage(
+    XCTAssertNotNil(SyncView.readinessMessage(
       isBackendConnected: false,
       hasValidatedCredentials: false,
       hasAnyHealthWritePermission: false

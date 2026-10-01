@@ -203,6 +203,7 @@ final class HealthKitService {
   /// UI cannot be presented; prompting belongs to the explicit
   /// HealthAccessView flow.
   func save(samples: [SampleDTO]) async throws -> [SampleDTO] {
+    try Task.checkCancellation()
     guard !samples.isEmpty else {
       return []
     }
@@ -224,6 +225,7 @@ final class HealthKitService {
       return []
     }
 
+    try Task.checkCancellation()
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
       healthStore.save(objects) { success, error in
         if let error {

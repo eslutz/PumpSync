@@ -99,7 +99,7 @@ final class SyncCoordinator {
   private let diagnostics: DiagnosticsLogStore?
   private var syncTask: Task<Bool, Never>?
   private var syncOperationID: UUID?
-  private var syncWaiterCount = 0
+  private var syncWaiters: [UUID: Set<UUID>] = [:]
 
   private(set) var operationState: SyncOperationState = .idle
 
@@ -194,8 +194,11 @@ final class SyncCoordinator {
           let task = makeSyncTask(reason: .manual) else {
       return
     }
+    guard let operationID = syncOperationID else { return }
+    let waiterID = UUID()
+    syncWaiters[operationID, default: []].insert(waiterID)
     Task {
-      _ = await task.value
+      _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID)
     }
   }
 
@@ -231,6 +234,7 @@ final class SyncCoordinator {
 
   @discardableResult
   func sync(reason: SyncTriggerReason) async -> Bool {
+    guard !Task.isCancelled else { return false }
     if let syncTask {
       return await awaitSyncTask(syncTask)
     }
@@ -241,21 +245,29 @@ final class SyncCoordinator {
     return await awaitSyncTask(task)
   }
 
-  private func awaitSyncTask(_ task: Task<Bool, Never>) async -> Bool {
-    syncWaiterCount += 1
-    defer { syncWaiterCount -= 1 }
+  private func awaitSyncTask(
+    _ task: Task<Bool, Never>, operationID: UUID? = nil, waiterID: UUID = UUID()
+  ) async -> Bool {
+    guard let operationID = operationID ?? syncOperationID else { return false }
+    syncWaiters[operationID, default: []].insert(waiterID)
+    defer { removeSyncWaiter(waiterID, operationID: operationID) }
     return await withTaskCancellationHandler(operation: {
       let result = await task.value
       return Task.isCancelled ? false : result
     }, onCancel: {
       Task { @MainActor [weak self] in
-        guard let self,
-              self.syncWaiterCount == 1 else {
-          return
+        guard let self else { return }
+        self.removeSyncWaiter(waiterID, operationID: operationID)
+        if self.syncOperationID == operationID, self.syncWaiters[operationID] == nil {
+          task.cancel()
         }
-        task.cancel()
       }
     })
+  }
+
+  private func removeSyncWaiter(_ waiterID: UUID, operationID: UUID) {
+    syncWaiters[operationID]?.remove(waiterID)
+    if syncWaiters[operationID]?.isEmpty == true { syncWaiters[operationID] = nil }
   }
 
   private func makeSyncTask(reason: SyncTriggerReason) -> Task<Bool, Never>? {
@@ -379,6 +391,7 @@ final class SyncCoordinator {
         return false
       }
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
+      try Task.checkCancellation()
       authService.markHostedSubscriptionAccessRestored()
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
       // Record only what Apple Health confirmed: save() drops samples whose
@@ -388,8 +401,12 @@ final class SyncCoordinator {
       // sample.
       operationState = .running(SyncProgress(phase: .updatingHealth, trigger: reason, startedAt: startedAt))
       recordBackgroundStage(.updatingHealth, startedAt: startedAt, reason: reason)
+      try Task.checkCancellation()
       let writtenSamples = try await healthKitService.save(samples: unseenSamples)
       try importedSampleLedger.recordImported(writtenSamples)
+      // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
+      // writes for deduplication, but never publish success for abandoned work.
+      try Task.checkCancellation()
       let importedCount = writtenSamples.count
       let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
       syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark)
@@ -464,6 +481,13 @@ final class SyncCoordinator {
         fail("Sync limit reached. Wait a while before trying again.", recovery: .waitAndRetry)
       } else if isHealthAuthorizationFailure(error) {
         fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
+      } else if apiError?.backendCode == "tandem_source_request_rejected"
+                  || apiError?.backendCode == "tandem_source_error"
+                  || apiError?.backendCode == "tandem_source_access_denied" {
+        fail(
+          apiError?.errorDescription ?? "Tandem Source could not provide your pump data. Try again later.",
+          recovery: .waitAndRetry
+        )
       } else if apiError?.isTransient == true || isTransientNetworkFailure(error) {
         fail("Sync could not be completed. Try again.", recovery: .retry)
       } else {

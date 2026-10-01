@@ -292,7 +292,8 @@ enum APIClientError: LocalizedError {
     switch self {
     case .invalidResponse:
       return true
-    case .httpStatus(let status, _, _, _):
+    case .httpStatus(let status, let code, _, _):
+      if code == "tandem_source_request_rejected" { return false }
       // 429 is deliberately NOT transient: the backend's rate-limit windows
       // are minutes to an hour, so a sub-second retry is guaranteed to fail
       // and just consumes more budget. Callers surface a wait message.

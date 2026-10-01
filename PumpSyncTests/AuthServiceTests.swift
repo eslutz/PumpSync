@@ -31,11 +31,13 @@ final class AuthServiceTests: XCTestCase {
       },
       proofProvider: AcceptingProofProvider()
     )
+    service.setConnectionProgressVisible(true)
 
     await service.recoverSessionIfNeeded()
 
     XCTAssertEqual(service.accessToken, "cached-token")
     XCTAssertTrue(service.isSignedIn)
+    XCTAssertFalse(service.isConnecting)
   }
 
   func testHostedSubscriptionRecoveryAfterAccessDeniedReplacesCachedSession() async throws {
@@ -245,6 +247,7 @@ final class AuthServiceTests: XCTestCase {
       diagnostics: diagnostics,
       proofProvider: AcceptingProofProvider()
     )
+    service.setConnectionProgressVisible(true)
 
     let firstActivation = Task {
       await service.activateSubscription(signedTransactionInfo: firstJWS)
@@ -268,9 +271,11 @@ final class AuthServiceTests: XCTestCase {
   func testExplicitRestoreQueuedBehindInFlightSubscriptionOperationEventuallyExecutes() async {
     let diagnostics = makeDiagnostics()
     let firstRequestGate = AsyncGate()
+    let restoreEntitlementGate = AsyncGate()
     let firstJWS = "in-flight-explicit-transaction-jws"
     let restoredJWS = "restored-explicit-transaction-jws"
     var firstRequestStarted = false
+    var restoreEntitlementStarted = false
     var restoreEntitlementCalls = 0
     var submittedTransactions: [String] = []
     let service = AuthService(
@@ -280,6 +285,8 @@ final class AuthServiceTests: XCTestCase {
       currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
       syncedCurrentEntitlementJWS: {
         restoreEntitlementCalls += 1
+        restoreEntitlementStarted = true
+        await restoreEntitlementGate.wait()
         return restoredJWS
       },
       createSubscriptionSession: { request in
@@ -299,6 +306,7 @@ final class AuthServiceTests: XCTestCase {
       diagnostics: diagnostics,
       proofProvider: AcceptingProofProvider()
     )
+    service.setConnectionProgressVisible(true)
 
     let firstActivation = Task {
       await service.activateSubscription(signedTransactionInfo: firstJWS)
@@ -310,14 +318,19 @@ final class AuthServiceTests: XCTestCase {
     await waitUntil {
       diagnostics.entries.contains { $0.title == "Subscription operation coalesced" }
     }
+    XCTAssertTrue(service.isConnecting)
 
     await firstRequestGate.open()
     await firstActivation.value
+    await waitUntil { restoreEntitlementStarted }
+    XCTAssertTrue(service.isConnecting)
+    await restoreEntitlementGate.open()
     await restore.value
 
     XCTAssertEqual(restoreEntitlementCalls, 1)
     XCTAssertEqual(submittedTransactions, [firstJWS, restoredJWS])
     XCTAssertEqual(service.accessToken, "token-2")
+    XCTAssertFalse(service.isConnecting)
   }
 
   func testQueuedExplicitActivationDoesNotCrossConnectionGeneration() async {
@@ -407,6 +420,7 @@ final class AuthServiceTests: XCTestCase {
       diagnostics: diagnostics,
       proofProvider: AcceptingProofProvider()
     )
+    service.setConnectionProgressVisible(true)
 
     let firstActivation = Task {
       await service.activateSubscription(signedTransactionInfo: firstJWS)
@@ -420,12 +434,14 @@ final class AuthServiceTests: XCTestCase {
     }
 
     cancelledActivation.cancel()
+    XCTAssertTrue(service.isConnecting)
     await firstRequestGate.open()
     await firstActivation.value
     await cancelledActivation.value
 
     XCTAssertEqual(submittedTransactions, [firstJWS])
     XCTAssertEqual(service.accessToken, "token-\(firstJWS)")
+    XCTAssertFalse(service.isConnecting)
   }
 
   func testUncachedSubscriptionSessionTimesOutWithoutDiscardingEntitlementState() async {
@@ -1964,7 +1980,9 @@ final class AuthServiceTests: XCTestCase {
     let configuration = makeConfigurationStore()
     let diagnostics = makeDiagnostics()
     let entitlementGate = AsyncGate()
+    let selfHostedGate = AsyncGate()
     var entitlementStarted = false
+    var selfHostedStarted = false
     let sessionStore = makeSessionStore()
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -1977,7 +1995,9 @@ final class AuthServiceTests: XCTestCase {
       },
       createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
       createSelfHostedSession: { _ in
-        BackendSessionResponse(
+        selfHostedStarted = true
+        await selfHostedGate.wait()
+        return BackendSessionResponse(
           accessToken: "self-hosted-token",
           expiresAt: Date(timeIntervalSince1970: 1_800),
           serviceMode: "selfHosted",
@@ -1988,23 +2008,35 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider(),
       createSessionChallenge: { _ in Self.selfHostedChallenge(token: "self-hosted-challenge") }
     )
+    service.setConnectionProgressVisible(true)
 
     let staleRecovery = Task {
       await service.recoverSessionIfNeeded()
     }
     await waitUntil { entitlementStarted }
+    XCTAssertTrue(service.isConnecting)
 
     configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
     configuration.mode = .selfHosted
     service.clearSessionForConnectionChange()
-    await service.connectSelfHosted()
+    let selfHostedConnection = Task {
+      await service.connectSelfHosted()
+    }
+    await waitUntil { selfHostedStarted }
+    XCTAssertTrue(service.isConnecting)
+
     await entitlementGate.open()
     await staleRecovery.value
+    XCTAssertTrue(service.isConnecting)
+
+    await selfHostedGate.open()
+    await selfHostedConnection.value
 
     XCTAssertEqual(service.accessToken, "self-hosted-token")
     XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "self-hosted-token")
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Connected to self-hosted service")
+    XCTAssertFalse(service.isConnecting)
     XCTAssertTrue(diagnostics.entries.contains {
       $0.title == "Subscription recovery stopped" && $0.message == "reason=connectionModeChanged"
     })
@@ -2038,11 +2070,13 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider(),
       createSessionChallenge: { _ in Self.selfHostedChallenge(token: "self-hosted-challenge") }
     )
+    service.setConnectionProgressVisible(true)
 
     let staleRestore = Task {
       await service.connectUsingCurrentSubscription()
     }
     await waitUntil { entitlementStarted }
+    XCTAssertTrue(service.isConnecting)
 
     configuration.selfHostedBaseURLString = "https://self-hosted.example/api"
     configuration.mode = .selfHosted
@@ -2198,6 +2232,46 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), existingSession)
   }
 
+  func testCancelledPurchaseDoesNotClearAnotherConnectionAttemptProgress() async {
+    let warmupGate = AsyncGate()
+    var warmupStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        BackendSessionResponse(
+          accessToken: "active-token",
+          expiresAt: Date(timeIntervalSince1970: 1_800),
+          serviceMode: "hosted",
+          dataSourceMode: "tandemSource"
+        )
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      warmupHostedService: {
+        warmupStarted = true
+        await warmupGate.wait()
+      },
+      proofProvider: AcceptingProofProvider()
+    )
+    service.setConnectionProgressVisible(true)
+
+    let activation = Task {
+      await service.activateSubscription(signedTransactionInfo: "active-transaction")
+    }
+    await waitUntil { warmupStarted }
+
+    XCTAssertTrue(service.isConnecting)
+    service.recordSubscriptionPurchaseCancelled()
+    XCTAssertTrue(service.isConnecting)
+
+    await warmupGate.open()
+    await activation.value
+
+    XCTAssertFalse(service.isConnecting)
+  }
+
   func testPendingPurchasePreservesExistingSession() throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
     let existingSession = BackendSessionResponse(
@@ -2252,6 +2326,175 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(service.accessToken, "recovered-token")
     XCTAssertNil(service.errorMessage)
     XCTAssertEqual(sessionStore.loadValidSession(), session)
+  }
+
+  func testSubscriptionRecoveryShowsProgressWhileStoreKitEntitlementIsPending() async {
+    let entitlementGate = AsyncGate()
+    var entitlementStarted = false
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: makeSessionStore(),
+      currentEntitlementJWS: {
+        entitlementStarted = true
+        await entitlementGate.wait()
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+    service.setConnectionProgressVisible(true)
+
+    let recovery = Task {
+      await service.recoverSessionIfNeeded(policy: .foreground)
+    }
+    await waitUntil { entitlementStarted }
+
+    XCTAssertTrue(service.isConnecting)
+    await entitlementGate.open()
+    await recovery.value
+
+    XCTAssertFalse(service.isConnecting)
+  }
+
+  func testHostedRecoveryRetainsEntitlementLookupFailureExplanation() async {
+    let service = AuthService(
+      apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw URLError(.notConnectedToInternet) },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+    await service.recoverSessionIfNeeded()
+    XCTAssertNotNil(service.errorMessage)
+    XCTAssertFalse(service.isSignedIn)
+  }
+
+  func testCancellingOnlyHostedRecoveryOwnerCancelsSharedEntitlementWork() async {
+    let gate = AsyncGate()
+    var started = false
+    var cancelled = false
+    let service = AuthService(
+      apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: {
+        started = true
+        await gate.wait()
+        cancelled = Task.isCancelled
+        throw URLError(.notConnectedToInternet)
+      },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+    let recovery = Task { await service.recoverSessionIfNeeded() }
+    await waitUntil { started }
+    recovery.cancel()
+    for _ in 0..<10 { await Task.yield() }
+    await gate.open()
+    await recovery.value
+    XCTAssertTrue(cancelled)
+    XCTAssertNil(service.errorMessage)
+    XCTAssertFalse(service.isSignedIn)
+  }
+
+  func testCancelledHostedRequestCannotApplyLateBackendSession() async {
+    let gate = AsyncGate()
+    var started = false
+    let service = AuthService(
+      apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "fixture-transaction" },
+      createSubscriptionSession: { _ in
+        started = true
+        await gate.wait()
+        return BackendSessionResponse(accessToken: "late-token", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider()
+    )
+    service.setConnectionProgressVisible(true)
+    let recovery = Task { await service.recoverSessionIfNeeded() }
+    await waitUntil { started }
+    recovery.cancel()
+    await waitUntil { !service.isConnecting }
+    XCTAssertFalse(service.isSignedIn)
+    await gate.open()
+    await recovery.value
+    for _ in 0..<10 { await Task.yield() }
+    XCTAssertFalse(service.isSignedIn)
+    XCTAssertNil(service.errorMessage)
+  }
+
+  func testVisibleAppOpenBackgroundPolicyShowsProgressDuringExpiredSessionRefresh() async throws {
+    let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try sessionStore.save(Self.expiredRenewableSession())
+    let replacement = BackendSessionResponse(
+      accessToken: "refreshed-access-token",
+      expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted",
+      dataSourceMode: "tandemSource",
+      protocolVersion: 3,
+      sessionFamilyId: "family-2",
+      refreshToken: "refresh-token-2",
+      refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000)
+    )
+    let responseData = try JSONCodec.encoder.encode(replacement)
+    URLProtocolStub.requestHandler = { request in
+      let response = HTTPURLResponse(
+        url: request.url!,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      return (response, responseData)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+
+    let proofGate = AsyncGate()
+    var refreshProofStarted = false
+    let proofProvider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+      refreshProofStarted = true
+      await proofGate.wait()
+      return SessionRefreshRequest(
+        installationId: installationId,
+        refreshToken: session.refreshToken,
+        requestId: "visible-refresh-request",
+        issuedAt: Date(timeIntervalSince1970: 2_000),
+        proof: "proof"
+      )
+    })
+    let service = AuthService(
+      apiClient: makeAPIClient(),
+      configurationStore: makeConfigurationStore(),
+      sessionStore: sessionStore,
+      currentEntitlementJWS: {
+        XCTFail("Renewable session refresh must not look up a StoreKit entitlement")
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: proofProvider
+    )
+
+    let recovery = Task {
+      await service.recoverSessionIfNeeded(policy: .background)
+    }
+    await waitUntil { refreshProofStarted }
+
+    XCTAssertFalse(service.isConnecting)
+    service.setConnectionProgressVisible(true)
+    XCTAssertTrue(service.isConnecting)
+    service.setConnectionProgressVisible(false)
+    XCTAssertFalse(service.isConnecting)
+    service.setConnectionProgressVisible(true)
+    XCTAssertTrue(service.isConnecting)
+
+    await proofGate.open()
+    await recovery.value
+
+    XCTAssertEqual(service.accessToken, replacement.accessToken)
+    XCTAssertFalse(service.isConnecting)
   }
 
   func testForegroundSubscriptionRecoverySyncsAppStoreAfterCachedEntitlementMiss() async {
@@ -2332,7 +2575,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadRecoverableSession(), staleSession)
   }
 
-  func testSilentSubscriptionRecoveryDoesNotPublishAlertStyleErrorWhenNoEntitlementExists() async {
+  func testSubscriptionRecoveryExplainsMissingEntitlementWithoutCallingBackend() async {
     let diagnostics = makeDiagnostics()
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -2358,10 +2601,29 @@ final class AuthServiceTests: XCTestCase {
     await service.recoverSessionIfNeeded()
 
     XCTAssertFalse(service.isSignedIn)
-    XCTAssertNil(service.errorMessage)
+    XCTAssertNotNil(service.errorMessage)
     XCTAssertEqual(service.statusMessage, "Connect to PumpSync or a self-hosted service")
     XCTAssertEqual(diagnostics.entries.first?.title, "Subscription recovery skipped")
     XCTAssertEqual(diagnostics.entries.first?.message, "No current StoreKit entitlement was available for subscription recovery.")
+  }
+
+  func testHostedAndSelfHostedRecoveryPreserveSafeBackendFailureReferences() async {
+    for mode in [BackendAccessMode.hosted, .selfHosted] {
+      let configuration = makeConfigurationStore()
+      configuration.mode = mode
+      configuration.selfHostedBaseURLString = "https://self-host.example/api"
+      let failure = APIClientError.httpStatus(503, code: "unavailable", message: "Service temporarily unavailable.", correlationId: "fixture-reference")
+      let service = AuthService(
+        apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: makeSessionStore(),
+        currentEntitlementJWS: { "fixture-transaction" },
+        createSubscriptionSession: { _ in throw failure },
+        createSelfHostedSession: { _ in throw failure },
+        proofProvider: AcceptingProofProvider()
+      )
+      await service.recoverSessionIfNeeded()
+      XCTAssertTrue(service.errorMessage?.contains("fixture-reference") == true, "Missing safe error for \(mode)")
+      XCTAssertFalse(service.isSignedIn)
+    }
   }
 
   func testSelfHostedCreatesBackendSession() async {
@@ -2948,16 +3210,18 @@ final class AuthServiceTests: XCTestCase {
     }
     defer { URLProtocolStub.requestHandler = nil }
 
+    let diagnostics = makeDiagnostics()
     let firstProofStarted = expectation(description: "first proof preparation started")
-    let firstProofGate = AsyncGate()
+    let replacementProofGate = AsyncGate()
     var proofAttempt = 0
     let proofProvider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
       proofAttempt += 1
       if proofAttempt == 1 {
         firstProofStarted.fulfill()
-        await firstProofGate.wait()
+        try await Task.sleep(for: .seconds(30))
         throw CancellationError()
       }
+      await replacementProofGate.wait()
       return SessionRefreshRequest(
         installationId: installationId,
         refreshToken: session.refreshToken,
@@ -2973,23 +3237,33 @@ final class AuthServiceTests: XCTestCase {
       currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
       createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      diagnostics: diagnostics,
       proofProvider: proofProvider
     )
+    service.setConnectionProgressVisible(true)
 
     let cancelledRecovery = Task { await service.accessTokenRecoveringIfNeeded(policy: .background) }
     await fulfillment(of: [firstProofStarted], timeout: 1)
+    XCTAssertTrue(service.isConnecting)
     cancelledRecovery.cancel()
+    await waitUntil {
+      diagnostics.entries.contains {
+        $0.title == "Renewable session refresh discarded"
+          && $0.message == "reason=cancelledWaiter"
+      }
+    }
 
     let replacementRecovery = Task { await service.accessTokenRecoveringIfNeeded(policy: .background) }
     await waitUntil { proofAttempt == 2 }
-    let replacementToken = await replacementRecovery.value
-
-    await firstProofGate.open()
     _ = await cancelledRecovery.value
+    XCTAssertTrue(service.isConnecting)
+    await replacementProofGate.open()
+    let replacementToken = await replacementRecovery.value
 
     XCTAssertEqual(replacementToken, replacement.accessToken)
     XCTAssertEqual(service.accessToken, replacement.accessToken)
     XCTAssertEqual(sessionStore.loadValidSession(), replacement)
+    XCTAssertFalse(service.isConnecting)
   }
 
   func testConcurrentRenewableRecoverySharesAmbiguousFailureWithoutEnrollment() async throws {

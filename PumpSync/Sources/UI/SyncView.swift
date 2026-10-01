@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SyncView: View {
   @Environment(AppServices.self) private var services
+  @State private var showsSubscription = false
 
   var body: some View {
     PumpSyncScreen {
@@ -61,14 +62,23 @@ struct SyncView: View {
         hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
       ) {
         GlassSection {
-          Text(message)
+          Text(!services.authService.isSignedIn && !services.authService.isConnecting
+               ? services.authService.errorMessage ?? message : message)
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(.secondary)
+          if !services.authService.isSignedIn && !services.authService.isConnecting {
+            if services.authService.requiresSubscriptionAction {
+              Button("View Subscription") { showsSubscription = true }
+            } else {
+              Button("Retry Connection") { services.foregroundRecovery.retryConnection() }
+            }
+            NavigationLink("Connection Settings") { SettingsView() }
+          }
         }
       }
 
       if let lastSuccessfulSyncAt = services.syncMetadataStore.metadata.lastSuccessfulSyncAt {
-        GlassSection("Last Sync") {
+        GlassSection("Last Successful Sync") {
           GlassStatusRow(
             title: "Completed",
             value: formattedDate(lastSuccessfulSyncAt),
@@ -86,6 +96,9 @@ struct SyncView: View {
       }
     }
     .navigationTitle("Sync")
+    .sheet(isPresented: $showsSubscription) {
+      PumpSyncSubscriptionStoreView(isPresented: $showsSubscription)
+    }
     .onAppear {
       services.healthKitService.refreshAuthorizationStatus()
     }
@@ -211,7 +224,9 @@ struct SyncView: View {
     hasAnyHealthWritePermission: Bool
   ) -> String? {
     if !isBackendConnected {
-      return isConnecting ? "Restoring your secure connection. Sync will start automatically when ready." : nil
+      return isConnecting
+        ? "Restoring your secure connection. Sync will start automatically when ready."
+        : "PumpSync is not connected. Retry the secure connection, or review your connection settings."
     }
 
     if !hasValidatedCredentials {

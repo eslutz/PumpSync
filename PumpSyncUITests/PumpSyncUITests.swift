@@ -56,7 +56,7 @@ final class PumpSyncUITests: XCTestCase {
 
     XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
     navigate(to: "Sync", in: app)
-    XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Last Successful Sync"].waitForExistence(timeout: 5))
 
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
@@ -106,7 +106,7 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
 
     navigate(to: "Sync", in: app)
-    XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Last Successful Sync"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 5))
 
     navigate(to: "Settings", in: app)
@@ -136,7 +136,7 @@ final class PumpSyncUITests: XCTestCase {
     initialApp.terminate()
 
     let app = launchScreenshotFixture()
-    XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Last Successful Sync"].waitForExistence(timeout: 5))
     attachScreenshot(named: "ipad-pro-13-app-store-listing-02-sync-workflow.png", from: app)
 
     navigate(to: "Settings", in: app)
@@ -183,7 +183,7 @@ final class PumpSyncUITests: XCTestCase {
     initialApp.terminate()
 
     let app = launchScreenshotFixture()
-    XCTAssertTrue(app.staticTexts["Last Sync"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Last Successful Sync"].waitForExistence(timeout: 5))
     attachScreenshot(named: "iphone-6-7-app-store-listing-02-sync-workflow.png", from: app)
 
     navigate(to: "Settings", in: app)

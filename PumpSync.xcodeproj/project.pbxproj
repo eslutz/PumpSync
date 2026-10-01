@@ -18,6 +18,7 @@
 		26448D39917E7A13F46266A7 /* SyncStatusBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0F4BE066A2E453B955A070 /* SyncStatusBanner.swift */; };
 		2E581DC0577F1D384651346A /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23E211038A242211F7416AF /* AppServices.swift */; };
 		3126AD243E9F89EFDF53AFEC /* DeviceSessionProofProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE867E4AB95A704FF058E35 /* DeviceSessionProofProviderTests.swift */; };
+		33E8810D344EA26E3449C1D9 /* ForegroundRecoveryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E7808A26B64FF7BCF28E96F /* ForegroundRecoveryController.swift */; };
 		36AA12257E2352EA32E4F1C8 /* SyncViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F57320D50B3E96C71BB07264 /* SyncViewTests.swift */; };
 		38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */; };
 		3B46D91090DE18F4C7AC932F /* ImportedSampleLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BE58A53E6A9CAE0104AE0E /* ImportedSampleLedgerTests.swift */; };
@@ -62,6 +63,7 @@
 		E51C48749D481E9DCB3C15BE /* BackendSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */; };
 		EB193DD271B48CD0448A9F14 /* GlassUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C572BC95D8A1228661865AC4 /* GlassUI.swift */; };
 		F96749147D5EC671A85BAF8A /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 228837A73B88DB4E80B7A957 /* APIModels.swift */; };
+		FAA1D99D37E7D280FB328B8A /* ForegroundRecoveryControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DABE095E552CE9C33AA0A1A /* ForegroundRecoveryControllerTests.swift */; };
 		FB00CCD95F4F4C4AF76C9A91 /* SubscriptionPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6CB633F521B8CEC31BEE771 /* SubscriptionPresentationTests.swift */; };
 		FF558BD17D2F7FFB5762840B /* TandemCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B80BDA0E659F5365FB1C87A /* TandemCredentialStore.swift */; };
 /* End PBXBuildFile section */
@@ -88,6 +90,7 @@
 		084C445F20B31BFF76216CD2 /* SyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorTests.swift; sourceTree = "<group>"; };
 		0981ABD17009F7A4A08958B4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthServiceTests.swift; sourceTree = "<group>"; };
+		0DABE095E552CE9C33AA0A1A /* ForegroundRecoveryControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRecoveryControllerTests.swift; sourceTree = "<group>"; };
 		1058E698BFD805B107CB7B99 /* PumpSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncUITests.swift; sourceTree = "<group>"; };
 		11202C1156E9340275B6872B /* HealthWritePermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthWritePermission.swift; sourceTree = "<group>"; };
 		1542F6BF77ACFAA77DE2EEA9 /* TandemCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentials.swift; sourceTree = "<group>"; };
@@ -118,6 +121,7 @@
 		64A1AD7EC80A3DEE8B0B8807 /* InstallStateReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallStateReconciler.swift; sourceTree = "<group>"; };
 		69F0DA696C3E370C171F9E0F /* TandemCredentialForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TandemCredentialForm.swift; sourceTree = "<group>"; };
 		6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsLogStoreTests.swift; sourceTree = "<group>"; };
+		6E7808A26B64FF7BCF28E96F /* ForegroundRecoveryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRecoveryController.swift; sourceTree = "<group>"; };
 		70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendSessionStore.swift; sourceTree = "<group>"; };
 		7BD584B88E13A677DF615346 /* DeviceSessionProofProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionProofProvider.swift; sourceTree = "<group>"; };
 		88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncScheduler.swift; sourceTree = "<group>"; };
@@ -258,6 +262,7 @@
 				40DE20811BED75BD5394BE44 /* BackgroundSyncDiagnosticsTests.swift */,
 				4BE867E4AB95A704FF058E35 /* DeviceSessionProofProviderTests.swift */,
 				6A303E33F551A1AE8D00148E /* DiagnosticsLogStoreTests.swift */,
+				0DABE095E552CE9C33AA0A1A /* ForegroundRecoveryControllerTests.swift */,
 				CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */,
 				B2BE58A53E6A9CAE0104AE0E /* ImportedSampleLedgerTests.swift */,
 				58CE8FD0263D7121D3346E0D /* InitialImportRangeTests.swift */,
@@ -310,6 +315,7 @@
 				C23E211038A242211F7416AF /* AppServices.swift */,
 				9E85545B2A7D3EE4285CD12F /* AppView.swift */,
 				39EC34B2CD83FB273C8C111B /* DiagnosticsLogStore.swift */,
+				6E7808A26B64FF7BCF28E96F /* ForegroundRecoveryController.swift */,
 				FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */,
 				E117802C7DE65061DABF6727 /* NativeDiagnosticsStore.swift */,
 				90FA12541E4E2A95DA61AC93 /* PumpSyncApp.swift */,
@@ -451,6 +457,7 @@
 				8E691048B5B3682731B288BC /* DeveloperView.swift in Sources */,
 				09DF5D09CFD220E909409A04 /* DeviceSessionProofProvider.swift in Sources */,
 				76E2553C94E3222BE53E42C3 /* DiagnosticsLogStore.swift in Sources */,
+				33E8810D344EA26E3449C1D9 /* ForegroundRecoveryController.swift in Sources */,
 				EB193DD271B48CD0448A9F14 /* GlassUI.swift in Sources */,
 				D038B9BF745207A4396D81BC /* HealthAccessView.swift in Sources */,
 				B2749195783155E5333CF70E /* HealthKitService.swift in Sources */,
@@ -487,6 +494,7 @@
 				4EB4ECB714A856877ECE28F2 /* BackgroundSyncDiagnosticsTests.swift in Sources */,
 				3126AD243E9F89EFDF53AFEC /* DeviceSessionProofProviderTests.swift in Sources */,
 				882B07661FC363D0C5D80733 /* DiagnosticsLogStoreTests.swift in Sources */,
+				FAA1D99D37E7D280FB328B8A /* ForegroundRecoveryControllerTests.swift in Sources */,
 				AE379769E7346E02086C3A63 /* HealthAccessTests.swift in Sources */,
 				3B46D91090DE18F4C7AC932F /* ImportedSampleLedgerTests.swift in Sources */,
 				B65BEA4308E67124A51FC987 /* InitialImportRangeTests.swift in Sources */,
@@ -571,7 +579,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -684,7 +692,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -787,7 +795,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
