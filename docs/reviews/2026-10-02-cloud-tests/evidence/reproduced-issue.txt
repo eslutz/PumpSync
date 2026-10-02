@@ -1,0 +1,18 @@
+Failed to get matching snapshot: No matches found for Elements matching predicate '"Connect and Preview" IN identifiers' from input {(
+    Button, label: 'Close',
+    Button, identifier: 'arrow.triangle.2.circlepath', label: 'Sync',
+    Button, identifier: 'gearshape', label: 'Settings', Selected,
+    Button, label: 'Region, United States',
+    Button, label: 'History range, Past 2 days',
+    Button, label: 'Sample Preview', Disabled,
+    Button, label: 'Subscribe',
+    Button, label: 'Restore Subscription',
+    Button, identifier: 'TandemAccountLink', label: 'Tandem Account', value: Not configured,
+    Button, identifier: 'AppleHealthLink', label: 'Apple Health', value: Insulin and carboh...,
+    Button, identifier: 'InsulinConcentrationLink', label: 'Insulin Concentration', value: U-100,
+    Button, identifier: 'DataHandlingLink', label: 'Data Handling', value: Privacy, retention...,
+    Button, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works,
+    Button, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...,
+    Button, label: 'PumpSync', Selected,
+    Button, label: 'Self-hosted'
+)}

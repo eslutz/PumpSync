@@ -1,0 +1,10 @@
+/Users/ericslutz/Developer/Code/Side Projects/PumpSync/PumpSync.frontend/PumpSyncUITests/PumpSyncUITests.swift:71: error: -[PumpSyncUITests.PumpSyncUITests testBackgroundingSamplePreviewClosesItAndAllowsANewPreview] : XCTAssertTrue failed - Backgrounding must dismiss the closed sample session
+    t =    24.75s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testBackgroundingSamplePreviewClosesItAndAllowsANewPreview]' failed (25.066 seconds).
+Test Suite 'PumpSyncUITests' failed at 2026-10-02 14:37:54.568.
+	 Executed 1 test, with 1 failure (0 unexpected) in 25.066 (25.069) seconds
+Test Suite 'PumpSyncUITests.xctest' failed at 2026-10-02 14:37:54.571.
+	 Executed 1 test, with 1 failure (0 unexpected) in 25.066 (25.073) seconds
+Test Suite 'Selected tests' failed at 2026-10-02 14:37:54.572.
+	 Executed 1 test, with 1 failure (0 unexpected) in 25.066 (25.074) seconds
+** BUILD INTERRUPTED **

@@ -17,6 +17,9 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 
 ### Test Matrix
 
+- [ ] Run `bash scripts/ios/validate-cloud-tests.sh` on the candidate and record its source state, Xcode build, iOS runtime, device type, full-suite result, and all ten Sample Preview repetition results.
+- [ ] Check the actual Cloud test destination before changing the local preflight pin; matching only the iOS major version is insufficient.
+- [ ] Confirm no test filters, retry-until-pass options, or excluded failures weakened the full-suite gate.
 - [ ] Test on at least one physical iPhone.
 - [ ] Test the minimum supported iOS version or the oldest available representative device.
 - [ ] Test the current iOS version.

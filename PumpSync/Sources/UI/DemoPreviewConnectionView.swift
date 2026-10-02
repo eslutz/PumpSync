@@ -49,12 +49,12 @@ struct DemoPreviewConnectionView: View {
         .onChange(of: region) { _, _ in invalidateInputs() }
         .onDisappear { close() }
         .onChange(of: scenePhase) { _, phase in
-            // `.inactive` and `.background` can occur during test-runner and
-            // system transitions. Clear entered credentials and the isolated
-            // session when backgrounded, but leave the sheet presentation to
-            // its owner so the transition cannot race a dismissal.
+            // Keep transient system interruptions separate from backgrounding.
+            // A closed session releases the preview activity lease, so dismiss
+            // its sheet too; reopening will acquire a fresh lease.
             if phase == .background {
                 close()
+                dismiss()
             }
         }
     }
