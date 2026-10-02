@@ -45,4 +45,10 @@ Follow-up on 2026-10-02: notification-only dismissal implemented; refreshed full
 
 ## Build 34 release validation
 
-On 2026-10-02, the required full iOS warning gate passed again after setting build 34: 291 unit tests and 15 UI tests, zero failures and warning matches. Raw log: `/private/tmp/pumpsync-build34-validation.log`. Beta continues to use the nonproduction API and sandbox StoreKit. TestFlight availability and physical-device acceptance remain separate gates.
+On 2026-10-02, the required full iOS warning gate passed after setting build 34: 291 unit tests and 15 UI tests, zero failures and warning matches. Raw log: `/private/tmp/pumpsync-build34-validation.log`. Beta continues to use the nonproduction API and sandbox StoreKit. TestFlight availability and physical-device acceptance remain separate gates.
+
+## Build 34 Cloud test failure and build 35 correction
+
+Xcode Cloud build 34 archived and uploaded successfully, but its test action failed one of 306 tests: `testSamplePreviewIsSeparateAndClosesWithoutChangingConnection`. The report showed the Sample Preview sheet had disappeared before the test queried its Connect and Preview button. `DemoPreviewConnectionView` previously closed and dismissed on every non-active scene phase. iOS can enter `.inactive` transiently while presenting UI, so this lifecycle behavior could dismiss the sheet during presentation. The view now preserves its isolated preview state in `.inactive` and closes/dismisses only when the app reaches `.background`; normal sheet dismissal still clears the state through `onDisappear`.
+
+Build 35 local validation on the available iOS 26.5 simulator passed the complete warning gate: 291 unit tests and 15 UI tests, including the previously failing preview test, with zero failures or warning matches. Raw log: `/private/tmp/pumpsync-build35-validation.log`; result bundle: `/private/tmp/pumpsync-build35-derived/Logs/Test/Test-PumpSync-2026.10.02_10-51-55--0400.xcresult`. This Mac has no iOS 27 simulator runtime, so the new Xcode Cloud run is required to confirm the fix on Cloud's runtime. Build 35 is not accepted until that run passes.

@@ -48,7 +48,15 @@ struct DemoPreviewConnectionView: View {
         .onChange(of: password) { _, _ in invalidateInputs() }
         .onChange(of: region) { _, _ in invalidateInputs() }
         .onDisappear { close() }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { close(); dismiss() } }
+        .onChange(of: scenePhase) { _, phase in
+            // `.inactive` is a transient state during system interruptions and
+            // presentation transitions. Keep the preview sheet alive there;
+            // clear its isolated session when the app actually backgrounds.
+            if phase == .background {
+                close()
+                dismiss()
+            }
+        }
     }
 
     private func start() {
