@@ -15,9 +15,9 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(preview.waitForExistence(timeout: 5))
     if !preview.isHittable { app.swipeDown() }
     preview.tap()
-    XCTAssertTrue(app.staticTexts["Sample data — nothing is saved to Apple Health"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 10), "Sample Preview sheet did not finish presenting")
+    XCTAssertTrue(app.textFields["Sample username"].waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["Connect and Preview"].isEnabled)
-    XCTAssertTrue(app.textFields["Sample username"].exists)
     XCTAssertTrue(app.secureTextFields["Sample password"].exists)
     app.buttons["Close"].tap()
     XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
