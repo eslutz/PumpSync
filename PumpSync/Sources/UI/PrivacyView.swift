@@ -17,8 +17,8 @@ struct DataHandlingView: View {
         GlassDivider()
 
         DataHandlingRow(
-          title: "Sent only for sync",
-          detail: "Your sign-in is sent securely only while PumpSync is syncing.",
+          title: "Sent for validation, sync and preview",
+          detail: "Your sign-in is sent securely when validating your pump account, syncing or previewing real pump data.",
           systemImage: "lock.shield"
         )
       }
@@ -26,7 +26,7 @@ struct DataHandlingView: View {
       GlassSection("Pump Data") {
         DataHandlingRow(
           title: "Not retained after write",
-          detail: "PumpSync removes the downloaded pump data after Apple Health confirms it was saved.",
+          detail: "For sync, PumpSync removes downloaded pump data after Apple Health confirms it was saved. Preview records stay in memory and are cleared when you close the preview or the app goes into the background.",
           systemImage: "externaldrive.badge.checkmark"
         )
 
@@ -62,7 +62,7 @@ struct DataHandlingView: View {
           HStack(spacing: 14) {
             Image(systemName: "trash")
               .font(.title3)
-              .frame(width: 28)
+              .fixedSize()
               .accessibilityHidden(true)
 
             Text("Request Data Deletion")
@@ -114,7 +114,7 @@ private struct DataHandlingRow: View {
     HStack(alignment: .top, spacing: 14) {
       Image(systemName: systemImage)
         .font(.title3)
-        .frame(width: 28)
+        .fixedSize()
         .foregroundStyle(.tint)
         .accessibilityHidden(true)
 

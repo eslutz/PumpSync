@@ -1,0 +1,94 @@
+Attributes: Application, 0x10686b700, pid: 76925, label: 'PumpSync'
+Element subtree:
+ →Application, 0x10686b700, pid: 76925, label: 'PumpSync'
+    Window (Main), 0x10686b840, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10686be80, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x10686b5c0, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x10686bc00, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x10686bd40, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x10686a940, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x10686b340, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x10686b980, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x10686bac0, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x10686b480, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x10686af80, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x10686b200, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x10686b0c0, {{0.0, 62.0}, {402.0, 127.0}}, identifier: 'Apple Health'
+                              Button, 0x10686ae40, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Settings'
+                              StaticText, 0x10686ad00, {{16.0, 116.0}, {356.7, 71.7}}, label: 'Apple Health'
+                            Other, 0x10686abc0, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x10686aa80, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x10686a580, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x10686a800, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x106869540, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x1068692c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x106869400, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x106868f00, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x106868640, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x106868a00, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Image, 0x106868b40, {{-120.0, 731.0}, {642.0, 286.0}}, identifier: 'AdditionalDimmingOverlay'
+                                          Other, 0x106868780, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x1068688c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Other, 0x106868500, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x10321ae40, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x10321ad00, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x10321be80, {{0.0, 189.0}, {402.0, 2477.7}}
+                                        StaticText, 0x10321b480, {{24.0, 201.0}, {350.7, 559.3}}, label: 'PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.'
+                                        StaticText, 0x10321b200, {{24.0, 784.3}, {288.0, 125.3}}, label: 'Write Permissions'
+                                        Other, 0x10321af80, {{21.0, 935.7}, {234.3, 186.0}}, label: 'Insulin delivery', value: Not set
+                                          Image, 0x10321b340, {{21.0, 998.0}, {62.0, 61.3}}, identifier: 'syringe', label: 'syringe'
+                                          StaticText, 0x10321b840, {{80.0, 935.7}, {175.3, 125.3}}, label: 'Insulin delivery'
+                                          StaticText, 0x10321b5c0, {{80.0, 1063.0}, {150.3, 58.7}}, label: 'Not set'
+                                        Other, 0x10321b0c0, {{33.3, 1134.7}, {263.0, 186.0}}, label: 'Carbohydrates', value: Not set
+                                          Image, 0x10321b980, {{33.3, 1196.7}, {37.3, 62.3}}, identifier: 'fork.knife', label: 'Food'
+                                          StaticText, 0x10321bac0, {{80.0, 1134.7}, {216.3, 125.3}}, label: 'Carbohydrates'
+                                          StaticText, 0x10321bc00, {{80.0, 1262.0}, {150.3, 58.7}}, label: 'Not set'
+                                        Button, 0x10321b700, {{20.0, 1362.7}, {362.0, 217.3}}, label: 'Allow Access to Health'
+                                        StaticText, 0x10321aa80, {{24.0, 1604.0}, {197.0, 125.3}}, label: 'Change Access'
+                                        StaticText, 0x10321bd40, {{38.0, 1753.0}, {20.0, 58.7}}, label: '1'
+                                        StaticText, 0x112814000, {{70.0, 1749.3}, {197.3, 125.3}}, label: 'Open Settings.'
+                                        StaticText, 0x112814140, {{38.0, 1890.3}, {20.0, 58.7}}, label: '2'
+                                        StaticText, 0x112814280, {{70.0, 1886.7}, {272.0, 187.3}}, label: 'Tap Privacy & Security, then Health.'
+                                        StaticText, 0x1128143c0, {{38.0, 2089.7}, {20.0, 58.7}}, label: '3'
+                                        StaticText, 0x112814500, {{70.0, 2086.0}, {256.3, 125.3}}, label: 'Select PumpSync.'
+                                        StaticText, 0x112814640, {{38.0, 2227.0}, {20.0, 58.7}}, label: '4'
+                                        StaticText, 0x112814780, {{70.0, 2223.3}, {289.3, 311.3}}, label: 'Turn Insulin Delivery and Carbohydrates on or off.'
+                            Other, 0x1128148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x112814a00, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x112814b40, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x112814c80, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x112814dc0, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x112814f00, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x112815040, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x112815180, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x1128152c0, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync'
+                            Image, 0x112815400, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x112815540, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings', Selected
+                            Image, 0x112815680, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x1128157c0, {{197.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x112815900, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x112815a40, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x112815b80, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x112815cc0, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x112815e00, {{197.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x112815f40, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x112816080, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x1128161c0, {{197.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x112816300, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x112816440, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x112816580, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x1128166c0, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x112816800, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x112816940, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x112816a80, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x112816bc0, {{0.0, 791.0}, {402.0, 83.0}}
+    Window, 0x112816d00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x112816e40, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x112816f80, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x10686b700, pid: 76925, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1128170c0, pid: 76925, label: 'PumpSync'
+  }

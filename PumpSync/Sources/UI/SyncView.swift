@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SyncView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(AppServices.self) private var services
   @State private var showsSubscription = false
 
@@ -36,15 +37,6 @@ struct SyncView: View {
         }
       }
 
-      // Sync triggers stay visible after the first sync: this is the only
-      // in-app disclosure that syncing also happens automatically.
-      GlassSection("How Syncing Runs") {
-        Text("You can start a sync yourself anytime. PumpSync also checks for any pump data not yet synced when the app opens and during background updates when iOS grants time. It aims to keep Apple Health less than four hours behind, but iOS may delay background work.")
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .foregroundStyle(.secondary)
-          .padding(.vertical, 8)
-      }
-
       Button {
         if canSync {
           services.syncCoordinator.startManualSync()
@@ -54,6 +46,10 @@ struct SyncView: View {
       }
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!canSync)
+
+      NavigationLink("Preview Import") { RealImportPreviewView(services: services) }
+        .buttonStyle(GroupedActionButtonStyle())
+        .disabled(!services.authService.isSignedIn || !services.credentialStore.hasValidatedCredentials || services.demoPreviewActive)
 
       if let message = Self.readinessMessage(
         isBackendConnected: services.authService.isSignedIn,
@@ -78,19 +74,21 @@ struct SyncView: View {
       }
 
       if let lastSuccessfulSyncAt = services.syncMetadataStore.metadata.lastSuccessfulSyncAt {
-        GlassSection("Last Successful Sync") {
-          GlassStatusRow(
-            title: "Completed",
-            value: formattedDate(lastSuccessfulSyncAt),
-            systemImage: "checkmark.circle.fill",
-            tint: .green
-          )
-        }
-        if Date().timeIntervalSince(lastSuccessfulSyncAt) >= AppConstants.staleSyncInterval {
-          GlassSection {
-            Label("Pump data may be out of date. Start a sync to refresh Apple Health.", systemImage: "exclamationmark.triangle")
-              .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+          GlassSection("Last Successful Sync") {
+            GlassStatusRow(
+              title: "Completed",
+              value: formattedDate(lastSuccessfulSyncAt),
+              systemImage: "checkmark.circle.fill",
+              tint: .green
+            )
+          }
+          if Date().timeIntervalSince(lastSuccessfulSyncAt) >= AppConstants.staleSyncInterval {
+            Label("Apple Health may be out of date.", systemImage: "clock.badge.exclamationmark")
+              .font(.footnote)
               .foregroundStyle(.secondary)
+              .padding(.horizontal, 16)
+              .accessibilityIdentifier("StaleSyncNotice")
           }
         }
       }
@@ -102,6 +100,12 @@ struct SyncView: View {
     .onAppear {
       services.healthKitService.refreshAuthorizationStatus()
     }
+  }
+
+  private var adaptiveMenuLayout: AnyLayout {
+    dynamicTypeSize.isAccessibilitySize
+      ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+      : AnyLayout(HStackLayout(spacing: 14))
   }
 
   private var initialImportMenu: some View {
@@ -118,10 +122,10 @@ struct SyncView: View {
         }
       }
     } label: {
-      HStack(spacing: 12) {
+      adaptiveMenuLayout {
         Image(systemName: "calendar.badge.clock")
           .font(.title3)
-          .frame(width: 28)
+          .fixedSize()
           .foregroundStyle(.tint)
           .accessibilityHidden(true)
 
@@ -134,7 +138,7 @@ struct SyncView: View {
             .foregroundStyle(.secondary)
         }
 
-        Spacer(minLength: 12)
+        if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
 
         Text("Change")
           .font(.subheadline.weight(.semibold))
@@ -154,6 +158,7 @@ struct SyncView: View {
       && services.credentialStore.hasValidatedCredentials
       && services.healthKitService.hasAnyWritePermission
       && !services.syncCoordinator.isSyncing
+      && !services.demoPreviewActive
   }
 
   private var connectionStatus: String {
@@ -210,10 +215,6 @@ struct SyncView: View {
       return "Syncing"
     }
 
-    if isConnecting {
-      return "Connecting…"
-    }
-
     return hasCompletedInitialSync ? "Sync Now" : initialImportRange.initialSyncButtonTitle
   }
 
@@ -246,9 +247,10 @@ enum SyncButtonIconRotation {
     isSyncing: Bool,
     startDate: Date?,
     currentDate: Date,
-    revolutionDuration: TimeInterval = 0.8
+    revolutionDuration: TimeInterval = 0.8,
+    reduceMotion: Bool = false
   ) -> Double {
-    guard isSyncing, let startDate, revolutionDuration > 0 else {
+    guard isSyncing, !reduceMotion, let startDate, revolutionDuration > 0 else {
       return 0
     }
 
@@ -259,23 +261,25 @@ enum SyncButtonIconRotation {
 }
 
 private struct SyncButtonLabel: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var animationStartDate: Date?
 
   let title: String
   let isSyncing: Bool
 
   var body: some View {
-    TimelineView(.animation(paused: !isSyncing)) { context in
+    TimelineView(.animation(paused: !isSyncing || reduceMotion)) { context in
       HStack(spacing: 14) {
         Image(systemName: "arrow.triangle.2.circlepath")
           .font(.title3)
-          .frame(width: 28)
+          .fixedSize()
           .foregroundStyle(.tint)
           .rotationEffect(.degrees(
             SyncButtonIconRotation.angle(
               isSyncing: isSyncing,
               startDate: animationStartDate,
-              currentDate: context.date
+              currentDate: context.date,
+              reduceMotion: reduceMotion
             )
           ))
           .accessibilityHidden(true)

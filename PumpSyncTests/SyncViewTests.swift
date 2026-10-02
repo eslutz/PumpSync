@@ -3,6 +3,10 @@ import XCTest
 
 @MainActor
 final class SyncViewTests: XCTestCase {
+  func testReduceMotionKeepsRunningSyncIconStatic() {
+    XCTAssertEqual(SyncButtonIconRotation.angle(isSyncing: true, startDate: Date(timeIntervalSince1970: 0), currentDate: Date(timeIntervalSince1970: 0.2), reduceMotion: true), 0)
+  }
+
   func testDisconnectedReadinessExplainsRecoveryAction() {
     XCTAssertNotNil(SyncView.readinessMessage(
       isBackendConnected: false, hasValidatedCredentials: true, hasAnyHealthWritePermission: true
@@ -21,7 +25,8 @@ final class SyncViewTests: XCTestCase {
 
     XCTAssertEqual(presentation.title, "Starting secure service…")
     XCTAssertEqual(presentation.detail, "This can take about 30 seconds after inactivity. Keep PumpSync open.")
-    XCTAssertEqual(presentation.action, .viewSync)
+    XCTAssertNil(presentation.action)
+    XCTAssertNil(presentation.actionTitle)
     XCTAssertTrue(presentation.showsProgress)
   }
 
@@ -184,7 +189,7 @@ final class SyncViewTests: XCTestCase {
         hasCompletedInitialSync: true,
         initialImportRange: .pastTwoDays
       ),
-      "Connecting…"
+      "Sync Now"
     )
   }
 

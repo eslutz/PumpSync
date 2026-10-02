@@ -1,0 +1,73 @@
+{
+  "settings": "iPhone 17, iOS 26.5, AX5 + Increase Contrast, light; confirmed restored Large + disabled contrast + light",
+  "files": [
+    {
+      "path": "ax5-accepted.log",
+      "sha256": "e19d1b3021111af0d01656738cd154b64f183dcdb90b98f1dae418122ae0fe2b"
+    },
+    {
+      "path": "ios-final-full-tests.log",
+      "sha256": "ff4cbd6181771d78150dcd94f3c3f41506ad6252dce8aade6334c8e058d46abc"
+    },
+    {
+      "path": "rejected-runs/ax5-final.log",
+      "sha256": "1fb91232a743435745c19a3ed82b8c3ae8e129e1229de08142c17c371ce6f33c"
+    },
+    {
+      "path": "rejected-runs/ax5-retest.log",
+      "sha256": "331051207a9dfa381eda66ed8e05dcaae3f5a256ce25431d91b657d7525e0902"
+    },
+    {
+      "path": "rejected-runs/ax5.log",
+      "sha256": "cb72237f6c80fc00dba7f2dd4d9c3a327413d744318a840f461d8f776789801a"
+    },
+    {
+      "path": "remediated-concentration-tree.txt",
+      "sha256": "c3534ddb2a4bd19aec572d76ca4805341e24351ac0fe13ee4c2a958740336876"
+    },
+    {
+      "path": "remediated-concentration.png",
+      "sha256": "3250e0290bb2b5dfd68f029278c5443b63853b532d57ef4eb48fb17f5f2baaee"
+    },
+    {
+      "path": "remediated-invalid-connect-tree.txt",
+      "sha256": "191d56c7f99df47633f8d513230b9541debcc74dbfdef2321604e7abab6f6609"
+    },
+    {
+      "path": "remediated-invalid-connect.png",
+      "sha256": "2e227ab8ff9e48e34f463a3fd2687777f28bd289b11779be141fb7d15bbd5d30"
+    },
+    {
+      "path": "remediated-sync-tree.txt",
+      "sha256": "dc77d36288049137f0acd5663309b6c7b4b5fe600674b02d543e26d87060a30a"
+    },
+    {
+      "path": "remediated-sync.png",
+      "sha256": "61b5c72b9b17649bcd3a857118f01922456f025fa6388d94ed7dbc97b7f8c728"
+    },
+    {
+      "path": "remediated-tandem-tree.txt",
+      "sha256": "a006bedc12bf9b3bac38d4a89288e4d120e6a8ede797b53aefbf245acfd99c2e"
+    },
+    {
+      "path": "remediated-tandem.png",
+      "sha256": "e378eb0f2b15863bf9a53fd149ae8bfd435820e78c2746a494e840d4a1f921bd"
+    },
+    {
+      "path": "runtime-harness.swift.txt",
+      "sha256": "ee8e5b851bc48ef2be186ef76f0b94e2630cc2989ab47f31f62c0d154552bfb6"
+    },
+    {
+      "path": "standard-fixture-data-handling.png",
+      "sha256": "ce1a841dd0af6837d9aa2efa3609a77b02f2e024043a3e776cce8a69ffab7e83"
+    },
+    {
+      "path": "standard-fixture-tandem.png",
+      "sha256": "ea74431ac6009414d2c6e6519420e38cd26ca53f916c03828f4f80656ed27b8a"
+    },
+    {
+      "path": "website-tests.log",
+      "sha256": "3de6b6863e40128bf4a0ddcd6f3d135b43367f086cfa54fb9a1f239a93c52ed8"
+    }
+  ]
+}

@@ -3,13 +3,15 @@ import SwiftUI
 struct TandemCredentialForm: View {
   @Environment(AppServices.self) private var services
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @State private var validation = CredentialValidationLifetime()
 
   @State private var username = ""
   @State private var password = ""
   @State private var region = TandemRegion.us
   @State private var alert: CredentialAlert?
   @State private var isShowingPassword = false
-  @State private var isValidating = false
+  private var isValidating: Bool { validation.isRunning }
   @State private var lastValidatedCredentials: TandemCredentials?
   @State private var baselineUsername = ""
   @State private var baselineRegion = TandemRegion.us
@@ -64,24 +66,38 @@ struct TandemCredentialForm: View {
 
         GlassDivider(leadingPadding: 0)
 
-        HStack(spacing: 12) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+          ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+          : AnyLayout(HStackLayout(spacing: 12))
+        layout {
           Text("Region")
             .foregroundStyle(.primary)
 
-          Spacer(minLength: 12)
+          if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
 
-          Picker("Region", selection: $region) {
-            ForEach(TandemRegion.allCases) { region in
-              Text(region.title).tag(region)
+          Menu {
+            ForEach(TandemRegion.allCases) { choice in
+              Button { region = choice } label: {
+                if choice == region {
+                  Label(choice.title, systemImage: "checkmark")
+                } else {
+                  Text(choice.title)
+                }
+              }
             }
+          } label: {
+            Text(region.title)
+              .fixedSize(horizontal: false, vertical: true)
+              .frame(minHeight: 44, alignment: .leading)
           }
-          .labelsHidden()
+          .accessibilityIdentifier("TandemRegionPicker")
           .accessibilityLabel("Tandem region")
           .accessibilityValue(region.title)
         }
         .frame(minHeight: 44)
         .accessibilityElement(children: .contain)
       }
+      .disabled(isValidating)
       // privacySensitive alone is inert — SwiftUI only redacts it while a
       // .privacy redaction reason is active, which nothing applies by
       // default. Drive it from the scene phase so the app-switcher snapshot
@@ -94,7 +110,7 @@ struct TandemCredentialForm: View {
         if actionState == .remove {
           isConfirmingRemoval = true
         } else {
-          Task {
+          validation.start {
             await validateAndSave()
           }
         }
@@ -115,12 +131,18 @@ struct TandemCredentialForm: View {
     }
     .navigationTitle("Tandem")
     .onAppear(perform: load)
+    .onDisappear { validation.cancel() }
+    .onChange(of: services.backendConfigurationStore.revision) { _, _ in
+      validation.cancel()
+      lastValidatedCredentials = nil
+    }
     .onChange(of: scenePhase) { _, newPhase in
       // A revealed password must not survive backgrounding: the plain
       // TextField (unlike SecureField) would otherwise be captured in the
       // app-switcher snapshot and remain visible on return.
       if newPhase != .active {
         isShowingPassword = false
+        validation.cancel()
       }
     }
     .confirmationDialog("Remove saved credentials?", isPresented: $isConfirmingRemoval, titleVisibility: .visible) {
@@ -253,7 +275,9 @@ struct TandemCredentialForm: View {
   }
 
   private func validateAndSave() async {
+    guard !Task.isCancelled else { return }
     let credentials = currentCredentials
+    let configurationRevision = services.backendConfigurationStore.revision
 
     // Region determines a different Tandem login endpoint (see the backend's
     // TandemSourceOptions Us/Eu configs), so a region change always needs a
@@ -273,10 +297,9 @@ struct TandemCredentialForm: View {
       return
     }
 
-    isValidating = true
-    defer { isValidating = false }
-
-    guard let accessToken = await accessTokenForValidation() else {
+    guard let accessToken = await accessTokenForValidation(configurationRevision: configurationRevision),
+          !Task.isCancelled,
+          configurationRevision == services.backendConfigurationStore.revision else {
       return
     }
 
@@ -286,6 +309,8 @@ struct TandemCredentialForm: View {
         accessToken: accessToken
       )
 
+      try Task.checkCancellation()
+      guard configurationRevision == services.backendConfigurationStore.revision else { return }
       guard response.validated else {
         alert = CredentialAlert(
           title: "Save Failed",
@@ -298,7 +323,7 @@ struct TandemCredentialForm: View {
       try services.credentialStore.saveValidated(credentials)
       lastValidatedCredentials = credentials
       baselineUsername = credentials.username
-      baselineRegion = region
+      baselineRegion = TandemRegion(rawValue: credentials.region) ?? .us
       password = ""
       isShowingPassword = false
       alert = CredentialAlert(
@@ -307,6 +332,7 @@ struct TandemCredentialForm: View {
       )
       services.diagnosticsLogStore.record(source: .credential, title: "Credentials saved")
     } catch {
+      guard !Task.isCancelled, configurationRevision == services.backendConfigurationStore.revision else { return }
       if (error as? APIClientError)?.isAuthenticationFailure == true {
         services.authService.clearSessionForAuthenticationFailure()
       }
@@ -318,11 +344,12 @@ struct TandemCredentialForm: View {
     }
   }
 
-  private func accessTokenForValidation() async -> String? {
+  private func accessTokenForValidation(configurationRevision: Int) async -> String? {
     if let accessToken = await services.authService.accessTokenRecoveringIfNeeded() {
       return accessToken
     }
 
+    guard !Task.isCancelled, configurationRevision == services.backendConfigurationStore.revision else { return nil }
     alert = CredentialAlert(
       title: "Connection Needed",
       message: services.authService.connectionRequiredMessage

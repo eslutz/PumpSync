@@ -90,14 +90,22 @@ final class BackendSessionStore {
   }
 
   func isValid(_ session: BackendSessionResponse) -> Bool {
+    Self.isValid(session, at: now())
+  }
+
+  static func isValid(_ session: BackendSessionResponse, at date: Date) -> Bool {
     guard session.protocolVersion == 3, !session.accessToken.isEmpty else {
       return false
     }
 
-    return session.expiresAt.timeIntervalSince(now()) > Self.refreshWindow
+    return session.expiresAt.timeIntervalSince(date) > Self.refreshWindow
   }
 
   func isRenewable(_ session: BackendSessionResponse) -> Bool {
+    Self.isRenewable(session, at: now())
+  }
+
+  static func isRenewable(_ session: BackendSessionResponse, at date: Date) -> Bool {
     guard
       session.protocolVersion == 3,
       !session.refreshToken.isEmpty
@@ -105,6 +113,6 @@ final class BackendSessionStore {
       return false
     }
 
-    return session.refreshTokenExpiresAt > now() && session.refreshTokenAbsoluteExpiresAt > now()
+    return session.refreshTokenExpiresAt > date && session.refreshTokenAbsoluteExpiresAt > date
   }
 }

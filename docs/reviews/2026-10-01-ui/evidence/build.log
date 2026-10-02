@@ -1,0 +1,691 @@
+Command line invocation:
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project "/Users/ericslutz/Developer/Code/Side Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj" -scheme PumpSync -configuration Debug -skipMacroValidation -destination "platform=iOS Simulator,id=A1ACA0A5-5E8F-4CB6-860A-A598500308DA" -collect-test-diagnostics never -derivedDataPath /private/tmp/pumpsync-ui-review-build build
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'PumpSync' in project 'PumpSync' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/ericslutz/Developer/Code/Side Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Assets.xcassets
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: efb158b76ba4bb4bf99e65e6c0a9133b
+Build description path: /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/XCBuildData/efb158b76ba4bb4bf99e65e6c0a9133b.xcbuilddata
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/ModuleCache.noindex
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/ModuleCache.noindex
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/CompilationCache.noindex
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/CompilationCache.noindex
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/Build/Products
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/Build/Products
+
+ClangStatCache /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk /tmp/pumpsync-ui-review-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -o /tmp/pumpsync-ui-review-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PrecompiledHeaders
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PrecompiledHeaders
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+CreateBuildDirectory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    builtin-create-build-directory /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync-7846ac918a4e7053840541c10a91dfd6-VFS-iphonesimulator/all-product-headers.yaml
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync-7846ac918a4e7053840541c10a91dfd6-VFS-iphonesimulator/all-product-headers.yaml
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-non-framework-target-headers.hmap (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyStaticMetadataFileList (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.hmap (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.hmap
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyMetadataFileList (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyMetadataFileList
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibPath-normal-arm64.txt (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibPath-normal-arm64.txt
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibInstallName-normal-arm64.txt (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibInstallName-normal-arm64.txt
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftConstValuesFileList (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.LinkFileList (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.LinkFileList
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json
+
+WriteAuxiliaryFile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/Entitlements-Simulated.plist (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    write-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/Entitlements-Simulated.plist
+
+MkDir /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /bin/mkdir -p /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app
+
+ProcessProductPackaging /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/PumpSync.entitlements /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Entitlements:
+
+    {
+}
+
+    builtin-productPackagingUtility /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/PumpSync.entitlements -entitlements -format xml -o /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent
+
+ProcessProductPackaging /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/PumpSync.entitlements /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Entitlements:
+
+    {
+    "application-identifier" = "QS3GC3CT43.dev.ericslutz.PumpSync";
+    "com.apple.developer.devicecheck.appattest-environment" = development;
+    "com.apple.developer.healthkit" = 1;
+}
+
+    builtin-productPackagingUtility /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/PumpSync.entitlements -entitlements -format xml -o /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent
+
+ProcessProductPackagingDER /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent.der (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /usr/bin/derq query -f xml -i /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent -o /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent.der --raw
+
+ProcessProductPackagingDER /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent.der (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /usr/bin/derq query -f xml -i /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent -o /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent.der --raw
+
+Ld /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib normal (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -dynamiclib -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -F/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -install_name @rpath/PumpSync.debug.dylib -Xlinker -dead_strip -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -dependency_info -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_dependency_info.dat -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __ents_der -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent.der -Xlinker -no_adhoc_codesign -o /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib
+
+GenerateAssetSymbols /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Assets.xcassets (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/actool /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Assets.xcassets --compile /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app --output-format human-readable-text --notices --warnings --export-dependency-info /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_dependencies --output-partial-info-plist /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist --app-icon AppIcon --compress-pngs --enable-on-demand-resources YES --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 26.0 --platform iphonesimulator --bundle-identifier dev.ericslutz.PumpSync --generate-swift-asset-symbol-extensions NO --generate-swift-asset-symbols /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols.swift --generate-objc-asset-symbols /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols.h --generate-asset-symbol-index /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/* com.apple.actool.compilation-results */
+/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols.h
+/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols.swift
+
+
+MkDir /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/thinned (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /bin/mkdir -p /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/thinned
+
+MkDir /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/unthinned (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /bin/mkdir -p /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/unthinned
+
+CompileAssetCatalogVariant thinned /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Assets.xcassets (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/actool /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Assets.xcassets --compile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_dependencies_thinned --output-partial-info-plist /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --compress-pngs --enable-on-demand-resources YES --filter-for-thinning-device-configuration iPhone18,3 --filter-for-device-os-version 26.5 --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 26.0 --platform iphonesimulator
+/* com.apple.actool.compilation-results */
+/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist_thinned
+/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/thinned/AppIcon60x60@2x.png
+/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/thinned/AppIcon76x76@2x~ipad.png
+/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/thinned/Assets.car
+
+
+SwiftDriver PumpSync normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftDriver -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSync -Onone @/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-ui-review-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path /tmp/pumpsync-ui-review-build/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -F /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-ui-review-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-ui-review-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-ui-review-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h -working-directory /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend -experimental-emit-module-separately -disable-cmo
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/SwiftShims-DFH4C80PQWIXW1LUFFR62T4L2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_AvailabilityInternal-D3M5N265L7QSHTLPMNEUUH6IS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_stddef-CVY0QD2ZMMAL8IDNGXT1YIY2P.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/DeveloperToolsSupport-8A1YYP96YHAMSPGPBC15N6EGR.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_SwiftConcurrencyShims-8LA1IBFWNQHWV7QCW2Z8R871Z.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_stdbool-433OCCWPSKWLZ8FLU2PZTH6FG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/ptrauth-CZVQJK9KTHG143OXG7XMREVET.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_StoreKit_SwiftUI-6O4O7UC1NVWNQSUJLHI9RCZAM.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_float-AOYL0B08BXRH3E5WWDKNLXMA.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/ptrcheck-AMBSM0BBOL8C3DFVAECZC6YTL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_stdarg-7IHKQUOXZ3UUAEAQ2JDUUWBI4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_DarwinFoundation1-4JMLTF620NQO508YBDKS9TNTN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/ExtensionFoundation-34F76E8DQOTYWCNT4D1YVFMV1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_limits-2UNSDEOGEIPK23SLU3LVJCOBW.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_DarwinFoundation2-7VQSXLMTANAW7F6L5L1D1MCH4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/string_h-DB6W7OI3TOWP91R171I6TK2G5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_tgmath-5E4I7BPTYHIMI7C9F5CO7S2HK.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_stdint-BXAFPYZ79F90G6BEAZLQAW55E.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/sys_types-58OYANF519SAVQTM5IWKQD70Y.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_DarwinFoundation3-3CCOXVYX4B1WIRENMW8LZ32U5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_intrinsics-AIE51SM8CKTFALQC1M59CXUC3.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_stdatomic-B5SLQ97N7CJ34V4RN0ZQ09TQU.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_Builtin_inttypes-1H01880JLI8NDR9NL4F1S2MSV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Darwin-42PZW22N8I39WG8ZFI2DYSIXV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/simd-4O4JAC9B5DNGYECGOAX8JQRXU.pcm
+
+LinkAssetCatalog /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Assets.xcassets (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-linkAssetCatalog --thinned /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/thinned --thinned-dependencies /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_dependencies_thinned --thinned-info-plist-content /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist_thinned --unthinned /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_output/unthinned --unthinned-dependencies /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_dependencies_unthinned --unthinned-info-plist-content /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist_unthinned --output /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app --plist-output /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist
+note: Emplaced /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/AppIcon76x76@2x~ipad.png (in target 'PumpSync' from project 'PumpSync')
+note: Emplaced /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/AppIcon60x60@2x.png (in target 'PumpSync' from project 'PumpSync')
+note: Emplaced /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Assets.car (in target 'PumpSync' from project 'PumpSync')
+
+ProcessInfoPlistFile /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Info.plist /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Info.plist (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-infoPlistUtility /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist -o /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Info.plist
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/ObjectiveC-BTQUZZUK7UWU9IS47Y7Y35YX5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/MachO-7AUM6M3MFR85MCK6UUP0X0FJO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/os_object-EJTZQZGD9Y3TMHI7OEVWDGURJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Spatial-EQUTBSEWGMSORZD9QSCIY118B.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/os_workgroup-ET8WKAIZ6OMM9OPH0J7LN2BG1.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Dispatch-H8FTMZZENRQC5IIWJF8THUEV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/dnssd-B0F1PDBFGY0PJFDL9FQ7IGVWJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/XPC-7NYD4JJVDC70496APN6DVPSUG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreFoundation-4ESTPPNXQWTBFH7PK61OWHXE5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/os-5HKVKSIU8L43QH7BDYFF3NVAN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Security-CWD4V03HM2JLMDM38LQKUMU3S.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreGraphics-4HXS13OJWR2KDFD0Z6PR82NNS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CFNetwork-3W31MU1LEJ386M8V1R37037BD.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreAudioTypes-3YRIRGGFKDQGSH786KEGJ1K5M.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreAudio-ZRZDKBSY7CVVMMSHOLRBMF8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Foundation-AD4JIYCPCYF6D7WOSHHTLCE2Q.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreText-EG3HG4FRENDCWA23DAEWD0ZL2.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/ImageIO-8P88FQLUI2YWAZC9H6VNEEEM5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/BackgroundAssets-3UL9EFTDL9A9OALZ6QRQ47V95.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreTransferable-3OBMNG13FYXTGLUSZ44EHN2LL.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/AppIntents-CRKTMXDZNHJ1WQZQI7CQ5WPPA.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/DataDetection-89LO0NJFOONZBIPKVRPOX9LMZ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreData-8GSPAKGOD351QL50MW538RMHX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/LocalAuthentication-AWWD1FI6C15E2PFXWXLTA38O5.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/RelevanceKit-7Z17BCLE2FGTKMIBX5CK2CS6F.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/StateReporting-44RBJR8A8UEECUWY9QU4QWXTT.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/UniformTypeIdentifiers-4M81HPPEPLPI6QAD6794LCHCO.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/FileProvider-A2LIHL9FQSCHXEQSP1PRTOFUP.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Symbols-DO8K18061J05JXL82PRYE92RN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/OSLog-60P9VACJIA9JCIOHJKYBGT2H.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/AppIntentsTypeSupport-4UUH22SFJFIRE8TKF0LVSW4OV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/OpenGLES-EUJQFBWZMIBY8KX7GCXC8GDJJ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/MetricKit-A30OXEH0VGC3NLUQQULO2OVL8.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Accessibility-DZL47GG2ACC7HHL7FH8FBEGHE.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/HealthKit-EFYNZLGEO8SO05G95ZW14D4PN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreSpotlight-B1UXZES6XGOOVVD65D76UTCUW.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/DeviceCheck-26BFL440J59U8KEVE1ZURO55Z.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/UIUtilities-JXPWJ0M6SWS3Z3IXAGMPGWJC.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/_LocationEssentials-64123Y1WG2XJNLPGBB9G7W6YY.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/UserNotifications-1C0AAT7AYV5WQ3SERBMXOEQGN.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/BackgroundTasks-Q3LVAUNAH7SHJKRR846BRUH6.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Network-3GR8EILUTB7YVA7X4OYK69365.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/IOSurface-EC1UFFA69BT50REXC3629DYDX.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreLocation-4T5XVIJ63T2DGEE9PIKGIPDHS.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/Metal-7CE7HNJW3ZC9IW3NDJQGHPPGH.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreMotion-DOWCCBYR9YEVIAOQ3L73G1XH0.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreVideo-11O918S08IO8B1EQH18SO8NAW.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreImage-1X8FHDC6CEQON7RLGE0GDWRI4.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/QuartzCore-6UIVAHJPAY57OV1GIFV7A8XHG.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/CoreMedia-7K841H258KVANS4M61FVX25YQ.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/SwiftUICore-A8HIXKUUYMXGI19IS6XH0HR92.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/UIKit-E0IPS05OQDSV9V4FLOYCFBHZV.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/StoreKit-12299C40SZKDWHNSPU4EEWC3W.pcm
+
+SwiftExplicitDependencyGeneratePcm arm64 /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules/SwiftUI-5I0ZQ0W9G1KPKHPOPQF86YIYY.pcm
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ PumpSync (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+
+SwiftCompile normal arm64 Compiling\ HealthWritePermission.swift,\ ImportedSampleLedger.swift,\ InitialImportRange.swift,\ InstallStateReconciler.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Health/HealthWritePermission.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/ImportedSampleLedger.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/InitialImportRange.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/InstallStateReconciler.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Health/HealthWritePermission.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile HealthWritePermission.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/ImportedSampleLedger.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile ImportedSampleLedger.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/InitialImportRange.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile InitialImportRange.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/InstallStateReconciler.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile InstallStateReconciler.swift
+
+SwiftCompile normal arm64 Compiling\ SupportBundleBuilder.swift,\ SyncCoordinator.swift,\ SyncMetadataStore.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/SupportBundleBuilder.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/SyncCoordinator.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/SyncMetadataStore.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/SupportBundleBuilder.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SupportBundleBuilder.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/SyncCoordinator.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SyncCoordinator.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/SyncMetadataStore.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SyncMetadataStore.swift
+
+SwiftCompile normal arm64 Compiling\ ForegroundRecoveryController.swift,\ GlassUI.swift,\ HealthAccessView.swift,\ HealthKitService.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/ForegroundRecoveryController.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/GlassUI.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/HealthAccessView.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Health/HealthKitService.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/ForegroundRecoveryController.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile ForegroundRecoveryController.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/GlassUI.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile GlassUI.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/HealthAccessView.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile HealthAccessView.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Health/HealthKitService.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile HealthKitService.swift
+
+SwiftCompile normal arm64 Compiling\ BackgroundSyncScheduler.swift,\ DeveloperView.swift,\ DeviceSessionProofProvider.swift,\ DiagnosticsLogStore.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/BackgroundSyncScheduler.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/DeveloperView.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Auth/DeviceSessionProofProvider.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/DiagnosticsLogStore.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/BackgroundSyncScheduler.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile BackgroundSyncScheduler.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/DeveloperView.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile DeveloperView.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Auth/DeviceSessionProofProvider.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile DeviceSessionProofProvider.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/DiagnosticsLogStore.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile DiagnosticsLogStore.swift
+
+SwiftCompile normal arm64 Compiling\ AppView.swift,\ AuthService.swift,\ BackendSessionStore.swift,\ BackgroundSyncDiagnostics.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppView.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Auth/AuthService.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Auth/BackendSessionStore.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/BackgroundSyncDiagnostics.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppView.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile AppView.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Auth/AuthService.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile AuthService.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Auth/BackendSessionStore.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile BackendSessionStore.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/BackgroundSyncDiagnostics.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile BackgroundSyncDiagnostics.swift
+
+SwiftCompile normal arm64 Compiling\ SyncStatusBanner.swift,\ SyncView.swift,\ TandemCredentialForm.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/SyncStatusBanner.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/SyncView.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentialForm.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/SyncStatusBanner.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SyncStatusBanner.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/SyncView.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SyncView.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentialForm.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile TandemCredentialForm.swift
+
+SwiftCompile normal arm64 Compiling\ TandemCredentialStore.swift,\ TandemCredentials.swift,\ GeneratedAssetSymbols.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentialStore.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentials.swift /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentialStore.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile TandemCredentialStore.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentials.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile TandemCredentials.swift
+
+SwiftCompile normal arm64 /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile GeneratedAssetSymbols.swift
+
+SwiftCompile normal arm64 Compiling\ APIModels.swift,\ AppConstants.swift,\ AppLaunchEnvironment.swift,\ AppServices.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Networking/APIModels.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppConstants.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppLaunchEnvironment.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppServices.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Networking/APIModels.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile APIModels.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppConstants.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile AppConstants.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppLaunchEnvironment.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile AppLaunchEnvironment.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/AppServices.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile AppServices.swift
+
+SwiftCompile normal arm64 Compiling\ MetricKitDiagnosticsCollector.swift,\ NativeDiagnosticsStore.swift,\ PrivacyView.swift,\ PumpSyncAPIClient.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/MetricKitDiagnosticsCollector.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/NativeDiagnosticsStore.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/PrivacyView.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Networking/PumpSyncAPIClient.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/MetricKitDiagnosticsCollector.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile MetricKitDiagnosticsCollector.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/NativeDiagnosticsStore.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile NativeDiagnosticsStore.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/PrivacyView.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile PrivacyView.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Networking/PumpSyncAPIClient.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile PumpSyncAPIClient.swift
+
+SwiftCompile normal arm64 Compiling\ PumpSyncApp.swift,\ PumpSyncShortcuts.swift,\ SecureKeychainStore.swift,\ SettingsView.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/PumpSyncApp.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/PumpSyncShortcuts.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/SecureKeychainStore.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/SettingsView.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/PumpSyncApp.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile PumpSyncApp.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/App/PumpSyncShortcuts.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile PumpSyncShortcuts.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Storage/SecureKeychainStore.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SecureKeychainStore.swift
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/UI/SettingsView.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SettingsView.swift
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for PumpSync (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriver\ Compilation\ Requirements PumpSync normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-Swift-Compilation-Requirements -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSync -Onone @/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-ui-review-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path /tmp/pumpsync-ui-review-build/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -F /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-ui-review-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-ui-review-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-ui-review-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h -working-directory /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling APIModels.swift, AppConstants.swift, AppLaunchEnvironment.swift, AppServices.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftMergeGeneratedHeaders /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/PumpSync-Swift.h /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-swiftHeaderTool -arch arm64 /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h -o /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/PumpSync-Swift.h
+
+Copy /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.swiftmodule /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.swiftmodule
+
+Copy /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.swiftdoc /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftdoc (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftdoc /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.swiftdoc
+
+Copy /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.abi.json /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.abi.json (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.abi.json /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.abi.json
+
+Copy /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftsourceinfo (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftsourceinfo /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo
+
+SwiftDriverJobDiscovery normal arm64 Compiling TandemCredentialStore.swift, TandemCredentials.swift, GeneratedAssetSymbols.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling HealthWritePermission.swift, ImportedSampleLedger.swift, InitialImportRange.swift, InstallStateReconciler.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling SupportBundleBuilder.swift, SyncCoordinator.swift, SyncMetadataStore.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling SyncStatusBanner.swift, SyncView.swift, TandemCredentialForm.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling BackgroundSyncScheduler.swift, DeveloperView.swift, DeviceSessionProofProvider.swift, DiagnosticsLogStore.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling MetricKitDiagnosticsCollector.swift, NativeDiagnosticsStore.swift, PrivacyView.swift, PumpSyncAPIClient.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling ForegroundRecoveryController.swift, GlassUI.swift, HealthAccessView.swift, HealthKitService.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling AppView.swift, AuthService.swift, BackendSessionStore.swift, BackgroundSyncDiagnostics.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling PumpSyncApp.swift, PumpSyncShortcuts.swift, SecureKeychainStore.swift, SettingsView.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriver\ Compilation PumpSync normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-Swift-Compilation -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSync -Onone @/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-ui-review-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path /tmp/pumpsync-ui-review-build/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -F /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-ui-review-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-ui-review-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-ui-review-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap -Xcc -I/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h -working-directory /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend -experimental-emit-module-separately -disable-cmo
+
+Ld /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib normal (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -dynamiclib -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -L/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -F/tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -F/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -filelist /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.LinkFileList -install_name @rpath/PumpSync.debug.dylib -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -dependency_info -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_dependency_info.dat -fobjc-link-runtime -L/Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphonesimulator -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -Xlinker -alias -Xlinker _main -Xlinker ___debug_main_executable_dylib_entry_point -Xlinker -no_adhoc_codesign -o /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib
+
+ConstructStubExecutorLinkFileList /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-ExecutorLinkFileList-normal-arm64.txt (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    construct-stub-executor-link-file-list /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libPreviewsJITStubExecutor_no_swift_entry_point.a /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libPreviewsJITStubExecutor.a --output /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-ExecutorLinkFileList-normal-arm64.txt
+note: Using stub executor library with Swift entry point. (in target 'PumpSync' from project 'PumpSync')
+
+Ld /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync normal (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -F/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator -Xlinker -rpath -Xlinker @executable_path -Xlinker -rpath -Xlinker @executable_path/Frameworks -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -e ___debug_blank_executor_main -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_dylib -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibPath-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_instlnm -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibInstallName-normal-arm64.txt -Xlinker -filelist -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-ExecutorLinkFileList-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __ents_der -Xlinker /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent.der /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib -Xlinker -no_adhoc_codesign -o /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync
+
+CopySwiftLibs /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib --scan-folder /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Frameworks --scan-folder /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns --scan-folder /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/SystemExtensions --scan-folder /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Extensions --platform iphonesimulator --toolchain /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+ExtractAppIntentsMetadata (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name PumpSync --sdk-root /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk --xcode-version 27A266a --platform-family iOS --deployment-target 26.0 --bundle-identifier dev.ericslutz.PumpSync --output /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app --target-triple arm64-apple-ios26.0-simulator --binary-file /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync --dependency-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_dependency_info.dat --stringsdata-file /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList --metadata-file-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyMetadataFileList --static-metadata-file-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyStaticMetadataFileList --swift-const-vals-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-10-01 11:21:34.318 appintentsmetadataprocessor[70927:2911483] Starting appintentsmetadataprocessor export
+2026-10-01 11:21:34.433 appintentsmetadataprocessor[70927:2911483] Writing Metadata.appintents
+2026-10-01 11:21:34.433 appintentsmetadataprocessor[70927:2911483] Metadata root: /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Metadata.appintents
+
+AppIntentsSSUTraining (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Info.plist --temp-dir-path /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/ssu --bundle-id dev.ericslutz.PumpSync --product-path /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app --extracted-metadata-path /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Metadata.appintents --metadata-file-list /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyMetadataFileList --source-file /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Info.plist --archive-ssu-assets
+2026-10-01 11:21:34.480 appintentsnltrainingprocessor[70928:2911487] Parsing options for appintentsnltrainingprocessor
+2026-10-01 11:21:34.480 appintentsnltrainingprocessor[70928:2911487] Starting AppIntents SSU YAML Generation
+2026-10-01 11:21:34.500 appintentsnltrainingprocessor[70928:2911487] Training 'Open ${+applicationName}|Launch ${+applicationName}' for en
+2026-10-01 11:21:34.500 appintentsnltrainingprocessor[70928:2911487] Training Negative Phrases '' for en
+2026-10-01 11:21:34.500 appintentsnltrainingprocessor[70928:2911487] Application name 'PumpSync' for en
+2026-10-01 11:21:34.510 appintentsnltrainingprocessor[70928:2911487] Generated AppIntents SSU YAML files in file:///tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/ssu/
+2026-10-01 11:21:34.510 appintentsnltrainingprocessor[70928:2911487] Copied AppIntents SSU YAML files to file:///tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Metadata.appintents/
+Archiving all locales.
+
+[------------------------------------------------------------] 0% archiving en
+[🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢] 100% archived en
+[🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢] 100% archived 1 locales/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Metadata.appintents/nlu
+/tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Metadata.appintents/nlu/cde7cf03b9f3b4b898e5f1b96abcfc3b.version
+
+
+CodeSign /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib
+
+CodeSign /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib
+
+CodeSign /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --entitlements /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app
+
+RegisterExecutionPolicyException /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-RegisterExecutionPolicyException /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app
+
+Validate /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-validationUtility /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app -shallow-bundle -infoplist-subpath Info.plist
+
+Touch /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /usr/bin/touch -c /tmp/pumpsync-ui-review-build/Build/Products/Debug-iphonesimulator/PumpSync.app
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-review-build/SDKExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-review-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+** BUILD SUCCEEDED **

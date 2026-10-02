@@ -2626,6 +2626,24 @@ final class AuthServiceTests: XCTestCase {
     }
   }
 
+  func testLiveImportRejectsSyntheticAndUnknownSessionBeforePersistenceWhilePreviewAdmitsSynthetic() async {
+    for (purpose, source, eligible): (AuthPurpose, String, Bool) in [(.liveImport, "syntheticDemo", false), (.liveImport, "future", false), (.preview, "syntheticDemo", true)] {
+      let configuration = BackendConfigurationStore.ephemeral(selfHostedBaseURL: URL(string: "https://self-host.example/api")!, installationId: UUID().uuidString)
+      let sessionStore = makeSessionStore()
+      let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: sessionStore, purpose: purpose,
+        currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+        createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+        createSelfHostedSession: { _ in BackendSessionResponse(accessToken: "sample-token", expiresAt: Date(timeIntervalSince1970: 1_800), serviceMode: "selfHosted", dataSourceMode: source) },
+        proofProvider: AcceptingProofProvider())
+      await service.connectSelfHosted()
+      XCTAssertEqual(service.isSignedIn, eligible)
+      XCTAssertEqual(sessionStore.loadValidSession() != nil, eligible)
+      if purpose == .liveImport, source == "syntheticDemo" {
+        XCTAssertEqual(service.errorMessage, "This service supplies sample data. Open Sample Preview instead.")
+      }
+    }
+  }
+
   func testSelfHostedCreatesBackendSession() async {
     let configuration = makeConfigurationStore()
     configuration.mode = .selfHosted

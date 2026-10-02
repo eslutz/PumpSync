@@ -26,7 +26,7 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 ### Installation and First Launch
 
 - [ ] Install the current build over an older TestFlight build and verify user settings and Tandem credentials remain usable; the prior hosted session and App Attest state must not be read or migrated, and PumpSync must perform one fresh current-protocol enrollment.
-- [ ] Delete PumpSync, reinstall it, and verify Tandem credentials are removed.
+- [ ] On an agreed disposable device, delete PumpSync, reinstall it, and verify Tandem credentials are removed; preserve personal-device state.
 - [ ] Confirm a clean installation starts disconnected with no Tandem account configured.
 - [ ] Force-quit and reopen the app several times.
 - [ ] Restart the device and reopen PumpSync.
@@ -57,7 +57,9 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 
 ### Self-Hosted and Demo Connection
 
-Use the controlled demo configuration:
+The approved design retains the public demo for an authenticated, non-writing Sample Preview; implementation and Apple confirmation are still pending. See the canonical [App Review access plan](https://github.com/eslutz/PumpSync/wiki/App-Review-Access-Plan). The configuration below describes the existing service, not an approved synthetic Health import test. Do not sync synthetic samples into personal or reviewer Health stores.
+
+Existing demo configuration:
 
 - Server URL: `https://demo.pumpsync.ericslutz.dev/api`
 - Username: `demo@pumpsync.app`
@@ -66,10 +68,10 @@ Use the controlled demo configuration:
 
 - [ ] Switch from PumpSync to Self-hosted.
 - [ ] Verify Self-hosted enrollment and renewal use the Secure Enclave proof and succeed without an Apple Account, StoreKit entitlement, or App Attest service.
-- [ ] Connect to the demo URL and verify the UI identifies a demo service.
+- [ ] Open Settings → Sample Preview and authenticate to the demo service without replacing the live connection.
 - [ ] Verify missing `/api`, unreachable hosts, invalid TLS, and malformed URLs produce understandable errors.
 - [ ] Verify non-loopback HTTP URLs are rejected.
-- [ ] Save valid demo credentials.
+- [ ] Validate public demo credentials in Sample Preview; verify they remain in memory and never overwrite live credentials.
 - [ ] Verify invalid credentials produce an actionable error.
 - [ ] Change the username, password, and region individually and verify save behavior.
 - [ ] Switch between PumpSync and Self-hosted and verify sessions are not reused across modes.
@@ -96,8 +98,8 @@ Use the controlled demo configuration:
 - [ ] Follow the displayed Settings instructions and confirm they are accurate.
 - [ ] Revoke access after a successful sync and verify the next sync fails safely.
 - [ ] Confirm PumpSync does not request unrelated Health data.
-- [ ] Confirm demo samples use sensible dates, units, and source attribution.
-- [ ] Remove synthetic samples from Apple Health after testing on a personal device.
+- [ ] Confirm synthetic samples never reach HealthKit; verify values, dates, units, and provenance through test-target recording writers or the agreed non-writing preview.
+- [ ] Preserve existing real Health data; do not use synthetic Health writes on a personal device as a test strategy.
 
 ### Initial and Subsequent Syncing
 
@@ -137,7 +139,7 @@ Use the controlled demo configuration:
 
 ### Internal Exit Criteria
 
-- [ ] Complete a clean-device path: install, connect to demo, save credentials, grant Health access, select a history range, sync, verify Health samples, sync again without duplicates, export support data, force-quit, and recover state.
+- [ ] Complete the normal authenticated device path using legitimate data: connect, validate credentials, grant Health access, select a history range, import, verify Health samples, repeat without duplicates, export support data, force-quit, and recover state. Use a separately agreed device/data arrangement for clean-install tests; preserve existing real data.
 - [ ] Resolve all crashes, data-loss risks, duplicate Health writes, credential leaks, subscription failures, and blocking usability issues.
 - [ ] Repeat all checks affected by fixes.
 - [ ] Freeze feature work for the release candidate.
@@ -170,7 +172,7 @@ An Xcode Cloud build labeled **Internal** cannot be submitted for external testi
 - [ ] Privacy Policy URL is `https://pumpsync.ericslutz.dev/privacy/`.
 - [ ] Review contact information is current.
 - [ ] Demo credentials and review notes are current.
-- [ ] Review notes explain synthetic Health samples, Health permissions, and that PumpSync is not a medical device.
+- [ ] Review notes explain read-only synthetic preview, legitimate import evidence, normal subscription access, and that PumpSync is not a medical device.
 
 ### Create External Testing Group
 
@@ -289,10 +291,10 @@ Do not configure production to accept sandbox transactions. Run full sandbox sub
 ### App Review Information
 
 - [ ] Verify review contact information.
-- [ ] Verify the demo backend is healthy and will remain available throughout review.
-- [ ] Verify demo credentials immediately before submission.
-- [ ] Provide exact reviewer steps for Self-hosted demo connection, credentials, Health permissions, history selection, and initial sync.
-- [ ] Explain that the demo creates deterministic synthetic samples in Apple Health and never contacts Tandem.
+- [ ] Record the reviewer-access arrangement and any required Apple confirmation from the canonical App Review access plan; do not assume video alone replaces account access.
+- [ ] Verify any backend required by that arrangement is reachable throughout review and that supplied account access works.
+- [ ] Provide exact reviewer steps, identify any preview explicitly, and attach physical-device evidence of legitimate Health import behavior.
+- [ ] Confirm no reviewer instructions require synthetic Health writes and no hidden authentication or subscription bypass is used.
 - [ ] Explain that PumpSync provides no diagnosis, treatment, dosing advice, or other medical recommendation.
 - [ ] Explain the PumpSync subscription flow and how to restore or manage it.
 
@@ -381,3 +383,12 @@ gh release create v1.0.0 --verify-tag --title "PumpSync v1.0.0" --notes-from-tag
 - [ ] Complete a 24-hour launch review.
 - [ ] Complete a 7-day launch review.
 - [ ] Close the release only after monitoring is stable and all release records are complete.
+
+
+## Safe preview candidate acceptance
+
+Preview-capable rollout remains pending. Verify authenticated **Settings → Sample Preview** connection, public credential validation, Past 2 days/U100 defaults, converted row details, invalid-input/network recovery, retry, dismissal, and background cancellation. No Health permission is needed. Confirm zero synthetic Health writes and byte-for-byte preservation of live configuration, credential records, concentration, ledger, and metadata with test-target instrumentation; screenshot inspection alone cannot prove this boundary.
+
+Verify optional real **Preview Import** with denied Health permission; it reports downloaded records (including already imported records), effective window and concentration, never imported/new counts. It closes back to normal Sync and cannot commit cached rows. Test missing/unknown/inconsistent/stale provenance and all manual/app-open/granted-background/retry entry points.
+
+Actual iPhone Secure Enclave/App Attest authentication, legitimate Health writes and repeat-sync deduplication, spoken VoiceOver, hosted purchase/restore, and distribution-specific acceptance remain separate release gates. Preserve personal data and use an agreed device arrangement for reinstall/reset tests. Apple's confirmation of the sample-preview plus legitimate-import-video arrangement is still pending; do not send or submit this draft without authorization.

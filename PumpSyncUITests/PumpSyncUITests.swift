@@ -7,6 +7,27 @@ final class PumpSyncUITests: XCTestCase {
     continueAfterFailure = false
   }
 
+  func testSamplePreviewIsSeparateAndClosesWithoutChangingConnection() {
+    let app = XCUIApplication()
+    app.launch()
+    navigate(to: "Settings", in: app)
+    let preview = app.buttons["Sample Preview"]
+    XCTAssertTrue(preview.waitForExistence(timeout: 5))
+    if !preview.isHittable { app.swipeDown() }
+    preview.tap()
+    XCTAssertTrue(app.staticTexts["Sample data — nothing is saved to Apple Health"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["Connect and Preview"].isEnabled)
+    XCTAssertTrue(app.textFields["Sample username"].exists)
+    XCTAssertTrue(app.secureTextFields["Sample password"].exists)
+    app.buttons["Close"].tap()
+    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Sample Preview"].isEnabled)
+    app.buttons["Sample Preview"].tap()
+    XCTAssertEqual(app.textFields["Sample username"].value as? String, "Sample username")
+    XCTAssertFalse(app.buttons["Connect and Preview"].isEnabled)
+    app.buttons["Close"].tap()
+  }
+
   func testAppLaunches() {
     let app = XCUIApplication()
     app.launch()
@@ -15,12 +36,38 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(hasTabBar || hasSplitSidebar)
   }
 
+  func testSyncHelpLivesInSettingsAboutScreen() {
+    let app = launchScreenshotFixture(launchArguments: [])
+    XCTAssertFalse(app.staticTexts["How Syncing Runs"].exists)
+    navigate(to: "Settings", in: app)
+    let about = app.buttons["AboutPumpSyncLink"]
+    if !about.isHittable { app.swipeUp() }
+    XCTAssertTrue(about.waitForExistence(timeout: 5))
+    about.tap()
+    XCTAssertTrue(app.staticTexts["How Syncing Works"].waitForExistence(timeout: 5))
+  }
+
   func testPreviewSyncFixtureShowsDisabledSyncAction() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-syncing"])
 
     let syncingButton = app.buttons["Syncing"]
     XCTAssertTrue(syncingButton.waitForExistence(timeout: 5))
     XCTAssertFalse(syncingButton.isEnabled)
+  }
+
+  func testRunningBannerDismissalPreservesSyncButtonAndTabNavigation() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-syncing"])
+    XCTAssertTrue(app.staticTexts["Starting secure service…"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["View"].exists)
+    app.buttons["Dismiss notification"].tap()
+    XCTAssertTrue(app.staticTexts["Starting secure service…"].waitForNonExistence(timeout: 3))
+    XCTAssertTrue(app.buttons["Syncing"].exists)
+    XCTAssertFalse(app.buttons["Syncing"].isEnabled)
+    navigate(to: "Settings", in: app)
+    navigate(to: "Sync", in: app)
+    XCTAssertFalse(app.staticTexts["Starting secure service…"].exists)
+    XCTAssertTrue(app.buttons["Syncing"].exists)
+    XCTAssertFalse(app.buttons["Syncing"].isEnabled)
   }
 
   func testRunningSyncBannerRemainsVisibleAfterSwitchingToSettings() {

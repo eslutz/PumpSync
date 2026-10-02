@@ -64,6 +64,7 @@ struct GlassSection<Content: View>: View {
 }
 
 struct GlassStatusRow: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   let title: String
   let value: String
   let systemImage: String
@@ -74,7 +75,7 @@ struct GlassStatusRow: View {
     HStack(spacing: 14) {
       Image(systemName: systemImage)
         .font(.title3)
-        .frame(width: 28)
+        .fixedSize()
         .foregroundStyle(tint)
         .accessibilityHidden(true)
 
@@ -90,7 +91,7 @@ struct GlassStatusRow: View {
 
       Spacer(minLength: 0)
 
-      if showsProgress {
+      if showsProgress && !reduceMotion {
         ProgressView()
           .accessibilityHidden(true)
       }
@@ -117,7 +118,7 @@ struct GlassNavigationRow: View {
     HStack(spacing: 14) {
       Image(systemName: systemImage)
         .font(.title3)
-        .frame(width: 28)
+        .fixedSize()
         .foregroundStyle(.tint)
         .accessibilityHidden(true)
 
@@ -167,7 +168,7 @@ struct GlassPrimaryLabel: View {
     HStack(spacing: 14) {
       Image(systemName: systemImage)
         .font(.title3)
-        .frame(width: 28)
+        .fixedSize()
         .foregroundStyle(.tint)
         .accessibilityHidden(true)
 

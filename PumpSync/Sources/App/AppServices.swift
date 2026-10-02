@@ -19,6 +19,20 @@ final class AppServices {
   let foregroundRecovery: ForegroundRecoveryController
   private let metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector
 
+  private(set) var demoPreviewActive = false
+
+  func beginDemoPreview() -> Bool {
+    guard !demoPreviewActive, !syncCoordinator.isSyncing else { return false }
+    demoPreviewActive = true
+    syncCoordinator.setDemoPreviewActive(true)
+    return true
+  }
+
+  func endDemoPreview() {
+    demoPreviewActive = false
+    syncCoordinator.setDemoPreviewActive(false)
+  }
+
   private init(
     apiClient: PumpSyncAPIClient,
     backendConfigurationStore: BackendConfigurationStore,
@@ -50,6 +64,7 @@ final class AppServices {
     foregroundRecovery = ForegroundRecoveryController(
       setVisible: { authService.setConnectionProgressVisible($0) }
     ) {
+      guard !syncCoordinator.isDemoPreviewActive else { return }
       do {
         if try importedSampleLedger.migrateHmacKeyForBackgroundAccess() {
           diagnosticsLogStore.record(source: .sync, title: "Background sync ledger key migrated")
@@ -95,7 +110,8 @@ final class AppServices {
     let insulinConcentrationStore = InsulinConcentrationStore()
     let healthKitService = HealthKitService(
       insulinConcentrationStore: insulinConcentrationStore,
-      diagnostics: diagnosticsLogStore
+      diagnostics: diagnosticsLogStore,
+      currentContext: { authService.currentImportSnapshot(credentialRevision: credentialStore.revision) }
     )
     let importedSampleLedger = ImportedSampleLedger(keychain: keychain)
     let syncMetadataStore = SyncMetadataStore()

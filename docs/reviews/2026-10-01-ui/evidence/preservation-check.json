@@ -1,0 +1,46 @@
+[
+  {
+    "path": ".github/workflows/ios-ci.yml",
+    "unchanged": true
+  },
+  {
+    "path": "AGENTS.md",
+    "unchanged": true
+  },
+  {
+    "path": "PumpSync.xcodeproj/project.pbxproj",
+    "unchanged": true
+  },
+  {
+    "path": "PumpSync/Sources/UI/SettingsView.swift",
+    "unchanged": true
+  },
+  {
+    "path": "PumpSync/Sources/UI/SyncView.swift",
+    "unchanged": true
+  },
+  {
+    "path": "PumpSyncTests/ImportedSampleLedgerTests.swift",
+    "unchanged": true
+  },
+  {
+    "path": "PumpSyncTests/InstallStateReconcilerTests.swift",
+    "unchanged": true
+  },
+  {
+    "path": "PumpSyncTests/SyncViewTests.swift",
+    "unchanged": true
+  },
+  {
+    "path": "PumpSyncUITests/PumpSyncUITests.swift",
+    "unchanged": true
+  },
+  {
+    "path": "project.yml",
+    "unchanged": true
+  },
+  {
+    "path": "scripts/ios/validate-tests.sh",
+    "unchanged": true
+  }
+]

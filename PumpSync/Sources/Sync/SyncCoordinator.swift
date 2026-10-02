@@ -58,6 +58,7 @@ enum SyncOperationState: Equatable {
 enum SyncRunOutcome: Equatable {
   case completed
   case skippedFresh
+  case skippedPreviewActive
   case failed
 }
 
@@ -69,8 +70,9 @@ enum SyncRunOutcome: Equatable {
 protocol SyncHealthWriting {
   func refreshAuthorizationStatus()
   var hasAnyWritePermission: Bool { get }
+  var concentration: InsulinConcentration { get }
   /// Returns the subset of samples actually written to Apple Health.
-  func save(samples: [SampleDTO]) async throws -> [SampleDTO]
+  func save(batch: HealthImportBatch) async throws -> [SampleDTO]
 }
 
 extension HealthKitService: SyncHealthWriting {}
@@ -97,11 +99,25 @@ final class SyncCoordinator {
   private let importedSampleLedger: ImportedSampleLedger
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
+  private var demoPreviewActive = false
   private var syncTask: Task<Bool, Never>?
   private var syncOperationID: UUID?
   private var syncWaiters: [UUID: Set<UUID>] = [:]
 
-  private(set) var operationState: SyncOperationState = .idle
+  private(set) var isNotificationDismissed = false
+
+  private(set) var operationState: SyncOperationState = .idle {
+    didSet {
+      // Progress phases belong to one notification. Its result and the next
+      // operation are new notifications, even if progress was dismissed.
+      if case .running(let previous) = oldValue,
+         case .running(let current) = operationState,
+         previous.startedAt == current.startedAt {
+        return
+      }
+      isNotificationDismissed = false
+    }
+  }
 
   var isSyncing: Bool {
     if case .running = operationState {
@@ -160,8 +176,15 @@ final class SyncCoordinator {
     self.diagnostics = diagnostics
   }
 
+  var isDemoPreviewActive: Bool { demoPreviewActive }
+
+  func setDemoPreviewActive(_ active: Bool) {
+    demoPreviewActive = active
+  }
+
   @discardableResult
   func refreshIfStale(reason: SyncTriggerReason) async -> SyncRunOutcome {
+    guard !demoPreviewActive else { return .skippedPreviewActive }
     if reason == .background {
       diagnostics?.record(
         source: .sync,
@@ -209,6 +232,10 @@ final class SyncCoordinator {
     startManualSync()
   }
 
+  func dismissNotification() {
+    isNotificationDismissed = true
+  }
+
   func dismissResult() {
     switch operationState {
     case .succeeded, .failed:
@@ -234,7 +261,7 @@ final class SyncCoordinator {
 
   @discardableResult
   func sync(reason: SyncTriggerReason) async -> Bool {
-    guard !Task.isCancelled else { return false }
+    guard !Task.isCancelled, !demoPreviewActive else { return false }
     if let syncTask {
       return await awaitSyncTask(syncTask)
     }
@@ -276,11 +303,15 @@ final class SyncCoordinator {
     }
 
     let operationID = UUID()
+    let concentration = healthKitService.concentration
+    let credentialRevision = credentialStore.revision
+    let configuration = authService.importConfigurationSnapshot
+    let initialContext = authService.operationImportSnapshot(credentialRevision: credentialRevision)
     let task = Task { @MainActor [weak self] in
       guard let self else {
         return false
       }
-      let result = await self.performSync(reason: reason)
+      let result = await self.performSync(reason: reason, concentration: concentration, credentialRevision: credentialRevision, configuration: configuration, capturedContext: initialContext)
       if self.syncOperationID == operationID {
         self.syncTask = nil
         self.syncOperationID = nil
@@ -293,7 +324,7 @@ final class SyncCoordinator {
   }
 
   private func beginSync(reason: SyncTriggerReason) -> Bool {
-    guard !isSyncing else {
+    guard !isSyncing, !demoPreviewActive else {
       return false
     }
     operationState = .running(SyncProgress(phase: .preparing, trigger: reason, startedAt: Date()))
@@ -302,6 +333,10 @@ final class SyncCoordinator {
 
   private func performSync(
     reason: SyncTriggerReason,
+    concentration: InsulinConcentration,
+    credentialRevision: Int,
+    configuration: ImportConfigurationSnapshot,
+    capturedContext: ImportSessionSnapshot? = nil,
     allowsSubscriptionRecovery: Bool = true
   ) async -> Bool {
     let startedAt: Date
@@ -327,6 +362,11 @@ final class SyncCoordinator {
     let recoveredAccessToken = await authService.accessTokenRecoveringIfNeeded(policy: recoveryPolicy)
     guard !Task.isCancelled else {
       recordCancellation(reason: reason)
+      return false
+    }
+
+    guard configuration == authService.importConfigurationSnapshot else {
+      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
       return false
     }
 
@@ -368,7 +408,21 @@ final class SyncCoordinator {
       return false
     }
 
-    syncMetadataStore.recordAttempt()
+    guard credentialStore.revision == credentialRevision,
+          let currentContext = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else {
+      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+      return false
+    }
+    let context = capturedContext ?? currentContext
+    guard context.dataSourceMode == .tandemSource else {
+      let error: HealthImportError = context.dataSourceMode == .syntheticDemo ? .previewOnly : .unverifiedSource
+      fail(error.localizedDescription, recovery: .openSettings)
+      return false
+    }
+    guard context == currentContext else {
+      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+      return false
+    }
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
     recordBackgroundStage(.preparing, startedAt: startedAt, reason: reason)
 
@@ -392,6 +446,10 @@ final class SyncCoordinator {
       }
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
       try Task.checkCancellation()
+      guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
+      let plan = try ImportPlanner.makePlan(response: response, context: context, concentration: concentration)
+      _ = try HealthImportPolicy.authorize(plan: plan, current: current)
+      syncMetadataStore.recordAttempt()
       authService.markHostedSubscriptionAccessRestored()
       let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
       // Record only what Apple Health confirmed: save() drops samples whose
@@ -402,11 +460,14 @@ final class SyncCoordinator {
       operationState = .running(SyncProgress(phase: .updatingHealth, trigger: reason, startedAt: startedAt))
       recordBackgroundStage(.updatingHealth, startedAt: startedAt, reason: reason)
       try Task.checkCancellation()
-      let writtenSamples = try await healthKitService.save(samples: unseenSamples)
+      guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
+      let batch = try HealthImportPolicy.authorize(plan: plan.selectingSamples(unseenSamples), current: current)
+      let writtenSamples = try await healthKitService.save(batch: batch)
       try importedSampleLedger.recordImported(writtenSamples)
       // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
       // writes for deduplication, but never publish success for abandoned work.
       try Task.checkCancellation()
+      try HealthImportPolicy.validate(batch: batch, current: authService.currentImportSnapshot(credentialRevision: credentialStore.revision))
       let importedCount = writtenSamples.count
       let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
       syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark)
@@ -443,7 +504,25 @@ final class SyncCoordinator {
         recordCancellation(reason: reason)
         return false
       }
+      // A response belongs to the captured operation, not to replacement
+      // credentials or a new connection established during the download.
+      // Refuse stale failures before any session/validation/metadata mutation.
+      guard configuration == authService.importConfigurationSnapshot,
+            credentialRevision == credentialStore.revision,
+            authService.operationImportSnapshot(credentialRevision: credentialStore.revision) == context else {
+        fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+        diagnostics?.record(source: .sync, severity: .warning, title: "Stale sync response discarded")
+        return false
+      }
       let apiError = error as? APIClientError
+      // Same-family refresh keeps successful downloads eligible. A rejection
+      // of the old request token does not invalidate the fresh token, though.
+      if case .httpStatus(401, _, _, _)? = apiError,
+         authService.session?.accessToken != accessToken {
+        fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+        diagnostics?.record(source: .sync, severity: .warning, title: "Superseded authentication failure discarded")
+        return false
+      }
       let subscriptionRequired = authService.isHostedMode && apiError?.isActiveSubscriptionRequired == true
       if apiError?.isAuthenticationFailure == true && !subscriptionRequired {
         authService.clearSessionForAuthenticationFailure()
@@ -454,8 +533,12 @@ final class SyncCoordinator {
         // credential form, and show the backend's remediation message.
         credentialStore.invalidateValidation()
       }
-      syncMetadataStore.recordFailure(error)
-      if apiError?.isTandemCredentialFailure == true {
+      if !(error is HealthImportError) {
+        syncMetadataStore.recordFailure(error)
+      }
+      if let importError = error as? HealthImportError {
+        fail(importError.localizedDescription, recovery: .openSettings)
+      } else if apiError?.isTandemCredentialFailure == true {
         fail(
           apiError?.errorDescription
             ?? "Tandem Source did not accept your pump account credentials. Re-save your Tandem account.",
@@ -469,7 +552,7 @@ final class SyncCoordinator {
           title: "Subscription access recovered",
           message: "retry=sync reason=\(reason.rawValue)"
         )
-        return await performSync(reason: reason, allowsSubscriptionRecovery: false)
+        return await performSync(reason: reason, concentration: concentration, credentialRevision: credentialRevision, configuration: configuration, capturedContext: context, allowsSubscriptionRecovery: false)
       } else if subscriptionRequired {
         fail(
           "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
@@ -557,7 +640,7 @@ final class SyncCoordinator {
     switch await refreshIfStale(reason: .background) {
     case .completed, .skippedFresh:
       return true
-    case .failed:
+    case .failed, .skippedPreviewActive:
       return false
     }
   }

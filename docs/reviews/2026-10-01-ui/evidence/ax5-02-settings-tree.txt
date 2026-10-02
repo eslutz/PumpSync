@@ -1,0 +1,119 @@
+Attributes: Application, 0x106869540, pid: 76925, label: 'PumpSync'
+Element subtree:
+ →Application, 0x106869540, pid: 76925, label: 'PumpSync'
+    Window (Main), 0x106869680, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1068697c0, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x106868b40, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x106868c80, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x106868dc0, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x1068692c0, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x106869400, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x106868f00, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x106869040, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x106869180, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x106868000, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x106868140, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x1068683c0, {{0.0, 62.0}, {402.0, 127.0}}, identifier: 'Settings'
+                              StaticText, 0x106868a00, {{16.0, 116.0}, {231.7, 71.7}}, label: 'Settings'
+                            Other, 0x106868500, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x1068688c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x106868640, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x106868780, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x106868280, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x106869a40, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x106869e00, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x10686a1c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x106869b80, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x106869900, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Image, 0x106869f40, {{-120.0, 731.0}, {642.0, 286.0}}, identifier: 'AdditionalDimmingOverlay'
+                                          Other, 0x10686a080, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x10686a440, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Other, 0x10686a800, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x10686a580, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x10686a6c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x10686a300, {{0.0, 189.0}, {402.0, 3943.0}}
+                                        StaticText, 0x10686b5c0, {{24.0, 201.0}, {274.7, 63.3}}, label: 'Connection'
+                                        StaticText, 0x10686ae40, {{38.0, 284.3}, {264.7, 116.7}}, label: 'Connection mode'
+                                        Button, 0x10686af80, {{42.7, 409.0}, {224.3, 125.3}}, label: 'PumpSync', value: Selected
+                                          Image, 0x10686b0c0, {{42.7, 445.3}, {53.0, 53.0}}, identifier: 'checkmark.circle.fill', label: 'Selected', Selected
+                                          StaticText, 0x106869cc0, {{112.3, 409.0}, {154.7, 125.3}}, label: 'PumpSync'
+                                        Button, 0x10686abc0, {{42.7, 542.3}, {224.7, 125.3}}, label: 'Self-hosted', value: Not selected
+                                          Image, 0x10686b700, {{42.7, 578.7}, {53.0, 53.0}}, identifier: 'circle', label: 'circle'
+                                          StaticText, 0x10686bc00, {{112.3, 542.3}, {155.0, 125.3}}, label: 'Self-hosted'
+                                        StaticText, 0x10686be80, {{38.0, 677.7}, {321.0, 807.3}}, label: 'Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.'
+                                        Button, 0x10686bd40, {{20.3, 1497.0}, {286.3, 63.3}}, label: 'Subscribe'
+                                          Image, 0x10686b980, {{20.3, 1505.7}, {63.3, 46.0}}, identifier: 'creditcard', label: 'Card'
+                                          StaticText, 0x10686bac0, {{80.0, 1497.0}, {226.7, 63.3}}, label: 'Subscribe'
+                                        Button, 0x10686b840, {{28.3, 1572.3}, {273.7, 187.3}}, label: 'Restore Subscription'
+                                          Image, 0x10686b200, {{28.3, 1637.0}, {47.7, 58.0}}, identifier: 'arrow.clockwise', label: 'Refresh'
+                                          StaticText, 0x10686b480, {{80.0, 1572.3}, {222.0, 187.3}}, label: 'Restore Subscription'
+                                        StaticText, 0x10686b340, {{24.0, 1787.7}, {257.3, 63.3}}, label: 'PumpSync'
+                                        Button, 0x10686a940, {{38.0, 1877.0}, {326.0, 302.0}}, identifier: 'TandemAccountLink', label: 'Tandem Account', value: Not configured
+                                          Image, 0x10686aa80, {{34.0, 1994.3}, {36.0, 67.3}}, identifier: 'key', label: 'Passwords'
+                                          StaticText, 0x10321ad00, {{80.0, 1877.0}, {190.7, 125.3}}, label: 'Tandem Account'
+                                          StaticText, 0x10321ae40, {{80.0, 2004.3}, {151.7, 174.7}}, label: 'Not configured'
+                                          Image, 0x10321af80, {{338.7, 2008.7}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x10321b0c0, {{38.0, 2192.0}, {326.0, 360.0}}, identifier: 'AppleHealthLink', label: 'Apple Health', value: Insulin and carboh...
+                                          Image, 0x10321b200, {{25.3, 2347.3}, {53.7, 49.3}}, identifier: 'heart', label: 'Love'
+                                          StaticText, 0x10321b340, {{80.0, 2192.0}, {148.3, 125.3}}, label: 'Apple Health'
+                                          StaticText, 0x10321b480, {{80.0, 2319.3}, {191.3, 232.7}}, label: 'Insulin and carbohydrates'
+                                          Image, 0x10321b5c0, {{338.7, 2352.7}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x10321b700, {{38.0, 2565.0}, {326.0, 248.0}}, identifier: 'InsulinConcentrationLink', label: 'Insulin Concentration', value: U-100
+                                          Image, 0x10321b840, {{33.3, 2661.7}, {37.3, 54.7}}, identifier: 'drop.fill', label: 'Water Drop'
+                                          StaticText, 0x10321b980, {{80.0, 2565.0}, {199.0, 187.3}}, label: 'Insulin Concentration'
+                                          StaticText, 0x10321bac0, {{80.0, 2754.3}, {136.7, 58.7}}, label: 'U-100'
+                                          Image, 0x10321bc00, {{338.7, 2669.7}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x10321bd40, {{38.0, 2826.0}, {326.0, 418.0}}, identifier: 'DataHandlingLink', label: 'Data Handling', value: Privacy, retention...
+                                          Image, 0x10321be80, {{29.7, 3007.7}, {44.7, 54.3}}, identifier: 'lock.shield', label: 'lock.shield'
+                                          StaticText, 0x10321aa80, {{80.0, 2826.0}, {201.7, 125.3}}, label: 'Data Handling'
+                                          StaticText, 0x112814000, {{80.0, 2953.3}, {202.7, 290.7}}, label: 'Privacy, retention, and Health data flow'
+                                          Image, 0x112814140, {{338.7, 3015.7}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x112814280, {{38.0, 3257.0}, {326.0, 364.0}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                                          Image, 0x1128143c0, {{24.7, 3411.7}, {55.0, 55.0}}, identifier: 'info.circle', label: 'Info'
+                                          StaticText, 0x112814500, {{80.0, 3257.0}, {154.7, 187.3}}, label: 'About PumpSync'
+                                          StaticText, 0x112814640, {{80.0, 3446.3}, {172.7, 174.7}}, label: 'How syncing works'
+                                          Image, 0x112814780, {{338.7, 3419.7}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x1128148c0, {{38.0, 3634.0}, {326.0, 360.0}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                                          Image, 0x112814a00, {{17.3, 3780.3}, {69.3, 67.3}}, identifier: 'hammer', label: 'Build'
+                                          StaticText, 0x112814b40, {{80.0, 3634.0}, {207.3, 125.3}}, label: 'Developer'
+                                          StaticText, 0x112814c80, {{80.0, 3761.3}, {213.3, 232.7}}, label: 'Diagnostics, build, and sync details'
+                                          Image, 0x112814dc0, {{338.7, 3794.7}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                            Other, 0x112814f00, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x112815040, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x112815180, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x1128152c0, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x112815400, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x112815540, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x112815680, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x1128157c0, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x112815900, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync'
+                            Image, 0x112815a40, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x112815b80, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings', Selected
+                            Image, 0x112815cc0, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x112815e00, {{197.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x112815f40, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x112816080, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x1128161c0, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x112816300, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x112816440, {{197.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x112816580, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x1128166c0, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x112816800, {{197.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x112816940, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x112816a80, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x112816bc0, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x112816d00, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x112816e40, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x112816f80, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x1128170c0, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x112817200, {{0.0, 791.0}, {402.0, 83.0}}
+    Window, 0x112817340, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x112817480, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1128175c0, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x106869540, pid: 76925, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x112817700, pid: 76925, label: 'PumpSync'
+  }

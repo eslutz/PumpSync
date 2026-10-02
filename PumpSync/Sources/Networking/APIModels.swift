@@ -130,6 +130,23 @@ struct TandemSyncResponse: Decodable {
   let samples: [SampleDTO]
   let effectiveMinDate: Date
   let effectiveMaxDate: Date
+  let dataSourceMode: DataSourceMode
+
+  init(samples: [SampleDTO], effectiveMinDate: Date, effectiveMaxDate: Date, dataSourceMode: DataSourceMode) {
+    self.samples = samples
+    self.effectiveMinDate = effectiveMinDate
+    self.effectiveMaxDate = effectiveMaxDate
+    self.dataSourceMode = dataSourceMode
+  }
+
+  private enum CodingKeys: String, CodingKey { case samples, effectiveMinDate, effectiveMaxDate, dataSourceMode }
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    samples = try container.decode([SampleDTO].self, forKey: .samples)
+    effectiveMinDate = try container.decode(Date.self, forKey: .effectiveMinDate)
+    effectiveMaxDate = try container.decode(Date.self, forKey: .effectiveMaxDate)
+    dataSourceMode = try container.decodeIfPresent(DataSourceMode.self, forKey: .dataSourceMode) ?? .unknown
+  }
 }
 
 struct SampleDTO: Codable, Equatable {

@@ -68,6 +68,14 @@ final class PumpSyncAPIClient {
     try await send(path: "/v1/sync/tandem", method: "POST", body: request, accessToken: accessToken)
   }
 
+  func previewTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
+    try await send(path: "/v1/preview/tandem", method: "POST", body: request, accessToken: accessToken)
+  }
+
+  func capabilities() async throws -> BackendCapabilitiesResponse {
+    try await send(path: "/v1/capabilities", method: "GET", body: EmptyAPIRequest(), accessToken: nil)
+  }
+
   func validateTandemCredentials(_ request: TandemCredentialValidationRequest, accessToken: String) async throws -> TandemCredentialValidationResponse {
     try await send(path: "/v1/tandem/credentials/validate", method: "POST", body: request, accessToken: accessToken)
   }
@@ -152,7 +160,7 @@ final class PumpSyncAPIClient {
     }
 
     urlRequest.timeoutInterval = timeoutInterval ?? self.timeoutInterval(for: path)
-    let (data, response) = try await urlSession.data(for: urlRequest)
+    let (data, response) = try await urlSession.data(for: urlRequest, delegate: SensitiveRequestRedirectGuard())
     guard let httpResponse = response as? HTTPURLResponse else {
       throw APIClientError.invalidResponse
     }
@@ -171,7 +179,7 @@ final class PumpSyncAPIClient {
   }
 
   private func timeoutInterval(for path: String) -> TimeInterval {
-    if path.contains("sync/tandem") || path.contains("tandem/credentials/validate") {
+    if (path.contains("sync/tandem") || path.contains("preview/tandem")) || path.contains("tandem/credentials/validate") {
       return 120
     }
 
@@ -355,4 +363,24 @@ enum JSONCodec {
     formatter.formatOptions = [.withInternetDateTime]
     return formatter
   }()
+}
+
+private struct EmptyAPIRequest: Encodable {}
+
+struct BackendCapabilitiesResponse: Decodable {
+  let dataSourceMode: DataSourceMode
+  let supportsImportPreview: Bool
+  private enum CodingKeys: String, CodingKey { case dataSourceMode, supportsImportPreview }
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    dataSourceMode = try values.decodeIfPresent(DataSourceMode.self, forKey: .dataSourceMode) ?? .unknown
+    supportsImportPreview = try values.decodeIfPresent(Bool.self, forKey: .supportsImportPreview) ?? false
+  }
+}
+
+/// Protected requests never forward credentials or bearer tokens through redirects.
+final class SensitiveRequestRedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
+  func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest) async -> URLRequest? {
+    nil
+  }
 }

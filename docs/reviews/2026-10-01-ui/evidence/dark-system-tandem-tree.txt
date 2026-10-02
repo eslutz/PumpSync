@@ -1,0 +1,75 @@
+Attributes: Application, 0x114474000, pid: 77407, label: 'PumpSync'
+Element subtree:
+ →Application, 0x114474000, pid: 77407, label: 'PumpSync'
+    Window (Main), 0x114477c00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x114477e80, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x114477ac0, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x114477840, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x114476f80, {{0.0, 62.0}, {402.0, 106.0}}, identifier: 'Tandem'
+                              Button, 0x114476e40, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Settings'
+                              StaticText, 0x114476080, {{16.0, 119.7}, {125.3, 40.7}}, label: 'Tandem'
+                            Other, 0x114475b80, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x114475a40, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x114476580, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x1144766c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x114475e00, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x114475f40, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1144761c0, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x114476d00, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x114476a80, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x114476bc0, {{0.0, 168.0}, {402.0, 401.0}}
+                                        StaticText, 0x114475cc0, {{24.0, 180.0}, {123.7, 20.3}}, label: 'Tandem Source'
+                                        TextField, 0x114476940, {{38.0, 231.3}, {326.0, 22.0}}, label: 'Tandem username', placeholderValue: 'Username'
+                                        SecureTextField, 0x114476440, {{38.0, 276.3}, {270.0, 20.7}}, label: 'Tandem password', placeholderValue: 'Password'
+                                        Button, 0x114476300, {{330.7, 279.7}, {23.0, 14.3}}, identifier: 'eye', label: 'Show password', Disabled
+                                        Other, 0x11400fc00, {{38.0, 314.0}, {326.0, 34.3}}
+                                          StaticText, 0x11400e440, {{38.0, 320.8}, {52.7, 20.3}}, label: 'Region'
+                                          Button, 0x11400e1c0, {{220.3, 314.0}, {143.7, 34.3}}, label: 'Region, Tandem region', value: United States
+                                            StaticText, 0x11400db80, {{232.3, 321.0}, {103.3, 20.3}}, label: 'United States'
+                                        Button, 0x11400d400, {{20.0, 389.0}, {362.0, 60.0}}, label: 'Save Credentials', Disabled
+                                          Image, 0x11400de00, {{45.7, 407.0}, {12.7, 24.3}}, identifier: 'key.fill', label: 'Passwords', Disabled
+                                          StaticText, 0x11400dcc0, {{80.0, 408.8}, {127.7, 20.3}}, label: 'Save Credentials', Disabled
+                            Other, 0x11400d2c0, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x11400fac0, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x11400f980, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x11400f840, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x11400ee40, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x11400ed00, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x11400df40, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x11400e300, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x11400e080, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync'
+                            Image, 0x11400e6c0, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x11400e580, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings', Selected
+                            Image, 0x11400e800, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x11400ebc0, {{197.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x11400ef80, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x11400f0c0, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x11400ea80, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x11400f340, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x11400f200, {{197.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x11400f480, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x11400f5c0, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x11400f700, {{197.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x11400d900, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x11400fd40, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x11400fe80, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x11400e940, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x11400da40, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x11400d040, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x11400d7c0, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x11400d680, {{0.0, 791.0}, {402.0, 83.0}}
+Path to element:
+ →Application, 0x114474000, pid: 77407, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11400d540, pid: 77407, label: 'PumpSync'
+  }

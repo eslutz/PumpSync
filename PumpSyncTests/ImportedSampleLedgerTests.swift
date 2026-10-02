@@ -125,7 +125,7 @@ final class ImportedSampleLedgerTests: XCTestCase {
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: keychain.service,
       kSecAttrAccount as String: account,
-      kSecReturnAttributes as String: kCFBooleanTrue,
+      kSecReturnAttributes as String: true,
       kSecMatchLimit as String: kSecMatchLimitOne
     ]
     var result: CFTypeRef?

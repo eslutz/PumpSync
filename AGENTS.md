@@ -17,6 +17,8 @@ xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync \
 
 Regenerate after changing `project.yml`; do not hand-edit generated project or scheme files. Keep raw `xcodebuild` output available when diagnosing failures.
 
+Before pushing or starting Xcode Cloud, run `bash scripts/ios/validate-tests.sh`. It regenerates the project, runs the full suite, preserves the raw log, and rejects build-tool warnings as well as failures. All targets and configurations treat Swift and Clang compiler warnings as errors through `project.yml`; do not override this gate. Cloud-only tooling or SDK warnings still require review because local validation cannot guarantee an identical cloud environment.
+
 ## Coding Style & Naming Conventions
 
 Use four-space indentation and standard Swift naming: `UpperCamelCase` types, `lowerCamelCase` properties/functions, and filenames matching their primary type. Keep SwiftUI views small, move side effects into services or coordinators, and preserve existing dependency-injection patterns. Hosted base URLs include `/api`; clients append `/v1/...`.

@@ -24,7 +24,7 @@ enum BackendAccessMode: String, CaseIterable, Identifiable {
 final class BackendConfigurationStore {
   var mode: BackendAccessMode {
     didSet {
-      defaults.set(mode.rawValue, forKey: Self.modeKey)
+      defaults?.set(mode.rawValue, forKey: Self.modeKey)
       if mode != oldValue {
         revision &+= 1
       }
@@ -33,7 +33,7 @@ final class BackendConfigurationStore {
 
   var selfHostedBaseURLString: String {
     didSet {
-      defaults.set(selfHostedBaseURLString, forKey: Self.selfHostedBaseURLKey)
+      defaults?.set(selfHostedBaseURLString, forKey: Self.selfHostedBaseURLKey)
       if selfHostedBaseURLString != oldValue {
         revision &+= 1
       }
@@ -43,7 +43,7 @@ final class BackendConfigurationStore {
   let installationId: String
   private(set) var revision = 0
 
-  private let defaults: UserDefaults
+  private let defaults: UserDefaults?
   private static let modeKey = "backend.mode"
   private static let selfHostedBaseURLKey = "backend.selfHostedBaseURL"
   nonisolated static let installationIdDefaultsKey = "backend.installationId"
@@ -62,6 +62,17 @@ final class BackendConfigurationStore {
       defaults.set(newInstallationId, forKey: Self.installationIdDefaultsKey)
       installationId = newInstallationId
     }
+  }
+
+  private init(selfHostedBaseURL: URL, installationId: String) {
+    defaults = nil
+    mode = .selfHosted
+    selfHostedBaseURLString = selfHostedBaseURL.absoluteString
+    self.installationId = installationId
+  }
+
+  static func ephemeral(selfHostedBaseURL: URL, installationId: String) -> BackendConfigurationStore {
+    BackendConfigurationStore(selfHostedBaseURL: selfHostedBaseURL, installationId: installationId)
   }
 
   var selectedBaseURL: URL? {
@@ -121,6 +132,8 @@ enum SessionRecoveryPolicy: Equatable {
   }
 }
 
+enum AuthPurpose { case liveImport, preview }
+
 @MainActor
 @Observable
 final class AuthService {
@@ -139,6 +152,7 @@ final class AuthService {
   }
 
   private let apiClient: PumpSyncAPIClient
+  private let purpose: AuthPurpose
   private let configurationStore: BackendConfigurationStore
   private let sessionStore: BackendSessionStore?
   private let proofProvider: DeviceSessionProofProviding
@@ -182,12 +196,14 @@ final class AuthService {
     apiClient: PumpSyncAPIClient,
     configurationStore: BackendConfigurationStore,
     sessionStore: BackendSessionStore? = nil,
+    purpose: AuthPurpose = .liveImport,
     proofProvider: DeviceSessionProofProviding,
     diagnostics: DiagnosticsLogStore? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
+    self.purpose = purpose
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
     subscriptionSessionTimeout = ConnectionTimeouts.hosted
@@ -216,6 +232,7 @@ final class AuthService {
       try await apiClient.warmup()
     }
     session = sessionStore?.loadValidSession()
+    if let session, (try? validateSessionPurpose(session)) == nil { self.session = nil }
   }
 
   #if DEBUG
@@ -223,6 +240,7 @@ final class AuthService {
     apiClient: PumpSyncAPIClient,
     configurationStore: BackendConfigurationStore,
     sessionStore: BackendSessionStore? = nil,
+    purpose: AuthPurpose = .liveImport,
     currentEntitlementJWS: @escaping @MainActor () async throws -> String,
     syncedCurrentEntitlementJWS: (@MainActor () async throws -> String)? = nil,
     createSubscriptionSession: @escaping @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse,
@@ -236,6 +254,7 @@ final class AuthService {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
+    self.purpose = purpose
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
     self.subscriptionSessionTimeout = subscriptionSessionTimeout
@@ -253,11 +272,52 @@ final class AuthService {
       )
     }
     session = sessionStore?.loadValidSession()
+    if let session, (try? validateSessionPurpose(session)) == nil { self.session = nil }
   }
   #endif
 
+  var importConfigurationSnapshot: ImportConfigurationSnapshot {
+    ImportConfigurationSnapshot(backendIdentity: configurationStore.selectedBaseURL.map(ImportSessionSnapshot.canonicalBackendIdentity), revision: configurationStore.revision)
+  }
+
+  func currentImportSnapshot(credentialRevision: Int) -> ImportSessionSnapshot? {
+    guard isSignedIn else { return nil }
+    return operationImportSnapshot(credentialRevision: credentialRevision)
+  }
+
+  /// Captures the existing family before recovery, including a renewable
+  /// session whose access token is expired or due for refresh. Eligibility
+  /// for a Health commit still requires currentImportSnapshot's valid token.
+  func operationImportSnapshot(credentialRevision: Int) -> ImportSessionSnapshot? {
+    guard let session = session ?? sessionStore?.loadRecoverableSession(),
+          let selected = configurationStore.selectedBaseURL,
+          ImportSessionSnapshot.canonicalBackendIdentity(selected) == ImportSessionSnapshot.canonicalBackendIdentity(apiClient.baseURL),
+          !session.sessionFamilyId.isEmpty else { return nil }
+    return ImportSessionSnapshot(
+      backendIdentity: ImportSessionSnapshot.canonicalBackendIdentity(selected),
+      configurationRevision: configurationStore.revision,
+      credentialRevision: credentialRevision,
+      sessionFamilyId: session.sessionFamilyId,
+      dataSourceMode: DataSourceMode(rawValue: session.dataSourceMode) ?? .unknown
+    )
+  }
+
+  private func validateSessionPurpose(_ session: BackendSessionResponse) throws {
+    let source = DataSourceMode(rawValue: session.dataSourceMode) ?? .unknown
+    guard source != .unknown else { throw HealthImportError.unverifiedSource }
+    if purpose == .liveImport, source == .syntheticDemo { throw HealthImportError.previewOnly }
+  }
+
+  private func sessionIsValid(_ session: BackendSessionResponse) -> Bool {
+    sessionStore?.isValid(session) ?? BackendSessionStore.isValid(session, at: Date())
+  }
+
+  private func sessionIsRenewable(_ session: BackendSessionResponse) -> Bool {
+    sessionStore?.isRenewable(session) ?? BackendSessionStore.isRenewable(session, at: Date())
+  }
+
   var isSignedIn: Bool {
-    guard let session else {
+    guard let session, (try? validateSessionPurpose(session)) != nil else {
       return false
     }
 
@@ -265,7 +325,7 @@ final class AuthService {
       return sessionStore.isValid(session)
     }
 
-    return !session.accessToken.isEmpty
+    return BackendSessionStore.isValid(session, at: Date())
   }
 
   var accessToken: String? {
@@ -596,6 +656,7 @@ final class AuthService {
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
       let createdSession = try await createSelfHostedSession(request)
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      try validateSessionPurpose(createdSession)
       session = createdSession
       try? sessionStore?.save(createdSession)
       recordDemoModeIfNeeded(createdSession)
@@ -628,13 +689,13 @@ final class AuthService {
   }
 
   func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground) async {
-    if let session, sessionStore?.isValid(session) ?? !session.accessToken.isEmpty {
+    if let session, (try? validateSessionPurpose(session)) != nil, sessionIsValid(session) {
       diagnostics?.record(source: .auth, title: "Connection session cache hit", message: "cacheHit=true totalMs=0")
       return
     }
 
     let recoverableSession = session.flatMap { current in
-      if sessionStore?.isRenewable(current) == true {
+      if sessionIsRenewable(current) {
         return current
       }
       return nil
@@ -647,8 +708,14 @@ final class AuthService {
     }
 
     if let recoverableSession {
+      guard (try? validateSessionPurpose(recoverableSession)) != nil else {
+        session = nil
+        let source = DataSourceMode(rawValue: recoverableSession.dataSourceMode) ?? .unknown
+        errorMessage = (source == .syntheticDemo ? HealthImportError.previewOnly : .unverifiedSource).localizedDescription
+        return
+      }
       session = recoverableSession
-      if sessionStore?.isValid(recoverableSession) == true {
+      if sessionIsValid(recoverableSession) {
         errorMessage = nil
         statusMessage = Self.connectedStatusMessage(for: recoverableSession)
         diagnostics?.record(source: .auth, title: "Connection session restored")
@@ -814,7 +881,7 @@ final class AuthService {
     }
 
     let previousSession = session
-    let hasValidPreviousSession = previousSession.map { sessionStore?.isValid($0) ?? !$0.accessToken.isEmpty } ?? false
+    let hasValidPreviousSession = previousSession.map { sessionIsValid($0) } ?? false
     errorMessage = nil
     statusMessage = activityMessage
     diagnostics?.record(source: .auth, title: "Subscription session started")
@@ -904,6 +971,7 @@ final class AuthService {
       }
       enrollmentRegistered = true
       try prepareHostedRequest(configurationRevision: configurationRevision)
+      try validateSessionPurpose(createdSession)
       session = createdSession
       recoveryRequiresActiveSubscription = false
       try? sessionStore?.save(createdSession)
@@ -1127,7 +1195,7 @@ final class AuthService {
         return
       }
       let credentialRetained = missingEntitlementDisposition == .preserveRenewableSession
-        && session.map { sessionStore?.isRenewable($0) == true } == true
+        && session.map { sessionIsRenewable($0) } == true
       if !credentialRetained {
         session = nil
         try? sessionStore?.delete()
@@ -1226,6 +1294,7 @@ final class AuthService {
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
       let createdSession = try await createSelfHostedSession(request)
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      try validateSessionPurpose(createdSession)
       session = createdSession
       try? sessionStore?.save(createdSession)
       recordDemoModeIfNeeded(createdSession)
@@ -1413,6 +1482,7 @@ final class AuthService {
         return isSignedIn
       }
 
+      try validateSessionPurpose(refreshed)
       session = refreshed
       try sessionStore?.save(refreshed)
       errorMessage = nil
@@ -1708,7 +1778,7 @@ final class AuthService {
   }
 
   private func preserveValidSessionOrClear() {
-    if let session, sessionStore?.isValid(session) ?? !session.accessToken.isEmpty {
+    if let session, sessionIsValid(session) {
       return
     }
     session = nil
@@ -1742,6 +1812,7 @@ final class AuthService {
   }
 
   private func safeMessage(_ fallback: String, error: Error) -> String {
+    if let error = error as? HealthImportError { return error.localizedDescription }
     guard let localizedError = error as? LocalizedError, let description = localizedError.errorDescription else {
       return fallback
     }

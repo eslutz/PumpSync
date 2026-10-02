@@ -6,6 +6,7 @@ struct SettingsView: View {
   @Environment(AppServices.self) private var services
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var showsSamplePreview = false
   @State private var isShowingSubscriptionStore = false
   @State private var connectionAlert: ConnectionAlert?
   @State private var selfHostedURLDraft = ""
@@ -13,12 +14,19 @@ struct SettingsView: View {
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
+      GlassSection("Sample Preview") {
+        Button("Sample Preview") {
+          if services.beginDemoPreview() { showsSamplePreview = true }
+        }
+        .disabled(services.syncCoordinator.isSyncing || services.demoPreviewActive)
+        .accessibilityHint("Opens a separate sample connection without saving to Apple Health")
+      }
       GlassSection("Connection") {
         connectionModeSelector
 
         switch services.backendConfigurationStore.mode {
         case .hosted:
-          Text("Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.")
+          Text("Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Pump account details are sent when validating your account, syncing or previewing real pump data.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
@@ -71,6 +79,7 @@ struct SettingsView: View {
             commitSelfHostedURL()
             Task {
               await services.authService.connectSelfHosted()
+              UIAccessibility.post(notification: .announcement, argument: services.authService.errorMessage ?? services.authService.statusMessage)
             }
           } label: {
             GlassPrimaryLabel(
@@ -83,16 +92,28 @@ struct SettingsView: View {
           .accessibilityHint("Connects to the self-hosted server URL")
         }
 
+        if services.backendConfigurationStore.mode == .selfHosted && !services.authService.isConnecting {
+          Text(services.authService.errorMessage ?? services.authService.statusMessage)
+            .font(.footnote)
+            .foregroundStyle(services.authService.errorMessage == nil ? Color.secondary : Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("SelfHostedConnectionFeedback")
+            .accessibilityAddTraits(.updatesFrequently)
+          Text("Use the base API URL, including /api (for example, https://your-server.example/api).")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+
         if services.authService.isConnecting {
           HStack(spacing: 14) {
             if reduceMotion {
               Image(systemName: "hourglass")
                 .font(.title3)
-                .frame(width: 28)
+                .fixedSize()
                 .accessibilityHidden(true)
             } else {
               ProgressView()
-                .frame(width: 28)
+                .fixedSize()
                 .accessibilityHidden(true)
             }
             Text(services.authService.statusMessage)
@@ -154,6 +175,16 @@ struct SettingsView: View {
         GlassDivider()
 
         NavigationLink {
+          AboutPumpSyncView()
+        } label: {
+          GlassNavigationRow("About PumpSync", subtitle: "How syncing works", systemImage: "info.circle")
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("AboutPumpSyncLink")
+
+        GlassDivider()
+
+        NavigationLink {
           DeveloperView()
         } label: {
           GlassNavigationRow("Developer", subtitle: "Diagnostics, build, and sync details", systemImage: "hammer")
@@ -173,6 +204,9 @@ struct SettingsView: View {
 
       hasLoadedSelfHostedURLDraft = true
       selfHostedURLDraft = services.backendConfigurationStore.selfHostedBaseURLString
+    }
+    .sheet(isPresented: $showsSamplePreview, onDismiss: { services.endDemoPreview() }) {
+      DemoPreviewConnectionView()
     }
     .sheet(isPresented: $isShowingSubscriptionStore) {
 #if DEBUG
@@ -304,7 +338,31 @@ struct SettingsView: View {
 
 }
 
+private struct AboutPumpSyncView: View {
+  var body: some View {
+    PumpSyncScreen {
+      GlassSection("About PumpSync") {
+        Text("PumpSync imports available Tandem pump history into Apple Health. A secure connection lets PumpSync retrieve data; it does not mean a data sync has completed.")
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      GlassSection("How Syncing Works") {
+        Text("Start a sync using Sync Now. PumpSync also checks for new data when you open the app and during background updates when iOS grants time.")
+          .frame(maxWidth: .infinity, alignment: .leading)
+        GlassDivider(leadingPadding: 0)
+        Text("PumpSync aims to keep Apple Health less than four hours behind. Background updates are scheduled, but iOS decides when they run and may delay them.")
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      GlassSection("While Syncing") {
+        Text("Keep PumpSync open while a sync is running. You can move around within PumpSync. Last Successful Sync shows when a sync last completed successfully; a failed attempt does not change that time.")
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    .navigationTitle("About PumpSync")
+  }
+}
+
 private struct InsulinConcentrationView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(AppServices.self) private var services
 
   var body: some View {
@@ -332,7 +390,7 @@ private struct InsulinConcentrationView: View {
 
         InsulinConcentrationDetailRow(
           title: "Apple Health only",
-          detail: "PumpSync uses this setting only when writing insulin delivery data to Apple Health.",
+          detail: "Changes apply to the next sync. A sync already running keeps its starting setting. Previously imported Apple Health data is not changed.",
           systemImage: "heart"
         )
 
@@ -349,6 +407,12 @@ private struct InsulinConcentrationView: View {
     .navigationTitle("Insulin Concentration")
   }
 
+  private var adaptiveMenuLayout: AnyLayout {
+    dynamicTypeSize.isAccessibilitySize
+      ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+      : AnyLayout(HStackLayout(spacing: 14))
+  }
+
   private var concentrationMenu: some View {
     Menu {
       ForEach(InsulinConcentration.allCases) { concentration in
@@ -363,10 +427,10 @@ private struct InsulinConcentrationView: View {
         }
       }
     } label: {
-      HStack(spacing: 14) {
+      adaptiveMenuLayout {
         Image(systemName: "drop.fill")
           .font(.title3)
-          .frame(width: 28)
+          .fixedSize()
           .foregroundStyle(.tint)
           .accessibilityHidden(true)
 
@@ -380,7 +444,7 @@ private struct InsulinConcentrationView: View {
         }
         .layoutPriority(1)
 
-        Spacer(minLength: 12)
+        if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
 
         Text("Change")
           .font(.subheadline.weight(.semibold))
@@ -408,7 +472,7 @@ private struct InsulinConcentrationDetailRow: View {
     HStack(alignment: .top, spacing: 14) {
       Image(systemName: systemImage)
         .font(.title3)
-        .frame(width: 28)
+        .fixedSize()
         .foregroundStyle(tint)
         .accessibilityHidden(true)
 
@@ -499,7 +563,7 @@ struct SubscriptionScreenshotView: View {
 
         SubscriptionBenefitRow(
           title: "Secure Health sync",
-          detail: "Data is processed only during active sync operations and is not retained on PumpSync servers.",
+          detail: "Downloaded pump data is processed for sync and preview requests and is not kept on PumpSync servers.",
           systemImage: "heart.text.square"
         )
 
@@ -553,7 +617,7 @@ struct PumpSyncSubscriptionStoreView: View {
 
           SubscriptionBenefitRow(
             title: "Secure Health sync",
-            detail: "Your data is processed only while syncing and is not kept on PumpSync servers.",
+            detail: "Downloaded pump data is processed for sync and preview requests and is not kept on PumpSync servers.",
             systemImage: "heart.text.square"
           )
 
@@ -716,7 +780,7 @@ private struct SubscriptionBenefitRow: View {
       Image(systemName: systemImage)
         .font(.title3)
         .foregroundStyle(.blue)
-        .frame(width: 28)
+        .fixedSize()
         .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 3) {

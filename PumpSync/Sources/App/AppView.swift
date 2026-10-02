@@ -23,10 +23,10 @@ struct AppView: View {
     }
     .tabViewStyle(.sidebarAdaptable)
     .safeAreaInset(edge: .top, spacing: 0) {
-      if SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: Date()) != nil {
+      if !services.syncCoordinator.isNotificationDismissed,
+         SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: Date()) != nil {
         SyncStatusBanner(
           operationState: services.syncCoordinator.operationState,
-          onViewSync: { selectedTab = .sync },
           onRetry: { services.syncCoordinator.retry() },
           onOpenSubscription: {
             isShowingSubscriptionStore = true
@@ -36,7 +36,7 @@ struct AppView: View {
             selectedTab = .settings
             services.syncCoordinator.dismissResult()
           },
-          onDismiss: { services.syncCoordinator.dismissResult() }
+          onDismiss: { services.syncCoordinator.dismissNotification() }
         )
         .frame(maxWidth: 760)
         .padding(.horizontal, 12)

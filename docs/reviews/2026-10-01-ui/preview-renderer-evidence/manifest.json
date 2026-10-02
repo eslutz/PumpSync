@@ -1,0 +1,53 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7C172CFA-650B-4566-BC58-65DD79E00540",
+        "deviceName" : "PumpSync UI Audit 2026-10-01",
+        "exportedFileName" : "C351F9E7-DD1F-49F9-B1B8-015A2DFA9EA7.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "test-target-large-1000_0_BFEB0109-1834-4990-9415-7AA74A35D86C.png",
+        "timestamp" : 1790884038.442
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7C172CFA-650B-4566-BC58-65DD79E00540",
+        "deviceName" : "PumpSync UI Audit 2026-10-01",
+        "exportedFileName" : "A5BB17C0-B29C-4FB2-B970-B3370C1370E9.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "test-target-empty_0_AE05053E-CEF4-434A-A223-5716D0566DC9.png",
+        "timestamp" : 1790884037.511
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7C172CFA-650B-4566-BC58-65DD79E00540",
+        "deviceName" : "PumpSync UI Audit 2026-10-01",
+        "exportedFileName" : "81E357E2-A0E9-417F-A723-72C6D6B53A61.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "test-target-ready-iPad_0_0E09B94B-BFAD-451D-AF06-815AFFAA530A.png",
+        "timestamp" : 1790884036.809
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7C172CFA-650B-4566-BC58-65DD79E00540",
+        "deviceName" : "PumpSync UI Audit 2026-10-01",
+        "exportedFileName" : "6E6A9EAE-4897-4860-A20B-1719EFC72A2F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "test-target-ready-AX5-dark_0_524F1DFB-2BBC-434E-B505-0F822E1FD25B.png",
+        "timestamp" : 1790884035.562
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "7C172CFA-650B-4566-BC58-65DD79E00540",
+        "deviceName" : "PumpSync UI Audit 2026-10-01",
+        "exportedFileName" : "4656CC6F-29D4-4A99-9B61-54567608FF0C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "test-target-ready-standard-light_0_61BCE43F-D87D-4072-8920-20F1ECA57170.png",
+        "timestamp" : 1790884034.851
+      }
+    ],
+    "testIdentifier" : "ImportPreviewTests/testCaptureTestTargetPreviewRendererEvidence()",
+    "testIdentifierURL" : "test://com.apple.xcode/PumpSync/PumpSyncTests/ImportPreviewTests/testCaptureTestTargetPreviewRendererEvidence"
+  }
+]

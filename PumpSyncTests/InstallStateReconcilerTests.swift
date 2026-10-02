@@ -31,7 +31,7 @@ final class InstallStateReconcilerTests: XCTestCase {
     defer { defaults.removePersistentDomain(forName: suiteName) }
     var cleanupCount = 0
 
-    let result = try InstallStateReconciler.reconcile(defaults: defaults) {
+    let result = InstallStateReconciler.reconcile(defaults: defaults) {
       cleanupCount += 1
     }
 
@@ -46,7 +46,7 @@ final class InstallStateReconcilerTests: XCTestCase {
     defaults.set("existing-installation", forKey: BackendConfigurationStore.installationIdDefaultsKey)
     var cleanupCount = 0
 
-    let result = try InstallStateReconciler.reconcile(defaults: defaults) {
+    let result = InstallStateReconciler.reconcile(defaults: defaults) {
       cleanupCount += 1
     }
 

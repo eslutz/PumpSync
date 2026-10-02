@@ -1,0 +1,59 @@
+import XCTest
+
+@MainActor
+final class PumpSyncAuditTests: XCTestCase {
+    func testSystemSettingsFlows() throws { try inspect(style: "System", large: false) }
+
+    private func inspect(style: String, large: Bool) throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = []
+        if large { app.launchEnvironment["UIPreferredContentSizeCategoryName"] = "UICTContentSizeCategoryAccessibilityXXXL" }
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.buttons["Cancel"].waitForExistence(timeout: 3) { springboard.buttons["Cancel"].tap() }
+        if app.buttons["Don’t Allow"].exists { app.buttons["Don’t Allow"].tap() }
+        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 10))
+        let prefix = large ? "large" : style.lowercased()
+        try capture(app, "\(prefix)-01-sync")
+        app.tabBars.buttons["Settings"].tap()
+        try capture(app, "\(prefix)-02-settings")
+        for (identifier, name) in [("TandemAccountLink", "tandem"), ("AppleHealthLink", "health"), ("InsulinConcentrationLink", "concentration"), ("DataHandlingLink", "privacy"), ("AboutPumpSyncLink", "about"), ("DeveloperLink", "developer")] {
+            let link = app.buttons[identifier]
+            for _ in 0..<8 { if link.isHittable { break }; app.swipeUp() }
+            XCTAssertTrue(link.isHittable, identifier)
+            link.tap()
+            try capture(app, "\(prefix)-\(name)")
+            app.navigationBars.buttons.firstMatch.tap()
+        }
+        for _ in 0..<5 { app.swipeDown() }
+        let segment = app.segmentedControls.buttons["Self-hosted"]
+        if segment.exists { segment.tap() } else { app.buttons["Self-hosted"].tap() }
+        try capture(app, "\(prefix)-selfhost")
+        let field = app.textFields["Server URL"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("invalid")
+        if app.keyboards.buttons["Go"].exists { app.keyboards.buttons["Go"].tap() }
+        app.buttons["Connect"].tap()
+        try capture(app, "\(prefix)-invalid-connect")
+        app.tabBars.buttons["Sync"].tap()
+        try capture(app, "\(prefix)-recovery")
+        app.terminate()
+    }
+
+    private func capture(_ app: XCUIApplication, _ name: String) throws {
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = name + ".png"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        let tree = XCTAttachment(string: app.debugDescription)
+        tree.name = name + "-tree.txt"
+        tree.lifetime = .keepAlways
+        add(tree)
+        try app.performAccessibilityAudit(for: [.contrast, .hitRegion, .sufficientElementDescription, .textClipped, .trait]) { issue in
+            print("AUDIT_ISSUE \(name) | \(issue.auditType.rawValue) | \(issue.compactDescription) | \(issue.detailedDescription) | \(issue.element?.debugDescription ?? "no element")")
+            return true
+        }
+    }
+}

@@ -35,7 +35,7 @@ Declare these as linked to the user and used for App Functionality and diagnosti
 
 ## Health And Fitness Data
 
-PumpSync handles Tandem health data and writes insulin/carbohydrate samples to Apple Health. For the MVP backend contract, raw Tandem events and normalized samples are transmitted to the backend only to service the active sync request and are not retained after the response.
+PumpSync handles Tandem health data and writes insulin/carbohydrate samples to Apple Health. For the MVP backend contract, raw Tandem events and normalized samples are transmitted to the backend to service active sync or preview requests and are not retained after the response.
 
 If App Store Connect asks whether Health data is collected, answer based on the current implementation and Apple's current definition of collection. For the current MVP design:
 
@@ -87,3 +87,12 @@ Before App Store submission, verify:
 - App Attest is configured for development in Debug and production in TestFlight/App Store builds; self-hosted authentication remains Secure Enclave-only and has no Apple dependency.
 - HealthKit purpose strings match the app's actual data use.
 - Tandem disclosure wording matches the final Tandem terms review.
+
+
+## Safe preview candidate acceptance
+
+Preview-capable rollout remains pending. Verify authenticated **Settings → Sample Preview** connection, public credential validation, Past 2 days/U100 defaults, converted row details, invalid-input/network recovery, retry, dismissal, and background cancellation. No Health permission is needed. Confirm zero synthetic Health writes and byte-for-byte preservation of live configuration, credential records, concentration, ledger, and metadata with test-target instrumentation; screenshot inspection alone cannot prove this boundary.
+
+Verify optional real **Preview Import** with denied Health permission; it reports downloaded records (including already imported records), effective window and concentration, never imported/new counts. It closes back to normal Sync and cannot commit cached rows. Test missing/unknown/inconsistent/stale provenance and all manual/app-open/granted-background/retry entry points.
+
+Actual iPhone Secure Enclave/App Attest authentication, legitimate Health writes and repeat-sync deduplication, spoken VoiceOver, hosted purchase/restore, and distribution-specific acceptance remain separate release gates. Preserve personal data and use an agreed device arrangement for reinstall/reset tests. Apple's confirmation of the sample-preview plus legitimate-import-video arrangement is still pending; do not send or submit this draft without authorization.

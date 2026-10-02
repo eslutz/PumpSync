@@ -1,0 +1,95 @@
+Attributes: Application, 0x11c532440, pid: 76136, label: 'PumpSync'
+Element subtree:
+ →Application, 0x11c532440, pid: 76136, label: 'PumpSync'
+    Window (Main), 0x11c532580, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x11c5326c0, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x11c532800, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x11c532940, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x11c532a80, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x11c532bc0, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x11c532d00, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x11c532e40, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x11c532f80, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x11c5330c0, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x11c533200, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x11c533340, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x11c533480, {{0.0, 62.0}, {402.0, 106.0}}, identifier: 'Sync'
+                              StaticText, 0x11c5335c0, {{16.0, 119.7}, {79.7, 40.7}}, label: 'Sync'
+                            Other, 0x11c533700, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x11c533840, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x11c533980, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x11c533ac0, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x11c533c00, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x11c533d40, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x11c533e80, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x11c538000, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x11c538140, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x11c538280, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Image, 0x11c5383c0, {{-120.0, 731.0}, {642.0, 286.0}}, identifier: 'AdditionalDimmingOverlay'
+                                          Other, 0x11c538500, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x11c538640, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Other, 0x11c538780, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x11c5388c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x11c538a00, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x11c538b40, {{0.0, 168.0}, {402.0, 743.0}}
+                                        Other, 0x11c538c80, {{41.7, 198.0}, {140.0, 40.3}}, label: 'Connection', value: Not connected
+                                          Image, 0x11c538dc0, {{41.7, 207.3}, {23.3, 21.7}}, identifier: 'network.badge.shield.half.filled', label: 'network.badge.shield.half.filled'
+                                          StaticText, 0x11c538f00, {{80.0, 198.0}, {87.7, 20.3}}, label: 'Connection'
+                                          StaticText, 0x11c539040, {{80.0, 220.3}, {101.7, 18.0}}, label: 'Not connected'
+                                        Other, 0x11c539180, {{40.3, 250.7}, {142.7, 40.3}}, label: 'Pump data', value: Not configured
+                                          Image, 0x11c5392c0, {{40.3, 258.7}, {22.3, 24.7}}, identifier: 'key.slash', label: 'key.slash'
+                                          StaticText, 0x11c539400, {{80.0, 250.7}, {82.3, 20.3}}, label: 'Pump data'
+                                          StaticText, 0x11c539540, {{80.0, 273.0}, {103.0, 18.0}}, label: 'Not configured'
+                                        StaticText, 0x11c539680, {{24.0, 333.0}, {100.3, 20.3}}, label: 'Initial Import'
+                                        Button, 0x11c5397c0, {{38.0, 373.3}, {326.0, 44.0}}, label: 'History range', value: Past 7 days
+                                          Button, 0x11c539900, {{38.0, 373.3}, {326.0, 44.0}}
+                                            Image, 0x11c539a40, {{42.3, 384.7}, {25.0, 21.3}}, identifier: 'calendar.badge.clock', label: 'Date And Time'
+                                            StaticText, 0x11c539b80, {{78.0, 374.7}, {102.7, 20.3}}, label: 'History range'
+                                            StaticText, 0x11c539cc0, {{78.0, 398.0}, {78.3, 18.0}}, label: 'Past 7 days'
+                                            StaticText, 0x11c539e00, {{309.0, 386.3}, {55.0, 18.0}}, label: 'Change'
+                                        StaticText, 0x11c539f40, {{38.0, 425.7}, {323.3, 108.3}}, label: 'Choose how much pump history to import the first time. Future syncs import new data only. Keep PumpSync open while a sync is running; you can move around within PumpSync.'
+                                        Button, 0x11c53a080, {{20.0, 578.0}, {362.0, 60.0}}, label: 'Sync Past 7 Days', Disabled
+                                          Image, 0x11c53a1c0, {{39.7, 598.0}, {24.3, 20.0}}, identifier: 'arrow.triangle.2.circlepath', label: 'Syncing', Disabled
+                                          StaticText, 0x11c53a300, {{80.0, 597.8}, {131.0, 20.3}}, label: 'Sync Past 7 Days', Disabled
+                                        StaticText, 0x11c53a440, {{38.0, 674.0}, {322.7, 64.3}}, label: 'Your PumpSync subscription could not be verified. Review your subscription to reconnect.'
+                                        Button, 0x11c53a580, {{38.0, 738.3}, {137.0, 20.3}}, label: 'View Subscription'
+                                        Button, 0x11c53a6c0, {{38.0, 758.7}, {154.7, 20.3}}, label: 'Connection Settings'
+                            Other, 0x11c53a800, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x11c53a940, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x11c53aa80, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x11c53abc0, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x11c53ad00, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x11c53ae40, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x11c53af80, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x11c53b0c0, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x11c53b200, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync', Selected
+                            Image, 0x11c53b340, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x11c53b480, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings'
+                            Image, 0x11c53b5c0, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x11c53b700, {{111.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x11c53b840, {{111.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x11c53b980, {{111.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x11c53bac0, {{111.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x11c53bc00, {{111.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x11c53bd40, {{111.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x11c53be80, {{111.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x11c53c000, {{111.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x11c53c140, {{111.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x11c53c280, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x11c53c3c0, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x11c53c500, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x11c53c640, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x11c53c780, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x11c53c8c0, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x11c53ca00, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x11c53cb40, {{0.0, 791.0}, {402.0, 83.0}}
+    Window, 0x11c53cc80, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x11c53cdc0, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x11c53cf00, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x11c532440, pid: 76136, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11c53d040, pid: 76136, label: 'PumpSync'
+  }

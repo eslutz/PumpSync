@@ -1,0 +1,57 @@
+{
+  "revision": "f1539c716b760a9c2a4f359ed37b23a2aace392f",
+  "dirty_state": " M .github/workflows/ios-ci.yml\n M AGENTS.md\n M PumpSync.xcodeproj/project.pbxproj\n M PumpSync/Sources/UI/SettingsView.swift\n M PumpSync/Sources/UI/SyncView.swift\n M PumpSyncTests/ImportedSampleLedgerTests.swift\n M PumpSyncTests/InstallStateReconcilerTests.swift\n M PumpSyncTests/SyncViewTests.swift\n M PumpSyncUITests/PumpSyncUITests.swift\n M project.yml\n?? docs/reviews/\n?? scripts/ios/validate-tests.sh\n",
+  "tracked_dirty_hashes": [
+    {
+      "path": ".github/workflows/ios-ci.yml",
+      "sha256": "49d0a844a0243ba9ab41c2eef1a237a857d042b99a9b35f8e503ef2b7539dafb"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "a8da1e3d74e9a6eb8b4d51693cd07adaaf9f5f095cc0fbbbf83c3c31791d167f"
+    },
+    {
+      "path": "PumpSync.xcodeproj/project.pbxproj",
+      "sha256": "e78ebd349b814f0c066eefa6121506317d03777e0695726ffca5b0f6139a8aa7"
+    },
+    {
+      "path": "PumpSync/Sources/UI/SettingsView.swift",
+      "sha256": "c1c9a8339f9bc55367219fd9f247af57f7a1b9110c7c7843a8de1412445681c7"
+    },
+    {
+      "path": "PumpSync/Sources/UI/SyncView.swift",
+      "sha256": "e63fa393f0325e1011c200d9f0f3e89ecd5df2a9433933ac4bf3fbe9558cb200"
+    },
+    {
+      "path": "PumpSyncTests/ImportedSampleLedgerTests.swift",
+      "sha256": "c742e2c16a2caa89c837c381b03f614ab7aa4c22e68cf01ed9f268ef6519a91f"
+    },
+    {
+      "path": "PumpSyncTests/InstallStateReconcilerTests.swift",
+      "sha256": "be36365b34cbc0f1bcb6a451e22c32f16f23efaec9d7adac92ed50066501f30c"
+    },
+    {
+      "path": "PumpSyncTests/SyncViewTests.swift",
+      "sha256": "fbe6e5b6612bf0a80ef4ecc0f7303de442c5a0560f12c94c46b426ea00a55e4c"
+    },
+    {
+      "path": "PumpSyncUITests/PumpSyncUITests.swift",
+      "sha256": "e5d540107444560bc38aa514c01a7f3fa2e6a0500e1c9ac2131e4b5317ad4861"
+    },
+    {
+      "path": "project.yml",
+      "sha256": "ebbdc10a6381a1014e9ae6b4295e7d58b41569fb7c9bc60c6ae1b9d704a43906"
+    },
+    {
+      "path": "scripts/ios/validate-tests.sh",
+      "sha256": "c417f3eea5af1d7ba18057172aa016e48f800ae01e5792b7a9a21b5c9b143b6e"
+    }
+  ],
+  "version": "1.0.0 (33)",
+  "configuration": "Debug",
+  "scheme": "PumpSync",
+  "device": "iPhone 17",
+  "os": "iOS 26.5",
+  "xcode": "27.0 27A266a",
+  "simulator_id": "7C172CFA-650B-4566-BC58-65DD79E00540"
+}

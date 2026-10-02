@@ -1,0 +1,81 @@
+Attributes: Application, 0x1070a8c80, pid: 75007, label: 'PumpSync'
+Element subtree:
+ →Application, 0x1070a8c80, pid: 75007, label: 'PumpSync'
+    Window (Main), 0x1070a8000, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1070a8140, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1070a8a00, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x1070a8b40, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x1070a8640, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x1070a8780, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x1070ab340, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x1070aad00, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x1070a8500, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x1070a88c0, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x1070abac0, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x1070a83c0, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x1070ab980, {{0.0, 62.0}, {402.0, 106.0}}, identifier: 'About PumpSync'
+                              Button, 0x1070aa080, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Settings'
+                              StaticText, 0x1070ab700, {{16.0, 119.7}, {275.0, 40.7}}, label: 'About PumpSync'
+                            Other, 0x1070ab200, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x1070a8280, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x1070ab0c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x1070a8f00, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x1070aa940, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x1070abd40, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1070a9180, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x1070a9040, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x1070aaf80, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1070ab840, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Image, 0x1070abc00, {{-120.0, 731.0}, {642.0, 286.0}}, identifier: 'AdditionalDimmingOverlay'
+                                          Other, 0x1070a9f40, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x1070a9e00, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Other, 0x1070aae40, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x114b9b0c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x114b99040, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x114b98dc0, {{0.0, 168.0}, {402.0, 726.7}}
+                                        StaticText, 0x114b99180, {{24.0, 180.0}, {138.0, 20.3}}, label: 'About PumpSync'
+                                        StaticText, 0x114b9ad00, {{38.0, 220.3}, {325.7, 86.3}}, label: 'PumpSync imports available Tandem pump history into Apple Health. A secure connection lets PumpSync retrieve data; it does not mean a data sync has completed.'
+                                        StaticText, 0x114b9a6c0, {{24.0, 342.7}, {158.0, 20.3}}, label: 'How Syncing Works'
+                                        StaticText, 0x114b9af80, {{38.0, 383.0}, {313.0, 86.3}}, label: 'Start a sync using Sync Now. PumpSync also checks for new data when you open the app and during background updates when iOS grants time.'
+                                        StaticText, 0x114b9b700, {{38.0, 469.7}, {323.7, 86.3}}, label: 'PumpSync aims to keep Apple Health less than four hours behind. Background updates are scheduled, but iOS decides when they run and may delay them.'
+                                        StaticText, 0x114b99e00, {{24.0, 592.0}, {113.0, 20.3}}, label: 'While Syncing'
+                                        StaticText, 0x114b9bd40, {{38.0, 632.3}, {318.3, 130.3}}, label: 'Keep PumpSync open while a sync is running. You can move around within PumpSync. Last Successful Sync shows when a sync last completed successfully; a failed attempt does not change that time.'
+                            Other, 0x114b9a440, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x114b98a00, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x114b9a580, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x114b98b40, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x114b9b200, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x114b9b480, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x114b98c80, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x114b9b5c0, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x114b9a940, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync'
+                            Image, 0x114b992c0, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x114b9a800, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings', Selected
+                            Image, 0x114b9b340, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x114b9ae40, {{197.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x114b9abc0, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x114b9be80, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x114b9aa80, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x114b9bc00, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x114b99a40, {{197.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x114b9b840, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x114b9bac0, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x114b99680, {{197.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x114b9a080, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x114b99cc0, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x114b997c0, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x114b99900, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x114b9a1c0, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x114b988c0, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x114b98f00, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x114b99400, {{0.0, 791.0}, {402.0, 83.0}}
+    Window, 0x114b99f40, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x114b9b980, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x114b99540, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x1070a8c80, pid: 75007, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x114b99b80, pid: 75007, label: 'PumpSync'
+  }

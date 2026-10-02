@@ -71,6 +71,8 @@ final class InsulinConcentrationStore {
 @Observable
 final class HealthKitService {
   private let healthStore = HKHealthStore()
+  private let currentContext: @MainActor () -> ImportSessionSnapshot?
+  private let persistence: HealthSamplePersisting
   private let insulinConcentrationStore: InsulinConcentrationStore
   private let diagnostics: DiagnosticsLogStore?
   private var usesScreenshotFixture = false
@@ -86,10 +88,14 @@ final class HealthKitService {
 
   init(
     insulinConcentrationStore: InsulinConcentrationStore = InsulinConcentrationStore(),
-    diagnostics: DiagnosticsLogStore? = nil
+    diagnostics: DiagnosticsLogStore? = nil,
+    currentContext: @escaping @MainActor () -> ImportSessionSnapshot? = { nil },
+    persistence: HealthSamplePersisting = HealthStorePersistence()
   ) {
     self.insulinConcentrationStore = insulinConcentrationStore
     self.diagnostics = diagnostics
+    self.currentContext = currentContext
+    self.persistence = persistence
   }
 
   func refreshAuthorizationStatus() {
@@ -109,7 +115,7 @@ final class HealthKitService {
 
     var statuses: [HealthWriteSampleKind: HealthWriteAccessStatus] = [:]
     for (kind, type) in writableTypePairs() {
-      statuses[kind] = HealthWriteAccessStatus(healthKitStatus: healthStore.authorizationStatus(for: type))
+      statuses[kind] = HealthWriteAccessStatus(healthKitStatus: persistence.authorizationStatus(for: type))
     }
 
     writePermissions = HealthWritePermission.defaultWritePermissions(statuses: statuses)
@@ -202,7 +208,11 @@ final class HealthKitService {
   /// this runs inside the sync path, including background syncs where system
   /// UI cannot be presented; prompting belongs to the explicit
   /// HealthAccessView flow.
-  func save(samples: [SampleDTO]) async throws -> [SampleDTO] {
+  var concentration: InsulinConcentration { insulinConcentrationStore.concentration }
+
+  func save(batch: HealthImportBatch) async throws -> [SampleDTO] {
+    try HealthImportPolicy.validate(batch: batch, current: currentContext())
+    let samples = batch.plan.samples
     try Task.checkCancellation()
     guard !samples.isEmpty else {
       return []
@@ -215,9 +225,9 @@ final class HealthKitService {
     var objects: [HKQuantitySample] = []
     var writtenSamples: [SampleDTO] = []
     for sample in samples {
-      if let object = makeHealthKitSample(from: sample) {
+      if let object = makeHealthKitSample(from: sample.original, convertedValue: sample.convertedValue) {
         objects.append(object)
-        writtenSamples.append(sample)
+        writtenSamples.append(sample.original)
       }
     }
 
@@ -227,7 +237,13 @@ final class HealthKitService {
 
     try Task.checkCancellation()
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      healthStore.save(objects) { success, error in
+      do {
+        try HealthImportPolicy.validate(batch: batch, current: currentContext())
+      } catch {
+        continuation.resume(throwing: error)
+        return
+      }
+      persistence.save(objects) { success, error in
         if let error {
           continuation.resume(throwing: error)
         } else if success {
@@ -264,18 +280,18 @@ final class HealthKitService {
     return pairs
   }
 
-  private func makeHealthKitSample(from sample: SampleDTO) -> HKQuantitySample? {
+  private func makeHealthKitSample(from sample: SampleDTO, convertedValue: Decimal) -> HKQuantitySample? {
     switch sample.type {
     case "insulin.bolus":
       guard canWrite(.insulinDelivery) else {
         return nil
       }
-      return insulinSample(sample, reason: .bolus)
+      return insulinSample(sample, reason: .bolus, convertedValue: convertedValue)
     case "insulin.basal":
       guard canWrite(.insulinDelivery) else {
         return nil
       }
-      return insulinSample(sample, reason: .basal)
+      return insulinSample(sample, reason: .basal, convertedValue: convertedValue)
     case "nutrition.carbohydrates":
       guard canWrite(.dietaryCarbohydrates) else {
         return nil
@@ -290,13 +306,12 @@ final class HealthKitService {
     writePermissions.first { $0.kind == kind }?.status == .sharingAuthorized
   }
 
-  private func insulinSample(_ sample: SampleDTO, reason: HKInsulinDeliveryReason) -> HKQuantitySample? {
+  private func insulinSample(_ sample: SampleDTO, reason: HKInsulinDeliveryReason, convertedValue: Decimal) -> HKQuantitySample? {
     guard let type = HKObjectType.quantityType(forIdentifier: .insulinDelivery) else {
       return nil
     }
 
-    let healthValue = insulinConcentrationStore.concentration.appleHealthValue(forPumpReportedValue: sample.value)
-    let quantity = HKQuantity(unit: .internationalUnit(), doubleValue: decimalToDouble(healthValue))
+    let quantity = HKQuantity(unit: .internationalUnit(), doubleValue: decimalToDouble(convertedValue))
     var metadata = healthKitMetadata(for: sample)
     metadata[HKMetadataKeyInsulinDeliveryReason] = reason.rawValue
 
@@ -402,3 +417,20 @@ extension HealthKitService {
   }
 }
 #endif
+
+/// Production persistence boundary; policy validation occurs on the caller's
+/// main actor immediately before submission, with no suspension in between.
+@MainActor
+protocol HealthSamplePersisting {
+  func authorizationStatus(for type: HKObjectType) -> HKAuthorizationStatus
+  func save(_ samples: [HKQuantitySample], completion: @escaping @Sendable (Bool, Error?) -> Void)
+}
+
+@MainActor
+private final class HealthStorePersistence: HealthSamplePersisting {
+  private let store = HKHealthStore()
+  func authorizationStatus(for type: HKObjectType) -> HKAuthorizationStatus { store.authorizationStatus(for: type) }
+  func save(_ samples: [HKQuantitySample], completion: @escaping @Sendable (Bool, Error?) -> Void) {
+    store.save(samples, withCompletion: completion)
+  }
+}

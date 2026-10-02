@@ -1,0 +1,1662 @@
+Command line invocation:
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync -destination "platform=iOS Simulator,id=7C172CFA-650B-4566-BC58-65DD79E00540" -derivedDataPath /private/tmp/pumpsync-remediation-build -parallel-testing-enabled NO
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (3 targets)
+    Target 'PumpSyncUITests' in project 'PumpSync'
+        ➜ Explicit dependency on target 'PumpSync' in project 'PumpSync'
+    Target 'PumpSyncTests' in project 'PumpSync'
+        ➜ Explicit dependency on target 'PumpSync' in project 'PumpSync'
+    Target 'PumpSync' in project 'PumpSync' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/ericslutz/Developer/Code/Side Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Assets.xcassets
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+ExecuteExternalTool /Applications/Development/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+Build description signature: 756ef9f76704df40eea50c90692f7104
+Build description path: /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/XCBuildData/756ef9f76704df40eea50c90692f7104.xcbuilddata
+ClangStatCache /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk /tmp/pumpsync-remediation-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync.xcodeproj
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -o /tmp/pumpsync-remediation-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+
+SwiftDriver PumpSync normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftDriver -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSync -Onone @/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-remediation-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path /tmp/pumpsync-remediation-build/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -F /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-remediation-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-remediation-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-remediation-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-remediation-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h -working-directory /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend -experimental-emit-module-separately -disable-cmo
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ PumpSync (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+
+SwiftCompile normal arm64 Compiling\ TandemCredentialForm.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentialForm.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Tandem/TandemCredentialForm.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile TandemCredentialForm.swift
+
+SwiftCompile normal arm64 Compiling\ SyncCoordinator.swift /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/SyncCoordinator.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftCompile normal arm64 /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Sources/Sync/SyncCoordinator.swift (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-SwiftPerFileCompile SyncCoordinator.swift
+
+SwiftDriverJobDiscovery normal arm64 Compiling SyncCoordinator.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriverJobDiscovery normal arm64 Compiling TandemCredentialForm.swift (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriver\ Compilation PumpSync normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-Swift-Compilation -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSync -Onone @/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-remediation-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path /tmp/pumpsync-remediation-build/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -F /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-remediation-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-remediation-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-remediation-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-remediation-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h -working-directory /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for PumpSync (in target 'PumpSync' from project 'PumpSync')
+
+SwiftDriver\ Compilation\ Requirements PumpSync normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-Swift-Compilation-Requirements -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSync -Onone @/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList -DDEBUG -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-remediation-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -index-store-path /tmp/pumpsync-remediation-build/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -F /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-remediation-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-remediation-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-remediation-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-remediation-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-generated-files.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-own-target-headers.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-project-headers.hmap -Xcc -I/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync-Swift.h -working-directory /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend -experimental-emit-module-separately -disable-cmo
+
+Copy /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.swiftdoc /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftdoc (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftdoc /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.swiftdoc
+
+Copy /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftsourceinfo (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftsourceinfo /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo
+
+Copy /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.abi.json /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.abi.json (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.abi.json /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.swiftmodule/arm64-apple-ios-simulator.abi.json
+
+Ld /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib normal (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -dynamiclib -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -L/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -F/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -F/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -filelist /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.LinkFileList -install_name @rpath/PumpSync.debug.dylib -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -dependency_info -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_dependency_info.dat -fobjc-link-runtime -L/Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphonesimulator -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.swiftmodule -Xlinker -alias -Xlinker _main -Xlinker ___debug_main_executable_dylib_entry_point -Xlinker -no_adhoc_codesign -o /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib
+
+ConstructStubExecutorLinkFileList /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-ExecutorLinkFileList-normal-arm64.txt (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    construct-stub-executor-link-file-list /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libPreviewsJITStubExecutor_no_swift_entry_point.a /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libPreviewsJITStubExecutor.a --output /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-ExecutorLinkFileList-normal-arm64.txt
+note: Using stub executor library with Swift entry point. (in target 'PumpSync' from project 'PumpSync')
+
+Ld /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync normal (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -F/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -Xlinker -rpath -Xlinker @executable_path -Xlinker -rpath -Xlinker @executable_path/Frameworks -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -e ___debug_blank_executor_main -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_dylib -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibPath-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_instlnm -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-DebugDylibInstallName-normal-arm64.txt -Xlinker -filelist -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync-ExecutorLinkFileList-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __ents_der -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app-Simulated.xcent.der /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib -Xlinker -no_adhoc_codesign -o /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync
+
+ExtractAppIntentsMetadata (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name PumpSync --sdk-root /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk --xcode-version 27A266a --platform-family iOS --deployment-target 26.0 --bundle-identifier dev.ericslutz.PumpSync --output /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app --target-triple arm64-apple-ios26.0-simulator --binary-file /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync --dependency-file /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync_dependency_info.dat --stringsdata-file /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftFileList --metadata-file-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyMetadataFileList --static-metadata-file-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.DependencyStaticMetadataFileList --swift-const-vals-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/Objects-normal/arm64/PumpSync.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-10-01 12:17:23.031 appintentsmetadataprocessor[12046:3124339] Starting appintentsmetadataprocessor export
+2026-10-01 12:17:23.118 appintentsmetadataprocessor[12046:3124339] Writing Metadata.appintents
+2026-10-01 12:17:23.118 appintentsmetadataprocessor[12046:3124339] Metadata root: /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Metadata.appintents
+
+ProcessInfoPlistFile /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Info.plist /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Info.plist (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-infoPlistUtility /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend/PumpSync/Resources/Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/assetcatalog_generated_info.plist -o /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Info.plist
+
+CopySwiftLibs /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Frameworks --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/SystemExtensions --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Extensions --platform iphonesimulator --toolchain /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+ProcessInfoPlistFile /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/Info.plist /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/empty-PumpSyncTests.plist (in target 'PumpSyncTests' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-infoPlistUtility /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/empty-PumpSyncTests.plist -producttype com.apple.product-type.bundle.unit-test -expandbuildsettings -format binary -platform iphonesimulator -o /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/Info.plist
+
+Ld /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/PumpSyncTests normal (in target 'PumpSyncTests' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -bundle -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -L/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -L/Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F/tmp/pumpsync-remediation-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -F/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator -iframework /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -iframework /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk/Developer/Library/Frameworks -filelist /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/PumpSyncTests.LinkFileList -Xlinker -rpath -Xlinker @loader_path/Frameworks -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -bundle_loader /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync -Xlinker -object_path_lto -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/PumpSyncTests_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -dependency_info -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/PumpSyncTests_dependency_info.dat -fobjc-link-runtime -L/Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphonesimulator -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/PumpSyncTests.swiftmodule -Xlinker -needed_framework -Xlinker XCTest -framework XCTest -Xlinker -needed-lXCTestSwiftSupport -lXCTestSwiftSupport /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib -Xlinker -no_adhoc_codesign -o /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/PumpSyncTests
+
+CopySwiftLibs /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest (in target 'PumpSyncTests' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/PumpSyncTests --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/Frameworks --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/PlugIns --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/SystemExtensions --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/Extensions --platform iphonesimulator --toolchain /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/Frameworks --strip-bitcode --scan-executable /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib --strip-bitcode-tool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+ExtractAppIntentsMetadata (in target 'PumpSyncTests' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name PumpSyncTests --sdk-root /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk --xcode-version 27A266a --platform-family iOS --deployment-target 26.0 --bundle-identifier dev.ericslutz.PumpSyncTests --output /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest --target-triple arm64-apple-ios26.0-simulator --binary-file /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest/PumpSyncTests --dependency-file /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/PumpSyncTests_dependency_info.dat --stringsdata-file /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/PumpSyncTests.SwiftFileList --metadata-file-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/PumpSyncTests.DependencyMetadataFileList --static-metadata-file-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/PumpSyncTests.DependencyStaticMetadataFileList --swift-const-vals-list /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncTests.build/Objects-normal/arm64/PumpSyncTests.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-10-01 12:17:23.516 appintentsmetadataprocessor[12049:3124370] Starting appintentsmetadataprocessor export
+2026-10-01 12:17:23.579 appintentsmetadataprocessor[12049:3124370] Extracted no relevant App Intents symbols, skipping writing output
+
+CodeSign /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest (in target 'PumpSyncTests' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PlugIns/PumpSyncTests.xctest
+
+CodeSign /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib
+
+CodeSign /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib
+/tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib: replacing existing signature
+
+CodeSign /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --entitlements /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent --timestamp\=none --generate-entitlement-der /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app
+
+Validate /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-validationUtility /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSync.app -shallow-bundle -infoplist-subpath Info.plist
+
+ProcessInfoPlistFile /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Info.plist /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/empty-PumpSyncUITests.plist (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-infoPlistUtility /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/empty-PumpSyncUITests.plist -producttype com.apple.product-type.bundle.ui-testing -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/ProductTypeInfoPlistAdditions.plist -o /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Info.plist
+
+CopySwiftLibs /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/PumpSync.frontend
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PumpSyncUITests --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Frameworks --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PlugIns --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/SystemExtensions --scan-folder /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Extensions --scan-folder /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk/System/Library/Frameworks/AppIntents.framework --platform iphonesimulator --toolchain /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/pumpsync-remediation-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Frameworks --strip-bitcode --scan-executable /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib --strip-bitcode-tool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-remediation-build/SDKExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-remediation-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+Test Suite 'All tests' started at 2026-10-01 12:17:29.231.
+Test Suite 'PumpSyncTests.xctest' started at 2026-10-01 12:17:29.231.
+Test Suite 'AuthServiceTests' started at 2026-10-01 12:17:29.232.
+Test Case '-[PumpSyncTests.AuthServiceTests testAccessTokenRecoveryPreservesStaleSessionAfterAmbiguousRefreshFailure]' started.
+2026-10-01 12:17:29.298345-0400 PumpSync[12058:3124714] [Default] Task <EB2209F7-BB04-49BF-BFFA-A3273039B9EC>.<1> finished with error [-1011] Error Domain=NSURLErrorDomain Code=-1011 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <EB2209F7-BB04-49BF-BFFA-A3273039B9EC>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <EB2209F7-BB04-49BF-BFFA-A3273039B9EC>.<1>}
+Test Case '-[PumpSyncTests.AuthServiceTests testAccessTokenRecoveryPreservesStaleSessionAfterAmbiguousRefreshFailure]' passed (0.092 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAmbiguousEnrollmentTransportFailureReconcilesOnNextExplicitConnect]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAmbiguousEnrollmentTransportFailureReconcilesOnNextExplicitConnect]' passed (0.044 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAssertionSignatureMismatchReattestsWithFreshKey]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAssertionSignatureMismatchReattestsWithFreshKey]' passed (0.034 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateActivatesDifferentJWSAfterPriorAttempt]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateActivatesDifferentJWSAfterPriorAttempt]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateActivatesSubscriptionForUnattemptedJWS]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateActivatesSubscriptionForUnattemptedJWS]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateDoesNotActivateAfterSwitchingToSelfHostedDuringCoalescedWait]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateDoesNotActivateAfterSwitchingToSelfHostedDuringCoalescedWait]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateDoesNotActivateAfterSwitchingToSelfHostedDuringFinish]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateDoesNotActivateAfterSwitchingToSelfHostedDuringFinish]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateDoesNotCommitHostedResponseAfterSwitchingToSelfHosted]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateDoesNotCommitHostedResponseAfterSwitchingToSelfHosted]' passed (0.018 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateQueuesDifferentJWSWhilePriorAttemptIsInFlight]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateQueuesDifferentJWSWhilePriorAttemptIsInFlight]' passed (0.039 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterAmbiguousSessionFailure]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterAmbiguousSessionFailure]' passed (0.027 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterDefinitiveSessionFailure]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterDefinitiveSessionFailure]' passed (0.026 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterSuccessfulSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterSuccessfulSession]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterWarmupFailure]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateSkipsSameJWSAfterWarmupFailure]' passed (0.016 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdatesQueueEveryDistinctJWSAcrossRepeatedCoalescing]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdatesQueueEveryDistinctJWSAcrossRepeatedCoalescing]' passed (0.026 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateStopsEnrollmentAfterSwitchingToSelfHostedDuringWarmup]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testAutomaticTransactionUpdateStopsEnrollmentAfterSwitchingToSelfHostedDuringWarmup]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundRecoveryRefreshesRenewableSessionWithoutStoreKit]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundRecoveryRefreshesRenewableSessionWithoutStoreKit]' passed (0.041 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundReenrollmentTransientFailureRetainsPendingMarker]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundReenrollmentTransientFailureRetainsPendingMarker]' passed (0.038 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundReenrollmentWithoutCachedEntitlementRetainsPendingMarker]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundReenrollmentWithoutCachedEntitlementRetainsPendingMarker]' passed (0.030 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundStaleKeyRefreshReenrollsFromCachedEntitlement]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testBackgroundStaleKeyRefreshReenrollsFromCachedEntitlement]' passed (0.030 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledBackgroundRefreshDoesNotBlockLaterRecoveryOrRestoreStaleSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledBackgroundRefreshDoesNotBlockLaterRecoveryOrRestoreStaleSession]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledExplicitActivationDoesNotExecuteAfterCoalescedWait]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledExplicitActivationDoesNotExecuteAfterCoalescedWait]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledHostedRequestCannotApplyLateBackendSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledHostedRequestCannotApplyLateBackendSession]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledPurchaseDoesNotClearAnotherConnectionAttemptProgress]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledPurchaseDoesNotClearAnotherConnectionAttemptProgress]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledPurchasePreservesExistingSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testCancelledPurchasePreservesExistingSession]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testCancellingBackgroundWaiterDoesNotCancelSharedForegroundRefresh]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testCancellingBackgroundWaiterDoesNotCancelSharedForegroundRefresh]' passed (0.016 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testCancellingOnlyHostedRecoveryOwnerCancelsSharedEntitlementWork]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testCancellingOnlyHostedRecoveryOwnerCancelsSharedEntitlementWork]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testConcurrentRenewableRecoverySharesAmbiguousFailureWithoutEnrollment]' started.
+2026-10-01 12:17:29.869078-0400 PumpSync[12058:3124714] [Default] Task <5026851E-FEF3-4624-B1C1-87B5243EC154>.<1> finished with error [-1001] Error Domain=NSURLErrorDomain Code=-1001 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <5026851E-FEF3-4624-B1C1-87B5243EC154>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <5026851E-FEF3-4624-B1C1-87B5243EC154>.<1>}
+Test Case '-[PumpSyncTests.AuthServiceTests testConcurrentRenewableRecoverySharesAmbiguousFailureWithoutEnrollment]' passed (0.009 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testConcurrentRenewableRecoveryUsesOneRefreshAndSharesReplacementSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testConcurrentRenewableRecoveryUsesOneRefreshAndSharesReplacementSession]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testConcurrentSubscriptionRecoveryCoalescesStoreKitAndBackendWork]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testConcurrentSubscriptionRecoveryCoalescesStoreKitAndBackendWork]' passed (0.050 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testConfigurationChangeAfterAttestationDiscardsUnsubmittedEnrollmentForExplicitRetry]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testConfigurationChangeAfterAttestationDiscardsUnsubmittedEnrollmentForExplicitRetry]' passed (0.034 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testConnectionChangeClearsCachedSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testConnectionChangeClearsCachedSession]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testConnectionChangeLetsExplicitRestoreBypassObsoleteSubscriptionOperation]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testConnectionChangeLetsExplicitRestoreBypassObsoleteSubscriptionOperation]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testDefinitiveDeviceProofRejectionGivesExplicitRetryCleanEnrollmentState]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testDefinitiveDeviceProofRejectionGivesExplicitRetryCleanEnrollmentState]' passed (0.023 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testEnrollmentRequiredForReconciliationRetriesOnceWithFreshAttestation]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testEnrollmentRequiredForReconciliationRetriesOnceWithFreshAttestation]' passed (0.037 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testEnrollmentRequiredRetriesOnlyOnceWhenFreshAttestationIsRejected]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testEnrollmentRequiredRetriesOnlyOnceWhenFreshAttestationIsRejected]' passed (0.027 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testExpiredCachedSessionIsPreservedAfterAmbiguousRefreshFailure]' started.
+2026-10-01 12:17:30.077787-0400 PumpSync[12058:3124685] [Default] Task <8820BCDF-7864-4D60-97E5-C6A535A7C5F5>.<1> finished with error [-1011] Error Domain=NSURLErrorDomain Code=-1011 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <8820BCDF-7864-4D60-97E5-C6A535A7C5F5>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <8820BCDF-7864-4D60-97E5-C6A535A7C5F5>.<1>}
+Test Case '-[PumpSyncTests.AuthServiceTests testExpiredCachedSessionIsPreservedAfterAmbiguousRefreshFailure]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testExplicitActivationAllowsSameJWSRetryAfterDefinitiveSessionFailure]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testExplicitActivationAllowsSameJWSRetryAfterDefinitiveSessionFailure]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testExplicitActivationQueuedBehindInFlightSubscriptionOperationEventuallyExecutes]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testExplicitActivationQueuedBehindInFlightSubscriptionOperationEventuallyExecutes]' passed (0.016 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testExplicitRestoreQueuedBehindInFlightSubscriptionOperationEventuallyExecutes]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testExplicitRestoreQueuedBehindInFlightSubscriptionOperationEventuallyExecutes]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testForegroundSubscriptionRecoverySyncsAppStoreAfterCachedEntitlementMiss]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testForegroundSubscriptionRecoverySyncsAppStoreAfterCachedEntitlementMiss]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testGenericAuthenticationFailureClearsRenewableSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testGenericAuthenticationFailureClearsRenewableSession]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedAndSelfHostedRecoveryPreserveSafeBackendFailureReferences]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedAndSelfHostedRecoveryPreserveSafeBackendFailureReferences]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedRecoveryClassifiesNoActiveEntitlementForSubscriptionAction]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedRecoveryClassifiesNoActiveEntitlementForSubscriptionAction]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedRecoveryRetainsEntitlementLookupFailureExplanation]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedRecoveryRetainsEntitlementLookupFailureExplanation]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedRenewableRefreshBackendFailureReleasesExactProofRequest]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedRenewableRefreshBackendFailureReleasesExactProofRequest]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedSubscriptionAccessDeniedClearsNonrenewableSessionWhenEntitlementIsMissing]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedSubscriptionAccessDeniedClearsNonrenewableSessionWhenEntitlementIsMissing]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedSubscriptionAccessDeniedRetainsRenewableSessionWhenEntitlementIsMissing]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedSubscriptionAccessDeniedRetainsRenewableSessionWhenEntitlementIsMissing]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedSubscriptionRecoveryAfterAccessDeniedReplacesCachedSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedSubscriptionRecoveryAfterAccessDeniedReplacesCachedSession]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedWarmupCompletesBeforeChallengeAndEnrollment]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedWarmupCompletesBeforeChallengeAndEnrollment]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedWarmupFailureStopsEnrollmentAndOffersRetry]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testHostedWarmupFailureStopsEnrollmentAndOffersRetry]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testLoadsValidCachedSessionWithoutCallingStoreKitOrBackend]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testLoadsValidCachedSessionWithoutCallingStoreKitOrBackend]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testNetworkRequestTimeoutIsDistinguishedFromConnectionOperationTimeout]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testNetworkRequestTimeoutIsDistinguishedFromConnectionOperationTimeout]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testPendingPurchasePreservesExistingSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testPendingPurchasePreservesExistingSession]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testPermanentRefreshRejectionClearsCurrentSourceSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testPermanentRefreshRejectionClearsCurrentSourceSession]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testQueuedExplicitActivationDoesNotCrossConnectionGeneration]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testQueuedExplicitActivationDoesNotCrossConnectionGeneration]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testRejectedRegisteredAssertionRetriesOnlyOnceWhenFreshAssertionIsRejected]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testRejectedRegisteredAssertionRetriesOnlyOnceWhenFreshAssertionIsRejected]' passed (0.028 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testRenewableRefreshFailureDoesNotClearAReplacementConnection]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testRenewableRefreshFailureDoesNotClearAReplacementConnection]' passed (0.017 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testRenewableRefreshStopsBeforeRequestIfConfigurationChangesDuringProof]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testRenewableRefreshStopsBeforeRequestIfConfigurationChangesDuringProof]' passed (0.120 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedBaseURLAllowsHttpForLoopbackOnly]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedBaseURLAllowsHttpForLoopbackOnly]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedBaseURLRejectsMalformedOrEmptyInput]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedBaseURLRejectsMalformedOrEmptyInput]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedBaseURLRequiresHttpsForNonLoopbackHosts]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedBaseURLRequiresHttpsForNonLoopbackHosts]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedConnectionStopsIfTheBaseURLChangesDuringChallenge]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedConnectionStopsIfTheBaseURLChangesDuringChallenge]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedCreatesBackendSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedCreatesBackendSession]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedProtocol3RenewableRefreshDoesNotUseHostedProofLease]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedProtocol3RenewableRefreshDoesNotUseHostedProofLease]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedRecoveryDoesNotCommitAResponseFromAnOldBaseURL]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSelfHostedRecoveryDoesNotCommitAResponseFromAnOldBaseURL]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testServerFailureBeforeRegistrationRejectsReconciliationAndRetriesFreshAttestation]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testServerFailureBeforeRegistrationRejectsReconciliationAndRetriesFreshAttestation]' passed (0.026 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSilentSubscriptionRecoveryCreatesBackendSessionWhenNoCachedSessionExists]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSilentSubscriptionRecoveryCreatesBackendSessionWhenNoCachedSessionExists]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionActivationWaitsForInFlightHostedRefreshProof]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionActivationWaitsForInFlightHostedRefreshProof]' passed (0.128 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionConnectionAfterRejectedRefreshReplacesSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionConnectionAfterRejectedRefreshReplacesSession]' passed (0.023 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionConnectionRequiredMessageUsesSubscriptionTerminology]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionConnectionRequiredMessageUsesSubscriptionTerminology]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionPurchaseCompletionCreatesBackendSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionPurchaseCompletionCreatesBackendSession]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRecoveryDoesNotClearSelfHostedReplacementAfterStoreKitSuspends]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRecoveryDoesNotClearSelfHostedReplacementAfterStoreKitSuspends]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRecoveryExplainsMissingEntitlementWithoutCallingBackend]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRecoveryExplainsMissingEntitlementWithoutCallingBackend]' passed (0.009 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRecoveryShowsProgressWhileStoreKitEntitlementIsPending]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRecoveryShowsProgressWhileStoreKitEntitlementIsPending]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestoreCreatesBackendSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestoreCreatesBackendSession]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestoreDoesNotPublishStaleFailureAfterModeChange]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestoreDoesNotPublishStaleFailureAfterModeChange]' passed (0.009 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestoreFailurePreservesExistingSession]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestoreFailurePreservesExistingSession]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestorePublishesUserSafeErrorAndDiagnostics]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionRestorePublishesUserSafeErrorAndDiagnostics]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionSessionTimeoutCancelsTheInFlightBackendOperation]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSubscriptionSessionTimeoutCancelsTheInFlightBackendOperation]' passed (0.040 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testSuccessfulHostedConnectionRecordsSafePhaseDiagnostics]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testSuccessfulHostedConnectionRecordsSafePhaseDiagnostics]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testUncachedSubscriptionSessionTimesOutWithoutDiscardingEntitlementState]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testUncachedSubscriptionSessionTimesOutWithoutDiscardingEntitlementState]' passed (0.021 seconds).
+Test Case '-[PumpSyncTests.AuthServiceTests testVisibleAppOpenBackgroundPolicyShowsProgressDuringExpiredSessionRefresh]' started.
+Test Case '-[PumpSyncTests.AuthServiceTests testVisibleAppOpenBackgroundPolicyShowsProgressDuringExpiredSessionRefresh]' passed (0.009 seconds).
+Test Suite 'AuthServiceTests' passed at 2026-10-01 12:17:30.814.
+	 Executed 82 tests, with 0 failures (0 unexpected) in 1.538 (1.583) seconds
+Test Suite 'BackendSessionStoreTests' started at 2026-10-01 12:17:30.814.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDeleteRemovesStoredSession]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDeleteRemovesStoredSession]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDiscardsCorruptedStoredData]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDiscardsCorruptedStoredData]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDiscardsSessionWithoutRenewableCredentialFields]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDiscardsSessionWithoutRenewableCredentialFields]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDoesNotLoadOrRecoverSessionFromObsoleteAccount]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testDoesNotLoadOrRecoverSessionFromObsoleteAccount]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testPersistsAndClearsHostedReenrollmentMarker]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testPersistsAndClearsHostedReenrollmentMarker]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testPersistsAndReloadsValidSession]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testPersistsAndReloadsValidSession]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testPreservesExpiredAccessTokenWhenRefreshCredentialIsStillRenewable]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testPreservesExpiredAccessTokenWhenRefreshCredentialIsStillRenewable]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsEmptyAccessToken]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsEmptyAccessToken]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsExpiredSession]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsExpiredSession]' passed (0.002 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsPreProtocol3SessionEvenWhileAccessTokenIsFresh]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsPreProtocol3SessionEvenWhileAccessTokenIsFresh]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsSessionInsideRefreshWindow]' started.
+Test Case '-[PumpSyncTests.BackendSessionStoreTests testRejectsSessionInsideRefreshWindow]' passed (0.002 seconds).
+Test Suite 'BackendSessionStoreTests' passed at 2026-10-01 12:17:30.855.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.037 (0.041) seconds
+Test Suite 'BackgroundExecutionDeadlineTests' started at 2026-10-01 12:17:30.855.
+Test Case '-[PumpSyncTests.BackgroundExecutionDeadlineTests testCancellingCallerCancelsOperationBeforeDeadline]' started.
+Test Case '-[PumpSyncTests.BackgroundExecutionDeadlineTests testCancellingCallerCancelsOperationBeforeDeadline]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.BackgroundExecutionDeadlineTests testDeadlineReturnsFailureAndCancelsStalledOperation]' started.
+Test Case '-[PumpSyncTests.BackgroundExecutionDeadlineTests testDeadlineReturnsFailureAndCancelsStalledOperation]' passed (0.054 seconds).
+Test Suite 'BackgroundExecutionDeadlineTests' passed at 2026-10-01 12:17:30.911.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.055 (0.056) seconds
+Test Suite 'BackgroundSyncDiagnosticsTests' started at 2026-10-01 12:17:30.911.
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testBackgroundStageIncludesBuildAndElapsedTime]' started.
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testBackgroundStageIncludesBuildAndElapsedTime]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testPendingRequestDescriptionHandlesMissingEarliestBeginDate]' started.
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testPendingRequestDescriptionHandlesMissingEarliestBeginDate]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testPendingRequestDescriptionIncludesIdentifierAndEarliestBeginDate]' started.
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testPendingRequestDescriptionIncludesIdentifierAndEarliestBeginDate]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testPendingRequestsContextIncludesPhaseTriggerAndPendingState]' started.
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testPendingRequestsContextIncludesPhaseTriggerAndPendingState]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testSchedulingContextIncludesBuildRefreshStatusAndLowPowerMode]' started.
+Test Case '-[PumpSyncTests.BackgroundSyncDiagnosticsTests testSchedulingContextIncludesBuildRefreshStatusAndLowPowerMode]' passed (0.001 seconds).
+Test Suite 'BackgroundSyncDiagnosticsTests' passed at 2026-10-01 12:17:30.918.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.004 (0.006) seconds
+Test Suite 'DeviceSessionProofProviderTests' started at 2026-10-01 12:17:30.918.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testAmbiguousSubmittedEnrollmentUsesReconciliationAfterProviderRecreation]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testAmbiguousSubmittedEnrollmentUsesReconciliationAfterProviderRecreation]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testCurrentProviderIgnoresAndPreservesObsoleteAppAttestState]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testCurrentProviderIgnoresAndPreservesObsoleteAppAttestState]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDefinitivelyFailedSubmittedEnrollmentCanBeRetried]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDefinitivelyFailedSubmittedEnrollmentCanBeRetried]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDiscardingUnsubmittedAssertionRestoresRegisteredKey]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDiscardingUnsubmittedAssertionRestoresRegisteredKey]' passed (0.017 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDiscardingUnsubmittedReconciliationRestoresUnknownRegistrationForFreshAssertion]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDiscardingUnsubmittedReconciliationRestoresUnknownRegistrationForFreshAssertion]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDiscardRegisteredKeyForcesFreshAttestation]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testDiscardRegisteredKeyForcesFreshAttestation]' passed (0.013 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testEnrollmentRequiredForSubmittedAssertionClearsKeyForFreshAttestation]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testEnrollmentRequiredForSubmittedAssertionClearsKeyForFreshAttestation]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testGeneratingRegisteredAssertionCannotCreateConcurrentRefreshProof]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testGeneratingRegisteredAssertionCannotCreateConcurrentRefreshProof]' passed (0.013 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedEnrollmentPayloadMatchesProtocol3Vector]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedEnrollmentPayloadMatchesProtocol3Vector]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedProofLeaseIsNotPersistedAcrossProviderRecreation]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedProofLeaseIsNotPersistedAcrossProviderRecreation]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedRefreshRecordsStateReadAndAssertionGenerationStagesWithoutSecrets]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedRefreshRecordsStateReadAndAssertionGenerationStagesWithoutSecrets]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedRefreshTimesOutStalledAssertionAndAllowsRetryWithoutDiscardingKey]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testHostedRefreshTimesOutStalledAssertionAndAllowsRetryWithoutDiscardingKey]' passed (0.070 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testInFlightAttestationBlocksConcurrentEnrollment]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testInFlightAttestationBlocksConcurrentEnrollment]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testInvalidAssertionKeyIsDiscarded]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testInvalidAssertionKeyIsDiscarded]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPendingEnrollmentDoesNotReplaceANewChallenge]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPendingEnrollmentDoesNotReplaceANewChallenge]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPendingEnrollmentForSameChallengeReportsProofReuse]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPendingEnrollmentForSameChallengeReportsProofReuse]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedAttestationCannotCreateRefreshProof]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedAttestationCannotCreateRefreshProof]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedReconciliationCannotCreateRefreshProof]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedReconciliationCannotCreateRefreshProof]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedRefreshBlocksEnrollmentUntilExactRequestIsReleased]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedRefreshBlocksEnrollmentUntilExactRequestIsReleased]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedRefreshBlocksSecondRefreshUntilReleased]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedRefreshBlocksSecondRefreshUntilReleased]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedRegisteredAssertionCannotCreateRefreshProof]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testPreparedRegisteredAssertionCannotCreateRefreshProof]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRecreatedProviderDoesNotReplaySubmittedRegisteredAssertion]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRecreatedProviderDoesNotReplaySubmittedRegisteredAssertion]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRecreatedProviderReusesOnlyExactPreparedRegisteredAssertion]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRecreatedProviderReusesOnlyExactPreparedRegisteredAssertion]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRecreatedProviderReusesOnlyTheExactPreparedReconciliationRequest]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRecreatedProviderReusesOnlyTheExactPreparedReconciliationRequest]' passed (0.022 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRefreshPayloadMatchesProtocol3Vector]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRefreshPayloadMatchesProtocol3Vector]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRegisteredKeyIsReusedWithoutCachedSession]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRegisteredKeyIsReusedWithoutCachedSession]' passed (0.010 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRegistrationUnknownCannotCreateRefreshProof]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRegistrationUnknownCannotCreateRefreshProof]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRejectedReconciliationRestoresRegisteredKeyForFreshAssertion]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRejectedReconciliationRestoresRegisteredKeyForFreshAssertion]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRejectedSubmittedAssertionRestoresRegisteredKeyForFreshAssertion]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testRejectedSubmittedAssertionRestoresRegisteredKeyForFreshAssertion]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testServerUnavailableRetriesAttestationWithSameKey]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testServerUnavailableRetriesAttestationWithSameKey]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testSubmittedEnrollmentCannotBeDiscardedAsUnsubmitted]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testSubmittedEnrollmentCannotBeDiscardedAsUnsubmitted]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testSubmittedEnrollmentReconcilesWithFreshAssertionAfterProviderRecreation]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testSubmittedEnrollmentReconcilesWithFreshAssertionAfterProviderRecreation]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testSubmittedRegisteredAssertionCannotCreateRefreshProof]' started.
+Test Case '-[PumpSyncTests.DeviceSessionProofProviderTests testSubmittedRegisteredAssertionCannotCreateRefreshProof]' passed (0.012 seconds).
+Test Suite 'DeviceSessionProofProviderTests' passed at 2026-10-01 12:17:31.350.
+	 Executed 33 tests, with 0 failures (0 unexpected) in 0.422 (0.432) seconds
+Test Suite 'DiagnosticsLogStoreTests' started at 2026-10-01 12:17:31.350.
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testClearRemovesPersistedEntries]' started.
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testClearRemovesPersistedEntries]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testEntriesSurviveARelaunchAcrossTheSameDefaults]' started.
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testEntriesSurviveARelaunchAcrossTheSameDefaults]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRecordCapsAtTwoHundredEntries]' started.
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRecordCapsAtTwoHundredEntries]' passed (0.133 seconds).
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRecordKeepsNewestEntriesFirst]' started.
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRecordKeepsNewestEntriesFirst]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRedactsEmailAndBearerToken]' started.
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRedactsEmailAndBearerToken]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRedactsRenewableSessionCredentialsAndChallenges]' started.
+Test Case '-[PumpSyncTests.DiagnosticsLogStoreTests testRedactsRenewableSessionCredentialsAndChallenges]' passed (0.001 seconds).
+Test Suite 'DiagnosticsLogStoreTests' passed at 2026-10-01 12:17:31.498.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.146 (0.148) seconds
+Test Suite 'ForegroundRecoveryControllerTests' started at 2026-10-01 12:17:31.498.
+Test Case '-[PumpSyncTests.ForegroundRecoveryControllerTests testInactiveDoesNotRestartOrCancelRecoveryAndBackgroundDoesCancel]' started.
+Test Case '-[PumpSyncTests.ForegroundRecoveryControllerTests testInactiveDoesNotRestartOrCancelRecoveryAndBackgroundDoesCancel]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.ForegroundRecoveryControllerTests testRetryOnlyRunsWhileVisibleAndDoesNotRetryAutomatically]' started.
+Test Case '-[PumpSyncTests.ForegroundRecoveryControllerTests testRetryOnlyRunsWhileVisibleAndDoesNotRetryAutomatically]' passed (0.001 seconds).
+Test Suite 'ForegroundRecoveryControllerTests' passed at 2026-10-01 12:17:31.501.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'HealthAccessTests' started at 2026-10-01 12:17:31.501.
+Test Case '-[PumpSyncTests.HealthAccessTests testHealthAccessInstructionsAreReadableSteps]' started.
+Test Case '-[PumpSyncTests.HealthAccessTests testHealthAccessInstructionsAreReadableSteps]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.HealthAccessTests testHealthSampleMetadataUsesStableSyncIdentity]' started.
+Test Case '-[PumpSyncTests.HealthAccessTests testHealthSampleMetadataUsesStableSyncIdentity]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.HealthAccessTests testInsulinConcentrationDefaultsToU100]' started.
+Test Case '-[PumpSyncTests.HealthAccessTests testInsulinConcentrationDefaultsToU100]' passed (0.002 seconds).
+Test Case '-[PumpSyncTests.HealthAccessTests testInsulinConcentrationScalesInsulinForAppleHealth]' started.
+Test Case '-[PumpSyncTests.HealthAccessTests testInsulinConcentrationScalesInsulinForAppleHealth]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.HealthAccessTests testInsulinConcentrationStorePersistsSelection]' started.
+Test Case '-[PumpSyncTests.HealthAccessTests testInsulinConcentrationStorePersistsSelection]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.HealthAccessTests testWritePermissionRowsDescribeAccessAndHealthAppGuidance]' started.
+Test Case '-[PumpSyncTests.HealthAccessTests testWritePermissionRowsDescribeAccessAndHealthAppGuidance]' passed (0.001 seconds).
+Test Suite 'HealthAccessTests' passed at 2026-10-01 12:17:31.512.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.009 (0.011) seconds
+Test Suite 'ImportedSampleLedgerTests' started at 2026-10-01 12:17:31.512.
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testDigestsAreStableAcrossLedgerInstancesSharingAKeychainAndDefaults]' started.
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testDigestsAreStableAcrossLedgerInstancesSharingAKeychainAndDefaults]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testFilterUnseenExcludesAlreadyImportedSamples]' started.
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testFilterUnseenExcludesAlreadyImportedSamples]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testMigratingLegacyHmacKeyPreservesKeyAndMakesItAvailableAfterFirstUnlock]' started.
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testMigratingLegacyHmacKeyPreservesKeyAndMakesItAvailableAfterFirstUnlock]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testPruneCapsRetainedEntriesToNewestByTimestamp]' started.
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testPruneCapsRetainedEntriesToNewestByTimestamp]' passed (0.042 seconds).
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testPruneDropsEntriesOlderThanRetentionWindow]' started.
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testPruneDropsEntriesOlderThanRetentionWindow]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testRecordImportedIsIdempotent]' started.
+Test Case '-[PumpSyncTests.ImportedSampleLedgerTests testRecordImportedIsIdempotent]' passed (0.005 seconds).
+Test Suite 'ImportedSampleLedgerTests' passed at 2026-10-01 12:17:31.586.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.072 (0.074) seconds
+Test Suite 'InitialImportRangeTests' started at 2026-10-01 12:17:31.586.
+Test Case '-[PumpSyncTests.InitialImportRangeTests testDefaultInitialImportRangeIsPastWeek]' started.
+Test Case '-[PumpSyncTests.InitialImportRangeTests testDefaultInitialImportRangeIsPastWeek]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.InitialImportRangeTests testInitialSyncButtonTitlesReflectSelectedRange]' started.
+Test Case '-[PumpSyncTests.InitialImportRangeTests testInitialSyncButtonTitlesReflectSelectedRange]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.InitialImportRangeTests testMinimumDateUsesSelectedRangeForInitialSync]' started.
+Test Case '-[PumpSyncTests.InitialImportRangeTests testMinimumDateUsesSelectedRangeForInitialSync]' passed (0.001 seconds).
+Test Suite 'InitialImportRangeTests' passed at 2026-10-01 12:17:31.589.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'InstallStateReconcilerTests' started at 2026-10-01 12:17:31.589.
+Test Case '-[PumpSyncTests.InstallStateReconcilerTests testFreshInstallCleanupIsScopedToPumpSyncKeychainService]' started.
+Test Case '-[PumpSyncTests.InstallStateReconcilerTests testFreshInstallCleanupIsScopedToPumpSyncKeychainService]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.InstallStateReconcilerTests testFreshInstallClearsAppKeychainBeforeRecordingInstallationState]' started.
+Test Case '-[PumpSyncTests.InstallStateReconcilerTests testFreshInstallClearsAppKeychainBeforeRecordingInstallationState]' passed (0.002 seconds).
+Test Case '-[PumpSyncTests.InstallStateReconcilerTests testUpgradePreservesKeychainWhenInstallationIdExists]' started.
+Test Case '-[PumpSyncTests.InstallStateReconcilerTests testUpgradePreservesKeychainWhenInstallationIdExists]' passed (0.004 seconds).
+Test Suite 'InstallStateReconcilerTests' passed at 2026-10-01 12:17:31.610.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.019 (0.020) seconds
+Test Suite 'JSONCodecTests' started at 2026-10-01 12:17:31.610.
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesActiveSubscriptionRequirement]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesActiveSubscriptionRequirement]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesResponsesThatMayFollowBackendMutationAsAmbiguous]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesResponsesThatMayFollowBackendMutationAsAmbiguous]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesTandemCredentialAndRateLimitFailures]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesTandemCredentialAndRateLimitFailures]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesTransientStatuses]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorClassifiesTransientStatuses]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorDistinguishesEnrollmentRequiredFromRejectedProofAndKeyReenrollment]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testAPIClientErrorDistinguishesEnrollmentRequiredFromRejectedProofAndKeyReenrollment]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.JSONCodecTests testDecodesFractionalSecondDates]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testDecodesFractionalSecondDates]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.JSONCodecTests testDecodesNumericMetadataAndEventIdsAsStrings]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testDecodesNumericMetadataAndEventIdsAsStrings]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.JSONCodecTests testHostedProofPreparationDiagnosticIsNotEncodedIntoAPIRequest]' started.
+Test Case '-[PumpSyncTests.JSONCodecTests testHostedProofPreparationDiagnosticIsNotEncodedIntoAPIRequest]' passed (0.001 seconds).
+Test Suite 'JSONCodecTests' passed at 2026-10-01 12:17:31.622.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.010 (0.013) seconds
+Test Suite 'NativeDiagnosticsStoreTests' started at 2026-10-01 12:17:31.623.
+Test Case '-[PumpSyncTests.NativeDiagnosticsStoreTests testClearRemovesPersistedEntries]' started.
+Test Case '-[PumpSyncTests.NativeDiagnosticsStoreTests testClearRemovesPersistedEntries]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.NativeDiagnosticsStoreTests testMetricKitFlattenRedactsSensitiveValues]' started.
+Test Case '-[PumpSyncTests.NativeDiagnosticsStoreTests testMetricKitFlattenRedactsSensitiveValues]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.NativeDiagnosticsStoreTests testRecordKeepsNewestEntriesFirstAndCapsAtFifty]' started.
+Test Case '-[PumpSyncTests.NativeDiagnosticsStoreTests testRecordKeepsNewestEntriesFirstAndCapsAtFifty]' passed (0.031 seconds).
+Test Suite 'NativeDiagnosticsStoreTests' passed at 2026-10-01 12:17:31.663.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.040 (0.041) seconds
+Test Suite 'PolicyURLTests' started at 2026-10-01 12:17:31.664.
+Test Case '-[PumpSyncTests.PolicyURLTests testPolicyURLsUseHTTPS]' started.
+Test Case '-[PumpSyncTests.PolicyURLTests testPolicyURLsUseHTTPS]' passed (0.000 seconds).
+Test Case '-[PumpSyncTests.PolicyURLTests testPrivacyPolicyURLMatchesPublishedPage]' started.
+Test Case '-[PumpSyncTests.PolicyURLTests testPrivacyPolicyURLMatchesPublishedPage]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.PolicyURLTests testTermsOfUseURLMatchesPublishedPage]' started.
+Test Case '-[PumpSyncTests.PolicyURLTests testTermsOfUseURLMatchesPublishedPage]' passed (0.001 seconds).
+Test Suite 'PolicyURLTests' passed at 2026-10-01 12:17:31.666.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'PumpSyncAPIClientTests' started at 2026-10-01 12:17:31.666.
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testDeterministicTandemRejectionIsNotTransient]' started.
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testDeterministicTandemRejectionIsNotTransient]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testHostedEnrollmentChallengeAllowsContainerColdStart]' started.
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testHostedEnrollmentChallengeAllowsContainerColdStart]' passed (0.004 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testRejectedTandemRequestMakesOnlyOneNetworkAttempt]' started.
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testRejectedTandemRequestMakesOnlyOneNetworkAttempt]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testRequestRetriesKeepTheBaseURLCapturedAtRequestStart]' started.
+2026-10-01 12:17:31.676848-0400 PumpSync[12058:3124685] [Default] Task <A79C9DF9-AD5D-49E9-BECE-A76AEA26BEC4>.<1> finished with error [-1004] Error Domain=NSURLErrorDomain Code=-1004 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <A79C9DF9-AD5D-49E9-BECE-A76AEA26BEC4>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <A79C9DF9-AD5D-49E9-BECE-A76AEA26BEC4>.<1>}
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testRequestRetriesKeepTheBaseURLCapturedAtRequestStart]' passed (0.262 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testSessionRefreshDoesNotRetryServerFailure]' started.
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testSessionRefreshDoesNotRetryServerFailure]' passed (0.003 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testSubscriptionEnrollmentDoesNotRetryServerFailure]' started.
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testSubscriptionEnrollmentDoesNotRetryServerFailure]' passed (0.005 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testWarmupRequestsCapabilitiesWithoutAuthentication]' started.
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testWarmupRequestsCapabilitiesWithoutAuthentication]' passed (0.002 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testWarmupRetriesOneTransientFailure]' started.
+2026-10-01 12:17:31.950884-0400 PumpSync[12058:3124682] [Default] Task <2A18E51D-8B01-4B24-AC27-07A57F79CEED>.<1> finished with error [-1001] Error Domain=NSURLErrorDomain Code=-1001 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <2A18E51D-8B01-4B24-AC27-07A57F79CEED>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <2A18E51D-8B01-4B24-AC27-07A57F79CEED>.<1>}
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testWarmupRetriesOneTransientFailure]' passed (0.266 seconds).
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testWarmupStopsAfterOneRetry]' started.
+2026-10-01 12:17:32.216998-0400 PumpSync[12058:3124681] [Default] Task <70FF8EDE-1119-4DBC-8BF0-9275DB5E907D>.<1> finished with error [-1004] Error Domain=NSURLErrorDomain Code=-1004 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <70FF8EDE-1119-4DBC-8BF0-9275DB5E907D>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <70FF8EDE-1119-4DBC-8BF0-9275DB5E907D>.<1>}
+2026-10-01 12:17:32.478532-0400 PumpSync[12058:3124685] [Default] Task <AF437E47-8A8A-4C9D-999F-77780035E28D>.<2> finished with error [-1004] Error Domain=NSURLErrorDomain Code=-1004 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <AF437E47-8A8A-4C9D-999F-77780035E28D>.<2>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <AF437E47-8A8A-4C9D-999F-77780035E28D>.<2>}
+Test Case '-[PumpSyncTests.PumpSyncAPIClientTests testWarmupStopsAfterOneRetry]' passed (0.263 seconds).
+Test Suite 'PumpSyncAPIClientTests' passed at 2026-10-01 12:17:32.479.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.809 (0.813) seconds
+Test Suite 'SubscriptionPresentationTests' started at 2026-10-01 12:17:32.480.
+Test Case '-[PumpSyncTests.SubscriptionPresentationTests testDismissesAfterManageSubscriptionWhenConnectionIsRestored]' started.
+Test Case '-[PumpSyncTests.SubscriptionPresentationTests testDismissesAfterManageSubscriptionWhenConnectionIsRestored]' passed (0.000 seconds).
+Test Case '-[PumpSyncTests.SubscriptionPresentationTests testKeepsSheetAfterManageSubscriptionWhenConnectionIsStillMissing]' started.
+Test Case '-[PumpSyncTests.SubscriptionPresentationTests testKeepsSheetAfterManageSubscriptionWhenConnectionIsStillMissing]' passed (0.000 seconds).
+Test Suite 'SubscriptionPresentationTests' passed at 2026-10-01 12:17:32.481.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'SupportBundleBuilderTests' started at 2026-10-01 12:17:32.482.
+Test Case '-[PumpSyncTests.SupportBundleBuilderTests testSupportBundleIncludesExpectedMetadataAndRedactsSensitiveValues]' started.
+Test Case '-[PumpSyncTests.SupportBundleBuilderTests testSupportBundleIncludesExpectedMetadataAndRedactsSensitiveValues]' passed (0.002 seconds).
+Test Suite 'SupportBundleBuilderTests' passed at 2026-10-01 12:17:32.484.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'SyncCoordinatorTests' started at 2026-10-01 12:17:32.485.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testAllCancelledWaitersCannotPublishSuccessAfterHealthSaveCompletes]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testAllCancelledWaitersCannotPublishSuccessAfterHealthSaveCompletes]' passed (0.027 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testAppOpenSyncDoesNotRepeatFailedEnrollmentButManualSyncCanRetry]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testAppOpenSyncDoesNotRepeatFailedEnrollmentButManualSyncCanRetry]' passed (0.007 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testAuthenticationFailureDuringSyncClearsSession]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testAuthenticationFailureDuringSyncClearsSession]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSuccessReturnsToIdleWithoutPublishingCompletion]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSuccessReturnsToIdleWithoutPublishingCompletion]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncReportsFailureWhenConnectionRecoveryFails]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncReportsFailureWhenConnectionRecoveryFails]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncRetriesAfterServerEntitlementRestorationWithoutStoreKitEnrollment]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncRetriesAfterServerEntitlementRestorationWithoutStoreKitEnrollment]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncRunsWhenRecentlySuccessful]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncRunsWhenRecentlySuccessful]' passed (0.020 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncWaitsForConcurrentAppOpenSync]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBackgroundSyncWaitsForConcurrentAppOpenSync]' passed (0.017 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBlockedPrerequisiteOffersSettingsRecovery]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testBlockedPrerequisiteOffersSettingsRecovery]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testCancellingOneSyncWaiterPreservesTheOtherCallersWork]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testCancellingOneSyncWaiterPreservesTheOtherCallersWork]' passed (0.020 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testConcentrationIsCapturedForSharedOperationAndNextSyncUsesNewSetting]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testConcentrationIsCapturedForSharedOperationAndNextSyncUsesNewSetting]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testDismissResultReturnsToIdleButCannotDismissRunningOperation]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testDismissResultReturnsToIdleButCannotDismissRunningOperation]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testDuplicateManualStartsIssueOnlyOneRequest]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testDuplicateManualStartsIssueOnlyOneRequest]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHealthAuthorizationFailureOffersSettingsRecovery]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHealthAuthorizationFailureOffersSettingsRecovery]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHostedSyncRetriesOnceAfterSubscriptionAccessIsRecovered]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHostedSyncRetriesOnceAfterSubscriptionAccessIsRecovered]' passed (0.017 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHostedSyncWithInactiveSubscriptionRetainsRenewableSessionAndOffersSubscription]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHostedSyncWithInactiveSubscriptionRetainsRenewableSessionAndOffersSubscription]' passed (0.019 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHostedSyncWithNoActiveSubscriptionOffersSubscription]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testHostedSyncWithNoActiveSubscriptionOffersSubscription]' passed (0.018 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testLookbackClampSurfacesDataGapNotice]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testLookbackClampSurfacesDataGapNotice]' passed (0.026 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testManualSyncPublishesEveryOperationPhaseBeforeSuccess]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testManualSyncPublishesEveryOperationPhaseBeforeSuccess]' passed (0.027 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRateLimitDoesNotOfferImmediateRetry]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRateLimitDoesNotOfferImmediateRetry]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRateLimitedSyncShowsWaitMessage]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRateLimitedSyncShowsWaitMessage]' passed (0.011 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRefreshIfStaleDoesNotImmediatelyReSyncAfterARealSyncCompletes]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRefreshIfStaleDoesNotImmediatelyReSyncAfterARealSyncCompletes]' passed (0.016 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRefreshIfStaleSkipsSyncWhenRecentlySuccessful]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRefreshIfStaleSkipsSyncWhenRecentlySuccessful]' passed (0.013 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRefreshIfStaleSyncsWhenNoPriorSuccessfulSync]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testRefreshIfStaleSyncsWhenNoPriorSuccessfulSync]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSamplesDroppedByHealthKitAreNotMarkedImported]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSamplesDroppedByHealthKitAreNotMarkedImported]' passed (0.029 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSelfHostedSyncWithoutConnectionStillOpensSettings]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSelfHostedSyncWithoutConnectionStillOpensSettings]' passed (0.008 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSubscriptionSessionRecoveryClearsWarningAndStartsOneSync]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSubscriptionSessionRecoveryClearsWarningAndStartsOneSync]' passed (0.018 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSuccessfulSyncImportsUnseenSamplesAndRecordsWatermarkFromServerEffectiveMaxDate]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSuccessfulSyncImportsUnseenSamplesAndRecordsWatermarkFromServerEffectiveMaxDate]' passed (0.021 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncBlockedWhenCredentialsNotValidated]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncBlockedWhenCredentialsNotValidated]' passed (0.006 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncBlockedWhenNoHealthWritePermission]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncBlockedWhenNoHealthWritePermission]' passed (0.009 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncDeduplicatesAlreadyImportedSamplesBeforeSavingToHealthKit]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncDeduplicatesAlreadyImportedSamplesBeforeSavingToHealthKit]' passed (0.021 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncRequestCarriesDeviceTimeZone]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testSyncRequestCarriesDeviceTimeZone]' passed (0.015 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testTandemCredentialRejectionInvalidatesValidationAndSurfacesBackendMessage]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testTandemCredentialRejectionInvalidatesValidationAndSurfacesBackendMessage]' passed (0.014 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testTandemSourceFailureExplainsProviderErrorAndPreservesConnection]' started.
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testTandemSourceFailureExplainsProviderErrorAndPreservesConnection]' passed (0.012 seconds).
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testTransientFailureOffersRetryAndRetryCanSucceed]' started.
+2026-10-01 12:17:33.058524-0400 PumpSync[12058:3124685] [Default] Task <9440632D-A929-4D11-A679-2043854461D9>.<1> finished with error [-1005] Error Domain=NSURLErrorDomain Code=-1005 "(null)" UserInfo={_NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <9440632D-A929-4D11-A679-2043854461D9>.<1>"
+), _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <9440632D-A929-4D11-A679-2043854461D9>.<1>}
+Test Case '-[PumpSyncTests.SyncCoordinatorTests testTransientFailureOffersRetryAndRetryCanSucceed]' passed (0.020 seconds).
+Test Suite 'SyncCoordinatorTests' passed at 2026-10-01 12:17:33.068.
+	 Executed 35 tests, with 0 failures (0 unexpected) in 0.571 (0.584) seconds
+Test Suite 'SyncViewTests' started at 2026-10-01 12:17:33.069.
+Test Case '-[PumpSyncTests.SyncViewTests testBackgroundProgressAndSuccessAreNotPresented]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testBackgroundProgressAndSuccessAreNotPresented]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testConnectionPresentationExplainsSessionRecovery]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testConnectionPresentationExplainsSessionRecovery]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testDisconnectedReadinessExplainsRecoveryAction]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testDisconnectedReadinessExplainsRecoveryAction]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testFailurePresentationMapsEveryRecoveryAction]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testFailurePresentationMapsEveryRecoveryAction]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testPreparingPresentationExplainsMeasuredColdStartAfterThreeSeconds]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testPreparingPresentationExplainsMeasuredColdStartAfterThreeSeconds]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testPreparingPresentationUsesShortCopyBeforeThreeSeconds]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testPreparingPresentationUsesShortCopyBeforeThreeSeconds]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessageIsNilWhenReady]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessageIsNilWhenReady]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessagePromptsForHealthWriteAccessAfterCredentialsAreValidated]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessagePromptsForHealthWriteAccessAfterCredentialsAreValidated]' passed (0.000 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessagePromptsForSavedCredentialsAfterSignIn]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessagePromptsForSavedCredentialsAfterSignIn]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessagePromptsForSignInFirst]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testReadinessMessagePromptsForSignInFirst]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testReduceMotionKeepsRunningSyncIconStatic]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testReduceMotionKeepsRunningSyncIconStatic]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testRunningPresentationsDescribeDownloadingAndHealthUpdate]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testRunningPresentationsDescribeDownloadingAndHealthUpdate]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testSuccessPresentationAutoDismissesAfterEightSeconds]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testSuccessPresentationAutoDismissesAfterEightSeconds]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testSyncIconRotationAdvancesWhileSyncing]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testSyncIconRotationAdvancesWhileSyncing]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testSyncIconRotationStaysAtZeroWhenNotSyncing]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testSyncIconRotationStaysAtZeroWhenNotSyncing]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.SyncViewTests testSyncPhaseMessagesExplainLongRunningActivation]' started.
+Test Case '-[PumpSyncTests.SyncViewTests testSyncPhaseMessagesExplainLongRunningActivation]' passed (0.001 seconds).
+Test Suite 'SyncViewTests' passed at 2026-10-01 12:17:33.085.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.011 (0.016) seconds
+Test Suite 'TandemCredentialFormTests' started at 2026-10-01 12:17:33.085.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testAbandonedValidationDoesNotCommitAndCannotClearNewRequestsBusyState]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testAbandonedValidationDoesNotCommitAndCannotClearNewRequestsBusyState]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testActionStateForNewCredentialsRequiresAllFields]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testActionStateForNewCredentialsRequiresAllFields]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenOnlyRegionChanged]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenOnlyRegionChanged]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenPasswordChanged]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenPasswordChanged]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenThereIsNoPriorValidatedSave]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenThereIsNoPriorValidatedSave]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenUsernameChanged]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testDoesNotSkipWhenUsernameChanged]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testSkipsRevalidationWhenCredentialsExactlyMatchLastValidatedSave]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testSkipsRevalidationWhenCredentialsExactlyMatchLastValidatedSave]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testStoredEditedCredentialsRequirePasswordBeforeSave]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testStoredEditedCredentialsRequirePasswordBeforeSave]' passed (0.001 seconds).
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testStoredUnchangedCredentialsOfferRemoval]' started.
+Test Case '-[PumpSyncTests.TandemCredentialFormTests testStoredUnchangedCredentialsOfferRemoval]' passed (0.001 seconds).
+Test Suite 'TandemCredentialFormTests' passed at 2026-10-01 12:17:33.094.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.007 (0.009) seconds
+Test Suite 'PumpSyncTests.xctest' passed at 2026-10-01 12:17:33.095.
+	 Executed 245 tests, with 0 failures (0 unexpected) in 3.759 (3.863) seconds
+Test Suite 'All tests' passed at 2026-10-01 12:17:33.098.
+	 Executed 245 tests, with 0 failures (0 unexpected) in 3.759 (3.867) seconds
+2026-10-01 12:17:34.121462-0400 PumpSyncUITests-Runner[12066:3124946] [Default] Running tests...
+2026-10-01 12:17:34.195372-0400 PumpSyncUITests-Runner[12066:3124993] [General] Failed to send CA Event for app launch measurements for ca_event_type: 0 event_name: com.apple.app_launch_measurement.FirstFramePresentationMetric
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'All tests' started at 2026-10-01 12:17:34.893.
+Test Suite 'PumpSyncUITests.xctest' started at 2026-10-01 12:17:34.894.
+Test Suite 'PumpSyncUITests' started at 2026-10-01 12:17:34.894.
+Test Case '-[PumpSyncUITests.PumpSyncUITests testAccessibilityDynamicTypeScreensRenderInScreenshotMode]' started.
+    t =     0.00s Start Test at 2026-10-01 12:17:34.895
+2026-10-01 12:17:34.937083-0400 PumpSyncUITests-Runner[12066:3124996] [General] Failed to send CA Event for app launch measurements for ca_event_type: 1 event_name: com.apple.app_launch_measurement.ExtendedLaunchMetrics
+    t =     0.08s Set Up
+    t =     0.08s Setting device orientation to Portrait
+    t =     0.08s     Device orientation changed to Portrait
+    t =     0.12s     Wait for com.apple.springboard to idle
+    t =     0.15s Open dev.ericslutz.PumpSync
+    t =     0.15s     Launch dev.ericslutz.PumpSync
+2026-10-01 12:17:35.395 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:17:35.396 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+objc[12066]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x109a6c310) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x109ae8398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     0.78s         Setting up automation session
+    t =     1.70s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.25s Waiting 5.0s for "Sync" StaticText to exist
+    t =     4.29s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync" StaticText`
+    t =     4.29s         Checking existence of `"Sync" StaticText`
+    t =     4.42s Waiting 2.0s for "Sync" Button to exist
+    t =     5.46s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync" Button`
+    t =     5.47s         Checking existence of `"Sync" Button`
+    t =     5.55s Tap "Sync" Button
+    t =     5.55s     Wait for dev.ericslutz.PumpSync to idle
+    t =     5.55s     Find the "Sync" Button
+    t =     5.59s     Check for interrupting elements affecting "Sync" Button
+    t =     5.65s     Synthesize event
+    t =     5.98s     Wait for dev.ericslutz.PumpSync to idle
+    t =     6.82s Waiting 5.0s for "Last Successful Sync" StaticText to exist
+    t =     7.84s     Checking `Expect predicate `existsNoRetry == 1` for object "Last Successful Sync" StaticText`
+    t =     7.84s         Checking existence of `"Last Successful Sync" StaticText`
+    t =     7.89s Waiting 5.0s for "Sync Now" Button to exist
+    t =     8.93s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync Now" Button`
+    t =     8.93s         Checking existence of `"Sync Now" Button`
+    t =     8.96s Waiting 2.0s for "Settings" Button to exist
+    t =     9.99s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     9.99s         Checking existence of `"Settings" Button`
+    t =    10.02s Tap "Settings" Button
+    t =    10.02s     Wait for dev.ericslutz.PumpSync to idle
+    t =    10.03s     Find the "Settings" Button
+    t =    10.05s     Check for interrupting elements affecting "Settings" Button
+    t =    10.08s     Synthesize event
+    t =    10.37s     Wait for dev.ericslutz.PumpSync to idle
+    t =    11.55s Waiting 5.0s for "Connection" StaticText to exist
+    t =    12.57s     Checking `Expect predicate `existsNoRetry == 1` for object "Connection" StaticText`
+    t =    12.58s         Checking existence of `"Connection" StaticText`
+    t =    12.65s Waiting 5.0s for "Subscribe" Button to exist
+    t =    13.68s     Checking `Expect predicate `existsNoRetry == 1` for object "Subscribe" Button`
+    t =    13.68s         Checking existence of `"Subscribe" Button`
+    t =    13.72s Waiting 2.0s for "DeveloperLink" Button to exist
+    t =    14.75s     Checking `Expect predicate `existsNoRetry == 1` for object "DeveloperLink" Button`
+    t =    14.75s         Checking existence of `"DeveloperLink" Button`
+    t =    14.79s Tap "DeveloperLink" Button
+    t =    14.79s     Wait for dev.ericslutz.PumpSync to idle
+    t =    14.79s     Find the "DeveloperLink" Button
+    t =    14.83s     Check for interrupting elements affecting "DeveloperLink" Button
+    t =    14.86s     Synthesize event
+    t =    14.88s         Scroll element to visible
+    t =    14.89s         Find the "DeveloperLink" Button
+    t =    14.94s         Computed hit point {201, 598.83333333333337} after scrolling to visible
+    t =    15.23s     Wait for dev.ericslutz.PumpSync to idle
+    t =    16.21s Waiting 5.0s for "Share Support Bundle" Button to exist
+    t =    17.24s     Checking `Expect predicate `existsNoRetry == 1` for object "Share Support Bundle" Button`
+    t =    17.25s         Checking existence of `"Share Support Bundle" Button`
+    t =    17.33s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testAccessibilityDynamicTypeScreensRenderInScreenshotMode]' passed (17.641 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testActionableFailureBannerDoesNotAutoDismiss]' started.
+    t =     0.00s Start Test at 2026-10-01 12:17:52.537
+    t =     0.03s Set Up
+    t =     0.03s Setting device orientation to Portrait
+    t =     0.03s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.04s Open dev.ericslutz.PumpSync
+    t =     0.04s     Launch dev.ericslutz.PumpSync
+    t =     0.04s         Terminate dev.ericslutz.PumpSync:12068
+2026-10-01 12:17:53.637 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:17:53.637 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.31s         Setting up automation session
+    t =     2.49s         Wait for dev.ericslutz.PumpSync to idle
+    t =     4.13s Waiting 5.0s for "Sync needs attention" StaticText to exist
+    t =     5.17s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync needs attention" StaticText`
+    t =     5.17s         Checking existence of `"Sync needs attention" StaticText`
+    t =     5.29s Checking existence of `"Try Again" Button`
+    t =     5.31s Waiting 9.0s for "Sync needs attention" StaticText to not exist
+    t =     6.35s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =     6.36s         Checking existence of `"Sync needs attention" StaticText`
+    t =     6.40s         Capturing element debug description
+    t =     7.34s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =     7.34s         Checking existence of `"Sync needs attention" StaticText`
+    t =     7.38s         Capturing element debug description
+    t =     8.32s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =     8.32s         Checking existence of `"Sync needs attention" StaticText`
+    t =     8.35s         Capturing element debug description
+    t =     9.38s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =     9.39s         Checking existence of `"Sync needs attention" StaticText`
+    t =     9.43s         Capturing element debug description
+    t =    10.37s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =    10.37s         Checking existence of `"Sync needs attention" StaticText`
+    t =    10.42s         Capturing element debug description
+    t =    11.35s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =    11.35s         Checking existence of `"Sync needs attention" StaticText`
+    t =    11.39s         Capturing element debug description
+    t =    12.34s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =    12.34s         Checking existence of `"Sync needs attention" StaticText`
+    t =    12.36s         Capturing element debug description
+    t =    13.38s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =    13.38s         Checking existence of `"Sync needs attention" StaticText`
+    t =    13.41s         Capturing element debug description
+    t =    14.32s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync needs attention" StaticText`
+    t =    14.32s         Checking existence of `"Sync needs attention" StaticText`
+    t =    14.37s         Capturing element debug description
+    t =    14.37s     Checking existence of `"Sync needs attention" StaticText`
+    t =    14.40s Collecting debug information to assist test failure triage
+    t =    14.40s     Requesting snapshot of accessibility hierarchy for app with pid 12093
+    t =    14.44s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testActionableFailureBannerDoesNotAutoDismiss]' passed (14.717 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testAppLaunches]' started.
+    t =     0.00s Start Test at 2026-10-01 12:18:07.255
+    t =     0.05s Set Up
+    t =     0.05s Open dev.ericslutz.PumpSync
+    t =     0.05s     Launch dev.ericslutz.PumpSync
+    t =     0.05s         Terminate dev.ericslutz.PumpSync:12093
+2026-10-01 12:18:08.370 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:18:08.370 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.33s         Setting up automation session
+    t =     2.23s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.77s Waiting 5.0s for TabBar (First Match) to exist
+    t =     4.80s     Checking `Expect predicate `existsNoRetry == 1` for object TabBar (First Match)`
+    t =     4.80s         Checking existence of `TabBar (First Match)`
+    t =     4.87s Waiting 2.0s for "PumpSync" StaticText to exist
+    t =     5.90s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync" StaticText`
+    t =     5.90s         Checking existence of `"PumpSync" StaticText`
+    t =     5.98s         Capturing element debug description
+    t =     6.88s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync" StaticText`
+    t =     6.88s         Checking existence of `"PumpSync" StaticText`
+    t =     6.92s         Capturing element debug description
+    t =     6.92s     Checking existence of `"PumpSync" StaticText`
+    t =     6.95s Collecting debug information to assist test failure triage
+    t =     6.95s     Requesting snapshot of accessibility hierarchy for app with pid 12159
+    t =     6.99s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testAppLaunches]' passed (7.212 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testCoreScreensRenderInScreenshotMode]' started.
+    t =     0.00s Start Test at 2026-10-01 12:18:14.469
+    t =     0.04s Set Up
+    t =     0.04s Setting device orientation to Portrait
+    t =     0.05s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.05s Open dev.ericslutz.PumpSync
+    t =     0.05s     Launch dev.ericslutz.PumpSync
+    t =     0.06s         Terminate dev.ericslutz.PumpSync:12159
+2026-10-01 12:18:15.577 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:18:15.577 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.32s         Setting up automation session
+    t =     2.20s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.58s Waiting 5.0s for "Sync" StaticText to exist
+    t =     4.62s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync" StaticText`
+    t =     4.62s         Checking existence of `"Sync" StaticText`
+    t =     4.72s Waiting 2.0s for "Sync" Button to exist
+    t =     5.73s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync" Button`
+    t =     5.74s         Checking existence of `"Sync" Button`
+    t =     5.78s Tap "Sync" Button
+    t =     5.78s     Wait for dev.ericslutz.PumpSync to idle
+    t =     5.79s     Find the "Sync" Button
+    t =     5.81s     Check for interrupting elements affecting "Sync" Button
+    t =     5.83s     Synthesize event
+    t =     6.13s     Wait for dev.ericslutz.PumpSync to idle
+    t =     6.90s Waiting 5.0s for "Last Successful Sync" StaticText to exist
+    t =     7.93s     Checking `Expect predicate `existsNoRetry == 1` for object "Last Successful Sync" StaticText`
+    t =     7.93s         Checking existence of `"Last Successful Sync" StaticText`
+    t =     7.97s Waiting 2.0s for "Settings" Button to exist
+    t =     9.00s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     9.00s         Checking existence of `"Settings" Button`
+    t =     9.05s Tap "Settings" Button
+    t =     9.05s     Wait for dev.ericslutz.PumpSync to idle
+    t =     9.05s     Find the "Settings" Button
+    t =     9.08s     Check for interrupting elements affecting "Settings" Button
+    t =     9.10s     Synthesize event
+    t =     9.39s     Wait for dev.ericslutz.PumpSync to idle
+    t =    10.46s Waiting 5.0s for "Connection" StaticText to exist
+    t =    11.49s     Checking `Expect predicate `existsNoRetry == 1` for object "Connection" StaticText`
+    t =    11.49s         Checking existence of `"Connection" StaticText`
+    t =    11.55s Waiting 2.0s for "TandemAccountLink" Button to exist
+    t =    12.58s     Checking `Expect predicate `existsNoRetry == 1` for object "TandemAccountLink" Button`
+    t =    12.58s         Checking existence of `"TandemAccountLink" Button`
+    t =    12.64s Tap "TandemAccountLink" Button
+    t =    12.64s     Wait for dev.ericslutz.PumpSync to idle
+    t =    12.64s     Find the "TandemAccountLink" Button
+    t =    12.67s     Check for interrupting elements affecting "TandemAccountLink" Button
+    t =    12.70s     Synthesize event
+    t =    12.99s     Wait for dev.ericslutz.PumpSync to idle
+    t =    13.92s Waiting 5.0s for "Tandem Source" StaticText to exist
+    t =    14.97s     Checking `Expect predicate `existsNoRetry == 1` for object "Tandem Source" StaticText`
+    t =    14.97s         Checking existence of `"Tandem Source" StaticText`
+    t =    15.05s Tap Button (First Match)
+    t =    15.05s     Wait for dev.ericslutz.PumpSync to idle
+    t =    15.05s     Find the Button (First Match)
+    t =    15.08s     Check for interrupting elements affecting "BackButton" Button
+    t =    15.11s     Synthesize event
+    t =    15.40s     Wait for dev.ericslutz.PumpSync to idle
+    t =    15.73s Waiting 2.0s for "AppleHealthLink" Button to exist
+    t =    16.78s     Checking `Expect predicate `existsNoRetry == 1` for object "AppleHealthLink" Button`
+    t =    16.78s         Checking existence of `"AppleHealthLink" Button`
+    t =    16.83s Tap "AppleHealthLink" Button
+    t =    16.83s     Wait for dev.ericslutz.PumpSync to idle
+    t =    16.84s     Find the "AppleHealthLink" Button
+    t =    16.87s     Check for interrupting elements affecting "AppleHealthLink" Button
+    t =    16.90s     Synthesize event
+    t =    17.19s     Wait for dev.ericslutz.PumpSync to idle
+    t =    18.02s Waiting 5.0s for "Write Permissions" StaticText to exist
+    t =    19.05s     Checking `Expect predicate `existsNoRetry == 1` for object "Write Permissions" StaticText`
+    t =    19.05s         Checking existence of `"Write Permissions" StaticText`
+    t =    19.10s Tap Button (First Match)
+    t =    19.10s     Wait for dev.ericslutz.PumpSync to idle
+    t =    19.11s     Find the Button (First Match)
+    t =    19.14s     Check for interrupting elements affecting "BackButton" Button
+    t =    19.16s     Synthesize event
+    t =    19.46s     Wait for dev.ericslutz.PumpSync to idle
+    t =    19.89s Waiting 2.0s for "DataHandlingLink" Button to exist
+    t =    20.92s     Checking `Expect predicate `existsNoRetry == 1` for object "DataHandlingLink" Button`
+    t =    20.92s         Checking existence of `"DataHandlingLink" Button`
+    t =    20.97s Tap "DataHandlingLink" Button
+    t =    20.97s     Wait for dev.ericslutz.PumpSync to idle
+    t =    20.98s     Find the "DataHandlingLink" Button
+    t =    21.01s     Check for interrupting elements affecting "DataHandlingLink" Button
+    t =    21.04s     Synthesize event
+    t =    21.33s     Wait for dev.ericslutz.PumpSync to idle
+    t =    22.19s Waiting 5.0s for "Pump Data" StaticText to exist
+    t =    23.21s     Checking `Expect predicate `existsNoRetry == 1` for object "Pump Data" StaticText`
+    t =    23.21s         Checking existence of `"Pump Data" StaticText`
+    t =    23.27s Tap Button (First Match)
+    t =    23.27s     Wait for dev.ericslutz.PumpSync to idle
+    t =    23.27s     Find the Button (First Match)
+    t =    23.30s     Check for interrupting elements affecting "BackButton" Button
+    t =    23.33s     Synthesize event
+    t =    23.63s     Wait for dev.ericslutz.PumpSync to idle
+    t =    23.95s Waiting 2.0s for "DeveloperLink" Button to exist
+    t =    24.98s     Checking `Expect predicate `existsNoRetry == 1` for object "DeveloperLink" Button`
+    t =    24.99s         Checking existence of `"DeveloperLink" Button`
+    t =    25.04s Tap "DeveloperLink" Button
+    t =    25.04s     Wait for dev.ericslutz.PumpSync to idle
+    t =    25.05s     Find the "DeveloperLink" Button
+    t =    25.08s     Check for interrupting elements affecting "DeveloperLink" Button
+    t =    25.11s     Synthesize event
+    t =    25.12s         Scroll element to visible
+    t =    25.12s         Find the "DeveloperLink" Button
+    t =    25.16s         Computed hit point {201, 598.83333333333337} after scrolling to visible
+    t =    25.45s     Wait for dev.ericslutz.PumpSync to idle
+    t =    26.25s Waiting 5.0s for "Diagnostics" StaticText to exist
+    t =    27.28s     Checking `Expect predicate `existsNoRetry == 1` for object "Diagnostics" StaticText`
+    t =    27.29s         Checking existence of `"Diagnostics" StaticText`
+    t =    27.37s Waiting 5.0s for "App Event Log" StaticText to exist
+    t =    28.41s     Checking `Expect predicate `existsNoRetry == 1` for object "App Event Log" StaticText`
+    t =    28.41s         Checking existence of `"App Event Log" StaticText`
+    t =    28.48s Waiting 5.0s for "Device Performance Diagnostics" StaticText to exist
+    t =    29.52s     Checking `Expect predicate `existsNoRetry == 1` for object "Device Performance Diagnostics" StaticText`
+    t =    29.52s         Checking existence of `"Device Performance Diagnostics" StaticText`
+    t =    29.59s Waiting 5.0s for "Copy App Event Log" Button to exist
+    t =    30.62s     Checking `Expect predicate `existsNoRetry == 1` for object "Copy App Event Log" Button`
+    t =    30.62s         Checking existence of `"Copy App Event Log" Button`
+    t =    30.69s Waiting 5.0s for "Clear App Event Log" Button to exist
+    t =    31.71s     Checking `Expect predicate `existsNoRetry == 1` for object "Clear App Event Log" Button`
+    t =    31.72s         Checking existence of `"Clear App Event Log" Button`
+    t =    31.79s Waiting 5.0s for "Copy Device Performance Diagnostics" Button to exist
+    t =    32.82s     Checking `Expect predicate `existsNoRetry == 1` for object "Copy Device Performance Diagnostics" Button`
+    t =    32.82s         Checking existence of `"Copy Device Performance Diagnostics" Button`
+    t =    32.89s Waiting 5.0s for "Clear Device Performance Diagnostics" Button to exist
+    t =    33.93s     Checking `Expect predicate `existsNoRetry == 1` for object "Clear Device Performance Diagnostics" Button`
+    t =    33.94s         Checking existence of `"Clear Device Performance Diagnostics" Button`
+    t =    34.01s Waiting 5.0s for "Share Support Bundle" Button to exist
+    t =    35.05s     Checking `Expect predicate `existsNoRetry == 1` for object "Share Support Bundle" Button`
+    t =    35.05s         Checking existence of `"Share Support Bundle" Button`
+    t =    35.11s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testCoreScreensRenderInScreenshotMode]' passed (35.439 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testDarkModeCoreScreensRenderInScreenshotMode]' started.
+    t =     0.00s Start Test at 2026-10-01 12:18:49.910
+    t =     0.05s Set Up
+    t =     0.05s Setting device orientation to Portrait
+    t =     0.06s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.06s Open dev.ericslutz.PumpSync
+    t =     0.07s     Launch dev.ericslutz.PumpSync
+    t =     0.07s         Terminate dev.ericslutz.PumpSync:12164
+2026-10-01 12:18:51.014 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:18:51.014 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.32s         Setting up automation session
+    t =     2.19s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.67s Waiting 5.0s for "Sync" StaticText to exist
+    t =     4.69s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync" StaticText`
+    t =     4.69s         Checking existence of `"Sync" StaticText`
+    t =     4.81s Waiting 2.0s for "Settings" Button to exist
+    t =     5.84s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     5.84s         Checking existence of `"Settings" Button`
+    t =     5.88s Tap "Settings" Button
+    t =     5.88s     Wait for dev.ericslutz.PumpSync to idle
+    t =     5.89s     Find the "Settings" Button
+    t =     5.91s     Check for interrupting elements affecting "Settings" Button
+    t =     5.93s     Synthesize event
+    t =     6.23s     Wait for dev.ericslutz.PumpSync to idle
+    t =     7.27s Waiting 5.0s for "Connection" StaticText to exist
+    t =     8.29s     Checking `Expect predicate `existsNoRetry == 1` for object "Connection" StaticText`
+    t =     8.30s         Checking existence of `"Connection" StaticText`
+    t =     8.36s Waiting 2.0s for "AppleHealthLink" Button to exist
+    t =     9.39s     Checking `Expect predicate `existsNoRetry == 1` for object "AppleHealthLink" Button`
+    t =     9.40s         Checking existence of `"AppleHealthLink" Button`
+    t =     9.44s Tap "AppleHealthLink" Button
+    t =     9.44s     Wait for dev.ericslutz.PumpSync to idle
+    t =     9.44s     Find the "AppleHealthLink" Button
+    t =     9.47s     Check for interrupting elements affecting "AppleHealthLink" Button
+    t =     9.50s     Synthesize event
+    t =     9.79s     Wait for dev.ericslutz.PumpSync to idle
+    t =    10.63s Waiting 5.0s for "Write Permissions" StaticText to exist
+    t =    11.66s     Checking `Expect predicate `existsNoRetry == 1` for object "Write Permissions" StaticText`
+    t =    11.66s         Checking existence of `"Write Permissions" StaticText`
+    t =    11.71s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testDarkModeCoreScreensRenderInScreenshotMode]' passed (12.021 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testDeveloperDiagnosticsActionsUseUniqueAccessibleNames]' started.
+    t =     0.00s Start Test at 2026-10-01 12:19:01.932
+    t =     0.03s Set Up
+    t =     0.04s Setting device orientation to Portrait
+    t =     0.04s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.05s Open dev.ericslutz.PumpSync
+    t =     0.05s     Launch dev.ericslutz.PumpSync
+    t =     0.05s         Terminate dev.ericslutz.PumpSync:12231
+2026-10-01 12:19:03.051 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:19:03.051 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.33s         Setting up automation session
+    t =     2.21s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.64s Waiting 2.0s for "Settings" Button to exist
+    t =     4.66s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     4.66s         Checking existence of `"Settings" Button`
+    t =     4.77s Tap "Settings" Button
+    t =     4.77s     Wait for dev.ericslutz.PumpSync to idle
+    t =     4.77s     Find the "Settings" Button
+    t =     4.80s     Check for interrupting elements affecting "Settings" Button
+    t =     4.82s     Synthesize event
+    t =     5.12s     Wait for dev.ericslutz.PumpSync to idle
+    t =     6.18s Waiting 2.0s for "DeveloperLink" Button to exist
+    t =     7.20s     Checking `Expect predicate `existsNoRetry == 1` for object "DeveloperLink" Button`
+    t =     7.21s         Checking existence of `"DeveloperLink" Button`
+    t =     7.27s Tap "DeveloperLink" Button
+    t =     7.27s     Wait for dev.ericslutz.PumpSync to idle
+    t =     7.27s     Find the "DeveloperLink" Button
+    t =     7.31s     Check for interrupting elements affecting "DeveloperLink" Button
+    t =     7.33s     Synthesize event
+    t =     7.35s         Scroll element to visible
+    t =     7.35s         Find the "DeveloperLink" Button
+    t =     7.39s         Computed hit point {201, 598.83333333333337} after scrolling to visible
+    t =     7.67s     Wait for dev.ericslutz.PumpSync to idle
+    t =     8.51s Waiting 5.0s for "App Event Log" StaticText to exist
+    t =     9.55s     Checking `Expect predicate `existsNoRetry == 1` for object "App Event Log" StaticText`
+    t =     9.55s         Checking existence of `"App Event Log" StaticText`
+    t =     9.60s Waiting 5.0s for "Device Performance Diagnostics" StaticText to exist
+    t =    10.63s     Checking `Expect predicate `existsNoRetry == 1` for object "Device Performance Diagnostics" StaticText`
+    t =    10.63s         Checking existence of `"Device Performance Diagnostics" StaticText`
+    t =    10.71s Waiting 5.0s for "Copy App Event Log" Button to exist
+    t =    11.73s     Checking `Expect predicate `existsNoRetry == 1` for object "Copy App Event Log" Button`
+    t =    11.74s         Checking existence of `"Copy App Event Log" Button`
+    t =    11.81s Waiting 5.0s for "Clear App Event Log" Button to exist
+    t =    12.84s     Checking `Expect predicate `existsNoRetry == 1` for object "Clear App Event Log" Button`
+    t =    12.84s         Checking existence of `"Clear App Event Log" Button`
+    t =    12.91s Waiting 5.0s for "Copy Device Performance Diagnostics" Button to exist
+    t =    13.94s     Checking `Expect predicate `existsNoRetry == 1` for object "Copy Device Performance Diagnostics" Button`
+    t =    13.94s         Checking existence of `"Copy Device Performance Diagnostics" Button`
+    t =    14.01s Waiting 5.0s for "Clear Device Performance Diagnostics" Button to exist
+    t =    15.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Clear Device Performance Diagnostics" Button`
+    t =    15.03s         Checking existence of `"Clear Device Performance Diagnostics" Button`
+    t =    15.09s Waiting 5.0s for "Share Support Bundle" Button to exist
+    t =    16.13s     Checking `Expect predicate `existsNoRetry == 1` for object "Share Support Bundle" Button`
+    t =    16.13s         Checking existence of `"Share Support Bundle" Button`
+    t =    16.21s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testDeveloperDiagnosticsActionsUseUniqueAccessibleNames]' passed (16.490 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testIPadAppStoreScreenshots]' started.
+    t =     0.00s Start Test at 2026-10-01 12:19:18.424
+    t =     0.04s Set Up
+    t =     0.04s Setting device orientation to Portrait
+    t =     0.05s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.06s Open dev.ericslutz.PumpSync
+    t =     0.06s     Launch dev.ericslutz.PumpSync
+    t =     0.06s         Terminate dev.ericslutz.PumpSync:12274
+2026-10-01 12:19:19.547 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:19:19.547 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.33s         Setting up automation session
+    t =     2.19s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.69s Waiting 5.0s for "Sync Past 14 Days" Button to exist
+    t =     4.72s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync Past 14 Days" Button`
+    t =     4.73s         Checking existence of `"Sync Past 14 Days" Button`
+    t =     4.83s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =     4.97s Added attachment named 'ipad-pro-13-app-store-listing-01-status-overview.png'
+    t =     4.97s Terminate dev.ericslutz.PumpSync:12281
+    t =     6.02s Setting device orientation to Portrait
+    t =     6.03s     Wait for com.apple.springboard to idle
+    t =     6.04s Open dev.ericslutz.PumpSync
+    t =     6.04s     Launch dev.ericslutz.PumpSync
+2026-10-01 12:19:24.466 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:19:24.466 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     6.25s         Setting up automation session
+    t =     7.08s         Wait for dev.ericslutz.PumpSync to idle
+    t =     8.47s Waiting 5.0s for "Last Successful Sync" StaticText to exist
+    t =     9.51s     Checking `Expect predicate `existsNoRetry == 1` for object "Last Successful Sync" StaticText`
+    t =     9.51s         Checking existence of `"Last Successful Sync" StaticText`
+    t =     9.61s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =     9.72s Added attachment named 'ipad-pro-13-app-store-listing-02-sync-workflow.png'
+    t =     9.72s Waiting 2.0s for "Settings" Button to exist
+    t =    10.75s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =    10.75s         Checking existence of `"Settings" Button`
+    t =    10.79s Tap "Settings" Button
+    t =    10.79s     Wait for dev.ericslutz.PumpSync to idle
+    t =    10.80s     Find the "Settings" Button
+    t =    10.82s     Check for interrupting elements affecting "Settings" Button
+    t =    10.85s     Synthesize event
+    t =    11.14s     Wait for dev.ericslutz.PumpSync to idle
+    t =    12.22s Waiting 5.0s for "Connection" StaticText to exist
+    t =    13.26s     Checking `Expect predicate `existsNoRetry == 1` for object "Connection" StaticText`
+    t =    13.26s         Checking existence of `"Connection" StaticText`
+    t =    13.32s Waiting 2.0s for "PumpSync" Button to exist
+    t =    14.34s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync" Button`
+    t =    14.34s         Checking existence of `"PumpSync" Button`
+    t =    14.39s Tap "PumpSync" Button
+    t =    14.39s     Wait for dev.ericslutz.PumpSync to idle
+    t =    14.40s     Find the "PumpSync" Button
+    t =    14.43s     Check for interrupting elements affecting "PumpSync" Button
+    t =    14.45s     Synthesize event
+    t =    14.75s     Wait for dev.ericslutz.PumpSync to idle
+    t =    15.57s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    15.72s Added attachment named 'ipad-pro-13-app-store-listing-03-settings-pumpsync.png'
+    t =    15.72s Waiting 2.0s for "Self-hosted" Button to exist
+    t =    16.74s     Checking `Expect predicate `existsNoRetry == 1` for object "Self-hosted" Button`
+    t =    16.74s         Checking existence of `"Self-hosted" Button`
+    t =    16.79s Tap "Self-hosted" Button
+    t =    16.80s     Wait for dev.ericslutz.PumpSync to idle
+    t =    16.80s     Find the "Self-hosted" Button
+    t =    16.83s     Check for interrupting elements affecting "Self-hosted" Button
+    t =    16.86s     Synthesize event
+    t =    17.15s     Wait for dev.ericslutz.PumpSync to idle
+    t =    18.25s Waiting 5.0s for "Server URL" TextField to exist
+    t =    19.27s     Checking `Expect predicate `existsNoRetry == 1` for object "Server URL" TextField`
+    t =    19.27s         Checking existence of `"Server URL" TextField`
+    t =    19.34s Find the "Server URL" TextField
+    t =    19.37s Checking existence of `"Server URL" StaticText`
+    t =    19.41s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    19.53s Added attachment named 'ipad-pro-13-app-store-listing-05-settings-self-hosted-connection.png'
+    t =    19.53s Waiting 2.0s for "PumpSync" Button to exist
+    t =    20.55s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync" Button`
+    t =    20.55s         Checking existence of `"PumpSync" Button`
+    t =    20.60s Tap "PumpSync" Button
+    t =    20.60s     Wait for dev.ericslutz.PumpSync to idle
+    t =    20.61s     Find the "PumpSync" Button
+    t =    20.64s     Check for interrupting elements affecting "PumpSync" Button
+    t =    20.68s     Synthesize event
+    t =    20.97s     Wait for dev.ericslutz.PumpSync to idle
+    t =    21.99s Waiting 2.0s for "TandemAccountLink" Button to exist
+    t =    23.01s     Checking `Expect predicate `existsNoRetry == 1` for object "TandemAccountLink" Button`
+    t =    23.01s         Checking existence of `"TandemAccountLink" Button`
+    t =    23.08s Tap "TandemAccountLink" Button
+    t =    23.08s     Wait for dev.ericslutz.PumpSync to idle
+    t =    23.08s     Find the "TandemAccountLink" Button
+    t =    23.11s     Check for interrupting elements affecting "TandemAccountLink" Button
+    t =    23.14s     Synthesize event
+    t =    23.43s     Wait for dev.ericslutz.PumpSync to idle
+    t =    24.30s Waiting 5.0s for "Tandem Source" StaticText to exist
+    t =    25.34s     Checking `Expect predicate `existsNoRetry == 1` for object "Tandem Source" StaticText`
+    t =    25.34s         Checking existence of `"Tandem Source" StaticText`
+    t =    25.41s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    25.53s Added attachment named 'ipad-pro-13-app-store-listing-06-tandem-account.png'
+    t =    25.53s Tap Button (First Match)
+    t =    25.53s     Wait for dev.ericslutz.PumpSync to idle
+    t =    25.54s     Find the Button (First Match)
+    t =    25.57s     Check for interrupting elements affecting "BackButton" Button
+    t =    25.59s     Synthesize event
+    t =    25.89s     Wait for dev.ericslutz.PumpSync to idle
+    t =    26.33s Waiting 2.0s for "AppleHealthLink" Button to exist
+    t =    27.39s     Checking `Expect predicate `existsNoRetry == 1` for object "AppleHealthLink" Button`
+    t =    27.39s         Checking existence of `"AppleHealthLink" Button`
+    t =    27.44s Tap "AppleHealthLink" Button
+    t =    27.44s     Wait for dev.ericslutz.PumpSync to idle
+    t =    27.45s     Find the "AppleHealthLink" Button
+    t =    27.48s     Check for interrupting elements affecting "AppleHealthLink" Button
+    t =    27.51s     Synthesize event
+    t =    27.81s     Wait for dev.ericslutz.PumpSync to idle
+    t =    28.60s Waiting 5.0s for "Write Permissions" StaticText to exist
+    t =    29.63s     Checking `Expect predicate `existsNoRetry == 1` for object "Write Permissions" StaticText`
+    t =    29.64s         Checking existence of `"Write Permissions" StaticText`
+    t =    29.69s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    29.82s Added attachment named 'ipad-pro-13-app-store-listing-07-apple-health.png'
+    t =    29.82s Tap Button (First Match)
+    t =    29.82s     Wait for dev.ericslutz.PumpSync to idle
+    t =    29.82s     Find the Button (First Match)
+    t =    29.85s     Check for interrupting elements affecting "BackButton" Button
+    t =    29.88s     Synthesize event
+    t =    30.18s     Wait for dev.ericslutz.PumpSync to idle
+    t =    30.49s Waiting 2.0s for "DataHandlingLink" Button to exist
+    t =    31.53s     Checking `Expect predicate `existsNoRetry == 1` for object "DataHandlingLink" Button`
+    t =    31.53s         Checking existence of `"DataHandlingLink" Button`
+    t =    31.59s Tap "DataHandlingLink" Button
+    t =    31.59s     Wait for dev.ericslutz.PumpSync to idle
+    t =    31.60s     Find the "DataHandlingLink" Button
+    t =    31.63s     Check for interrupting elements affecting "DataHandlingLink" Button
+    t =    31.66s     Synthesize event
+    t =    31.96s     Wait for dev.ericslutz.PumpSync to idle
+    t =    32.77s Waiting 5.0s for "Pump Data" StaticText to exist
+    t =    33.80s     Checking `Expect predicate `existsNoRetry == 1` for object "Pump Data" StaticText`
+    t =    33.80s         Checking existence of `"Pump Data" StaticText`
+    t =    33.84s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    33.97s Added attachment named 'ipad-pro-13-app-store-listing-08-data-handling.png'
+    t =    33.97s Tap Button (First Match)
+    t =    33.97s     Wait for dev.ericslutz.PumpSync to idle
+    t =    33.97s     Find the Button (First Match)
+    t =    34.00s     Check for interrupting elements affecting "BackButton" Button
+    t =    34.03s     Synthesize event
+    t =    34.33s     Wait for dev.ericslutz.PumpSync to idle
+    t =    34.64s Waiting 2.0s for "DeveloperLink" Button to exist
+    t =    35.66s     Checking `Expect predicate `existsNoRetry == 1` for object "DeveloperLink" Button`
+    t =    35.67s         Checking existence of `"DeveloperLink" Button`
+    t =    35.72s Tap "DeveloperLink" Button
+    t =    35.72s     Wait for dev.ericslutz.PumpSync to idle
+    t =    35.72s     Find the "DeveloperLink" Button
+    t =    35.76s     Check for interrupting elements affecting "DeveloperLink" Button
+    t =    35.79s     Synthesize event
+    t =    35.80s         Scroll element to visible
+    t =    35.81s         Find the "DeveloperLink" Button
+    t =    35.85s         Computed hit point {201, 598.83333333333337} after scrolling to visible
+    t =    36.14s     Wait for dev.ericslutz.PumpSync to idle
+    t =    36.95s Waiting 5.0s for "Diagnostics" StaticText to exist
+    t =    37.98s     Checking `Expect predicate `existsNoRetry == 1` for object "Diagnostics" StaticText`
+    t =    37.98s         Checking existence of `"Diagnostics" StaticText`
+    t =    38.05s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    38.19s Added attachment named 'ipad-pro-13-app-store-listing-09-developer.png'
+    t =    38.19s Tap Button (First Match)
+    t =    38.19s     Wait for dev.ericslutz.PumpSync to idle
+    t =    38.19s     Find the Button (First Match)
+    t =    38.22s     Check for interrupting elements affecting "BackButton" Button
+    t =    38.26s     Synthesize event
+    t =    38.56s     Wait for dev.ericslutz.PumpSync to idle
+    t =    38.86s Waiting 2.0s for "PumpSync" Button to exist
+    t =    39.90s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync" Button`
+    t =    39.90s         Checking existence of `"PumpSync" Button`
+    t =    39.96s Tap "PumpSync" Button
+    t =    39.96s     Wait for dev.ericslutz.PumpSync to idle
+    t =    39.97s     Find the "PumpSync" Button
+    t =    40.00s     Check for interrupting elements affecting "PumpSync" Button
+    t =    40.03s     Synthesize event
+    t =    40.34s     Wait for dev.ericslutz.PumpSync to idle
+    t =    40.34s Tap "Subscribe" Button
+    t =    40.34s     Wait for dev.ericslutz.PumpSync to idle
+    t =    40.35s     Find the "Subscribe" Button
+    t =    40.40s     Check for interrupting elements affecting "Subscribe" Button
+    t =    40.43s     Synthesize event
+    t =    40.73s     Wait for dev.ericslutz.PumpSync to idle
+    t =    41.15s Waiting 5.0s for "PumpSync Subscription" StaticText to exist
+    t =    42.18s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync Subscription" StaticText`
+    t =    42.18s         Checking existence of `"PumpSync Subscription" StaticText`
+    t =    42.25s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    42.37s Added attachment named 'ipad-pro-13-app-store-listing-04-subscription-benefits.png'
+    t =    42.37s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testIPadAppStoreScreenshots]' passed (42.721 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testIPhoneAppStoreScreenshots]' started.
+    t =     0.00s Start Test at 2026-10-01 12:20:01.146
+    t =     0.04s Set Up
+    t =     0.04s Setting device orientation to Portrait
+    t =     0.05s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.05s Open dev.ericslutz.PumpSync
+    t =     0.06s     Launch dev.ericslutz.PumpSync
+    t =     0.06s         Terminate dev.ericslutz.PumpSync:12283
+2026-10-01 12:20:02.260 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:20:02.260 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.33s         Setting up automation session
+    t =     2.29s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.81s Waiting 5.0s for "Sync Past 14 Days" Button to exist
+    t =     4.83s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync Past 14 Days" Button`
+    t =     4.83s         Checking existence of `"Sync Past 14 Days" Button`
+    t =     4.95s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =     5.07s Added attachment named 'iphone-6-7-app-store-listing-01-status-overview.png'
+    t =     5.07s Terminate dev.ericslutz.PumpSync:12301
+    t =     6.13s Setting device orientation to Portrait
+    t =     6.14s     Wait for com.apple.springboard to idle
+    t =     6.14s Open dev.ericslutz.PumpSync
+    t =     6.14s     Launch dev.ericslutz.PumpSync
+2026-10-01 12:20:07.292 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:20:07.292 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     6.36s         Setting up automation session
+    t =     7.18s         Wait for dev.ericslutz.PumpSync to idle
+    t =     8.57s Waiting 5.0s for "Last Successful Sync" StaticText to exist
+    t =     9.60s     Checking `Expect predicate `existsNoRetry == 1` for object "Last Successful Sync" StaticText`
+    t =     9.60s         Checking existence of `"Last Successful Sync" StaticText`
+    t =     9.71s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =     9.82s Added attachment named 'iphone-6-7-app-store-listing-02-sync-workflow.png'
+    t =     9.82s Waiting 2.0s for "Settings" Button to exist
+    t =    10.84s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =    10.85s         Checking existence of `"Settings" Button`
+    t =    10.89s Tap "Settings" Button
+    t =    10.89s     Wait for dev.ericslutz.PumpSync to idle
+    t =    10.89s     Find the "Settings" Button
+    t =    10.92s     Check for interrupting elements affecting "Settings" Button
+    t =    10.94s     Synthesize event
+    t =    11.23s     Wait for dev.ericslutz.PumpSync to idle
+    t =    12.30s Waiting 5.0s for "Connection" StaticText to exist
+    t =    13.33s     Checking `Expect predicate `existsNoRetry == 1` for object "Connection" StaticText`
+    t =    13.33s         Checking existence of `"Connection" StaticText`
+    t =    13.40s Waiting 2.0s for "PumpSync" Button to exist
+    t =    14.44s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync" Button`
+    t =    14.45s         Checking existence of `"PumpSync" Button`
+    t =    14.50s Tap "PumpSync" Button
+    t =    14.50s     Wait for dev.ericslutz.PumpSync to idle
+    t =    14.50s     Find the "PumpSync" Button
+    t =    14.53s     Check for interrupting elements affecting "PumpSync" Button
+    t =    14.56s     Synthesize event
+    t =    14.86s     Wait for dev.ericslutz.PumpSync to idle
+    t =    15.68s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    15.82s Added attachment named 'iphone-6-7-app-store-listing-03-settings-pumpsync.png'
+    t =    15.82s Waiting 2.0s for "Self-hosted" Button to exist
+    t =    16.85s     Checking `Expect predicate `existsNoRetry == 1` for object "Self-hosted" Button`
+    t =    16.85s         Checking existence of `"Self-hosted" Button`
+    t =    16.89s Tap "Self-hosted" Button
+    t =    16.89s     Wait for dev.ericslutz.PumpSync to idle
+    t =    16.89s     Find the "Self-hosted" Button
+    t =    16.92s     Check for interrupting elements affecting "Self-hosted" Button
+    t =    16.95s     Synthesize event
+    t =    17.24s     Wait for dev.ericslutz.PumpSync to idle
+    t =    18.28s Waiting 5.0s for "Server URL" TextField to exist
+    t =    19.31s     Checking `Expect predicate `existsNoRetry == 1` for object "Server URL" TextField`
+    t =    19.31s         Checking existence of `"Server URL" TextField`
+    t =    19.35s Find the "Server URL" TextField
+    t =    19.38s Checking existence of `"Server URL" StaticText`
+    t =    19.41s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    19.54s Added attachment named 'iphone-6-7-app-store-listing-05-settings-self-hosted-connection.png'
+    t =    19.54s Waiting 2.0s for "PumpSync" Button to exist
+    t =    20.57s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync" Button`
+    t =    20.57s         Checking existence of `"PumpSync" Button`
+    t =    20.62s Tap "PumpSync" Button
+    t =    20.62s     Wait for dev.ericslutz.PumpSync to idle
+    t =    20.63s     Find the "PumpSync" Button
+    t =    20.66s     Check for interrupting elements affecting "PumpSync" Button
+    t =    20.69s     Synthesize event
+    t =    20.98s     Wait for dev.ericslutz.PumpSync to idle
+    t =    22.09s Waiting 2.0s for "TandemAccountLink" Button to exist
+    t =    23.12s     Checking `Expect predicate `existsNoRetry == 1` for object "TandemAccountLink" Button`
+    t =    23.13s         Checking existence of `"TandemAccountLink" Button`
+    t =    23.17s Tap "TandemAccountLink" Button
+    t =    23.17s     Wait for dev.ericslutz.PumpSync to idle
+    t =    23.17s     Find the "TandemAccountLink" Button
+    t =    23.21s     Check for interrupting elements affecting "TandemAccountLink" Button
+    t =    23.24s     Synthesize event
+    t =    23.54s     Wait for dev.ericslutz.PumpSync to idle
+    t =    24.39s Waiting 5.0s for "Tandem Source" StaticText to exist
+    t =    25.42s     Checking `Expect predicate `existsNoRetry == 1` for object "Tandem Source" StaticText`
+    t =    25.42s         Checking existence of `"Tandem Source" StaticText`
+    t =    25.48s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    25.60s Added attachment named 'iphone-6-7-app-store-listing-06-tandem-account.png'
+    t =    25.60s Tap Button (First Match)
+    t =    25.60s     Wait for dev.ericslutz.PumpSync to idle
+    t =    25.60s     Find the Button (First Match)
+    t =    25.63s     Check for interrupting elements affecting "BackButton" Button
+    t =    25.65s     Synthesize event
+    t =    25.95s     Wait for dev.ericslutz.PumpSync to idle
+    t =    26.28s Waiting 2.0s for "AppleHealthLink" Button to exist
+    t =    27.31s     Checking `Expect predicate `existsNoRetry == 1` for object "AppleHealthLink" Button`
+    t =    27.31s         Checking existence of `"AppleHealthLink" Button`
+    t =    27.38s Tap "AppleHealthLink" Button
+    t =    27.38s     Wait for dev.ericslutz.PumpSync to idle
+    t =    27.38s     Find the "AppleHealthLink" Button
+    t =    27.43s     Check for interrupting elements affecting "AppleHealthLink" Button
+    t =    27.47s     Synthesize event
+    t =    27.78s     Wait for dev.ericslutz.PumpSync to idle
+    t =    28.59s Waiting 5.0s for "Write Permissions" StaticText to exist
+    t =    29.62s     Checking `Expect predicate `existsNoRetry == 1` for object "Write Permissions" StaticText`
+    t =    29.62s         Checking existence of `"Write Permissions" StaticText`
+    t =    29.67s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    29.80s Added attachment named 'iphone-6-7-app-store-listing-07-apple-health.png'
+    t =    29.80s Tap Button (First Match)
+    t =    29.80s     Wait for dev.ericslutz.PumpSync to idle
+    t =    29.80s     Find the Button (First Match)
+    t =    29.96s     Check for interrupting elements affecting "BackButton" Button
+    t =    30.03s     Synthesize event
+    t =    30.33s     Wait for dev.ericslutz.PumpSync to idle
+    t =    30.66s Waiting 2.0s for "DataHandlingLink" Button to exist
+    t =    31.71s     Checking `Expect predicate `existsNoRetry == 1` for object "DataHandlingLink" Button`
+    t =    31.71s         Checking existence of `"DataHandlingLink" Button`
+    t =    31.82s Tap "DataHandlingLink" Button
+    t =    31.82s     Wait for dev.ericslutz.PumpSync to idle
+    t =    31.82s     Find the "DataHandlingLink" Button
+    t =    31.86s     Check for interrupting elements affecting "DataHandlingLink" Button
+    t =    31.92s     Synthesize event
+    t =    32.24s     Wait for dev.ericslutz.PumpSync to idle
+    t =    33.18s Waiting 5.0s for "Pump Data" StaticText to exist
+    t =    34.20s     Checking `Expect predicate `existsNoRetry == 1` for object "Pump Data" StaticText`
+    t =    34.20s         Checking existence of `"Pump Data" StaticText`
+    t =    34.25s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    34.40s Added attachment named 'iphone-6-7-app-store-listing-08-data-handling.png'
+    t =    34.40s Tap Button (First Match)
+    t =    34.40s     Wait for dev.ericslutz.PumpSync to idle
+    t =    34.41s     Find the Button (First Match)
+    t =    34.45s     Check for interrupting elements affecting "BackButton" Button
+    t =    34.48s     Synthesize event
+    t =    34.78s     Wait for dev.ericslutz.PumpSync to idle
+    t =    35.24s Waiting 2.0s for "DeveloperLink" Button to exist
+    t =    36.27s     Checking `Expect predicate `existsNoRetry == 1` for object "DeveloperLink" Button`
+    t =    36.27s         Checking existence of `"DeveloperLink" Button`
+    t =    36.31s Tap "DeveloperLink" Button
+    t =    36.31s     Wait for dev.ericslutz.PumpSync to idle
+    t =    36.31s     Find the "DeveloperLink" Button
+    t =    36.35s     Check for interrupting elements affecting "DeveloperLink" Button
+    t =    36.38s     Synthesize event
+    t =    36.39s         Scroll element to visible
+    t =    36.42s         Find the "DeveloperLink" Button
+    t =    36.47s         Computed hit point {201, 598.83333333333337} after scrolling to visible
+    t =    36.75s     Wait for dev.ericslutz.PumpSync to idle
+    t =    37.68s Waiting 5.0s for "Diagnostics" StaticText to exist
+    t =    38.72s     Checking `Expect predicate `existsNoRetry == 1` for object "Diagnostics" StaticText`
+    t =    38.72s         Checking existence of `"Diagnostics" StaticText`
+    t =    38.81s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    38.94s Added attachment named 'iphone-6-7-app-store-listing-09-developer.png'
+    t =    38.94s Tap Button (First Match)
+    t =    38.94s     Wait for dev.ericslutz.PumpSync to idle
+    t =    38.94s     Find the Button (First Match)
+    t =    38.97s     Check for interrupting elements affecting "BackButton" Button
+    t =    39.02s     Synthesize event
+    t =    39.32s     Wait for dev.ericslutz.PumpSync to idle
+    t =    39.65s Tap "Subscribe" Button
+    t =    39.65s     Wait for dev.ericslutz.PumpSync to idle
+    t =    39.66s     Find the "Subscribe" Button
+    t =    39.70s     Check for interrupting elements affecting "Subscribe" Button
+    t =    39.73s     Synthesize event
+    t =    40.03s     Wait for dev.ericslutz.PumpSync to idle
+    t =    40.51s Waiting 5.0s for "PumpSync Subscription" StaticText to exist
+    t =    41.55s     Checking `Expect predicate `existsNoRetry == 1` for object "PumpSync Subscription" StaticText`
+    t =    41.55s         Checking existence of `"PumpSync Subscription" StaticText`
+    t =    41.62s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    41.77s Added attachment named 'iphone-6-7-app-store-listing-04-subscription-benefits.png'
+    t =    41.77s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testIPhoneAppStoreScreenshots]' passed (42.228 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testPreviewSyncFixtureShowsDisabledSyncAction]' started.
+    t =     0.00s Start Test at 2026-10-01 12:20:43.375
+    t =     0.02s Set Up
+    t =     0.03s Setting device orientation to Portrait
+    t =     0.03s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.03s Open dev.ericslutz.PumpSync
+    t =     0.04s     Launch dev.ericslutz.PumpSync
+    t =     0.04s         Terminate dev.ericslutz.PumpSync:12303
+2026-10-01 12:20:44.492 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:20:44.492 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.74s         Setting up automation session
+    t =     3.31s         Wait for dev.ericslutz.PumpSync to idle
+    t =     5.11s Waiting 5.0s for "Syncing" Button to exist
+    t =     6.14s     Checking `Expect predicate `existsNoRetry == 1` for object "Syncing" Button`
+    t =     6.14s         Checking existence of `"Syncing" Button`
+    t =     6.30s Find the "Syncing" Button
+    t =     6.32s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testPreviewSyncFixtureShowsDisabledSyncAction]' passed (6.681 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testRunningSyncBannerRemainsVisibleAfterSwitchingToSettings]' started.
+    t =     0.00s Start Test at 2026-10-01 12:20:50.057
+    t =     0.03s Set Up
+    t =     0.03s Setting device orientation to Portrait
+    t =     0.06s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.06s Open dev.ericslutz.PumpSync
+    t =     0.06s     Launch dev.ericslutz.PumpSync
+    t =     0.06s         Terminate dev.ericslutz.PumpSync:12729
+2026-10-01 12:20:51.162 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:20:51.162 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.32s         Setting up automation session
+    t =     2.38s         Wait for dev.ericslutz.PumpSync to idle
+    t =     4.11s Waiting 5.0s for "Starting secure service…" StaticText to exist
+    t =     5.12s     Checking `Expect predicate `existsNoRetry == 1` for object "Starting secure service…" StaticText`
+    t =     5.13s         Checking existence of `"Starting secure service…" StaticText`
+    t =     5.22s Waiting 2.0s for "Settings" Button to exist
+    t =     6.26s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     6.26s         Checking existence of `"Settings" Button`
+    t =     6.31s Tap "Settings" Button
+    t =     6.31s     Wait for dev.ericslutz.PumpSync to idle
+    t =     6.31s     Find the "Settings" Button
+    t =     6.34s     Check for interrupting elements affecting "Settings" Button
+    t =     6.36s     Synthesize event
+    t =     6.66s     Wait for dev.ericslutz.PumpSync to idle
+    t =     7.85s Waiting 5.0s for "Starting secure service…" StaticText to exist
+    t =     8.89s     Checking `Expect predicate `existsNoRetry == 1` for object "Starting secure service…" StaticText`
+    t =     8.89s         Checking existence of `"Starting secure service…" StaticText`
+    t =     8.93s Waiting 5.0s for "Connection" StaticText to exist
+    t =     9.94s     Checking `Expect predicate `existsNoRetry == 1` for object "Connection" StaticText`
+    t =     9.95s         Checking existence of `"Connection" StaticText`
+    t =    10.00s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testRunningSyncBannerRemainsVisibleAfterSwitchingToSettings]' passed (10.303 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testSettingsShowsCompactInsulinConcentrationRow]' started.
+    t =     0.00s Start Test at 2026-10-01 12:21:00.361
+    t =     0.03s Set Up
+    t =     0.03s Setting device orientation to Portrait
+    t =     0.03s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.03s Open dev.ericslutz.PumpSync
+    t =     0.04s     Launch dev.ericslutz.PumpSync
+    t =     0.04s         Terminate dev.ericslutz.PumpSync:12733
+2026-10-01 12:21:01.433 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:21:01.433 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.28s         Setting up automation session
+    t =     2.12s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.53s Waiting 2.0s for "Settings" Button to exist
+    t =     4.55s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     4.55s         Checking existence of `"Settings" Button`
+    t =     4.66s Tap "Settings" Button
+    t =     4.66s     Wait for dev.ericslutz.PumpSync to idle
+    t =     4.67s     Find the "Settings" Button
+    t =     4.69s     Check for interrupting elements affecting "Settings" Button
+    t =     4.71s     Synthesize event
+    t =     5.01s     Wait for dev.ericslutz.PumpSync to idle
+    t =     5.93s Waiting 5.0s for "Insulin Concentration" StaticText to exist
+    t =     6.96s     Checking `Expect predicate `existsNoRetry == 1` for object "Insulin Concentration" StaticText`
+    t =     6.96s         Checking existence of `"Insulin Concentration" StaticText`
+    t =     7.03s Checking existence of `"Apple Health records 1x pump units" StaticText`
+    t =     7.06s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testSettingsShowsCompactInsulinConcentrationRow]' passed (7.318 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testSuccessfulSyncBannerDismissesAfterEightSeconds]' started.
+    t =     0.00s Start Test at 2026-10-01 12:21:07.681
+    t =     0.05s Set Up
+    t =     0.05s Setting device orientation to Portrait
+    t =     0.05s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.06s Open dev.ericslutz.PumpSync
+    t =     0.06s     Launch dev.ericslutz.PumpSync
+    t =     0.06s         Terminate dev.ericslutz.PumpSync:12759
+2026-10-01 12:21:08.895 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:21:08.895 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.43s         Setting up automation session
+    t =     2.33s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.77s Waiting 5.0s for "Sync complete" StaticText to exist
+    t =     4.80s     Checking `Expect predicate `existsNoRetry == 1` for object "Sync complete" StaticText`
+    t =     4.80s         Checking existence of `"Sync complete" StaticText`
+    t =     4.90s Waiting 10.0s for "Sync complete" StaticText to not exist
+    t =     5.92s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync complete" StaticText`
+    t =     5.93s         Checking existence of `"Sync complete" StaticText`
+    t =     5.97s         Capturing element debug description
+    t =     6.90s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync complete" StaticText`
+    t =     6.90s         Checking existence of `"Sync complete" StaticText`
+    t =     6.95s         Capturing element debug description
+    t =     7.99s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync complete" StaticText`
+    t =     7.99s         Checking existence of `"Sync complete" StaticText`
+    t =     8.05s         Capturing element debug description
+    t =     8.97s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync complete" StaticText`
+    t =     8.98s         Checking existence of `"Sync complete" StaticText`
+    t =     9.02s         Capturing element debug description
+    t =     9.94s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync complete" StaticText`
+    t =     9.94s         Checking existence of `"Sync complete" StaticText`
+    t =     9.98s         Capturing element debug description
+    t =    10.91s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync complete" StaticText`
+    t =    10.91s         Checking existence of `"Sync complete" StaticText`
+    t =    10.95s         Capturing element debug description
+    t =    11.98s     Checking `Expect predicate `existsNoRetry == 0` for object "Sync complete" StaticText`
+    t =    11.98s         Checking existence of `"Sync complete" StaticText`
+    t =    12.01s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testSuccessfulSyncBannerDismissesAfterEightSeconds]' passed (12.238 seconds).
+Test Case '-[PumpSyncUITests.PumpSyncUITests testSyncHelpLivesInSettingsAboutScreen]' started.
+    t =     0.00s Start Test at 2026-10-01 12:21:19.920
+    t =     0.04s Set Up
+    t =     0.04s Setting device orientation to Portrait
+    t =     0.05s     Wait for dev.ericslutz.PumpSync to idle
+    t =     0.05s Open dev.ericslutz.PumpSync
+    t =     0.05s     Launch dev.ericslutz.PumpSync
+    t =     0.05s         Terminate dev.ericslutz.PumpSync:12762
+2026-10-01 12:21:21.034 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 12:21:21.034 xcodebuild[12003:3123820] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.32s         Setting up automation session
+    t =     2.23s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.67s Checking existence of `"How Syncing Runs" StaticText`
+    t =     3.79s Waiting 2.0s for "Settings" Button to exist
+    t =     4.82s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     4.82s         Checking existence of `"Settings" Button`
+    t =     4.86s Tap "Settings" Button
+    t =     4.86s     Wait for dev.ericslutz.PumpSync to idle
+    t =     4.87s     Find the "Settings" Button
+    t =     4.90s     Check for interrupting elements affecting "gearshape" Button
+    t =     4.92s     Synthesize event
+    t =     5.21s     Wait for dev.ericslutz.PumpSync to idle
+    t =     6.28s Find the "AboutPumpSyncLink" Button
+    t =     6.36s Waiting 5.0s for "AboutPumpSyncLink" Button to exist
+    t =     7.37s     Checking `Expect predicate `existsNoRetry == 1` for object "AboutPumpSyncLink" Button`
+    t =     7.37s         Checking existence of `"AboutPumpSyncLink" Button`
+    t =     7.42s Tap "AboutPumpSyncLink" Button
+    t =     7.42s     Wait for dev.ericslutz.PumpSync to idle
+    t =     7.43s     Find the "AboutPumpSyncLink" Button
+    t =     7.46s     Check for interrupting elements affecting "AboutPumpSyncLink" Button
+    t =     7.49s     Synthesize event
+    t =     7.78s     Wait for dev.ericslutz.PumpSync to idle
+    t =     8.66s Waiting 5.0s for "How Syncing Works" StaticText to exist
+    t =     9.67s     Checking `Expect predicate `existsNoRetry == 1` for object "How Syncing Works" StaticText`
+    t =     9.68s         Checking existence of `"How Syncing Works" StaticText`
+    t =     9.71s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncUITests testSyncHelpLivesInSettingsAboutScreen]' passed (9.948 seconds).
+Test Suite 'PumpSyncUITests' passed at 2026-10-01 12:21:29.867.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 234.955 (234.973) seconds
+Test Suite 'PumpSyncUITests.xctest' passed at 2026-10-01 12:21:29.868.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 234.955 (234.974) seconds
+Test Suite 'All tests' passed at 2026-10-01 12:21:29.869.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 234.955 (234.975) seconds
+2026-10-01 12:21:30.309 xcodebuild[12003:3123820] [MT] IDETestOperationsObserverDebug: 246.589 elapsed -- Testing started completed.
+2026-10-01 12:21:30.309 xcodebuild[12003:3123820] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-01 12:21:30.309 xcodebuild[12003:3123820] [MT] IDETestOperationsObserverDebug: 246.589 sec, +246.589 sec -- end
+
+Test session results, code coverage, and logs:
+	/tmp/pumpsync-remediation-build/Logs/Test/Test-PumpSync-2026.10.01_12-17-16--0400.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

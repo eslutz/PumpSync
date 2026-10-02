@@ -1,0 +1,862 @@
+Command line invocation:
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project /private/tmp/pumpsync-ui-audit-harness/PumpSync.xcodeproj -scheme PumpSync -configuration Debug -skipMacroValidation -destination "platform=iOS Simulator,id=7C172CFA-650B-4566-BC58-65DD79E00540" -collect-test-diagnostics never COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=YES -packageCachePath /Users/ericslutz/Library/Caches/org.swift.swiftpm -derivedDataPath /private/tmp/pumpsync-ui-audit-test-build -parallel-testing-enabled NO "-only-testing:PumpSyncUITests/PumpSyncAuditTests" -testProductsPath /Users/ericslutz/Library/Developer/XcodeBuildMCP/workspaces/PumpSync-84f5feba2ee4/test-products/test_sim_2026-10-01T15-34-22-406Z_pid68598_6a78c7eb.xctestproducts build-for-testing
+
+Build settings from command line:
+    COMPILER_INDEX_STORE_ENABLE = NO
+    ONLY_ACTIVE_ARCH = YES
+
+2026-10-01 11:34:24.483 xcodebuild[76895:2953517] Writing test products to /Users/ericslutz/Library/Developer/XcodeBuildMCP/workspaces/PumpSync-84f5feba2ee4/test-products/test_sim_2026-10-01T15-34-22-406Z_pid68598_6a78c7eb.xctestproducts
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (3 targets)
+    Target 'PumpSyncUITests' in project 'PumpSync'
+        ➜ Explicit dependency on target 'PumpSync' in project 'PumpSync'
+    Target 'PumpSyncTests' in project 'PumpSync'
+        ➜ Explicit dependency on target 'PumpSync' in project 'PumpSync'
+    Target 'PumpSync' in project 'PumpSync' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ClangStatCache /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk /tmp/pumpsync-ui-audit-test-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+    cd /tmp/pumpsync-ui-audit-harness/PumpSync.xcodeproj
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -o /tmp/pumpsync-ui-audit-test-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+
+SwiftDriver PumpSyncUITests normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-SwiftDriver -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSyncUITests -Onone @/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.SwiftFileList -DDEBUG -module-alias Testing\=_Testing_Unavailable -plugin-path /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -Isystem /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -F /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -F /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk/Developer/Library/Frameworks -parse-as-library -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-ui-audit-test-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-ui-audit-test-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-generated-files.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-own-target-headers.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-project-headers.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-Swift.h -working-directory /tmp/pumpsync-ui-audit-harness -experimental-emit-module-separately -disable-cmo
+
+CodeSign /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib (in target 'PumpSync' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib
+/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app/PumpSync.debug.dylib: replacing existing signature
+
+CodeSign /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib (in target 'PumpSync' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib
+/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app/__preview.dylib: replacing existing signature
+
+CodeSign /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --entitlements /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSync.build/PumpSync.app.xcent --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app
+/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app: replacing existing signature
+
+Validate /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app (in target 'PumpSync' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-validationUtility /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSync.app -shallow-bundle -infoplist-subpath Info.plist
+
+SwiftCompile normal arm64 Compiling\ PumpSyncUITests.swift /tmp/pumpsync-ui-audit-harness/PumpSyncUITests/PumpSyncUITests.swift (in target 'PumpSyncUITests' from project 'PumpSync')
+
+SwiftCompile normal arm64 /tmp/pumpsync-ui-audit-harness/PumpSyncUITests/PumpSyncUITests.swift (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-SwiftPerFileCompile PumpSyncUITests.swift
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ PumpSyncUITests (in target 'PumpSyncUITests' from project 'PumpSync')
+
+SwiftCompile normal arm64 (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+
+
+SwiftDriverJobDiscovery normal arm64 Compiling PumpSyncUITests.swift (in target 'PumpSyncUITests' from project 'PumpSync')
+
+SwiftDriver\ Compilation PumpSyncUITests normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-Swift-Compilation -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSyncUITests -Onone @/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.SwiftFileList -DDEBUG -module-alias Testing\=_Testing_Unavailable -plugin-path /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -Isystem /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -F /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -F /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk/Developer/Library/Frameworks -parse-as-library -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-ui-audit-test-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-ui-audit-test-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-generated-files.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-own-target-headers.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-project-headers.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-Swift.h -working-directory /tmp/pumpsync-ui-audit-harness -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for PumpSyncUITests (in target 'PumpSyncUITests' from project 'PumpSync')
+
+SwiftDriver\ Compilation\ Requirements PumpSyncUITests normal arm64 com.apple.xcode.tools.swift.compiler (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-Swift-Compilation-Requirements -- /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name PumpSyncUITests -Onone @/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.SwiftFileList -DDEBUG -module-alias Testing\=_Testing_Unavailable -plugin-path /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -warnings-as-errors -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 6 -I /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -Isystem /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -F /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -F /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk/Developer/Library/Frameworks -parse-as-library -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /tmp/pumpsync-ui-audit-test-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache -output-file-map /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-OutputFileMap.json -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex -sdk-module-cache-path /tmp/pumpsync-ui-audit-test-build/SDKExplicitPrecompiledModules -emit-dependencies -emit-module -emit-module-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftmodule -serialize-diagnostics -dependency-scan-serialize-diagnostics-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-dependency-scan.dia -validate-clang-modules-once -clang-build-session-file /tmp/pumpsync-ui-audit-test-build/ModuleCache.noindex/Session.modulevalidation -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -emit-const-values -const-gather-protocols-list /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests_const_extract_protocols.json -Xcc -iquote -Xcc /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-generated-files.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-own-target-headers.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-all-target-headers.hmap -Xcc -iquote -Xcc /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests-project-headers.hmap -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/include -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources-normal/arm64 -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources/arm64 -Xcc -I/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests-Swift.h -working-directory /tmp/pumpsync-ui-audit-harness -experimental-emit-module-separately -disable-cmo
+
+Copy /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests.swiftmodule/arm64-apple-ios-simulator.swiftmodule /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftmodule (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftmodule /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests.swiftmodule/arm64-apple-ios-simulator.swiftmodule
+
+Copy /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftsourceinfo (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftsourceinfo /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo
+
+Copy /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests.swiftmodule/arm64-apple-ios-simulator.abi.json /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.abi.json (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.abi.json /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests.swiftmodule/arm64-apple-ios-simulator.abi.json
+
+Ld /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PumpSyncUITests normal (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios26.0-simulator -bundle -isysroot /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -O0 -Xlinker -no_warn_duplicate_libraries -L/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -L/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -L/Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F/tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/EagerLinkingTBDs/Debug-iphonesimulator -F/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator -iframework /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -iframework /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk/Developer/Library/Frameworks -filelist /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.LinkFileList -Xlinker -rpath -Xlinker @loader_path/Frameworks -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -objc_abi_version -Xlinker 2 -Xlinker -dependency_info -Xlinker /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests_dependency_info.dat -fobjc-link-runtime -L/Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphonesimulator -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.swiftmodule -Xlinker -needed_framework -Xlinker XCTest -framework XCTest -Xlinker -needed-lXCTestSwiftSupport -lXCTestSwiftSupport -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests.xctest-Simulated.xcent -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __ents_der -Xlinker /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests.xctest-Simulated.xcent.der -framework AppIntents -Xlinker -no_adhoc_codesign -o /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PumpSyncUITests
+
+ExtractAppIntentsMetadata (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name PumpSyncUITests --sdk-root /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk --xcode-version 27A266a --platform-family iOS --deployment-target 26.0 --bundle-identifier dev.ericslutz.PumpSyncUITests --output /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest --target-triple arm64-apple-ios26.0-simulator --binary-file /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PumpSyncUITests --dependency-file /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests_dependency_info.dat --stringsdata-file /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.SwiftFileList --metadata-file-list /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests.DependencyMetadataFileList --static-metadata-file-list /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/PumpSyncUITests.DependencyStaticMetadataFileList --swift-const-vals-list /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/Objects-normal/arm64/PumpSyncUITests.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --no-app-shortcuts-localization
+2026-10-01 11:34:27.733 appintentsmetadataprocessor[76906:2953817] Starting appintentsmetadataprocessor export
+2026-10-01 11:34:27.826 appintentsmetadataprocessor[76906:2953817] Extracted no relevant App Intents symbols, skipping writing output
+
+CopySwiftLibs /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PumpSyncUITests --scan-folder /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Frameworks --scan-folder /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PlugIns --scan-folder /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/SystemExtensions --scan-folder /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Extensions --scan-folder /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk/System/Library/Frameworks/AppIntents.framework --platform iphonesimulator --toolchain /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/Frameworks --strip-bitcode --scan-executable /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib --strip-bitcode-tool /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/PumpSync.build/Debug-iphonesimulator/PumpSyncUITests.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+GenerateDSYMFile /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest.dSYM /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PumpSyncUITests (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+    export PATH\=/Applications/Development/Xcode.app/Contents/SharedFrameworks/SwiftBuild.framework/Versions/A/PlugIns/SWBBuildService.bundle/Contents/PlugIns/SWBUniversalPlatformPlugin.bundle/Contents/Frameworks/SWBUniversalPlatform.framework/Resources:/Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin:/Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/bin:/Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec:/Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/bin:/Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/usr/local/bin:/Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/local/bin:/Applications/Development/Xcode.app/Contents/Developer/usr/bin:/Applications/Development/Xcode.app/Contents/Developer/usr/local/bin:/Users/ericslutz/.npm/_npx/99336612077b7094/node_modules/.bin:/Users/ericslutz/Developer/Code/Side\ Projects/PumpSync/node_modules/.bin:/Users/ericslutz/Developer/Code/Side\ Projects/node_modules/.bin:/Users/ericslutz/Developer/Code/node_modules/.bin:/Users/ericslutz/Developer/node_modules/.bin:/Users/ericslutz/node_modules/.bin:/Users/node_modules/.bin:/node_modules/.bin:/Users/ericslutz/.nvm/versions/node/v24.16.0/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/node-gyp-bin:/Users/ericslutz/.codex/tmp/arg0/codex-arg00OUOXi:/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-path:/Users/ericslutz/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override:/Users/ericslutz/.unity/bin:/Users/ericslutz/.nvm/versions/node/v24.16.0/bin:/opt/homebrew/opt/git/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/usr/local/MacGPG2/bin:/Applications/Wireshark.app/Contents/MacOS:/Applications/VMware\ Fusion.app/Contents/Public:/usr/local/share/dotnet:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/Users/ericslutz/.dotnet:/Users/ericslutz/.dotnet/tools:/opt/homebrew/opt/azure-cli/bin:/Users/ericslutz/.orbstack/bin:/Users/ericslutz/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback:/Applications/ChatGPT.app/Contents/Resources:/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest/PumpSyncUITests -o /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest.dSYM
+
+CodeSign /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app/PlugIns/PumpSyncUITests.xctest
+
+CodeSign /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app (in target 'PumpSyncUITests' from project 'PumpSync')
+    cd /tmp/pumpsync-ui-audit-harness
+
+    Signing Identity:     "Sign to Run Locally"
+
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app
+/tmp/pumpsync-ui-audit-test-build/Build/Products/Debug-iphonesimulator/PumpSyncUITests-Runner.app: replacing existing signature
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-audit-test-build/SDKExplicitPrecompiledModules
+
+** TEST BUILD SUCCEEDED **
+
+Command line invocation:
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/xcodebuild -testProductsPath /Users/ericslutz/Library/Developer/XcodeBuildMCP/workspaces/PumpSync-84f5feba2ee4/test-products/test_sim_2026-10-01T15-34-22-406Z_pid68598_6a78c7eb.xctestproducts -destination "platform=iOS Simulator,id=7C172CFA-650B-4566-BC58-65DD79E00540" -collect-test-diagnostics never -parallel-testing-enabled NO "-only-testing:PumpSyncUITests/PumpSyncAuditTests" -resultBundlePath /private/tmp/pumpsync-ui-audit-large.xcresult test-without-building
+
+Writing result bundle at path:
+	/private/tmp/pumpsync-ui-audit-large.xcresult
+
+2026-10-01 11:34:34.051160-0400 PumpSyncUITests-Runner[76918:2954149] [Default] Running tests...
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'Selected tests' started at 2026-10-01 11:34:35.035.
+Test Suite 'PumpSyncUITests.xctest' started at 2026-10-01 11:34:35.036.
+Test Suite 'PumpSyncAuditTests' started at 2026-10-01 11:34:35.036.
+Test Case '-[PumpSyncUITests.PumpSyncAuditTests testSystemSettingsFlows]' started.
+    t =     0.00s Start Test at 2026-10-01 11:34:35.037
+    t =     0.06s Set Up
+    t =     0.07s Open dev.ericslutz.PumpSync
+    t =     0.07s     Launch dev.ericslutz.PumpSync
+    t =     0.07s         Terminate dev.ericslutz.PumpSync:76598
+objc[76918]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x106eb4310) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x106f50398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+2026-10-01 11:34:36.489 xcodebuild[76910:2953846] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 11:34:36.489 xcodebuild[76910:2953846] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     2.30s         Setting up automation session
+    t =     3.27s         Wait for dev.ericslutz.PumpSync to idle
+    t =     5.20s Waiting 3.0s for "Cancel" Button to exist
+    t =     6.27s     Checking `Expect predicate `existsNoRetry == 1` for object "Cancel" Button`
+    t =     6.27s         Checking existence of `"Cancel" Button`
+    t =     6.37s Tap "Cancel" Button
+    t =     6.37s     Wait for com.apple.springboard to idle
+    t =     6.37s     Find the "Cancel" Button
+    t =     6.42s     Check for interrupting elements affecting "Cancel" Button
+    t =     6.49s     Synthesize event
+    t =     6.79s     Wait for com.apple.springboard to idle
+    t =     7.06s Checking existence of `"Don’t Allow" Button`
+    t =     7.17s Waiting 10.0s for "Settings" Button to exist
+    t =     8.26s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     8.28s         Checking existence of `"Settings" Button`
+    t =     8.32s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =     8.45s Added attachment named 'system-01-sync.png'
+    t =     8.45s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =     8.61s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =     8.65s Added attachment named 'system-01-sync-tree.txt'
+    t =    10.60s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462942336.87)
+    t =    10.63s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    10.66s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462942336.87
+    t =    10.76s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    10.79s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462942336.87
+    t =    10.79s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-01-sync | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x112816a80, {{78.0, 721.3}, {128.3, 187.3}}, label: 'History range'
+Element subtree:
+ →StaticText, 0x112816a80, {{78.0, 721.3}, {128.3, 187.3}}, label: 'History range'
+Path to element:
+ →Application, 0x10686be80, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x10686bd40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x10686b980, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x10686bac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x10686b840, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x10686b200, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x10686b480, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x10686b340, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x10686a940, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x10686aa80, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x112814000, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x112814140, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x112814280, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x112814640, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x112814780, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x1128148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x112814a00, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x112814b40, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x112815a40, {{0.0, 189.0}, {402.0, 3017.0}}
+                    ↳Button, 0x1128166c0, {{38.0, 721.3}, {326.0, 365.0}}, label: 'History range', value: Past 7 days
+                     ↳Button, 0x112816800, {{38.0, 721.3}, {326.0, 365.0}}
+                      ↳StaticText, 0x112816a80, {{78.0, 721.3}, {128.3, 187.3}}, label: 'History range'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x112846f80, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462942336.87
+    Output: {
+      StaticText, 0x10686af80, {{78.0, 721.3}, {128.3, 187.3}}, label: 'History range'
+    }
+
+    t =    10.84s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462943680.89)
+    t =    10.86s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    10.90s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462943680.89
+    t =    10.98s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    11.02s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462943680.89
+    t =    11.02s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-01-sync | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x112816d00, {{247.0, 845.5}, {117.0, 116.7}}, label: 'Change'
+Element subtree:
+ →StaticText, 0x112816d00, {{247.0, 845.5}, {117.0, 116.7}}, label: 'Change'
+Path to element:
+ →Application, 0x10686be80, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x10686bd40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x10686b980, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x10686bac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x10686b840, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x10686b200, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x10686b480, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x10686b340, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x10686a940, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x10686aa80, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x112814000, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x112814140, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x112814280, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x112814640, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x112814780, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x1128148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x112814a00, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x112814b40, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x112815a40, {{0.0, 189.0}, {402.0, 3017.0}}
+                    ↳Button, 0x1128166c0, {{38.0, 721.3}, {326.0, 365.0}}, label: 'History range', value: Past 7 days
+                     ↳Button, 0x112816800, {{38.0, 721.3}, {326.0, 365.0}}
+                      ↳StaticText, 0x112816d00, {{247.0, 845.5}, {117.0, 116.7}}, label: 'Change'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x112846f80, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462943680.89
+    Output: {
+      StaticText, 0x106869b80, {{247.0, 845.5}, {117.0, 116.7}}, label: 'Change'
+    }
+
+    t =    11.07s Tap "Settings" Button
+    t =    11.07s     Wait for dev.ericslutz.PumpSync to idle
+    t =    11.07s     Find the "Settings" Button
+    t =    11.10s     Check for interrupting elements affecting "Settings" Button
+    t =    11.13s     Synthesize event
+    t =    11.43s     Wait for dev.ericslutz.PumpSync to idle
+    t =    12.52s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    12.66s Added attachment named 'system-02-settings.png'
+    t =    12.67s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    12.88s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    12.93s Added attachment named 'system-02-settings-tree.txt'
+    t =    14.81s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462953344.114)
+    t =    14.86s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    14.91s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462953344.114
+    t =    15.00s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    15.05s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462953344.114
+    t =    15.05s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-02-settings | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x112820140, {{38.0, 677.7}, {321.0, 807.3}}, label: 'Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.'
+Element subtree:
+ →StaticText, 0x112820140, {{38.0, 677.7}, {321.0, 807.3}}, label: 'Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.'
+Path to element:
+ →Application, 0x106864f00, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x106865040, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x106865180, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1068652c0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x106865400, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x106865540, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x106865680, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1068657c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x106865900, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x106865a40, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x106865b80, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x106865cc0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x106865e00, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x1068661c0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x106866300, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x106866440, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x106866580, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1068666c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x1068675c0, {{0.0, 189.0}, {402.0, 3943.0}}
+                    ↳StaticText, 0x112820140, {{38.0, 677.7}, {321.0, 807.3}}, label: 'Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11286ca00, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4462953344.114
+    Output: {
+      StaticText, 0x106864000, {{38.0, 677.7}, {321.0, 807.3}}, label: 'Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Data is transmitted only during active sync operations.'
+    }
+
+    t =    15.11s Find the "TandemAccountLink" Button
+    t =    15.17s Swipe up Target Application 'dev.ericslutz.PumpSync'
+    t =    15.17s     Wait for dev.ericslutz.PumpSync to idle
+    t =    15.21s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    15.24s     Check for interrupting elements affecting "PumpSync" Application
+    t =    15.27s     Synthesize event
+    t =    15.69s     Wait for dev.ericslutz.PumpSync to idle
+    t =    17.80s Find the "TandemAccountLink" Button
+    t =    17.88s Swipe up Target Application 'dev.ericslutz.PumpSync'
+    t =    17.88s     Wait for dev.ericslutz.PumpSync to idle
+    t =    18.07s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    18.11s     Check for interrupting elements affecting "PumpSync" Application
+    t =    18.14s     Synthesize event
+    t =    18.57s     Wait for dev.ericslutz.PumpSync to idle
+    t =    20.70s Find the "TandemAccountLink" Button
+    t =    20.77s Find the "TandemAccountLink" Button
+    t =    20.82s Tap "TandemAccountLink" Button
+    t =    20.82s     Wait for dev.ericslutz.PumpSync to idle
+    t =    20.83s     Find the "TandemAccountLink" Button
+    t =    20.87s     Check for interrupting elements affecting "TandemAccountLink" Button
+    t =    20.90s     Synthesize event
+    t =    21.20s     Wait for dev.ericslutz.PumpSync to idle
+    t =    22.17s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    22.35s Added attachment named 'system-tandem.png'
+    t =    22.35s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    22.50s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    22.54s Added attachment named 'system-tandem-tree.txt'
+    t =    24.50s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463162944.201)
+    t =    24.53s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    24.56s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463162944.201
+    t =    24.64s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    24.68s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463162944.201
+    t =    24.68s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-tandem | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x112817200, {{38.0, 602.3}, {97.3, 125.3}}, label: 'Region'
+Element subtree:
+ →StaticText, 0x112817200, {{38.0, 602.3}, {97.3, 125.3}}, label: 'Region'
+Path to element:
+ →Application, 0x10686b700, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x112814000, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x112814140, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x112814280, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1128143c0, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x112814500, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x112814640, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x112814780, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1128148c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x112814a00, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x112814b40, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x112814c80, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x112814dc0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x1128152c0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x112815400, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x112815540, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x112815680, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1128157c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x1128166c0, {{0.0, 189.0}, {402.0, 726.0}}
+                    ↳Other, 0x1128170c0, {{38.0, 476.3}, {326.0, 377.3}}
+                     ↳StaticText, 0x112817200, {{38.0, 602.3}, {97.3, 125.3}}, label: 'Region'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x112846300, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463162944.201
+    Output: {
+      StaticText, 0x10686b480, {{38.0, 602.3}, {97.3, 125.3}}, label: 'Region'
+    }
+
+    t =    24.72s Tap Button (First Match)
+    t =    24.72s     Wait for dev.ericslutz.PumpSync to idle
+    t =    24.72s     Find the Button (First Match)
+    t =    24.76s     Check for interrupting elements affecting "BackButton" Button
+    t =    24.78s     Synthesize event
+    t =    25.08s     Wait for dev.ericslutz.PumpSync to idle
+    t =    25.42s Find the "AppleHealthLink" Button
+    t =    25.49s Swipe up Target Application 'dev.ericslutz.PumpSync'
+    t =    25.49s     Wait for dev.ericslutz.PumpSync to idle
+    t =    25.50s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    25.52s     Check for interrupting elements affecting "PumpSync" Application
+    t =    25.55s     Synthesize event
+    t =    25.98s     Wait for dev.ericslutz.PumpSync to idle
+    t =    28.10s Find the "AppleHealthLink" Button
+    t =    28.18s Find the "AppleHealthLink" Button
+    t =    28.24s Tap "AppleHealthLink" Button
+    t =    28.24s     Wait for dev.ericslutz.PumpSync to idle
+    t =    28.25s     Find the "AppleHealthLink" Button
+    t =    28.29s     Check for interrupting elements affecting "AppleHealthLink" Button
+    t =    28.33s     Synthesize event
+    t =    28.62s     Wait for dev.ericslutz.PumpSync to idle
+    t =    29.47s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    29.63s Added attachment named 'system-health.png'
+    t =    29.63s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    29.80s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    29.84s Added attachment named 'system-health-tree.txt'
+    t =    31.73s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463149056.232)
+    t =    31.76s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    31.80s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463149056.232
+    t =    31.87s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    31.91s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463149056.232
+    t =    31.91s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-health | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x112823340, {{24.0, 784.3}, {288.0, 125.3}}, label: 'Write Permissions'
+Element subtree:
+ →StaticText, 0x112823340, {{24.0, 784.3}, {288.0, 125.3}}, label: 'Write Permissions'
+Path to element:
+ →Application, 0x1128208c0, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x112820a00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x112820b40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x112820c80, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x112820dc0, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x112820f00, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x112821040, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x112821180, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1128212c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x112821400, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x112821540, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x112821680, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x1128217c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x112821cc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x112821e00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x112821f40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x112822080, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1128221c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x1128230c0, {{0.0, 189.0}, {402.0, 2477.7}}
+                    ↳StaticText, 0x112823340, {{24.0, 784.3}, {288.0, 125.3}}, label: 'Write Permissions'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x112868500, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463149056.232
+    Output: {
+      StaticText, 0x112844500, {{24.0, 784.3}, {288.0, 125.3}}, label: 'Write Permissions'
+    }
+
+    t =    31.96s Tap Button (First Match)
+    t =    31.96s     Wait for dev.ericslutz.PumpSync to idle
+    t =    32.26s     Find the Button (First Match)
+    t =    32.31s     Check for interrupting elements affecting "BackButton" Button
+    t =    32.34s     Synthesize event
+    t =    32.64s     Wait for dev.ericslutz.PumpSync to idle
+    t =    32.97s Find the "InsulinConcentrationLink" Button
+    t =    33.04s Find the "InsulinConcentrationLink" Button
+    t =    33.10s Tap "InsulinConcentrationLink" Button
+    t =    33.10s     Wait for dev.ericslutz.PumpSync to idle
+    t =    33.10s     Find the "InsulinConcentrationLink" Button
+    t =    33.15s     Check for interrupting elements affecting "InsulinConcentrationLink" Button
+    t =    33.18s     Synthesize event
+    t =    33.48s     Wait for dev.ericslutz.PumpSync to idle
+    t =    34.27s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    34.41s Added attachment named 'system-concentration.png'
+    t =    34.41s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    34.59s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    34.64s Added attachment named 'system-concentration-tree.txt'
+    t =    36.56s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463185408.291)
+    t =    36.59s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    36.63s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463185408.291
+    t =    36.71s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    36.75s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463185408.291
+    t =    36.75s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-concentration | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x106864500, {{80.0, 812.3}, {253.0, 125.3}}, label: 'Match your insulin'
+Element subtree:
+ →StaticText, 0x106864500, {{80.0, 812.3}, {253.0, 125.3}}, label: 'Match your insulin'
+Path to element:
+ →Application, 0x112814f00, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x112815040, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x112815180, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1128152c0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x112815400, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x112815540, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x112815680, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1128157c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x112815900, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x112815a40, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x112815b80, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x112815cc0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x112815e00, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x112816300, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x112816440, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x112816580, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x1128166c0, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x112816800, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x112817700, {{0.0, 189.0}, {402.0, 4390.3}}
+                    ↳Other, 0x106864280, {{33.3, 812.3}, {316.7, 1116.0}}, label: 'Match your insulin', value: Most rapid-acting ...
+                     ↳StaticText, 0x106864500, {{80.0, 812.3}, {253.0, 125.3}}, label: 'Match your insulin'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x112869400, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463185408.291
+    Output: {
+      StaticText, 0x112845a40, {{80.0, 812.3}, {253.0, 125.3}}, label: 'Match your insulin'
+    }
+
+    t =    36.80s Tap Button (First Match)
+    t =    36.80s     Wait for dev.ericslutz.PumpSync to idle
+    t =    36.81s     Find the Button (First Match)
+    t =    36.84s     Check for interrupting elements affecting "BackButton" Button
+    t =    36.87s     Synthesize event
+    t =    37.16s     Wait for dev.ericslutz.PumpSync to idle
+    t =    37.50s Find the "DataHandlingLink" Button
+    t =    37.58s Find the "DataHandlingLink" Button
+    t =    37.65s Tap "DataHandlingLink" Button
+    t =    37.65s     Wait for dev.ericslutz.PumpSync to idle
+    t =    37.65s     Find the "DataHandlingLink" Button
+    t =    37.69s     Check for interrupting elements affecting "DataHandlingLink" Button
+    t =    37.72s     Synthesize event
+    t =    38.03s     Wait for dev.ericslutz.PumpSync to idle
+    t =    38.83s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    39.00s Added attachment named 'system-privacy.png'
+    t =    39.00s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    39.20s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    39.25s Added attachment named 'system-privacy-tree.txt'
+    t =    41.16s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463026944.351)
+    t =    41.20s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    41.25s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463026944.351
+    t =    41.33s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    41.38s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463026944.351
+    t =    41.38s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-privacy | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x106864a00, {{80.0, 781.3}, {220.0, 125.3}}, label: 'Sent only for sync'
+Element subtree:
+ →StaticText, 0x106864a00, {{80.0, 781.3}, {220.0, 125.3}}, label: 'Sent only for sync'
+Path to element:
+ →Application, 0x1068697c0, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x106869900, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x106869a40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x106869b80, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x106869cc0, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x106869e00, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x106869f40, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x10686a080, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x10686a1c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x10686a300, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x10686a440, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x10686a580, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x10686a6c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x10686abc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x10686ad00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x10686ae40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x10686af80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x10686b0c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x106864000, {{0.0, 189.0}, {402.0, 4639.7}}
+                    ↳Other, 0x106864780, {{29.7, 781.3}, {310.0, 478.0}}, label: 'Sent only for sync', value: Your sign-in is se...
+                     ↳StaticText, 0x106864a00, {{80.0, 781.3}, {220.0, 125.3}}, label: 'Sent only for sync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11286ae40, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463026944.351
+    Output: {
+      StaticText, 0x106869680, {{80.0, 781.3}, {220.0, 125.3}}, label: 'Sent only for sync'
+    }
+
+    t =    41.43s Tap Button (First Match)
+    t =    41.43s     Wait for dev.ericslutz.PumpSync to idle
+    t =    41.82s     Find the Button (First Match)
+    t =    41.87s     Check for interrupting elements affecting "BackButton" Button
+    t =    41.90s     Synthesize event
+    t =    42.20s     Wait for dev.ericslutz.PumpSync to idle
+    t =    42.54s Find the "AboutPumpSyncLink" Button
+    t =    42.60s Swipe up Target Application 'dev.ericslutz.PumpSync'
+    t =    42.60s     Wait for dev.ericslutz.PumpSync to idle
+    t =    42.61s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    42.63s     Check for interrupting elements affecting "PumpSync" Application
+    t =    42.66s     Synthesize event
+    t =    43.09s     Wait for dev.ericslutz.PumpSync to idle
+    t =    45.20s Find the "AboutPumpSyncLink" Button
+    t =    45.27s Find the "AboutPumpSyncLink" Button
+    t =    45.33s Tap "AboutPumpSyncLink" Button
+    t =    45.33s     Wait for dev.ericslutz.PumpSync to idle
+    t =    45.33s     Find the "AboutPumpSyncLink" Button
+    t =    45.37s     Check for interrupting elements affecting "AboutPumpSyncLink" Button
+    t =    45.41s     Synthesize event
+    t =    45.71s     Wait for dev.ericslutz.PumpSync to idle
+    t =    46.52s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    46.66s Added attachment named 'system-about.png'
+    t =    46.66s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    46.79s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    46.83s Added attachment named 'system-about-tree.txt'
+    t =    48.71s Tap Button (First Match)
+    t =    48.71s     Wait for dev.ericslutz.PumpSync to idle
+    t =    48.71s     Find the Button (First Match)
+    t =    48.74s     Check for interrupting elements affecting "BackButton" Button
+    t =    48.77s     Synthesize event
+    t =    49.08s     Wait for dev.ericslutz.PumpSync to idle
+    t =    49.40s Find the "DeveloperLink" Button
+    t =    49.47s Swipe up Target Application 'dev.ericslutz.PumpSync'
+    t =    49.47s     Wait for dev.ericslutz.PumpSync to idle
+    t =    49.48s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    49.50s     Check for interrupting elements affecting "PumpSync" Application
+    t =    49.53s     Synthesize event
+    t =    49.96s     Wait for dev.ericslutz.PumpSync to idle
+    t =    51.12s Find the "DeveloperLink" Button
+    t =    51.19s Find the "DeveloperLink" Button
+    t =    51.25s Tap "DeveloperLink" Button
+    t =    51.25s     Wait for dev.ericslutz.PumpSync to idle
+    t =    51.25s     Find the "DeveloperLink" Button
+    t =    51.29s     Check for interrupting elements affecting "DeveloperLink" Button
+    t =    51.32s     Synthesize event
+    t =    51.62s     Wait for dev.ericslutz.PumpSync to idle
+    t =    52.58s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    52.76s Added attachment named 'system-developer.png'
+    t =    52.77s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    53.55s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    53.76s Added attachment named 'system-developer-tree.txt'
+    t =    55.86s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463268672.489)
+    t =    55.96s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    56.15s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463268672.489
+    t =    56.27s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    56.47s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463268672.489
+    t =    56.48s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-developer | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x113b7a440, {{80.0, 858.3}, {252.7, 187.3}}, label: 'Copy Installation ID'
+Element subtree:
+ →StaticText, 0x113b7a440, {{80.0, 858.3}, {252.7, 187.3}}, label: 'Copy Installation ID'
+Path to element:
+ →Application, 0x11286fd40, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x11286f200, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x11286f340, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x11286f840, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x11286fac0, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x11286f980, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x11286f5c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x11286f700, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x11286f480, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x11286ee40, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x11286f0c0, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x11286ef80, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x11286e440, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x113b78140, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x113b78280, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x113b783c0, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x113b78500, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x113b78640, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x113b79540, {{0.0, 189.0}, {402.0, 22287.3}}
+                    ↳Button, 0x113b7a1c0, {{24.7, 858.3}, {308.0, 187.3}}, label: 'Copy Installation ID'
+                     ↳StaticText, 0x113b7a440, {{80.0, 858.3}, {252.7, 187.3}}, label: 'Copy Installation ID'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x115706e40, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463268672.489
+    Output: {
+      StaticText, 0x1156e57c0, {{80.0, 858.3}, {252.7, 187.3}}, label: 'Copy Installation ID'
+    }
+
+    t =    56.68s Tap Button (First Match)
+    t =    56.68s     Wait for dev.ericslutz.PumpSync to idle
+    t =    56.68s     Find the Button (First Match)
+    t =    56.76s     Check for interrupting elements affecting "BackButton" Button
+    t =    56.87s     Synthesize event
+    t =    57.19s     Wait for dev.ericslutz.PumpSync to idle
+    t =    57.53s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    57.53s     Wait for dev.ericslutz.PumpSync to idle
+    t =    57.53s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    57.56s     Check for interrupting elements affecting "PumpSync" Application
+    t =    57.59s     Synthesize event
+    t =    58.02s     Wait for dev.ericslutz.PumpSync to idle
+    t =    60.13s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    60.13s     Wait for dev.ericslutz.PumpSync to idle
+    t =    60.13s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    60.16s     Check for interrupting elements affecting "PumpSync" Application
+    t =    60.19s     Synthesize event
+    t =    60.62s     Wait for dev.ericslutz.PumpSync to idle
+    t =    62.72s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    62.72s     Wait for dev.ericslutz.PumpSync to idle
+    t =    62.72s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    62.75s     Check for interrupting elements affecting "PumpSync" Application
+    t =    62.78s     Synthesize event
+    t =    63.21s     Wait for dev.ericslutz.PumpSync to idle
+    t =    65.33s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    65.33s     Wait for dev.ericslutz.PumpSync to idle
+    t =    65.71s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    65.75s     Check for interrupting elements affecting "PumpSync" Application
+    t =    65.78s     Synthesize event
+    t =    66.21s     Wait for dev.ericslutz.PumpSync to idle
+    t =    68.32s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    68.32s     Wait for dev.ericslutz.PumpSync to idle
+    t =    68.37s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    68.41s     Check for interrupting elements affecting "PumpSync" Application
+    t =    68.45s     Synthesize event
+    t =    68.87s     Wait for dev.ericslutz.PumpSync to idle
+    t =    70.30s Checking existence of `"Self-hosted" Button`
+    t =    70.36s Tap "Self-hosted" Button
+    t =    70.36s     Wait for dev.ericslutz.PumpSync to idle
+    t =    70.37s     Find the "Self-hosted" Button
+    t =    70.42s     Check for interrupting elements affecting "Self-hosted" Button
+    t =    70.45s     Synthesize event
+    t =    70.74s     Wait for dev.ericslutz.PumpSync to idle
+    t =    71.51s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    71.64s Added attachment named 'system-selfhost.png'
+    t =    71.64s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    71.84s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    71.88s Added attachment named 'system-selfhost-tree.txt'
+    t =    73.76s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4796659712.698)
+    t =    73.79s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    73.84s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4796659712.698
+    t =    73.91s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    73.96s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4796659712.698
+    t =    73.96s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-selfhost | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x106868000, {{38.0, 677.7}, {322.7, 621.3}}, label: 'Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.'
+Element subtree:
+ →StaticText, 0x106868000, {{38.0, 677.7}, {322.7, 621.3}}, label: 'Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.'
+Path to element:
+ →Application, 0x112814dc0, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x112814f00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x112815040, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x112815180, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1128152c0, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x112815400, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x112815540, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x112815680, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1128157c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x112815900, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x112815a40, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x112815b80, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x112815cc0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x112816080, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1128161c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x112816300, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x112816440, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x112816580, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x112817480, {{0.0, 189.0}, {402.0, 3626.3}}
+                    ↳StaticText, 0x106868000, {{38.0, 677.7}, {322.7, 621.3}}, label: 'Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1128683c0, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4796659712.698
+    Output: {
+      StaticText, 0x112823d40, {{38.0, 677.7}, {322.7, 621.3}}, label: 'Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.'
+    }
+
+    t =    74.01s Waiting 5.0s for "Server URL" TextField to exist
+    t =    75.08s     Checking `Expect predicate `existsNoRetry == 1` for object "Server URL" TextField`
+    t =    75.09s         Checking existence of `"Server URL" TextField`
+    t =    75.16s Tap "Server URL" TextField
+    t =    75.16s     Wait for dev.ericslutz.PumpSync to idle
+    t =    75.16s     Find the "Server URL" TextField
+    t =    75.20s     Check for interrupting elements affecting "Server URL" TextField
+    t =    75.24s     Synthesize event
+    t =    75.25s         Scroll element to visible
+    t =    75.28s         Find the "Server URL" TextField
+    t =    75.34s         Computed hit point {201, 566} after scrolling to visible
+    t =    75.63s     Wait for dev.ericslutz.PumpSync to idle
+    t =    76.07s Type 'invalid' into "Server URL" TextField
+    t =    76.07s     Wait for dev.ericslutz.PumpSync to idle
+    t =    76.45s     Find the "Server URL" TextField
+    t =    76.53s     Check for interrupting elements affecting "Server URL" TextField
+    t =    76.56s     Synthesize event
+    t =    76.89s     Wait for dev.ericslutz.PumpSync to idle
+    t =    77.18s Checking existence of `"Go" Button`
+    t =    77.24s Tap "Connect" Button
+    t =    77.24s     Wait for dev.ericslutz.PumpSync to idle
+    t =    77.25s     Find the "Connect" Button
+    t =    77.30s     Check for interrupting elements affecting "Connect" Button
+    t =    77.34s     Synthesize event
+    t =    77.36s         Scroll element to visible
+    t =    77.36s         Find the "Connect" Button
+    t =    77.42s         Computed hit point {147.16665649414062, 414.33338928222656} after scrolling to visible
+    t =    77.71s     Wait for dev.ericslutz.PumpSync to idle
+    t =    77.72s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    77.86s Added attachment named 'system-invalid-connect.png'
+    t =    77.87s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    78.17s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    78.23s Added attachment named 'system-invalid-connect-tree.txt'
+    t =    80.29s Find the Any (Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463348352.770)
+    t =    80.33s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    80.39s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463348352.770
+    t =    80.47s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    80.53s Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463348352.770
+    t =    80.53s Requesting snapshot of accessibility hierarchy for app with pid 76925
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x106865a40, {{112.3, 77.3}, {154.7, 125.3}}, label: 'PumpSync'
+Element subtree:
+ →StaticText, 0x106865a40, {{112.3, 77.3}, {154.7, 125.3}}, label: 'PumpSync'
+Path to element:
+ →Application, 0x10686bd40, pid: 76925, label: 'PumpSync'
+  ↳Window (Main), 0x10686bc00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x10686b200, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x10686b340, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x106864000, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x106864140, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x106864280, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1068643c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x106864500, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x106864640, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x106864780, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1068648c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x106864a00, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x106864dc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x106864f00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x106865040, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x106865180, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1068652c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x106865400, {{0.0, -142.7}, {402.0, 3627.3}}
+                    ↳Button, 0x1068657c0, {{42.7, 77.3}, {224.3, 125.3}}, label: 'PumpSync', value: Not selected
+                     ↳StaticText, 0x106865a40, {{112.3, 77.3}, {154.7, 125.3}}, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1156c12c0, pid: 76925, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 76925, elementOrHash.elementID: 4463348352.770
+    Output: {
+      StaticText, 0x113b7b340, {{112.3, 77.3}, {154.7, 125.3}}, label: 'PumpSync'
+    }
+
+    t =    80.61s Tap "Sync" Button
+    t =    80.61s     Wait for dev.ericslutz.PumpSync to idle
+    t =    80.82s     Find the "Sync" Button
+    t =    80.90s     Check for interrupting elements affecting "Sync" Button
+    t =    80.94s     Synthesize event
+    t =    80.96s         Scroll element to visible
+    t =    80.96s         Find the "Sync" Button
+    t =    81.05s         Computed hit point {-1, -1} after scrolling to visible
+    t =    81.34s     Wait for dev.ericslutz.PumpSync to idle
+    t =    81.34s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    81.48s Added attachment named 'system-recovery.png'
+    t =    81.48s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    81.77s Requesting snapshot of accessibility hierarchy for app with pid 76925
+    t =    81.84s Added attachment named 'system-recovery-tree.txt'
+    t =    83.83s Terminate dev.ericslutz.PumpSync:76925
+    t =    84.95s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncAuditTests testSystemSettingsFlows]' passed (85.394 seconds).
+Test Suite 'PumpSyncAuditTests' passed at 2026-10-01 11:36:00.432.
+	 Executed 1 test, with 0 failures (0 unexpected) in 85.394 (85.396) seconds
+Test Suite 'PumpSyncUITests.xctest' passed at 2026-10-01 11:36:00.432.
+	 Executed 1 test, with 0 failures (0 unexpected) in 85.394 (85.396) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 11:36:00.433.
+	 Executed 1 test, with 0 failures (0 unexpected) in 85.394 (85.398) seconds
+2026-10-01 11:36:00.754 xcodebuild[76910:2953846] [MT] IDETestOperationsObserverDebug: 91.538 elapsed -- Testing started completed.
+2026-10-01 11:36:00.754 xcodebuild[76910:2953846] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-01 11:36:00.754 xcodebuild[76910:2953846] [MT] IDETestOperationsObserverDebug: 91.538 sec, +91.538 sec -- end
+
+Test session results, code coverage, and logs:
+	/tmp/pumpsync-ui-audit-large.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started

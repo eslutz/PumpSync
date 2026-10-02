@@ -1,7 +1,6 @@
 import SwiftUI
 
 enum SyncStatusAction: Equatable {
-  case viewSync
   case retry
   case openSubscription
   case openSettings
@@ -74,8 +73,8 @@ struct SyncStatusPresentation: Equatable {
       title: progress.phase.message,
       detail: detail,
       systemImage: "arrow.triangle.2.circlepath",
-      actionTitle: "View",
-      action: .viewSync,
+      actionTitle: nil,
+      action: nil,
       showsProgress: true,
       autoDismissAfter: nil
     )
@@ -86,7 +85,6 @@ struct SyncStatusBanner: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   let operationState: SyncOperationState
-  let onViewSync: () -> Void
   let onRetry: () -> Void
   let onOpenSubscription: () -> Void
   let onOpenSettings: () -> Void
@@ -124,7 +122,7 @@ struct SyncStatusBanner: View {
   private func banner(at date: Date) -> some View {
     if let presentation = SyncStatusPresentation.make(for: operationState, now: date) {
       HStack(alignment: .center, spacing: 12) {
-        if presentation.showsProgress {
+        if presentation.showsProgress && !reduceMotion {
           ProgressView()
             .controlSize(.regular)
             .accessibilityHidden(true)
@@ -153,13 +151,14 @@ struct SyncStatusBanner: View {
           .controlSize(.small)
         }
 
-        if !presentation.showsProgress {
-          Button(action: onDismiss) {
-            Image(systemName: "xmark")
-          }
-          .buttonStyle(.borderless)
-          .accessibilityLabel("Dismiss notification")
+        Button(action: onDismiss) {
+          Image(systemName: "xmark")
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Dismiss notification")
+        .accessibilityHint("Hides this notification without stopping the sync")
       }
       .padding(.horizontal, 14)
       .padding(.vertical, 12)
@@ -185,8 +184,6 @@ struct SyncStatusBanner: View {
 
   private func perform(_ action: SyncStatusAction) {
     switch action {
-    case .viewSync:
-      onViewSync()
     case .retry:
       onRetry()
     case .openSubscription:

@@ -1,0 +1,256 @@
+Attributes: Application, 0x107453c00, pid: 76136, label: 'PumpSync'
+Element subtree:
+ →Application, 0x107453c00, pid: 76136, label: 'PumpSync'
+    Window (Main), 0x107453700, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1074517c0, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107452080, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x1074530c0, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x107451b80, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x107451f40, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x107452bc0, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x107452300, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x107452440, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x107451a40, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x1074521c0, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x107452d00, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x1074535c0, {{0.0, 62.0}, {402.0, 106.0}}, identifier: 'Developer'
+                              Button, 0x107451e00, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Settings'
+                              StaticText, 0x107451900, {{16.0, 119.7}, {161.0, 40.7}}, label: 'Developer'
+                            Other, 0x107452580, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x1074526c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x107452f80, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x107452e40, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x107453d40, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x107453980, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x107453ac0, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x107453840, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x107453200, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x107453480, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Image, 0x107453340, {{-120.0, 731.0}, {642.0, 286.0}}, identifier: 'AdditionalDimmingOverlay'
+                                          Other, 0x107452800, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x107452a80, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Other, 0x107452940, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x11c532440, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x11c5330c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x11c532580, {{0.0, 168.0}, {402.0, 2797.7}}
+                                        StaticText, 0x11c533980, {{24.0, 180.0}, {40.3, 20.3}}, label: 'Build'
+                                        Other, 0x11c532e40, {{43.3, 226.3}, {101.7, 40.3}}, label: 'Version', value: 1.0.0 (33)
+                                          Image, 0x11c5326c0, {{43.3, 237.0}, {17.7, 19.3}}, identifier: 'number', label: 'number'
+                                          StaticText, 0x11c533700, {{80.0, 226.3}, {57.0, 20.3}}, label: 'Version'
+                                          StaticText, 0x11c533200, {{80.0, 248.7}, {65.0, 18.0}}, label: '1.0.0 (33)'
+                                        Other, 0x11c532800, {{43.0, 279.0}, {300.3, 60.3}}, label: 'Installation ID', value: 5D502360-4BB7-4FF9...
+                                          Image, 0x11c532940, {{43.0, 300.0}, {18.0, 18.0}}, identifier: 'number.square', label: 'number.square'
+                                          StaticText, 0x11c533340, {{80.0, 279.0}, {102.7, 20.3}}, label: 'Installation ID'
+                                          StaticText, 0x11c533e80, {{80.0, 301.3}, {263.3, 38.0}}, label: '5D502360-4BB7-4FF9-9871-96668E9B88C0'
+                                        Button, 0x11c533840, {{42.0, 353.0}, {184.7, 24.7}}, label: 'Copy Installation ID'
+                                          Image, 0x11c532a80, {{42.0, 353.0}, {20.0, 24.7}}, identifier: 'doc.on.doc', label: 'Copy'
+                                          StaticText, 0x11c5335c0, {{80.0, 355.2}, {146.7, 20.3}}, label: 'Copy Installation ID'
+                                        StaticText, 0x11c533c00, {{24.0, 421.0}, {39.7, 20.3}}, label: 'Sync'
+                                        Other, 0x11c533d40, {{42.0, 467.3}, {134.3, 40.3}}, label: 'Last attempt', value: Never
+                                          Image, 0x11c533480, {{42.0, 477.7}, {20.0, 20.0}}, identifier: 'clock', label: 'Clock'
+                                          StaticText, 0x11c532300, {{80.0, 467.3}, {96.3, 20.3}}, label: 'Last attempt'
+                                          StaticText, 0x11c532d00, {{80.0, 489.7}, {40.7, 18.0}}, label: 'Never'
+                                        Other, 0x11c533ac0, {{42.0, 520.0}, {137.0, 40.3}}, label: 'Last success', value: Never
+                                          Image, 0x11c532bc0, {{42.0, 530.3}, {20.0, 20.0}}, identifier: 'checkmark.circle', label: 'Selected', Selected
+                                          StaticText, 0x11c532f80, {{80.0, 520.0}, {99.0, 20.3}}, label: 'Last success'
+                                          StaticText, 0x1070a8000, {{80.0, 542.3}, {40.7, 18.0}}, label: 'Never'
+                                        Other, 0x1070a8140, {{40.3, 572.7}, {109.7, 40.3}}, label: 'Returned', value: 0
+                                          Image, 0x1070a8280, {{40.3, 584.3}, {23.3, 17.0}}, identifier: 'tray.full', label: 'Inbox Full'
+                                          StaticText, 0x1070a83c0, {{80.0, 572.7}, {70.0, 20.3}}, label: 'Returned'
+                                          StaticText, 0x1070a8500, {{80.0, 595.0}, {9.3, 18.0}}, label: '0'
+                                        Other, 0x1070a8640, {{43.3, 625.3}, {106.0, 40.3}}, label: 'Imported', value: 0
+                                          Image, 0x1070a8780, {{43.3, 634.0}, {17.7, 23.0}}, identifier: 'square.and.arrow.down', label: 'Download'
+                                          StaticText, 0x1070a88c0, {{80.0, 625.3}, {69.3, 20.3}}, label: 'Imported'
+                                          StaticText, 0x1070a8a00, {{80.0, 647.7}, {9.3, 18.0}}, label: '0'
+                                        StaticText, 0x1070a8b40, {{24.0, 707.7}, {93.7, 20.3}}, label: 'Diagnostics'
+                                        Button, 0x1070a8c80, {{40.0, 749.0}, {192.0, 21.3}}, label: 'Share Support Bundle'
+                                          Image, 0x1070a8dc0, {{40.0, 749.0}, {15.0, 20.0}}, identifier: 'square.and.arrow.up', label: 'Share'
+                                          StaticText, 0x1070a8f00, {{40.0, 749.0}, {192.0, 21.3}}, label: 'Share Support Bundle'
+                                        StaticText, 0x1070a9040, {{38.0, 802.3}, {103.0, 18.0}}, label: 'App Event Log'
+                                        Other, 0x1070a9180, {{38.0, 838.3}, {326.0, 70.7}}, label: 'Subscription recovery skipped', value: Sign in, Warning, ...
+                                          StaticText, 0x1070a92c0, {{38.0, 838.3}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x1070a9400, {{86.0, 838.3}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x1070a9540, {{316.0, 838.3}, {48.0, 14.3}}, label: '11:31 AM'
+                                          StaticText, 0x1070a9680, {{38.0, 856.7}, {218.0, 18.0}}, label: 'Subscription recovery skipped'
+                                          StaticText, 0x1070a97c0, {{38.0, 878.7}, {277.3, 30.3}}, label: 'No current StoreKit entitlement was available for subscription recovery.'
+                                        Other, 0x1070a9900, {{38.0, 921.0}, {326.0, 70.7}}, label: 'Subscription access unavailable', value: Sign in, Warning, ...
+                                          StaticText, 0x1070a9a40, {{38.0, 921.0}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x1070a9b80, {{86.0, 921.0}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x1070a9cc0, {{316.0, 921.0}, {48.0, 14.3}}, label: '11:31 AM'
+                                          StaticText, 0x1070a9e00, {{38.0, 939.3}, {229.0, 18.0}}, label: 'Subscription access unavailable'
+                                          StaticText, 0x1070a9f40, {{38.0, 961.3}, {313.0, 30.3}}, label: 'credentialRetained=false policy=clearUnusableSession retry=nextGrantedTask'
+                                        Other, 0x1070aa080, {{38.0, 1003.7}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                                          StaticText, 0x1070aa1c0, {{38.0, 1003.7}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x1070aa300, {{75.3, 1003.7}, {28.0, 14.3}}, label: 'Error'
+                                          StaticText, 0x1070aa440, {{316.0, 1003.7}, {48.0, 14.3}}, label: '11:31 AM'
+                                          StaticText, 0x1070aa580, {{38.0, 1022.0}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+                                          StaticText, 0x1070aa6c0, {{38.0, 1044.0}, {222.7, 30.3}}, label: 'The operation couldn’t be completed. (BGTaskSchedulerErrorDomain error 1.)'
+                                        Other, 0x1070aa800, {{38.0, 1086.3}, {326.0, 54.7}}, label: 'Subscription entitlement cache miss', value: Sign in, Info, ret...
+                                          StaticText, 0x1070aa940, {{38.0, 1086.3}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x1070aaa80, {{86.0, 1086.3}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x1070aabc0, {{316.0, 1086.3}, {48.0, 14.3}}, label: '11:31 AM'
+                                          StaticText, 0x1070aad00, {{38.0, 1104.7}, {260.3, 18.0}}, label: 'Subscription entitlement cache miss'
+                                          StaticText, 0x1070aae40, {{38.0, 1126.7}, {113.3, 14.3}}, label: 'retry=appStoreSync'
+                                        Other, 0x1070aaf80, {{38.0, 1153.0}, {326.0, 36.3}}, label: 'Subscription recovery started', value: Sign in, Info
+                                          StaticText, 0x1070ab0c0, {{38.0, 1153.0}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x1070ab200, {{86.0, 1153.0}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x1070ab340, {{316.0, 1153.0}, {48.0, 14.3}}, label: '11:31 AM'
+                                          StaticText, 0x1070ab480, {{38.0, 1171.3}, {213.0, 18.0}}, label: 'Subscription recovery started'
+                                        Other, 0x1070ab5c0, {{38.0, 1201.3}, {326.0, 70.7}}, label: 'Background sync task registered', value: Sync, Info, build=...
+                                          StaticText, 0x1070ab700, {{38.0, 1201.3}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x1070ab840, {{75.3, 1201.3}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x1070ab980, {{316.0, 1201.3}, {48.0, 14.3}}, label: '11:31 AM'
+                                          StaticText, 0x1070abac0, {{38.0, 1219.7}, {235.0, 18.0}}, label: 'Background sync task registered'
+                                          StaticText, 0x1070abc00, {{38.0, 1241.7}, {305.7, 30.3}}, label: 'build=33 phase=registration refreshStatus=restricted lowPowerMode=false'
+                                        Other, 0x1070abd40, {{38.0, 1284.0}, {326.0, 70.7}}, label: 'Subscription recovery skipped', value: Sign in, Warning, ...
+                                          StaticText, 0x1070abe80, {{38.0, 1284.0}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c538000, {{86.0, 1284.0}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x11c538140, {{314.0, 1284.0}, {50.0, 14.3}}, label: '11:30 AM'
+                                          StaticText, 0x11c538280, {{38.0, 1302.3}, {218.0, 18.0}}, label: 'Subscription recovery skipped'
+                                          StaticText, 0x11c5383c0, {{38.0, 1324.3}, {277.3, 30.3}}, label: 'No current StoreKit entitlement was available for subscription recovery.'
+                                        Other, 0x11c538500, {{38.0, 1366.7}, {326.0, 70.7}}, label: 'Subscription access unavailable', value: Sign in, Warning, ...
+                                          StaticText, 0x11c538640, {{38.0, 1366.7}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c538780, {{86.0, 1366.7}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x11c5388c0, {{314.0, 1366.7}, {50.0, 14.3}}, label: '11:30 AM'
+                                          StaticText, 0x11c538a00, {{38.0, 1385.0}, {229.0, 18.0}}, label: 'Subscription access unavailable'
+                                          StaticText, 0x11c538b40, {{38.0, 1407.0}, {313.0, 30.3}}, label: 'credentialRetained=false policy=clearUnusableSession retry=nextGrantedTask'
+                                        Other, 0x11c538c80, {{38.0, 1449.3}, {326.0, 54.7}}, label: 'Subscription entitlement cache miss', value: Sign in, Info, ret...
+                                          StaticText, 0x11c538dc0, {{38.0, 1449.3}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c538f00, {{86.0, 1449.3}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c539040, {{314.0, 1449.3}, {50.0, 14.3}}, label: '11:30 AM'
+                                          StaticText, 0x11c539180, {{38.0, 1467.7}, {260.3, 18.0}}, label: 'Subscription entitlement cache miss'
+                                          StaticText, 0x11c5392c0, {{38.0, 1489.7}, {113.3, 14.3}}, label: 'retry=appStoreSync'
+                                        Other, 0x11c539400, {{38.0, 1516.0}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                                          StaticText, 0x11c539540, {{38.0, 1516.0}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x11c539680, {{75.3, 1516.0}, {28.0, 14.3}}, label: 'Error'
+                                          StaticText, 0x11c5397c0, {{314.0, 1516.0}, {50.0, 14.3}}, label: '11:30 AM'
+                                          StaticText, 0x11c539900, {{38.0, 1534.3}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+                                          StaticText, 0x11c539a40, {{38.0, 1556.3}, {222.7, 30.3}}, label: 'The operation couldn’t be completed. (BGTaskSchedulerErrorDomain error 1.)'
+                                        Other, 0x11c539b80, {{38.0, 1598.7}, {326.0, 36.3}}, label: 'Subscription recovery started', value: Sign in, Info
+                                          StaticText, 0x11c539cc0, {{38.0, 1598.7}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c539e00, {{86.0, 1598.7}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c539f40, {{314.0, 1598.7}, {50.0, 14.3}}, label: '11:30 AM'
+                                          StaticText, 0x11c53a080, {{38.0, 1617.0}, {213.0, 18.0}}, label: 'Subscription recovery started'
+                                        Other, 0x11c53a1c0, {{38.0, 1647.0}, {326.0, 70.7}}, label: 'Background sync task registered', value: Sync, Info, build=...
+                                          StaticText, 0x11c53a300, {{38.0, 1647.0}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x11c53a440, {{75.3, 1647.0}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c53a580, {{314.0, 1647.0}, {50.0, 14.3}}, label: '11:30 AM'
+                                          StaticText, 0x11c53a6c0, {{38.0, 1665.3}, {235.0, 18.0}}, label: 'Background sync task registered'
+                                          StaticText, 0x11c53a800, {{38.0, 1687.3}, {305.7, 30.3}}, label: 'build=33 phase=registration refreshStatus=restricted lowPowerMode=false'
+                                        Other, 0x11c53a940, {{38.0, 1729.7}, {326.0, 70.7}}, label: 'Subscription recovery skipped', value: Sign in, Warning, ...
+                                          StaticText, 0x11c53aa80, {{38.0, 1729.7}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53abc0, {{86.0, 1729.7}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x11c53ad00, {{314.0, 1729.7}, {50.0, 14.3}}, label: '11:28 AM'
+                                          StaticText, 0x11c53ae40, {{38.0, 1748.0}, {218.0, 18.0}}, label: 'Subscription recovery skipped'
+                                          StaticText, 0x11c53af80, {{38.0, 1770.0}, {277.3, 30.3}}, label: 'No current StoreKit entitlement was available for subscription recovery.'
+                                        Other, 0x11c53b0c0, {{38.0, 1812.3}, {326.0, 70.7}}, label: 'Subscription access unavailable', value: Sign in, Warning, ...
+                                          StaticText, 0x11c53b200, {{38.0, 1812.3}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53b340, {{86.0, 1812.3}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x11c53b480, {{314.0, 1812.3}, {50.0, 14.3}}, label: '11:28 AM'
+                                          StaticText, 0x11c53b5c0, {{38.0, 1830.7}, {229.0, 18.0}}, label: 'Subscription access unavailable'
+                                          StaticText, 0x11c53b700, {{38.0, 1852.7}, {313.0, 30.3}}, label: 'credentialRetained=false policy=clearUnusableSession retry=nextGrantedTask'
+                                        Other, 0x11c53b840, {{38.0, 1895.0}, {326.0, 54.7}}, label: 'Subscription entitlement cache miss', value: Sign in, Info, ret...
+                                          StaticText, 0x11c53b980, {{38.0, 1895.0}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53bac0, {{86.0, 1895.0}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c53bc00, {{314.0, 1895.0}, {50.0, 14.3}}, label: '11:28 AM'
+                                          StaticText, 0x11c53bd40, {{38.0, 1913.3}, {260.3, 18.0}}, label: 'Subscription entitlement cache miss'
+                                          StaticText, 0x11c53be80, {{38.0, 1935.3}, {113.3, 14.3}}, label: 'retry=appStoreSync'
+                                        Other, 0x11c53c000, {{38.0, 1961.7}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                                          StaticText, 0x11c53c140, {{38.0, 1961.7}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x11c53c280, {{75.3, 1961.7}, {28.0, 14.3}}, label: 'Error'
+                                          StaticText, 0x11c53c3c0, {{314.0, 1961.7}, {50.0, 14.3}}, label: '11:28 AM'
+                                          StaticText, 0x11c53c500, {{38.0, 1980.0}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+                                          StaticText, 0x11c53c640, {{38.0, 2002.0}, {222.7, 30.3}}, label: 'The operation couldn’t be completed. (BGTaskSchedulerErrorDomain error 1.)'
+                                        Other, 0x11c53c780, {{38.0, 2044.3}, {326.0, 36.3}}, label: 'Subscription recovery started', value: Sign in, Info
+                                          StaticText, 0x11c53c8c0, {{38.0, 2044.3}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53ca00, {{86.0, 2044.3}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c53cb40, {{314.0, 2044.3}, {50.0, 14.3}}, label: '11:28 AM'
+                                          StaticText, 0x11c53cc80, {{38.0, 2062.7}, {213.0, 18.0}}, label: 'Subscription recovery started'
+                                        Other, 0x11c53cdc0, {{38.0, 2092.7}, {326.0, 70.7}}, label: 'Background sync task registered', value: Sync, Info, build=...
+                                          StaticText, 0x11c53cf00, {{38.0, 2092.7}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x11c53d040, {{75.3, 2092.7}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c53d180, {{314.0, 2092.7}, {50.0, 14.3}}, label: '11:28 AM'
+                                          StaticText, 0x11c53d2c0, {{38.0, 2111.0}, {235.0, 18.0}}, label: 'Background sync task registered'
+                                          StaticText, 0x11c53d400, {{38.0, 2133.0}, {305.7, 30.3}}, label: 'build=33 phase=registration refreshStatus=restricted lowPowerMode=false'
+                                        Other, 0x11c53d540, {{38.0, 2175.3}, {326.0, 70.7}}, label: 'Subscription recovery skipped', value: Sign in, Warning, ...
+                                          StaticText, 0x11c53d680, {{38.0, 2175.3}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53d7c0, {{86.0, 2175.3}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x11c53d900, {{314.0, 2175.3}, {50.0, 14.3}}, label: '11:25 AM'
+                                          StaticText, 0x11c53da40, {{38.0, 2193.7}, {218.0, 18.0}}, label: 'Subscription recovery skipped'
+                                          StaticText, 0x11c53db80, {{38.0, 2215.7}, {277.3, 30.3}}, label: 'No current StoreKit entitlement was available for subscription recovery.'
+                                        Other, 0x11c53dcc0, {{38.0, 2258.0}, {326.0, 70.7}}, label: 'Subscription access unavailable', value: Sign in, Warning, ...
+                                          StaticText, 0x11c53de00, {{38.0, 2258.0}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53df40, {{86.0, 2258.0}, {46.7, 14.3}}, label: 'Warning'
+                                          StaticText, 0x11c53e080, {{314.0, 2258.0}, {50.0, 14.3}}, label: '11:25 AM'
+                                          StaticText, 0x11c53e1c0, {{38.0, 2276.3}, {229.0, 18.0}}, label: 'Subscription access unavailable'
+                                          StaticText, 0x11c53e300, {{38.0, 2298.3}, {313.0, 30.3}}, label: 'credentialRetained=false policy=clearUnusableSession retry=nextGrantedTask'
+                                        Other, 0x11c53e440, {{38.0, 2340.7}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                                          StaticText, 0x11c53e580, {{38.0, 2340.7}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x11c53e6c0, {{75.3, 2340.7}, {28.0, 14.3}}, label: 'Error'
+                                          StaticText, 0x11c53e800, {{314.0, 2340.7}, {50.0, 14.3}}, label: '11:24 AM'
+                                          StaticText, 0x11c53e940, {{38.0, 2359.0}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+                                          StaticText, 0x11c53ea80, {{38.0, 2381.0}, {222.7, 30.3}}, label: 'The operation couldn’t be completed. (BGTaskSchedulerErrorDomain error 1.)'
+                                        Other, 0x11c53ebc0, {{38.0, 2423.3}, {326.0, 54.7}}, label: 'Subscription entitlement cache miss', value: Sign in, Info, ret...
+                                          StaticText, 0x11c53ed00, {{38.0, 2423.3}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53ee40, {{86.0, 2423.3}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c53ef80, {{314.0, 2423.3}, {50.0, 14.3}}, label: '11:24 AM'
+                                          StaticText, 0x11c53f0c0, {{38.0, 2441.7}, {260.3, 18.0}}, label: 'Subscription entitlement cache miss'
+                                          StaticText, 0x11c53f200, {{38.0, 2463.7}, {113.3, 14.3}}, label: 'retry=appStoreSync'
+                                        Other, 0x11c53f340, {{38.0, 2490.0}, {326.0, 36.3}}, label: 'Subscription recovery started', value: Sign in, Info
+                                          StaticText, 0x11c53f480, {{38.0, 2490.0}, {40.0, 14.3}}, label: 'Sign in'
+                                          StaticText, 0x11c53f5c0, {{86.0, 2490.0}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c53f700, {{314.0, 2490.0}, {50.0, 14.3}}, label: '11:24 AM'
+                                          StaticText, 0x11c53f840, {{38.0, 2508.3}, {213.0, 18.0}}, label: 'Subscription recovery started'
+                                        Other, 0x11c53f980, {{38.0, 2538.3}, {326.0, 70.7}}, label: 'Background sync task registered', value: Sync, Info, build=...
+                                          StaticText, 0x11c53fac0, {{38.0, 2538.3}, {29.3, 14.3}}, label: 'Sync'
+                                          StaticText, 0x11c53fc00, {{75.3, 2538.3}, {21.7, 14.3}}, label: 'Info'
+                                          StaticText, 0x11c53fd40, {{314.0, 2538.3}, {50.0, 14.3}}, label: '11:24 AM'
+                                          StaticText, 0x11c53fe80, {{38.0, 2556.7}, {235.0, 18.0}}, label: 'Background sync task registered'
+                                          StaticText, 0x114ba0000, {{38.0, 2578.7}, {305.7, 30.3}}, label: 'build=33 phase=registration refreshStatus=restricted lowPowerMode=false'
+                                        Button, 0x114ba0140, {{40.0, 2652.3}, {182.0, 21.0}}, label: 'Copy App Event Log'
+                                          Image, 0x114ba0280, {{40.0, 2652.3}, {17.0, 21.0}}, identifier: 'doc.on.doc', label: 'Copy'
+                                          StaticText, 0x114ba03c0, {{40.0, 2652.3}, {182.0, 21.0}}, label: 'Copy App Event Log'
+                                        Button, 0x114ba0500, {{39.3, 2685.0}, {180.7, 20.3}}, label: 'Clear App Event Log'
+                                          Image, 0x114ba0640, {{39.3, 2685.3}, {16.3, 18.7}}, identifier: 'trash', label: 'Trash'
+                                          StaticText, 0x114ba0780, {{39.3, 2685.0}, {180.7, 20.3}}, label: 'Clear App Event Log'
+                                        StaticText, 0x114ba08c0, {{38.0, 2739.3}, {233.0, 18.0}}, label: 'Device Performance Diagnostics'
+                                        StaticText, 0x114ba0a00, {{38.0, 2783.3}, {183.0, 42.3}}, label: 'No device performance diagnostics recorded.'
+                            Other, 0x114ba0b40, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x114ba0c80, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x114ba0dc0, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x114ba0f00, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x114ba1040, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x114ba1180, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x114ba12c0, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x114ba1400, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x114ba1540, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync'
+                            Image, 0x114ba1680, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x114ba17c0, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings', Selected
+                            Image, 0x114ba1900, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x114ba1a40, {{197.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x114ba1b80, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x114ba1cc0, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x114ba1e00, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x114ba1f40, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x114ba2080, {{197.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x114ba21c0, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x114ba2300, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x114ba2440, {{197.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x114ba2580, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x114ba26c0, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x114ba2800, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x114ba2940, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x114ba2a80, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x114ba2bc0, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x114ba2d00, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x114ba2e40, {{0.0, 791.0}, {402.0, 83.0}}
+    Window, 0x114ba2f80, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x114ba30c0, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x114ba3200, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x107453c00, pid: 76136, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x114ba3340, pid: 76136, label: 'PumpSync'
+  }

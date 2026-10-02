@@ -1,0 +1,50 @@
+
+> pumpsync-website@1.0.0 test
+> npm run build && node --test && npm run lint:html
+
+
+> pumpsync-website@1.0.0 build
+> npm run clean && eleventy
+
+
+> pumpsync-website@1.0.0 clean
+> node -e "require('node:fs').rmSync('_site', { recursive: true, force: true })"
+
+[11ty] Writing ./_site/404.html from ./src/404.njk
+[11ty] Writing ./_site/index.html from ./src/index.njk
+[11ty] Writing ./_site/age-suitability/index.html from ./src/age-suitability/index.njk
+[11ty] Writing ./_site/accessibility/index.html from ./src/accessibility/index.njk
+[11ty] Writing ./_site/privacy/index.html from ./src/privacy/index.njk
+[11ty] Writing ./_site/support/index.html from ./src/support/index.njk
+[11ty] Writing ./_site/terms/index.html from ./src/terms/index.njk
+[11ty] Writing ./_site/privacy/data-deletion/index.html from ./src/privacy/data-deletion/index.njk
+[11ty] Copied 19 Wrote 8 files in 0.07 seconds (v3.1.6)
+✔ required public routes render (5.872667ms)
+✔ custom 404 page is emitted at the site root for GitHub Pages (0.36475ms)
+✔ home page navigation matches the PumpSync support pattern (1.356375ms)
+✔ site chrome uses the PumpSync app icon assets (12.334167ms)
+✔ brand typefaces are self-hosted, licensed, and preloaded on every route (1.991083ms)
+✔ the social card filename matches its generator and is published (0.941292ms)
+✔ footer project and policy links include app repository (0.457125ms)
+✔ content pages render without side menus (1.955333ms)
+✔ required canonical URLs use the public domain and trailing slash (1.413ms)
+✔ sitemap lists exactly the public routes (5.388958ms)
+✔ privacy and support pages link to public data deletion instructions (0.453292ms)
+✔ privacy policy discloses renewable device-session security data (0.443083ms)
+✔ privacy contact path uses support page without direct email (0.261625ms)
+✔ support email links use request-specific subjects (0.456875ms)
+✔ canonical policy claims render from shared data on required pages (1.44875ms)
+✔ rendered pages avoid version-pinned platform references (1.220166ms)
+✔ rendered pages do not expose stale repo-internal legal paths (0.884208ms)
+✔ privacy describes credential transmission for account validation as well as sync (0.278334ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 131.351416
+
+> pumpsync-website@1.0.0 lint:html
+> html-validate "_site/**/*.html"

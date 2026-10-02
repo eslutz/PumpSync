@@ -1,0 +1,98 @@
+Attributes: Application, 0x1070a8a00, pid: 75007, label: 'PumpSync'
+Element subtree:
+ →Application, 0x1070a8a00, pid: 75007, label: 'PumpSync'
+    Window (Main), 0x1070a8b40, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1070a8c80, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1070a8000, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x1070a8140, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x1070a8280, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x1070a8780, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x1070a88c0, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x1070a83c0, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x1070a8500, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x1070a8640, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x1070ab980, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x1070abd40, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x1070abc00, {{0.0, 62.0}, {402.0, 106.0}}, identifier: 'Insulin Concentration'
+                              Button, 0x1070abac0, {{16.0, 62.0}, {44.0, 44.0}}, identifier: 'BackButton', label: 'Settings'
+                              StaticText, 0x1070ab840, {{16.0, 119.7}, {338.7, 40.7}}, label: 'Insulin Concentration'
+                            Other, 0x1070ab700, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x1070aabc0, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x1070aad00, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x1070ab200, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x1070ab480, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x1070ab340, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1070aaf80, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x1070aa080, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x1070a9f40, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1070aae40, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Image, 0x1070aa800, {{-120.0, 731.0}, {642.0, 286.0}}, identifier: 'AdditionalDimmingOverlay'
+                                          Other, 0x1070ab0c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x1070aa940, {{0.0, 726.2}, {402.0, 147.8}}
+                                          Other, 0x1070a9e00, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x114b9af80, {{0.0, 726.2}, {402.0, 147.8}}
+                                            Other, 0x114b9a6c0, {{0.0, 726.2}, {402.0, 147.8}}
+                                      Other, 0x114b9aa80, {{0.0, 168.0}, {402.0, 755.0}}
+                                        StaticText, 0x114b9ad00, {{24.0, 180.0}, {122.7, 20.3}}, label: 'Current Setting'
+                                        Button, 0x114b9b5c0, {{38.0, 220.3}, {326.0, 44.0}}, identifier: 'InsulinConcentrationPicker', label: 'Insulin Concentration', value: U-100
+                                          Button, 0x114b9b480, {{38.0, 220.3}, {326.0, 44.0}}
+                                            Image, 0x114b99180, {{45.3, 232.3}, {13.7, 20.0}}, identifier: 'drop.fill', label: 'Water Drop'
+                                            StaticText, 0x114b98dc0, {{80.0, 222.2}, {161.3, 20.3}}, label: 'Insulin Concentration'
+                                            StaticText, 0x114b99040, {{80.0, 244.5}, {43.0, 18.0}}, label: 'U-100'
+                                            StaticText, 0x114b98b40, {{309.0, 233.3}, {55.0, 18.0}}, label: 'Change'
+                                        StaticText, 0x114b98c80, {{24.0, 292.3}, {55.0, 20.3}}, label: 'Details'
+                                        Other, 0x114b98a00, {{45.3, 338.7}, {291.7, 122.3}}, label: 'Match your insulin', value: Most rapid-acting ...
+                                          Image, 0x114b9b200, {{45.3, 340.0}, {13.7, 20.0}}, identifier: 'drop', label: 'drop'
+                                          StaticText, 0x114b9a580, {{80.0, 338.7}, {138.3, 20.3}}, label: 'Match your insulin'
+                                          StaticText, 0x114b9a940, {{80.0, 363.0}, {257.0, 98.0}}, label: 'Most rapid-acting insulin is U-100. Some people use more concentrated insulin, such as U-200 or U-500, where each pump-reported unit represents more insulin.'
+                                        Other, 0x114b9abc0, {{39.7, 473.3}, {309.0, 122.3}}, label: 'Conversion only', value: This changes how P...
+                                          Image, 0x114b9a440, {{39.7, 474.7}, {24.3, 20.0}}, identifier: 'arrow.triangle.2.circlepath', label: 'Syncing'
+                                          StaticText, 0x114b9b340, {{80.0, 473.3}, {121.7, 20.3}}, label: 'Conversion only'
+                                          StaticText, 0x114b9a800, {{80.0, 497.7}, {268.7, 98.0}}, label: 'This changes how PumpSync converts pump-reported insulin amounts before saving them to Apple Health. It does not change your pump data, pump account, or pump settings.'
+                                        Other, 0x114b9bd40, {{42.3, 608.0}, {305.0, 82.3}}, label: 'Apple Health only', value: PumpSync uses this...
+                                          Image, 0x114b9ae40, {{42.3, 609.3}, {19.7, 18.0}}, identifier: 'heart', label: 'Love'
+                                          StaticText, 0x114b992c0, {{80.0, 608.0}, {134.3, 20.3}}, label: 'Apple Health only'
+                                          StaticText, 0x114b9be80, {{80.0, 632.3}, {267.3, 58.0}}, label: 'PumpSync uses this setting only when writing insulin delivery data to Apple Health.'
+                                        Other, 0x114b9bc00, {{41.7, 702.7}, {299.7, 82.3}}, label: 'Not sure?', value: Leave this set to ...
+                                          Image, 0x114b99e00, {{41.7, 704.0}, {20.7, 18.7}}, identifier: 'exclamationmark.triangle.fill', label: 'Warning'
+                                          StaticText, 0x114b9b700, {{80.0, 702.7}, {73.3, 20.3}}, label: 'Not sure?'
+                                          StaticText, 0x114b9b0c0, {{80.0, 727.0}, {261.3, 58.0}}, label: 'Leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.'
+                            Other, 0x114b9bac0, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x114b9b840, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x114b9b980, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x114b9a300, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x114b99b80, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x114b99540, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x114b99a40, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x114b99900, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x114b99cc0, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync'
+                            Image, 0x114b9a080, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x114b99680, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings', Selected
+                            Image, 0x114b997c0, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x114b99f40, {{197.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x114b9a1c0, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x114b988c0, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x114b99400, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x114b98f00, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x107094000, {{197.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x107094140, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x107094280, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x1070943c0, {{197.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x107094500, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x107094640, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x107094780, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x1070948c0, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x107094a00, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x107094b40, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x107094c80, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x107094dc0, {{0.0, 791.0}, {402.0, 83.0}}
+    Window, 0x107094f00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107095040, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107095180, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x1070a8a00, pid: 75007, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1070952c0, pid: 75007, label: 'PumpSync'
+  }

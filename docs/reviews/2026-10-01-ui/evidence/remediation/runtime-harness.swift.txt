@@ -1,0 +1,56 @@
+import XCTest
+@MainActor
+final class PumpSyncAuditTests: XCTestCase {
+  func testRemediatedSystemLayoutsAndConnectionFeedback() {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launch()
+    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    if springboard.buttons["Cancel"].waitForExistence(timeout: 2) { springboard.buttons["Cancel"].tap() }
+    XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 10))
+    capture(app, "remediated-sync")
+    app.tabBars.buttons["Settings"].tap()
+    let tandem = app.buttons["TandemAccountLink"]
+    for _ in 0..<8 { if tandem.isHittable { break }; app.swipeUp() }
+    tandem.tap()
+    XCTAssertTrue(app.buttons["TandemRegionPicker"].waitForExistence(timeout: 5))
+    let region = app.buttons["TandemRegionPicker"]
+    let action = app.buttons["Save Credentials"].exists ? app.buttons["Save Credentials"] : app.buttons["Remove Credentials"]
+    XCTAssertLessThanOrEqual(region.frame.maxY, action.frame.minY)
+    capture(app, "remediated-tandem")
+    app.navigationBars.buttons.firstMatch.tap()
+    let concentration = app.buttons["InsulinConcentrationLink"]
+    for _ in 0..<8 { if concentration.isHittable { break }; app.swipeUp() }
+    concentration.tap()
+    XCTAssertTrue(app.staticTexts["Current Setting"].waitForExistence(timeout: 5))
+    capture(app, "remediated-concentration")
+    app.navigationBars.buttons.firstMatch.tap()
+    for _ in 0..<6 { app.swipeDown() }
+    if app.segmentedControls.buttons["Self-hosted"].exists {
+      app.segmentedControls.buttons["Self-hosted"].tap()
+    } else {
+      app.buttons["Self-hosted"].tap()
+    }
+    let field = app.textFields["Server URL"]
+    field.tap()
+    if let value = field.value as? String, value != "Server URL" { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }
+    field.typeText("invalid")
+    app.buttons["Connect"].tap()
+    let feedback = app.staticTexts["SelfHostedConnectionFeedback"]
+    XCTAssertTrue(feedback.waitForExistence(timeout: 5))
+    XCTAssertTrue(feedback.label.contains("URL"))
+    capture(app, "remediated-invalid-connect")
+    app.terminate()
+  }
+  private func capture(_ app: XCUIApplication, _ name: String) {
+    Thread.sleep(forTimeInterval: 1)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.name = name + ".png"
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+    let tree = XCTAttachment(string: app.debugDescription)
+    tree.name = name + "-tree.txt"
+    tree.lifetime = .keepAlways
+    add(tree)
+  }
+}

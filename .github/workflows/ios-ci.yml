@@ -12,6 +12,7 @@ on:
       - "PumpSyncUITests/**"
       - "project.yml"
       - "scripts/validate-version.sh"
+      - "scripts/ios/validate-tests.sh"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
   pull_request:
@@ -21,6 +22,7 @@ on:
       - "PumpSyncUITests/**"
       - "project.yml"
       - "scripts/validate-version.sh"
+      - "scripts/ios/validate-tests.sh"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
 
@@ -91,18 +93,8 @@ jobs:
           xcrun simctl bootstatus "$device_id" -b
           echo "destination=id=$device_id" >> "$GITHUB_OUTPUT"
 
-      - name: Build for testing
+      - name: Validate tests and reject warnings
+        env:
+          PUMPSYNC_TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
         run: |
-          xcodebuild build-for-testing \
-            -project PumpSync.xcodeproj \
-            -scheme PumpSync \
-            -destination '${{ steps.simulator.outputs.destination }}' \
-            -derivedDataPath .DerivedData
-
-      - name: Test
-        run: |
-          xcodebuild test-without-building \
-            -project PumpSync.xcodeproj \
-            -scheme PumpSync \
-            -destination '${{ steps.simulator.outputs.destination }}' \
-            -derivedDataPath .DerivedData
+          bash scripts/ios/validate-tests.sh -derivedDataPath .DerivedData

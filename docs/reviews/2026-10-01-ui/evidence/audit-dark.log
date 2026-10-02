@@ -1,0 +1,2037 @@
+Command line invocation:
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project /private/tmp/pumpsync-ui-audit-harness/PumpSync.xcodeproj -scheme PumpSync -configuration Debug -skipMacroValidation -destination "platform=iOS Simulator,id=7C172CFA-650B-4566-BC58-65DD79E00540" -collect-test-diagnostics never COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=YES -packageCachePath /Users/ericslutz/Library/Caches/org.swift.swiftpm -derivedDataPath /private/tmp/pumpsync-ui-audit-test-build -parallel-testing-enabled NO "-only-testing:PumpSyncUITests/PumpSyncAuditTests" -testProductsPath /Users/ericslutz/Library/Developer/XcodeBuildMCP/workspaces/PumpSync-84f5feba2ee4/test-products/test_sim_2026-10-01T15-36-43-914Z_pid68598_139daa53.xctestproducts build-for-testing
+
+Build settings from command line:
+    COMPILER_INDEX_STORE_ENABLE = NO
+    ONLY_ACTIVE_ARCH = YES
+
+2026-10-01 11:36:45.854 xcodebuild[77356:2958196] Writing test products to /Users/ericslutz/Library/Developer/XcodeBuildMCP/workspaces/PumpSync-84f5feba2ee4/test-products/test_sim_2026-10-01T15-36-43-914Z_pid68598_139daa53.xctestproducts
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (3 targets)
+    Target 'PumpSyncUITests' in project 'PumpSync'
+        ➜ Explicit dependency on target 'PumpSync' in project 'PumpSync'
+    Target 'PumpSyncTests' in project 'PumpSync'
+        ➜ Explicit dependency on target 'PumpSync' in project 'PumpSync'
+    Target 'PumpSync' in project 'PumpSync' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ClangStatCache /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk /tmp/pumpsync-ui-audit-test-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+    cd /tmp/pumpsync-ui-audit-harness/PumpSync.xcodeproj
+    /Applications/Development/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Development/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.0.sdk -o /tmp/pumpsync-ui-audit-test-build/SDKStatCaches.noindex/iphonesimulator27.0-24A430-8b98ade55cdca77b755c004ede0894fd.sdkstatcache
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-audit-test-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /tmp/pumpsync-ui-audit-test-build/SDKExplicitPrecompiledModules
+
+** TEST BUILD SUCCEEDED **
+
+Command line invocation:
+    /Applications/Development/Xcode.app/Contents/Developer/usr/bin/xcodebuild -testProductsPath /Users/ericslutz/Library/Developer/XcodeBuildMCP/workspaces/PumpSync-84f5feba2ee4/test-products/test_sim_2026-10-01T15-36-43-914Z_pid68598_139daa53.xctestproducts -destination "platform=iOS Simulator,id=7C172CFA-650B-4566-BC58-65DD79E00540" -collect-test-diagnostics never -parallel-testing-enabled NO "-only-testing:PumpSyncUITests/PumpSyncAuditTests" -resultBundlePath /private/tmp/pumpsync-ui-audit-dark.xcresult test-without-building
+
+Writing result bundle at path:
+	/private/tmp/pumpsync-ui-audit-dark.xcresult
+
+2026-10-01 11:36:53.072312-0400 PumpSyncUITests-Runner[77361:2958601] [Default] Running tests...
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'Selected tests' started at 2026-10-01 11:36:54.416.
+Test Suite 'PumpSyncUITests.xctest' started at 2026-10-01 11:36:54.417.
+Test Suite 'PumpSyncAuditTests' started at 2026-10-01 11:36:54.417.
+Test Case '-[PumpSyncUITests.PumpSyncAuditTests testSystemSettingsFlows]' started.
+    t =     0.00s Start Test at 2026-10-01 11:36:54.418
+    t =     0.04s Set Up
+    t =     0.04s Open dev.ericslutz.PumpSync
+    t =     0.04s     Launch dev.ericslutz.PumpSync
+2026-10-01 11:36:54.710 xcodebuild[77359:2958373] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-10-01 11:36:54.710 xcodebuild[77359:2958373] [MT] IDELaunchParametersSnapshot: no debugger version
+objc[77361]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x108a98310) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x1081dc398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     1.12s         Setting up automation session
+    t =     2.09s         Wait for dev.ericslutz.PumpSync to idle
+    t =     3.93s Waiting 3.0s for "Cancel" Button to exist
+    t =     5.02s     Checking `Expect predicate `existsNoRetry == 1` for object "Cancel" Button`
+    t =     5.02s         Checking existence of `"Cancel" Button`
+    t =     5.06s         Capturing element debug description
+    t =     5.95s     Checking `Expect predicate `existsNoRetry == 1` for object "Cancel" Button`
+    t =     5.95s         Checking existence of `"Cancel" Button`
+    t =     5.97s         Capturing element debug description
+    t =     6.94s     Checking `Expect predicate `existsNoRetry == 1` for object "Cancel" Button`
+    t =     6.94s         Checking existence of `"Cancel" Button`
+    t =     6.96s         Capturing element debug description
+    t =     6.96s     Checking existence of `"Cancel" Button`
+    t =     6.98s Collecting debug information to assist test failure triage
+    t =     6.99s     Requesting snapshot of accessibility hierarchy for app with pid 71187
+    t =     7.03s Checking existence of `"Don’t Allow" Button`
+    t =     7.14s Waiting 10.0s for "Settings" Button to exist
+    t =     8.20s     Checking `Expect predicate `existsNoRetry == 1` for object "Settings" Button`
+    t =     8.20s         Checking existence of `"Settings" Button`
+    t =     8.23s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =     8.36s Added attachment named 'system-01-sync.png'
+    t =     8.36s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =     8.51s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =     8.55s Added attachment named 'system-01-sync-tree.txt'
+    t =    10.59s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391627712.65)
+    t =    10.63s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    10.66s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391627712.65
+    t =    10.74s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    10.77s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391627712.65
+    t =    10.77s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-01-sync | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: Button, 0x11447c280, {{38.0, 738.3}, {132.3, 20.3}}, label: 'Retry Connection'
+Element subtree:
+ →Button, 0x11447c280, {{38.0, 738.3}, {132.3, 20.3}}, label: 'Retry Connection'
+Path to element:
+ →Application, 0x114474140, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114474280, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1144743c0, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114474500, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114474640, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114474780, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1144748c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114474a00, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x114474b40, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114474c80, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114474dc0, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114474f00, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114475040, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114475400, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114475540, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x114475680, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x1144757c0, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x114475900, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x114476800, {{0.0, 168.0}, {402.0, 743.0}}
+                    ↳Button, 0x11447c280, {{38.0, 738.3}, {132.3, 20.3}}, label: 'Retry Connection'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11449b840, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391627712.65
+    Output: {
+      Button, 0x114499180, {{38.0, 738.3}, {132.3, 20.3}}, label: 'Retry Connection'
+    }
+
+    t =    10.81s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391628160.66)
+    t =    10.84s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    10.87s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391628160.66
+    t =    10.94s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    10.98s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391628160.66
+    t =    10.98s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-01-sync | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: Button, 0x11447c3c0, {{38.0, 758.7}, {154.7, 20.3}}, label: 'Connection Settings'
+Element subtree:
+ →Button, 0x11447c3c0, {{38.0, 758.7}, {154.7, 20.3}}, label: 'Connection Settings'
+Path to element:
+ →Application, 0x114474140, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114474280, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1144743c0, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114474500, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114474640, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114474780, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1144748c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114474a00, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x114474b40, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114474c80, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114474dc0, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114474f00, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114475040, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114475400, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114475540, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x114475680, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x1144757c0, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x114475900, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x114476800, {{0.0, 168.0}, {402.0, 743.0}}
+                    ↳Button, 0x11447c3c0, {{38.0, 758.7}, {154.7, 20.3}}, label: 'Connection Settings'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11449b840, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391628160.66
+    Output: {
+      Button, 0x1144992c0, {{38.0, 758.7}, {154.7, 20.3}}, label: 'Connection Settings'
+    }
+
+    t =    11.02s Tap "Settings" Button
+    t =    11.02s     Wait for dev.ericslutz.PumpSync to idle
+    t =    11.27s     Find the "Settings" Button
+    t =    11.32s     Check for interrupting elements affecting "Settings" Button
+    t =    11.35s     Synthesize event
+    t =    11.65s     Wait for dev.ericslutz.PumpSync to idle
+    t =    13.05s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    13.22s Added attachment named 'system-02-settings.png'
+    t =    13.22s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    13.40s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    13.44s Added attachment named 'system-02-settings-tree.txt'
+    t =    15.57s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143)
+    t =    15.63s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    15.67s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    15.78s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    15.82s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    15.82s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-02-settings | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447ea80, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Element subtree:
+ →StaticText, 0x11447ea80, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Path to element:
+ →Application, 0x114477e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114477840, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114476f80, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114476bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114476940, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x114475e00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x114475f40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x114476440, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447c140, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x11447e800, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x11447ea80, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a7d40, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    Output: {
+      StaticText, 0x1144a4f00, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+    }
+
+    t =    15.87s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144)
+    t =    15.90s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    15.95s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    16.04s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    16.08s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    16.09s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-02-settings | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447ebc0, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Element subtree:
+ →StaticText, 0x11447ebc0, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Path to element:
+ →Application, 0x114477e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114477840, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114476f80, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114475e00, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114475f40, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x114476440, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x114476300, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x114476080, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447c140, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x11447e800, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x11447ebc0, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a7d40, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    Output: {
+      StaticText, 0x1144a5040, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+    }
+
+    t =    16.14s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147)
+    t =    16.17s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    16.22s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    16.30s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    16.34s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    16.34s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-02-settings | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447f0c0, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Element subtree:
+ →StaticText, 0x11447f0c0, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Path to element:
+ →Application, 0x114477e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114477840, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114476f80, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114476440, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114476300, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x114476080, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x114475b80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x114475a40, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447c140, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x11447ee40, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x11447f0c0, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a7d40, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    Output: {
+      StaticText, 0x1144a5540, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+    }
+
+    t =    16.39s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148)
+    t =    16.42s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    16.46s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    16.54s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    16.58s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    16.58s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-02-settings | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447f200, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Element subtree:
+ →StaticText, 0x11447f200, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Path to element:
+ →Application, 0x114477e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114477840, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114476f80, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114476080, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114475b80, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x114475a40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x114476580, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1144766c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447c140, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x11447ee40, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x11447f200, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a7d40, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    Output: {
+      StaticText, 0x1144a5680, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+    }
+
+    t =    16.64s Find the "TandemAccountLink" Button
+    t =    16.68s Find the "TandemAccountLink" Button
+    t =    16.73s Tap "TandemAccountLink" Button
+    t =    16.73s     Wait for dev.ericslutz.PumpSync to idle
+    t =    16.74s     Find the "TandemAccountLink" Button
+    t =    16.77s     Check for interrupting elements affecting "TandemAccountLink" Button
+    t =    16.80s     Synthesize event
+    t =    17.10s     Wait for dev.ericslutz.PumpSync to idle
+    t =    18.07s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    18.22s Added attachment named 'system-tandem.png'
+    t =    18.22s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    18.34s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    18.38s Added attachment named 'system-tandem-tree.txt'
+    t =    20.23s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.175)
+    t =    20.26s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    20.29s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.175
+    t =    20.36s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    20.39s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.175
+    t =    20.40s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-tandem | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x1140df480, {{80.0, 442.2}, {127.7, 20.3}}, label: 'Save Credentials', Disabled
+Element subtree:
+ →StaticText, 0x1140df480, {{80.0, 442.2}, {127.7, 20.3}}, label: 'Save Credentials', Disabled
+Path to element:
+ →Application, 0x1140dc780, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1140dc8c0, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1140dca00, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1140dcb40, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1140dcc80, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1140dcdc0, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1140dcf00, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1140dd040, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1140dd180, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1140dd2c0, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x1140dd400, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1140dd540, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x1140dd680, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x1140ddb80, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1140ddcc0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x1140dde00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x1140ddf40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1140de080, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x1140de6c0, {{0.0, 168.0}, {402.0, 434.3}}
+                    ↳Button, 0x1140df200, {{20.0, 422.3}, {362.0, 60.0}}, label: 'Save Credentials', Disabled
+                     ↳StaticText, 0x1140df480, {{80.0, 442.2}, {127.7, 20.3}}, label: 'Save Credentials', Disabled
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144992c0, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.175
+    Output: {
+      StaticText, 0x11400cb40, {{80.0, 442.2}, {127.7, 20.3}}, label: 'Save Credentials', Disabled
+    }
+
+    t =    20.44s Tap Button (First Match)
+    t =    20.44s     Wait for dev.ericslutz.PumpSync to idle
+    t =    20.44s     Find the Button (First Match)
+    t =    20.47s     Check for interrupting elements affecting "BackButton" Button
+    t =    20.50s     Synthesize event
+    t =    20.80s     Wait for dev.ericslutz.PumpSync to idle
+    t =    21.31s Find the "AppleHealthLink" Button
+    t =    21.38s Find the "AppleHealthLink" Button
+    t =    21.43s Tap "AppleHealthLink" Button
+    t =    21.43s     Wait for dev.ericslutz.PumpSync to idle
+    t =    21.43s     Find the "AppleHealthLink" Button
+    t =    21.47s     Check for interrupting elements affecting "AppleHealthLink" Button
+    t =    21.50s     Synthesize event
+    t =    21.79s     Wait for dev.ericslutz.PumpSync to idle
+    t =    22.64s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    22.79s Added attachment named 'system-health.png'
+    t =    22.79s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    22.95s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    22.99s Added attachment named 'system-health-tree.txt'
+    t =    25.03s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391629056.199)
+    t =    25.06s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    25.10s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391629056.199
+    t =    25.17s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    25.21s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391629056.199
+    t =    25.21s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-health | 1 | Contrast nearly passed | Contrast is not high enough for SwiftUI.AccessibilityNode unless font size is larger. | Attributes: Button, 0x11447d040, {{20.0, 449.7}, {362.0, 50.3}}, label: 'Allow Access to Health'
+Element subtree:
+ →Button, 0x11447d040, {{20.0, 449.7}, {362.0, 50.3}}, label: 'Allow Access to Health'
+Path to element:
+ →Application, 0x114477e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x114477c00, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114477840, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114476080, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1144761c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x1144766c0, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x114476940, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x114476800, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447c280, {{0.0, 168.0}, {402.0, 667.7}}
+                    ↳Button, 0x11447d040, {{20.0, 449.7}, {362.0, 50.3}}, label: 'Allow Access to Health'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a4f00, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391629056.199
+    Output: {
+      Button, 0x11449b700, {{20.0, 449.7}, {362.0, 50.3}}, label: 'Allow Access to Health'
+    }
+
+    t =    25.26s Tap Button (First Match)
+    t =    25.26s     Wait for dev.ericslutz.PumpSync to idle
+    t =    25.66s     Find the Button (First Match)
+    t =    25.71s     Check for interrupting elements affecting "BackButton" Button
+    t =    25.74s     Synthesize event
+    t =    26.04s     Wait for dev.ericslutz.PumpSync to idle
+    t =    26.56s Find the "InsulinConcentrationLink" Button
+    t =    26.63s Find the "InsulinConcentrationLink" Button
+    t =    26.67s Tap "InsulinConcentrationLink" Button
+    t =    26.67s     Wait for dev.ericslutz.PumpSync to idle
+    t =    26.68s     Find the "InsulinConcentrationLink" Button
+    t =    26.71s     Check for interrupting elements affecting "InsulinConcentrationLink" Button
+    t =    26.74s     Synthesize event
+    t =    27.04s     Wait for dev.ericslutz.PumpSync to idle
+    t =    27.88s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    28.03s Added attachment named 'system-concentration.png'
+    t =    28.03s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    28.18s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    28.23s Added attachment named 'system-concentration-tree.txt'
+    t =    30.28s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825664.259)
+    t =    30.31s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    30.36s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825664.259
+    t =    30.45s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    30.49s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825664.259
+    t =    30.49s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-concentration | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447e6c0, {{80.0, 727.0}, {261.3, 58.0}}, label: 'Leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.'
+Element subtree:
+ →StaticText, 0x11447e6c0, {{80.0, 727.0}, {261.3, 58.0}}, label: 'Leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.'
+Path to element:
+ →Application, 0x1140dfe80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1140dfd40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1140dfc00, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1140df980, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1140df200, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1140df340, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1140df840, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1140df700, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1140df5c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1140df480, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x1140df0c0, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1140de580, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x1140de6c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x1140de940, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1140dea80, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x1140de800, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x1140de1c0, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1140de440, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447c8c0, {{0.0, 168.0}, {402.0, 755.0}}
+                    ↳Other, 0x11447e300, {{41.7, 702.7}, {299.7, 82.3}}, label: 'Not sure?', value: Leave this set to ...
+                     ↳StaticText, 0x11447e6c0, {{80.0, 727.0}, {261.3, 58.0}}, label: 'Leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a5e00, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825664.259
+    Output: {
+      StaticText, 0x1140ddb80, {{80.0, 727.0}, {261.3, 58.0}}, label: 'Leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.'
+    }
+
+    t =    30.54s Tap Button (First Match)
+    t =    30.54s     Wait for dev.ericslutz.PumpSync to idle
+    t =    31.29s     Find the Button (First Match)
+    t =    31.32s     Check for interrupting elements affecting "BackButton" Button
+    t =    31.35s     Synthesize event
+    t =    31.65s     Wait for dev.ericslutz.PumpSync to idle
+    t =    32.18s Find the "DataHandlingLink" Button
+    t =    32.24s Find the "DataHandlingLink" Button
+    t =    32.29s Tap "DataHandlingLink" Button
+    t =    32.29s     Wait for dev.ericslutz.PumpSync to idle
+    t =    32.29s     Find the "DataHandlingLink" Button
+    t =    32.33s     Check for interrupting elements affecting "DataHandlingLink" Button
+    t =    32.36s     Synthesize event
+    t =    32.66s     Wait for dev.ericslutz.PumpSync to idle
+    t =    33.53s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    33.67s Added attachment named 'system-privacy.png'
+    t =    33.67s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    33.85s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    33.91s Added attachment named 'system-privacy-tree.txt'
+    t =    35.95s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825216.293)
+    t =    35.98s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    36.03s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825216.293
+    t =    36.11s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    36.15s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825216.293
+    t =    36.16s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-privacy | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447ee40, {{24.0, 817.3}, {107.3, 20.3}}, label: 'Data Deletion'
+Element subtree:
+ →StaticText, 0x11447ee40, {{24.0, 817.3}, {107.3, 20.3}}, label: 'Data Deletion'
+Path to element:
+ →Application, 0x114477ac0, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477e80, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477c00, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114476f80, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114476080, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114476300, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x1144761c0, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x11447c000, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x11447c140, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447d040, {{0.0, 168.0}, {402.0, 953.0}}
+                    ↳StaticText, 0x11447ee40, {{24.0, 817.3}, {107.3, 20.3}}, label: 'Data Deletion'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a7840, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391825216.293
+    Output: {
+      StaticText, 0x1144a4a00, {{24.0, 817.3}, {107.3, 20.3}}, label: 'Data Deletion'
+    }
+
+    t =    36.21s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.313)
+    t =    36.24s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    36.28s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.313
+    t =    36.37s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    36.41s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.313
+    t =    36.42s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-privacy | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447ee40, {{80.0, 725.3}, {230.3, 58.0}}, label: 'Your pump account sign-in is not synced through iCloud. Set it up separately on each device.'
+Element subtree:
+ →StaticText, 0x11447ee40, {{80.0, 725.3}, {230.3, 58.0}}, label: 'Your pump account sign-in is not synced through iCloud. Set it up separately on each device.'
+Path to element:
+ →Application, 0x114477e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x114477c00, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114476f80, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114476080, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114476bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x114476d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x11447c000, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x11447c140, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x11447c280, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447d180, {{0.0, 168.0}, {402.0, 953.0}}
+                    ↳Other, 0x11447ea80, {{45.7, 701.0}, {264.7, 82.3}}, label: 'Configure each device', value: Your pump account ...
+                     ↳StaticText, 0x11447ee40, {{80.0, 725.3}, {230.3, 58.0}}, label: 'Your pump account sign-in is not synced through iCloud. Set it up separately on each device.'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a7840, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391821184.313
+    Output: {
+      StaticText, 0x1144a48c0, {{80.0, 725.3}, {230.3, 58.0}}, label: 'Your pump account sign-in is not synced through iCloud. Set it up separately on each device.'
+    }
+
+    t =    36.47s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391751168.315)
+    t =    36.50s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    36.55s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391751168.315
+    t =    36.63s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    36.68s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391751168.315
+    t =    36.68s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-privacy | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11447f340, {{80.0, 863.7}, {173.7, 20.3}}, label: 'Delete PumpSync data'
+Element subtree:
+ →StaticText, 0x11447f340, {{80.0, 863.7}, {173.7, 20.3}}, label: 'Delete PumpSync data'
+Path to element:
+ →Application, 0x114477e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x114477d40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x114477c00, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x114477980, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x114476e40, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x114476f80, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x114477480, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x114477700, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1144775c0, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x114477200, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x114477340, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1144770c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x114476080, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x114476a80, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1144761c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x11447c000, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x11447c140, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x11447c280, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11447d180, {{0.0, 168.0}, {402.0, 953.0}}
+                    ↳Other, 0x11447f0c0, {{40.3, 863.7}, {309.7, 82.3}}, label: 'Delete PumpSync data', value: PumpSync can prepa...
+                     ↳StaticText, 0x11447f340, {{80.0, 863.7}, {173.7, 20.3}}, label: 'Delete PumpSync data'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x1144a7840, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391751168.315
+    Output: {
+      StaticText, 0x1144a4dc0, {{80.0, 863.7}, {173.7, 20.3}}, label: 'Delete PumpSync data'
+    }
+
+    t =    36.74s Tap Button (First Match)
+    t =    36.74s     Wait for dev.ericslutz.PumpSync to idle
+    t =    37.03s     Find the Button (First Match)
+    t =    37.06s     Check for interrupting elements affecting "BackButton" Button
+    t =    37.09s     Synthesize event
+    t =    37.39s     Wait for dev.ericslutz.PumpSync to idle
+    t =    37.91s Find the "AboutPumpSyncLink" Button
+    t =    37.96s Find the "AboutPumpSyncLink" Button
+    t =    38.01s Tap "AboutPumpSyncLink" Button
+    t =    38.01s     Wait for dev.ericslutz.PumpSync to idle
+    t =    38.02s     Find the "AboutPumpSyncLink" Button
+    t =    38.05s     Check for interrupting elements affecting "AboutPumpSyncLink" Button
+    t =    38.08s     Synthesize event
+    t =    38.38s     Wait for dev.ericslutz.PumpSync to idle
+    t =    39.17s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    39.31s Added attachment named 'system-about.png'
+    t =    39.31s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    39.46s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    39.51s Added attachment named 'system-about-tree.txt'
+    t =    41.49s Tap Button (First Match)
+    t =    41.49s     Wait for dev.ericslutz.PumpSync to idle
+    t =    42.49s     Find the Button (First Match)
+    t =    42.53s     Check for interrupting elements affecting "BackButton" Button
+    t =    42.56s     Synthesize event
+    t =    42.86s     Wait for dev.ericslutz.PumpSync to idle
+    t =    43.37s Find the "DeveloperLink" Button
+    t =    43.46s Swipe up Target Application 'dev.ericslutz.PumpSync'
+    t =    43.46s     Wait for dev.ericslutz.PumpSync to idle
+    t =    43.46s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    43.51s     Check for interrupting elements affecting "PumpSync" Application
+    t =    43.56s     Synthesize event
+    t =    44.00s     Wait for dev.ericslutz.PumpSync to idle
+    t =    44.51s Find the "DeveloperLink" Button
+    t =    44.57s Find the "DeveloperLink" Button
+    t =    44.62s Tap "DeveloperLink" Button
+    t =    44.63s     Wait for dev.ericslutz.PumpSync to idle
+    t =    44.63s     Find the "DeveloperLink" Button
+    t =    44.67s     Check for interrupting elements affecting "DeveloperLink" Button
+    t =    44.70s     Synthesize event
+    t =    45.01s     Wait for dev.ericslutz.PumpSync to idle
+    t =    45.10s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    45.34s Added attachment named 'system-developer.png'
+    t =    45.35s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    46.25s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    46.46s Added attachment named 'system-developer-tree.txt'
+    t =    48.81s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391790208.398)
+    t =    48.92s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    49.13s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391790208.398
+    t =    49.22s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    49.41s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391790208.398
+    t =    49.42s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-developer | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11811c500, {{38.0, 802.3}, {103.0, 18.0}}, label: 'App Event Log'
+Element subtree:
+ →StaticText, 0x11811c500, {{38.0, 802.3}, {103.0, 18.0}}, label: 'App Event Log'
+Path to element:
+ →Application, 0x1171ab980, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1171abe80, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1171abc00, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1171abd40, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1171abac0, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1171ab480, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1171ab700, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1171ab5c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1171aaa80, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1171aad00, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x1171aabc0, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x118114000, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118114140, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118114640, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118114780, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x1181148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118114a00, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x118114b40, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118115a40, {{0.0, 168.0}, {402.0, 4017.7}}
+                    ↳StaticText, 0x11811c500, {{38.0, 802.3}, {103.0, 18.0}}, label: 'App Event Log'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x118177340, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391790208.398
+    Output: {
+      StaticText, 0x118151900, {{38.0, 802.3}, {103.0, 18.0}}, label: 'App Event Log'
+    }
+
+    t =    49.62s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791104.469)
+    t =    49.76s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    49.97s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791104.469
+    t =    50.06s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    50.26s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791104.469
+    t =    50.27s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-developer | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11811c500, {{40.0, 749.0}, {192.0, 21.3}}, label: 'Share Support Bundle'
+Element subtree:
+ →StaticText, 0x11811c500, {{40.0, 749.0}, {192.0, 21.3}}, label: 'Share Support Bundle'
+Path to element:
+ →Application, 0x1171abe80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1171abc00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1171abd40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1171abac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1171ab480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1171ab700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1171ab5c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1171aaa80, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1171aad00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1171aabc0, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118114000, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x118114140, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118114280, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118114780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1181148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118114a00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118114b40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x118114c80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118115b80, {{0.0, 168.0}, {402.0, 4017.7}}
+                    ↳Button, 0x11811c280, {{40.0, 749.0}, {192.0, 21.3}}, label: 'Share Support Bundle'
+                     ↳StaticText, 0x11811c500, {{40.0, 749.0}, {192.0, 21.3}}, label: 'Share Support Bundle'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x118177340, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791104.469
+    Output: {
+      StaticText, 0x1181517c0, {{40.0, 749.0}, {192.0, 21.3}}, label: 'Share Support Bundle'
+    }
+
+    t =    50.47s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791552.470)
+    t =    50.63s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    50.83s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791552.470
+    t =    50.95s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    51.15s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791552.470
+    t =    51.15s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-developer | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11811c8c0, {{38.0, 838.3}, {29.3, 14.3}}, label: 'Sync'
+Element subtree:
+ →StaticText, 0x11811c8c0, {{38.0, 838.3}, {29.3, 14.3}}, label: 'Sync'
+Path to element:
+ →Application, 0x1171abe80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1171abc00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1171abd40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1171abac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1171ab480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1171ab700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1171ab5c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1171aaa80, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1171aad00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1171aabc0, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118114000, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x118114140, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118114280, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118114780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1181148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118114a00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118114b40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x118114c80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118115b80, {{0.0, 168.0}, {402.0, 4017.7}}
+                    ↳Other, 0x11811c780, {{38.0, 838.3}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                     ↳StaticText, 0x11811c8c0, {{38.0, 838.3}, {29.3, 14.3}}, label: 'Sync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x118177340, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391791552.470
+    Output: {
+      StaticText, 0x118151b80, {{38.0, 838.3}, {29.3, 14.3}}, label: 'Sync'
+    }
+
+    t =    51.40s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391795584.471)
+    t =    51.49s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    51.68s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391795584.471
+    t =    51.76s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    51.95s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391795584.471
+    t =    51.96s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-developer | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11811ca00, {{75.3, 838.3}, {28.0, 14.3}}, label: 'Error'
+Element subtree:
+ →StaticText, 0x11811ca00, {{75.3, 838.3}, {28.0, 14.3}}, label: 'Error'
+Path to element:
+ →Application, 0x1171abe80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1171abc00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1171abd40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1171abac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1171ab480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1171ab700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1171ab5c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1171aaa80, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1171aad00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1171aabc0, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118114000, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x118114140, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118114280, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118114780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1181148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118114a00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118114b40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x118114c80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118115b80, {{0.0, 168.0}, {402.0, 4017.7}}
+                    ↳Other, 0x11811c780, {{38.0, 838.3}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                     ↳StaticText, 0x11811ca00, {{75.3, 838.3}, {28.0, 14.3}}, label: 'Error'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x118177340, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391795584.471
+    Output: {
+      StaticText, 0x118151cc0, {{75.3, 838.3}, {28.0, 14.3}}, label: 'Error'
+    }
+
+    t =    52.16s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391830848.472)
+    t =    52.24s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    52.42s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391830848.472
+    t =    52.51s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    52.69s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391830848.472
+    t =    52.70s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-developer | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11811cb40, {{313.7, 838.3}, {50.3, 14.3}}, label: '11:36 AM'
+Element subtree:
+ →StaticText, 0x11811cb40, {{313.7, 838.3}, {50.3, 14.3}}, label: '11:36 AM'
+Path to element:
+ →Application, 0x1171abe80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1171abc00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1171abd40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1171abac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1171ab480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1171ab700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1171ab5c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1171aaa80, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1171aad00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1171aabc0, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118114000, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x118114140, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118114280, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118114780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1181148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118114a00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118114b40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x118114c80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118115b80, {{0.0, 168.0}, {402.0, 4017.7}}
+                    ↳Other, 0x11811c780, {{38.0, 838.3}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                     ↳StaticText, 0x11811cb40, {{313.7, 838.3}, {50.3, 14.3}}, label: '11:36 AM'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x118177340, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391830848.472
+    Output: {
+      StaticText, 0x118151e00, {{313.7, 838.3}, {50.3, 14.3}}, label: '11:36 AM'
+    }
+
+    t =    52.92s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391839360.473)
+    t =    53.07s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    53.27s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391839360.473
+    t =    53.36s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    53.57s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391839360.473
+    t =    53.58s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-developer | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x11811cc80, {{38.0, 856.7}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+Element subtree:
+ →StaticText, 0x11811cc80, {{38.0, 856.7}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+Path to element:
+ →Application, 0x1171abe80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x1171abc00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x1171abd40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x1171abac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x1171ab480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x1171ab700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1171ab5c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1171aaa80, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x1171aad00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x1171aabc0, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118114000, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x118114140, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118114280, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118114780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x1181148c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118114a00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118114b40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x118114c80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118115b80, {{0.0, 168.0}, {402.0, 4017.7}}
+                    ↳Other, 0x11811c780, {{38.0, 838.3}, {326.0, 70.7}}, label: 'Background sync scheduling failed', value: Sync, Error, The o...
+                     ↳StaticText, 0x11811cc80, {{38.0, 856.7}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x118177340, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391839360.473
+    Output: {
+      StaticText, 0x118151f40, {{38.0, 856.7}, {249.0, 18.0}}, label: 'Background sync scheduling failed'
+    }
+
+    t =    53.81s Tap Button (First Match)
+    t =    53.81s     Wait for dev.ericslutz.PumpSync to idle
+    t =    53.82s     Find the Button (First Match)
+    t =    53.87s     Check for interrupting elements affecting "BackButton" Button
+    t =    53.98s     Synthesize event
+    t =    54.31s     Wait for dev.ericslutz.PumpSync to idle
+    t =    54.84s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    54.84s     Wait for dev.ericslutz.PumpSync to idle
+    t =    54.85s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    54.89s     Check for interrupting elements affecting "PumpSync" Application
+    t =    54.97s     Synthesize event
+    t =    55.42s     Wait for dev.ericslutz.PumpSync to idle
+    t =    55.96s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    55.96s     Wait for dev.ericslutz.PumpSync to idle
+    t =    55.96s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    55.99s     Check for interrupting elements affecting "PumpSync" Application
+    t =    56.02s     Synthesize event
+    t =    56.44s     Wait for dev.ericslutz.PumpSync to idle
+    t =    56.94s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    56.94s     Wait for dev.ericslutz.PumpSync to idle
+    t =    56.94s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    57.01s     Check for interrupting elements affecting "PumpSync" Application
+    t =    57.04s     Synthesize event
+    t =    57.46s     Wait for dev.ericslutz.PumpSync to idle
+    t =    58.33s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    58.33s     Wait for dev.ericslutz.PumpSync to idle
+    t =    58.33s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    58.36s     Check for interrupting elements affecting "PumpSync" Application
+    t =    58.39s     Synthesize event
+    t =    58.82s     Wait for dev.ericslutz.PumpSync to idle
+    t =    59.30s Swipe down Target Application 'dev.ericslutz.PumpSync'
+    t =    59.30s     Wait for dev.ericslutz.PumpSync to idle
+    t =    59.30s     Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    59.33s     Check for interrupting elements affecting "PumpSync" Application
+    t =    59.37s     Synthesize event
+    t =    59.79s     Wait for dev.ericslutz.PumpSync to idle
+    t =    60.28s Checking existence of `"Self-hosted" Button`
+    t =    60.34s Tap "Self-hosted" Button
+    t =    60.34s     Wait for dev.ericslutz.PumpSync to idle
+    t =    60.34s     Find the "Self-hosted" Button
+    t =    60.40s     Check for interrupting elements affecting "Self-hosted" Button
+    t =    60.44s     Synthesize event
+    t =    60.73s     Wait for dev.ericslutz.PumpSync to idle
+    t =    61.56s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    61.70s Added attachment named 'system-selfhost.png'
+    t =    61.70s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    61.91s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    61.96s Added attachment named 'system-selfhost-tree.txt'
+    t =    64.19s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143)
+    t =    64.22s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    64.29s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    64.38s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    64.44s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    64.44s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-selfhost | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118120500, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Element subtree:
+ →StaticText, 0x118120500, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Path to element:
+ →Application, 0x118117e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118117c00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118117d40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118117ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118117480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118117700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1181175c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x118116bc0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118116d00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x11811c000, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x11811c140, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x11811c280, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x11811c3c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x11811c780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x11811c8c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x11811ca00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x11811cb40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x11811cc80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11811db80, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118120280, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x118120500, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11812d7c0, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    Output: {
+      StaticText, 0x118126940, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+    }
+
+    t =    64.51s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144)
+    t =    64.54s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    64.58s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    64.68s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    64.73s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    64.73s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-selfhost | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118120640, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Element subtree:
+ →StaticText, 0x118120640, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Path to element:
+ →Application, 0x118117e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118117c00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118117d40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118117ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118117480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118117700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1181175c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x118116bc0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118116d00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x11811c000, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x11811c140, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x11811c280, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x11811c3c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x11811c780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x11811c8c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x11811ca00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x11811cb40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x11811cc80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11811db80, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118120280, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x118120640, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11812d7c0, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    Output: {
+      StaticText, 0x118126a80, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+    }
+
+    t =    64.79s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147)
+    t =    64.82s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    64.87s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    65.00s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    65.04s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    65.05s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-selfhost | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118120b40, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Element subtree:
+ →StaticText, 0x118120b40, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Path to element:
+ →Application, 0x118117e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118117c00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118117d40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118117ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118117480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118117700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1181175c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x118116bc0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118116d00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x11811c000, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x11811c140, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x11811c280, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x11811c3c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x11811c780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x11811c8c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x11811ca00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x11811cb40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x11811cc80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11811db80, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x1181208c0, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x118120b40, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11812d7c0, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    Output: {
+      StaticText, 0x118126f80, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+    }
+
+    t =    65.10s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148)
+    t =    65.13s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    65.18s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    65.26s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    65.31s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    65.31s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-selfhost | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118120c80, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Element subtree:
+ →StaticText, 0x118120c80, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Path to element:
+ →Application, 0x118117e80, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118117c00, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118117d40, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118117ac0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118117480, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118117700, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x1181175c0, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x118116bc0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118116d00, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x11811c000, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x11811c140, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x11811c280, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x11811c3c0, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x11811c780, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x11811c8c0, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x11811ca00, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x11811cb40, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x11811cc80, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x11811db80, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x1181208c0, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x118120c80, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11812d7c0, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    Output: {
+      StaticText, 0x1181270c0, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+    }
+
+    t =    65.37s Waiting 5.0s for "Server URL" TextField to exist
+    t =    66.42s     Checking `Expect predicate `existsNoRetry == 1` for object "Server URL" TextField`
+    t =    66.43s         Checking existence of `"Server URL" TextField`
+    t =    66.47s Tap "Server URL" TextField
+    t =    66.47s     Wait for dev.ericslutz.PumpSync to idle
+    t =    66.48s     Find the "Server URL" TextField
+    t =    66.52s     Check for interrupting elements affecting "Server URL" TextField
+    t =    66.55s     Synthesize event
+    t =    66.85s     Wait for dev.ericslutz.PumpSync to idle
+    t =    67.56s Type 'invalid' into "Server URL" TextField
+    t =    67.56s     Wait for dev.ericslutz.PumpSync to idle
+    t =    67.94s     Find the "Server URL" TextField
+    t =    68.01s     Check for interrupting elements affecting "Server URL" TextField
+    t =    68.06s     Synthesize event
+    t =    68.38s     Wait for dev.ericslutz.PumpSync to idle
+    t =    68.38s Checking existence of `"Go" Button`
+    t =    68.43s Tap "Connect" Button
+    t =    68.43s     Wait for dev.ericslutz.PumpSync to idle
+    t =    68.43s     Find the "Connect" Button
+    t =    68.48s     Check for interrupting elements affecting "Connect" Button
+    t =    68.52s     Synthesize event
+    t =    68.82s     Wait for dev.ericslutz.PumpSync to idle
+    t =    68.83s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    68.97s Added attachment named 'system-invalid-connect.png'
+    t =    68.97s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    69.27s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    69.33s Added attachment named 'system-invalid-connect-tree.txt'
+    t =    71.61s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131)
+    t =    71.65s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    71.71s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131
+    t =    71.81s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    71.87s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131
+    t =    71.87s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118125680, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+Element subtree:
+ →StaticText, 0x118125680, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125400, {{38.0, 567.7}, {326.0, 40.3}}, identifier: 'AppleHealthLink', label: 'Apple Health', value: Insulin and carboh...
+                     ↳StaticText, 0x118125680, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131
+    Output: {
+      StaticText, 0x114474500, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+    }
+
+    t =    71.95s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132)
+    t =    71.98s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    72.05s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132
+    t =    72.13s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    72.19s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132
+    t =    72.20s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x1181257c0, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+Element subtree:
+ →StaticText, 0x1181257c0, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125400, {{38.0, 567.7}, {326.0, 40.3}}, identifier: 'AppleHealthLink', label: 'Apple Health', value: Insulin and carboh...
+                     ↳StaticText, 0x1181257c0, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132
+    Output: {
+      StaticText, 0x114474640, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+    }
+
+    t =    72.27s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135)
+    t =    72.30s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    72.37s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135
+    t =    72.45s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    72.51s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135
+    t =    72.52s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118125cc0, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+Element subtree:
+ →StaticText, 0x118125cc0, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125a40, {{38.0, 620.3}, {326.0, 40.3}}, identifier: 'InsulinConcentrationLink', label: 'Insulin Concentration', value: U-100
+                     ↳StaticText, 0x118125cc0, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135
+    Output: {
+      StaticText, 0x114474b40, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+    }
+
+    t =    72.59s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136)
+    t =    72.63s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    72.69s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136
+    t =    72.78s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    72.84s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136
+    t =    72.84s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118125e00, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+Element subtree:
+ →StaticText, 0x118125e00, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125a40, {{38.0, 620.3}, {326.0, 40.3}}, identifier: 'InsulinConcentrationLink', label: 'Insulin Concentration', value: U-100
+                     ↳StaticText, 0x118125e00, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136
+    Output: {
+      StaticText, 0x114474c80, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+    }
+
+    t =    72.92s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139)
+    t =    72.96s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    73.02s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139
+    t =    73.11s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    73.17s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139
+    t =    73.18s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126300, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+Element subtree:
+ →StaticText, 0x118126300, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126080, {{38.0, 673.0}, {326.0, 60.3}}, identifier: 'DataHandlingLink', label: 'Data Handling', value: Privacy, retention...
+                     ↳StaticText, 0x118126300, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139
+    Output: {
+      StaticText, 0x114475180, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+    }
+
+    t =    73.25s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140)
+    t =    73.28s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    73.35s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140
+    t =    73.43s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    73.50s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140
+    t =    73.50s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126440, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+Element subtree:
+ →StaticText, 0x118126440, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126080, {{38.0, 673.0}, {326.0, 60.3}}, identifier: 'DataHandlingLink', label: 'Data Handling', value: Privacy, retention...
+                     ↳StaticText, 0x118126440, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140
+    Output: {
+      StaticText, 0x1144752c0, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+    }
+
+    t =    73.57s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143)
+    t =    73.61s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    73.68s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    73.76s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    73.83s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    73.83s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126940, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Element subtree:
+ →StaticText, 0x118126940, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x1181266c0, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x118126940, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    Output: {
+      StaticText, 0x1144757c0, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+    }
+
+    t =    73.90s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144)
+    t =    73.93s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    74.00s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    74.09s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    74.15s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    74.16s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126a80, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Element subtree:
+ →StaticText, 0x118126a80, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x1181266c0, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x118126a80, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    Output: {
+      StaticText, 0x114475900, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+    }
+
+    t =    74.23s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147)
+    t =    74.26s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    74.32s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    74.41s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    74.47s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    74.47s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126f80, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Element subtree:
+ →StaticText, 0x118126f80, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126d00, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x118126f80, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    Output: {
+      StaticText, 0x114475e00, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+    }
+
+    t =    74.54s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148)
+    t =    74.57s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    74.64s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    74.72s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    74.78s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    74.79s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-invalid-connect | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x1181270c0, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Element subtree:
+ →StaticText, 0x1181270c0, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126d00, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x1181270c0, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    Output: {
+      StaticText, 0x114475f40, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+    }
+
+    t =    74.86s Tap "Sync" Button
+    t =    74.86s     Wait for dev.ericslutz.PumpSync to idle
+    t =    74.86s     Find the "Sync" Button
+    t =    74.92s     Check for interrupting elements affecting "arrow.triangle.2.circlepath" Button
+    t =    74.96s     Synthesize event
+    t =    74.98s         Scroll element to visible
+    t =    75.01s         Find the "arrow.triangle.2.circlepath" Button
+    t =    75.08s         Computed hit point {-1, -1} after scrolling to visible
+    t =    75.37s     Wait for dev.ericslutz.PumpSync to idle
+    t =    75.37s Find the Target Application 'dev.ericslutz.PumpSync'
+    t =    75.52s Added attachment named 'system-recovery.png'
+    t =    75.52s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    75.82s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    75.89s Added attachment named 'system-recovery-tree.txt'
+    t =    78.16s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131)
+    t =    78.20s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    78.27s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131
+    t =    78.36s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    78.43s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131
+    t =    78.43s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118125680, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+Element subtree:
+ →StaticText, 0x118125680, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125400, {{38.0, 567.7}, {326.0, 40.3}}, identifier: 'AppleHealthLink', label: 'Apple Health', value: Insulin and carboh...
+                     ↳StaticText, 0x118125680, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631296.131
+    Output: {
+      StaticText, 0x114474500, {{80.0, 567.7}, {98.3, 20.3}}, label: 'Apple Health'
+    }
+
+    t =    78.50s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132)
+    t =    78.54s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    78.60s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132
+    t =    78.70s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    78.76s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132
+    t =    78.76s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x1181257c0, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+Element subtree:
+ →StaticText, 0x1181257c0, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125400, {{38.0, 567.7}, {326.0, 40.3}}, identifier: 'AppleHealthLink', label: 'Apple Health', value: Insulin and carboh...
+                     ↳StaticText, 0x1181257c0, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391631744.132
+    Output: {
+      StaticText, 0x114474640, {{80.0, 590.0}, {176.3, 18.0}}, label: 'Insulin and carbohydrates'
+    }
+
+    t =    78.84s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135)
+    t =    78.87s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    78.94s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135
+    t =    79.02s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    79.09s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135
+    t =    79.09s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118125cc0, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+Element subtree:
+ →StaticText, 0x118125cc0, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125a40, {{38.0, 620.3}, {326.0, 40.3}}, identifier: 'InsulinConcentrationLink', label: 'Insulin Concentration', value: U-100
+                     ↳StaticText, 0x118125cc0, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650176.135
+    Output: {
+      StaticText, 0x114474b40, {{80.0, 620.3}, {161.3, 20.3}}, label: 'Insulin Concentration'
+    }
+
+    t =    79.16s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136)
+    t =    79.20s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    79.26s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136
+    t =    79.35s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    79.41s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136
+    t =    79.41s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118125e00, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+Element subtree:
+ →StaticText, 0x118125e00, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118125a40, {{38.0, 620.3}, {326.0, 40.3}}, identifier: 'InsulinConcentrationLink', label: 'Insulin Concentration', value: U-100
+                     ↳StaticText, 0x118125e00, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391650624.136
+    Output: {
+      StaticText, 0x114474c80, {{80.0, 642.7}, {43.0, 18.0}}, label: 'U-100'
+    }
+
+    t =    79.49s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139)
+    t =    79.52s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    79.59s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139
+    t =    79.67s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    79.74s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139
+    t =    79.74s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126300, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+Element subtree:
+ →StaticText, 0x118126300, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126080, {{38.0, 673.0}, {326.0, 60.3}}, identifier: 'DataHandlingLink', label: 'Data Handling', value: Privacy, retention...
+                     ↳StaticText, 0x118126300, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391652864.139
+    Output: {
+      StaticText, 0x114475180, {{80.0, 673.0}, {107.7, 20.3}}, label: 'Data Handling'
+    }
+
+    t =    79.81s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140)
+    t =    79.85s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    79.91s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140
+    t =    80.00s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    80.06s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140
+    t =    80.06s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126440, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+Element subtree:
+ →StaticText, 0x118126440, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126080, {{38.0, 673.0}, {326.0, 60.3}}, identifier: 'DataHandlingLink', label: 'Data Handling', value: Privacy, retention...
+                     ↳StaticText, 0x118126440, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391654208.140
+    Output: {
+      StaticText, 0x1144752c0, {{80.0, 695.3}, {205.0, 38.0}}, label: 'Privacy, retention, and Health data flow'
+    }
+
+    t =    80.13s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143)
+    t =    80.17s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    80.23s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    80.32s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    80.38s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    t =    80.39s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126940, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Element subtree:
+ →StaticText, 0x118126940, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x1181266c0, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x118126940, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520000.143
+    Output: {
+      StaticText, 0x1144757c0, {{80.0, 745.7}, {132.3, 20.3}}, label: 'About PumpSync'
+    }
+
+    t =    80.46s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144)
+    t =    80.49s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    80.56s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    80.65s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    80.71s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    t =    80.71s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126a80, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Element subtree:
+ →StaticText, 0x118126a80, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x1181266c0, {{38.0, 745.7}, {326.0, 40.3}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                     ↳StaticText, 0x118126a80, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391520896.144
+    Output: {
+      StaticText, 0x114475900, {{80.0, 768.0}, {132.0, 18.0}}, label: 'How syncing works'
+    }
+
+    t =    80.80s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147)
+    t =    80.83s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    80.90s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    80.99s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    81.05s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    t =    81.06s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x118126f80, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Element subtree:
+ →StaticText, 0x118126f80, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126d00, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x118126f80, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391748928.147
+    Output: {
+      StaticText, 0x114475e00, {{80.0, 798.3}, {77.7, 20.3}}, label: 'Developer'
+    }
+
+    t =    81.14s Find the Any (Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148)
+    t =    81.18s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    81.24s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    81.45s Requesting snapshot of accessibility hierarchy for app with pid 77407
+    t =    81.53s Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    t =    81.53s Requesting snapshot of accessibility hierarchy for app with pid 77407
+AUDIT_ISSUE system-recovery | 1 | Contrast failed | Contrast failed for SwiftUI.AccessibilityNode | Attributes: StaticText, 0x1181270c0, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Element subtree:
+ →StaticText, 0x1181270c0, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Path to element:
+ →Application, 0x118121900, pid: 77407, label: 'PumpSync'
+  ↳Window (Main), 0x118121a40, {{0.0, 0.0}, {402.0, 874.0}}
+   ↳Other, 0x118121b80, {{0.0, 0.0}, {402.0, 874.0}}
+    ↳Other, 0x118121cc0, {{0.0, 0.0}, {402.0, 874.0}}
+     ↳Other, 0x118121e00, {{0.0, 0.0}, {402.0, 874.0}}
+      ↳Other, 0x118121f40, {{0.0, 0.0}, {402.0, 874.0}}
+       ↳Other, 0x118122080, {{0.0, 0.0}, {402.0, 874.0}}
+        ↳Other, 0x1181221c0, {{0.0, 0.0}, {402.0, 874.0}}
+         ↳Other, 0x118122300, {{0.0, 0.0}, {402.0, 874.0}}
+          ↳Other, 0x118122440, {{0.0, 0.0}, {402.0, 874.0}}
+           ↳Other, 0x118122580, {{0.0, 0.0}, {402.0, 874.0}}
+            ↳Other, 0x1181226c0, {{0.0, 0.0}, {402.0, 874.0}}
+             ↳Other, 0x118122800, {{0.0, 0.0}, {402.0, 874.0}}
+              ↳Other, 0x118122bc0, {{0.0, 0.0}, {402.0, 874.0}}
+               ↳Other, 0x118122d00, {{0.0, 0.0}, {402.0, 874.0}}
+                ↳Other, 0x118122e40, {{0.0, 0.0}, {402.0, 874.0}}
+                 ↳Other, 0x118122f80, {{0.0, 0.0}, {402.0, 874.0}}
+                  ↳ScrollView, 0x1181230c0, {{0.0, 0.0}, {402.0, 874.0}}
+                   ↳Other, 0x118124000, {{0.0, 168.0}, {402.0, 808.7}}
+                    ↳Button, 0x118126d00, {{38.0, 798.3}, {326.0, 40.3}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                     ↳StaticText, 0x1181270c0, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x11447d040, pid: 77407, label: 'PumpSync'
+  }
+  ↪︎Find: Descendant with identity binding to AX element pid: 77407, elementOrHash.elementID: 4391749824.148
+    Output: {
+      StaticText, 0x114475f40, {{80.0, 820.7}, {241.0, 18.0}}, label: 'Diagnostics, build, and sync details'
+    }
+
+    t =    81.60s Terminate dev.ericslutz.PumpSync:77407
+    t =    82.69s Tear Down
+Test Case '-[PumpSyncUITests.PumpSyncAuditTests testSystemSettingsFlows]' passed (83.044 seconds).
+Test Suite 'PumpSyncAuditTests' passed at 2026-10-01 11:38:17.463.
+	 Executed 1 test, with 0 failures (0 unexpected) in 83.044 (83.046) seconds
+Test Suite 'PumpSyncUITests.xctest' passed at 2026-10-01 11:38:17.463.
+	 Executed 1 test, with 0 failures (0 unexpected) in 83.044 (83.047) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 11:38:17.464.
+	 Executed 1 test, with 0 failures (0 unexpected) in 83.044 (83.048) seconds
+2026-10-01 11:38:17.779 xcodebuild[77359:2958373] [MT] IDETestOperationsObserverDebug: 89.556 elapsed -- Testing started completed.
+2026-10-01 11:38:17.779 xcodebuild[77359:2958373] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-01 11:38:17.779 xcodebuild[77359:2958373] [MT] IDETestOperationsObserverDebug: 89.556 sec, +89.556 sec -- end
+
+Test session results, code coverage, and logs:
+	/tmp/pumpsync-ui-audit-dark.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started

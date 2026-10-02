@@ -1,0 +1,48 @@
+# Safe import preview acceptance
+
+Candidate: local `codex/safe-import-preview` branches in the frontend, backend, website and wiki repositories; release commits being prepared for build 34. Original UI review remediation preserved. Implementation authorized 2026-10-01. This is local implementation evidence, not deployment or Apple acceptance.
+
+## Safety invariants
+
+- Synthetic, missing/unknown, contradictory or stale source context cannot authorize Health writes.
+- Final Health adapter checks the current live context immediately before submitting persistence.
+- Confirmed writes from an already-submitted operation are ledgered; abandoned/stale work does not publish success or advance the watermark.
+- The preview controller has no Health, imported-ledger or sync-metadata dependency. The real preview session reads the existing range/watermark to compose its request and does not mutate them; the demo session has no live-store dependency.
+- Demo credentials/session remain in memory and its device identity is separate from the live identity.
+- Legacy synthetic import returns 409 `synthetic_preview_only` with no sample payload.
+- Preview and import use the same protected normalization pipeline and aggregate download limit.
+
+## Local verification
+
+Backend Release build passes with zero warnings/errors; full suite 302 passed, zero failures/skips. Independent backend review approved after removing explicit date-window logging, suppressing Tandem factory URI logging and adding hosted-entitlement denial coverage. Earlier preview-validation Docker image `sha256:a22c9432b29fcb10144213bdd1e779ff4c4329513a5348e81e4d13e00e8dd86f` built successfully before the subsequent Tandem query correction. Temporary localhost-only synthetic container with padded ` SyntheticDemo ` configuration returned readiness 200, capabilities `supportsImportPreview=true` / `dataSourceMode=syntheticDemo`, and unauthenticated preview/import 401; container removed. Authenticated real/synthetic routes, legacy409 and aggregate12/hour are covered by the backend integration suite, not claimed from the unauthenticated container smoke.
+
+Website: 19 tests plus generated HTML validation passed. The complete iOS warning gate passed: 290 unit tests and 14 UI tests, zero failures or warning matches (`scripts/ios/validate-tests.sh`, isolated simulator). Unsigned Beta and Release physical-iOS builds pass with zero warnings. Built app bundles retain their nonproduction/production endpoints and contain no XCTest bundle, new preview test doubles or screenshot launch hooks. These builds do not prove signing, TestFlight, physical authentication or Health persistence. Final whole-branch review identified a provider/provenance mismatch for padded synthetic configuration and an in-app privacy-copy omission. Both were fixed and approved in scoped re-review. Provider registration and provenance now share canonical mode parsing; five new actual-registration cases failed before the fix and pass afterward (29 focused tests). Unsupported/blank modes fail startup. Copy-only changes also pass a Debug simulator build with zero warnings. Source review is approved; release acceptance remains gated below. Root inspected actual simulator Sample Preview form and six test-target renderer images (standard/light, AX5/dark top and scrolled rows, virtual iPad, empty and 1,000 records). Renderer fixtures do not establish authenticated physical-device behavior.
+
+## User-confirmed real-data device checks — 2026-10-02
+
+The user confirmed successful completion of all four real-data checks: before-state capture; real preview without Health/import-history changes; legitimate sync with expected Health records and privacy-safe outcome diagnostics; and repeat sync with previously imported records skipped and no observed duplicates.
+
+Evidence level: user-reported pass. The assistant has not received or inspected the before-state capture, support diagnostics, screenshots or recording. A subsequent support bundle identifies the installed app as 1.0.0 (33), with repeated Tandem request failures on 2026-10-02 and last successful sync at 2026-09-28T18:43:53Z. The four-point confirmation is retained as a user report but does not establish a successful current sync or acceptance of the new preview candidate. The tested backend revision and supporting artifacts are still unattributed. No credential or Health values are recorded here. Candidate-specific video, partial-permission/recovery checks and the remaining sample-preview/accessibility/distribution gates are not established by this confirmation.
+
+## Remaining release gates
+
+The Mac initially detected no iPhone; it now detects the user's physical iPhone on iOS27.0. A read-only CoreDevice check on 2026-10-02 confirmed USB pairing and Developer Mode enabled. Candidate-specific Secure Enclave/App Attest authentication and real-state/Health/deduplication evidence still require build attribution and artifact review; the user-reported real-data pass is recorded above. Spoken VoiceOver, the complete small-phone/iPad form and keyboard/Increase Contrast/Reduce Motion matrix, distribution-specific entitlement behavior and actual background execution remain unverified. A simulator cannot establish these results. No personal-device installation or real Health write was performed by this implementation task.
+
+Backend rollout, app distribution, public documentation publication, Apple contact and App Store submission are separate actions. Roll out synthetic protection first and do not roll back to a synthetic endpoint that supplies import samples. Apple's acceptance of the sample-preview plus legitimate-import-video arrangement remains pending; the proposal in the wiki is unsent.
+
+## Commands and logs
+
+- Backend: `dotnet build PumpSync.Backend.slnx --configuration Release`; `dotnet test PumpSync.Backend.slnx --configuration Release` (302 passed). Local image: `docker build -t pumpsync-backend:preview-local .`.
+- iOS: `PUMPSYNC_TEST_DESTINATION='platform=iOS Simulator,id=7C172CFA-650B-4566-BC58-65DD79E00540' PUMPSYNC_TEST_LOG=/private/tmp/pumpsync-preview-full-ios.log bash scripts/ios/validate-tests.sh -derivedDataPath /private/tmp/pumpsync-preview-full-derived` (290 unit + 14 UI). Raw log: `/private/tmp/pumpsync-preview-full-ios.log`.
+- Beta/Release: `xcodebuild build` with their respective configurations, `-destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO`; raw logs `/private/tmp/pumpsync-preview-beta-build.log` and `/private/tmp/pumpsync-preview-release-build.log`.
+- Website: `npm test` (19 Node tests and HTML validation). Public copy marks rollout pending.
+- Source review reports: `/private/tmp/pumpsync-preview-backend-review.md`, `/private/tmp/pumpsync-preview-core-review.md`, `/private/tmp/pumpsync-preview-ui-review.md`, `/private/tmp/pumpsync-preview-final-review.md` and `/private/tmp/pumpsync-preview-final-rereview.md`. Implementer reports use the corresponding `-report.md` paths. These temporary evidence files are local, not published artifacts.
+- Visual evidence: [actual Sample Preview form](01-sample-connection-standard-light.jpg) and [test-target preview renderer evidence](../2026-10-01-ui/preview-renderer-evidence/README.md). Rendering uses test-only fixtures; no hardware authentication fallback was added.
+
+Final verification refreshed 2026-10-02. New backend image smoke: `/private/tmp/pumpsync-preview-container-smoke-mode.json`; image build log: `/private/tmp/pumpsync-backend-final-image-mode.log`. No source-blocking review findings remain. Source validation is complete; release publication is recorded below and does not close physical or external gates.
+
+Follow-up on 2026-10-02: notification-only dismissal implemented; refreshed full iOS warning gate passes 291 unit and 15 UI tests. [Banner and current Tandem failure report](../2026-10-02-sync-follow-up/report.md) records the inspected simulator image and read-only deployed-backend diagnosis. The active diagnostic backend is already deployed; subsequent upstream comparison identified obsolete `eventIds` as the pump-log HTTP 400 cause. A local `eventCodes` correction passes 302 integrated backend tests, and an isolated backport passes 268 tests. Live recovery remains pending deployment and device confirmation.
+
+## Build 34 release validation
+
+On 2026-10-02, the required full iOS warning gate passed again after setting build 34: 291 unit tests and 15 UI tests, zero failures and warning matches. Raw log: `/private/tmp/pumpsync-build34-validation.log`. Beta continues to use the nonproduction API and sandbox StoreKit. TestFlight availability and physical-device acceptance remain separate gates.

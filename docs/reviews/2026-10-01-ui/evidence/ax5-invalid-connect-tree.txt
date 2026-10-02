@@ -1,0 +1,182 @@
+Attributes: Application, 0x11286fe80, pid: 76925, label: 'PumpSync'
+Element subtree:
+ →Application, 0x11286fe80, pid: 76925, label: 'PumpSync'
+    Window (Main), 0x11286d2c0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x11286c640, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x11286c780, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x11286c8c0, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x11286cdc0, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x11286cf00, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x11286ca00, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x11286cb40, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x11286cc80, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x11286c500, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x11286c000, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x11286c3c0, {{0.0, 0.0}, {402.0, 874.0}}
+                            NavigationBar, 0x11286d400, {{0.0, 62.0}, {402.0, 54.0}}, identifier: 'Settings'
+                              StaticText, 0x11286d540, {{160.7, 71.3}, {80.3, 25.3}}, label: 'Settings'
+                            Other, 0x11286d680, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x11286d7c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x11286d900, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x11286dcc0, {{0.0, 0.0}, {402.0, 874.0}}
+                                    ScrollView, 0x11286e440, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x11286e580, {{0.0, -806.7}, {402.0, 3627.3}}
+                                        StaticText, 0x11286e6c0, {{24.0, -794.7}, {274.7, 63.3}}, label: 'Connection'
+                                        StaticText, 0x11286ef80, {{38.0, -711.3}, {264.7, 116.7}}, label: 'Connection mode'
+                                        Button, 0x11286f480, {{42.7, -586.7}, {224.3, 125.3}}, label: 'PumpSync', value: Not selected
+                                          Image, 0x11286f0c0, {{42.7, -550.3}, {53.0, 53.0}}, identifier: 'circle', label: 'circle'
+                                          StaticText, 0x11286ee40, {{112.3, -586.7}, {154.7, 125.3}}, label: 'PumpSync'
+                                        Button, 0x11286f700, {{42.7, -453.3}, {224.7, 125.3}}, label: 'Self-hosted', value: Selected
+                                          Image, 0x11286f5c0, {{42.7, -417.0}, {53.0, 53.0}}, identifier: 'checkmark.circle.fill', label: 'Selected', Selected
+                                          StaticText, 0x11286f840, {{112.3, -453.3}, {155.0, 125.3}}, label: 'Self-hosted'
+                                        StaticText, 0x11286f980, {{38.0, -318.0}, {322.7, 621.3}}, label: 'Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.'
+                                        TextField, 0x11286fac0, {{38.0, 309.3}, {326.0, 65.0}}, label: 'Server URL', placeholderValue: 'Server URL', value: invalid, Keyboard Focused
+                                        Button, 0x11286fd40, {{22.0, 382.7}, {250.3, 63.3}}, label: 'Connect'
+                                          Image, 0x11286f340, {{22.0, 384.0}, {60.3, 60.7}}, identifier: 'link', label: 'Link'
+                                          StaticText, 0x11286f200, {{80.0, 382.7}, {192.3, 63.3}}, label: 'Connect'
+                                        StaticText, 0x11286de00, {{24.0, 476.3}, {257.3, 63.3}}, label: 'PumpSync'
+                                        Button, 0x11286df40, {{38.0, 565.7}, {326.0, 302.0}}, identifier: 'TandemAccountLink', label: 'Tandem Account', value: Not configured
+                                          Image, 0x11286e1c0, {{34.0, 683.0}, {36.0, 67.3}}, identifier: 'key', label: 'Passwords'
+                                          StaticText, 0x11286e300, {{80.0, 565.7}, {190.7, 125.3}}, label: 'Tandem Account'
+                                          StaticText, 0x11286ea80, {{80.0, 693.0}, {151.7, 174.7}}, label: 'Not configured'
+                                          Image, 0x11286ebc0, {{338.7, 697.3}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x11286ed00, {{38.0, 880.7}, {326.0, 360.0}}, identifier: 'AppleHealthLink', label: 'Apple Health', value: Insulin and carboh...
+                                          Image, 0x11286e940, {{25.3, 1036.0}, {53.7, 49.3}}, identifier: 'heart', label: 'Love'
+                                          StaticText, 0x11286fc00, {{80.0, 880.7}, {148.3, 125.3}}, label: 'Apple Health'
+                                          StaticText, 0x11286e800, {{80.0, 1008.0}, {191.3, 232.7}}, label: 'Insulin and carbohydrates'
+                                          Image, 0x11286da40, {{338.7, 1041.3}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x11286e080, {{38.0, 1253.7}, {326.0, 248.0}}, identifier: 'InsulinConcentrationLink', label: 'Insulin Concentration', value: U-100
+                                          Image, 0x11286db80, {{33.3, 1350.3}, {37.3, 54.7}}, identifier: 'drop.fill', label: 'Water Drop'
+                                          StaticText, 0x11286c140, {{80.0, 1253.7}, {199.0, 187.3}}, label: 'Insulin Concentration'
+                                          StaticText, 0x11286c280, {{80.0, 1443.0}, {136.7, 58.7}}, label: 'U-100'
+                                          Image, 0x10321b840, {{338.7, 1358.3}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x10321b200, {{38.0, 1514.7}, {326.0, 418.0}}, identifier: 'DataHandlingLink', label: 'Data Handling', value: Privacy, retention...
+                                          Image, 0x10321ad00, {{29.7, 1696.3}, {44.7, 54.3}}, identifier: 'lock.shield', label: 'lock.shield'
+                                          StaticText, 0x10321aa80, {{80.0, 1514.7}, {201.7, 125.3}}, label: 'Data Handling'
+                                          StaticText, 0x10321b980, {{80.0, 1642.0}, {202.7, 290.7}}, label: 'Privacy, retention, and Health data flow'
+                                          Image, 0x10321be80, {{338.7, 1704.3}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x10321b480, {{38.0, 1945.7}, {326.0, 364.0}}, identifier: 'AboutPumpSyncLink', label: 'About PumpSync', value: How syncing works
+                                          Image, 0x10321b0c0, {{24.7, 2100.3}, {55.0, 55.0}}, identifier: 'info.circle', label: 'Info'
+                                          StaticText, 0x10321af80, {{80.0, 1945.7}, {154.7, 187.3}}, label: 'About PumpSync'
+                                          StaticText, 0x10321bac0, {{80.0, 2135.0}, {172.7, 174.7}}, label: 'How syncing works'
+                                          Image, 0x10321bc00, {{338.7, 2108.3}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                        Button, 0x10321b5c0, {{38.0, 2322.7}, {326.0, 360.0}}, identifier: 'DeveloperLink', label: 'Developer', value: Diagnostics, build...
+                                          Image, 0x10321bd40, {{17.3, 2469.0}, {69.3, 67.3}}, identifier: 'hammer', label: 'Build'
+                                          StaticText, 0x10321b700, {{80.0, 2322.7}, {207.3, 125.3}}, label: 'Developer'
+                                          StaticText, 0x10321b340, {{80.0, 2450.0}, {213.3, 232.7}}, label: 'Diagnostics, build, and sync details'
+                                          Image, 0x10321ae40, {{338.7, 2483.3}, {22.7, 38.7}}, identifier: 'chevron.right', label: 'Forward'
+                                      Other, 0x112817340, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x112817480, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x1128175c0, {{0.0, 630.8}, {402.0, 95.4}}
+                                      Other, 0x112817700, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x112817840, {{0.0, 0.0}, {402.0, 170.8}}
+                                          Other, 0x112817980, {{0.0, 0.0}, {402.0, 96.7}}
+                                          Other, 0x112817ac0, {{0.0, 0.0}, {402.0, 170.8}}
+                                            Other, 0x112817c00, {{0.0, 0.0}, {402.0, 170.8}}
+                                          Other, 0x112817d40, {{0.0, 0.0}, {402.0, 170.8}}
+                                            Other, 0x112817e80, {{0.0, 0.0}, {402.0, 170.8}}
+                                          Other, 0x112816f80, {{0.0, 0.0}, {402.0, 170.8}}
+                                            Other, 0x1128143c0, {{0.0, 0.0}, {402.0, 170.8}}
+                                            Other, 0x112814500, {{0.0, 0.0}, {402.0, 170.8}}
+                                        Other, 0x112814640, {{0.0, 630.8}, {402.0, 95.4}}
+                                          Image, 0x112814780, {{-120.0, 601.4}, {642.0, 249.6}}, identifier: 'AdditionalDimmingOverlay'
+                                          Other, 0x1128148c0, {{0.0, 630.8}, {402.0, 95.4}}
+                                            Other, 0x112814a00, {{0.0, 630.8}, {402.0, 95.4}}
+                                          Other, 0x112814b40, {{0.0, 630.8}, {402.0, 95.4}}
+                                            Other, 0x112814c80, {{0.0, 630.8}, {402.0, 95.4}}
+                                            Other, 0x1128166c0, {{0.0, 630.8}, {402.0, 95.4}}
+                            Other, 0x112816800, {{0.0, 0.0}, {402.0, 874.0}}
+                              Other, 0x112816940, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x112816a80, {{0.0, 791.0}, {402.0, 83.0}}
+                  Other, 0x112816bc0, {{0.0, 0.0}, {402.0, 874.0}}
+                    TabBar, 0x112816d00, {{0.0, 791.0}, {402.0, 83.0}}, label: 'Tab Bar'
+                      Other, 0x112816e40, {{107.0, 791.0}, {188.0, 62.0}}
+                        Other, 0x1128170c0, {{107.0, 791.0}, {94.0, 54.0}}
+                        Other, 0x112814000, {{107.0, 791.0}, {188.0, 62.0}}
+                          Button, 0x112814140, {{111.0, 795.0}, {94.0, 54.0}}, label: 'Sync'
+                            Image, 0x112814280, {{143.7, 801.3}, {28.3, 27.3}}, identifier: 'arrow.trianglehead.2.clockwise.rotate.90', label: 'arrow.trianglehead.2.clockwise.rotate.90'
+                          Button, 0x112820000, {{197.0, 795.0}, {94.0, 54.0}}, label: 'Settings', Selected
+                            Image, 0x112820140, {{230.0, 801.0}, {28.0, 28.0}}, identifier: 'gearshape.fill', label: 'gearshape.fill'
+                        Other, 0x112820280, {{197.0, 795.0}, {94.0, 54.0}}
+                          Other, 0x1128203c0, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x112820500, {{197.0, 795.0}, {94.0, 54.0}}
+                            Other, 0x112820640, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x112820780, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x1128208c0, {{197.0, 795.0}, {94.0, 54.0}}
+                                  Other, 0x112820a00, {{197.0, 795.0}, {94.0, 54.0}}
+                                Other, 0x112820b40, {{197.0, 795.0}, {94.0, 54.0}}
+                              Other, 0x112820c80, {{197.0, 795.0}, {94.0, 54.0}}
+                  Other, 0x112820dc0, {{0.0, 791.0}, {402.0, 83.0}}
+                    Other, 0x112820f00, {{0.0, 791.0}, {402.0, 83.0}}
+                      Other, 0x112821040, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x112821180, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x1128212c0, {{0.0, 791.0}, {402.0, 83.0}}
+                            Other, 0x112821400, {{0.0, 791.0}, {402.0, 83.0}}
+                        Other, 0x112821540, {{0.0, 791.0}, {402.0, 83.0}}
+                          Other, 0x112821680, {{0.0, 791.0}, {402.0, 83.0}}
+    Window, 0x1128217c0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x112821900, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x112821a40, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x112821b80, {{0.0, 566.0}, {402.0, 308.0}}
+          Other, 0x112821cc0, {{0.0, 566.0}, {402.0, 308.0}}, identifier: 'inputView'
+    Window, 0x112821e00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x112821f40, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x112822080, {{0.0, 566.0}, {402.0, 308.0}}
+          Other, 0x1128221c0, {{0.0, 566.0}, {402.0, 308.0}}
+            Other, 0x112822300, {{0.0, 566.0}, {402.0, 308.0}}
+              Other, 0x112822440, {{0.0, 566.0}, {402.0, 308.0}}
+          Other, 0x112822580, {{0.0, 583.0}, {402.0, 233.0}}
+            Keyboard, 0x1128226c0, {{0.0, 583.0}, {402.0, 233.0}}
+              Other, 0x112822800, {{0.0, 583.0}, {402.0, 233.0}}
+                Other, 0x112822940, {{0.0, 583.0}, {402.0, 233.0}}, identifier: 'UIKeyboardLayoutStar Preview'
+                  Key, 0x112822a80, {{0.0, 583.0}, {0.0, 0.0}}, label: 'Padding-Left'
+                  Key, 0x112822bc0, {{4.7, 590.0}, {39.3, 54.0}}, label: 'q'
+                  Key, 0x112822d00, {{44.0, 590.0}, {39.7, 54.0}}, label: 'w'
+                  Key, 0x112822e40, {{83.7, 590.0}, {39.3, 54.0}}, label: 'e'
+                  Key, 0x112822f80, {{123.0, 590.0}, {39.7, 54.0}}, label: 'r'
+                  Key, 0x1128230c0, {{162.7, 590.0}, {39.3, 54.0}}, label: 't'
+                  Key, 0x112823200, {{202.0, 590.0}, {39.7, 54.0}}, label: 'y'
+                  Key, 0x112823340, {{241.7, 590.0}, {39.3, 54.0}}, label: 'u'
+                  Key, 0x112823480, {{281.0, 590.0}, {39.7, 54.0}}, label: 'i'
+                  Key, 0x1128235c0, {{320.7, 590.0}, {39.3, 54.0}}, label: 'o'
+                  Key, 0x112823700, {{360.0, 590.0}, {39.7, 54.0}}, label: 'p'
+                  Key, 0x112823840, {{0.0, 583.0}, {0.0, 0.0}}, label: 'Padding-Right'
+                  Key, 0x112823980, {{0.0, 583.0}, {0.0, 0.0}}, label: 'Padding-Left'
+                  Key, 0x112823ac0, {{24.3, 644.0}, {39.3, 54.0}}, label: 'a'
+                  Key, 0x112823c00, {{63.7, 644.0}, {39.7, 54.0}}, label: 's'
+                  Key, 0x112823d40, {{103.3, 644.0}, {39.3, 54.0}}, label: 'd'
+                  Key, 0x112823e80, {{142.7, 644.0}, {39.7, 54.0}}, label: 'f'
+                  Key, 0x106868000, {{182.3, 644.0}, {39.3, 54.0}}, label: 'g'
+                  Key, 0x106868140, {{221.7, 644.0}, {39.7, 54.0}}, label: 'h'
+                  Key, 0x106868280, {{261.3, 644.0}, {39.3, 54.0}}, label: 'j'
+                  Key, 0x1068683c0, {{300.7, 644.0}, {39.7, 54.0}}, label: 'k'
+                  Key, 0x106868500, {{340.3, 644.0}, {39.3, 54.0}}, label: 'l'
+                  Key, 0x106868640, {{0.0, 583.0}, {0.0, 0.0}}, label: 'Padding-Right'
+                  Button, 0x106868780, {{4.7, 698.0}, {51.3, 54.0}}, identifier: 'shift', label: 'shift'
+                  Key, 0x1068688c0, {{0.0, 583.0}, {0.0, 0.0}}, label: 'Padding-Left'
+                  Key, 0x106868a00, {{63.7, 698.0}, {39.7, 54.0}}, label: 'z'
+                  Key, 0x106868b40, {{103.3, 698.0}, {39.3, 54.0}}, label: 'x'
+                  Key, 0x106868c80, {{142.7, 698.0}, {39.7, 54.0}}, label: 'c'
+                  Key, 0x106868dc0, {{182.3, 698.0}, {39.3, 54.0}}, label: 'v'
+                  Key, 0x106868f00, {{221.7, 698.0}, {39.7, 54.0}}, label: 'b'
+                  Key, 0x106869040, {{261.3, 698.0}, {39.3, 54.0}}, label: 'n'
+                  Key, 0x106869180, {{300.7, 698.0}, {39.7, 54.0}}, label: 'm'
+                  Key, 0x1068692c0, {{0.0, 583.0}, {0.0, 0.0}}, label: 'Padding-Right'
+                  Key, 0x106869400, {{348.0, 698.0}, {51.7, 54.0}}, identifier: 'delete', label: 'delete'
+                  Key, 0x106869540, {{4.7, 752.0}, {98.7, 54.0}}, identifier: 'more', label: 'numbers'
+                  Key, 0x106869680, {{103.3, 752.0}, {65.7, 54.0}}, label: '.'
+                  Key, 0x1068697c0, {{169.0, 752.0}, {66.0, 54.0}}, label: '/'
+                  Key, 0x106869900, {{235.0, 752.0}, {65.7, 54.0}}, label: '.com'
+                  Button, 0x106869a40, {{300.7, 752.0}, {99.0, 54.0}}, identifier: 'Return', label: 'return'
+          Other, 0x106869b80, {{0.0, 583.0}, {402.0, 291.0}}
+            Button, 0x106869cc0, {{8.5, 805.7}, {68.1, 68.7}}, label: 'Emoji'
+              StaticText, 0x106869e00, {{8.5, 805.7}, {0.0, 0.0}}
+            Button, 0x106869f40, {{325.4, 805.4}, {68.1, 68.7}}, identifier: 'dictation', label: 'Dictate', Disabled
+              StaticText, 0x10686a080, {{325.4, 805.4}, {0.0, 0.0}}
+Path to element:
+ →Application, 0x11286fe80, pid: 76925, label: 'PumpSync'
+Query chain:
+ →Find: Target Application 'dev.ericslutz.PumpSync'
+  Output: {
+    Application, 0x10686a1c0, pid: 76925, label: 'PumpSync'
+  }

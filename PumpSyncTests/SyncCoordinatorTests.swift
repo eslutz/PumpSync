@@ -5,6 +5,8 @@ import XCTest
 private final class FakeHealthKitService: SyncHealthWriting {
   var hasAnyWritePermission: Bool
   var saveError: Error?
+  var concentration: InsulinConcentration = .u100
+  private(set) var savedConcentrations: [InsulinConcentration] = []
   /// External ids save() should silently drop, mirroring HealthKitService
   /// skipping samples whose per-type permission is missing.
   var droppedExternalIds: Set<String> = []
@@ -22,7 +24,10 @@ private final class FakeHealthKitService: SyncHealthWriting {
     refreshAuthorizationStatusCallCount += 1
   }
 
-  func save(samples: [SampleDTO]) async throws -> [SampleDTO] {
+  func save(batch: HealthImportBatch) async throws -> [SampleDTO] {
+    let samples = batch.plan.samples.map(\.original)
+    let concentration = batch.plan.concentration
+    savedConcentrations.append(concentration)
     savedSamples = samples
     saveStarted?()
     if suspendsSave {
@@ -44,6 +49,7 @@ private final class FakeHealthKitService: SyncHealthWriting {
 }
 
 private struct StubTandemSyncResponse: Encodable {
+  var dataSourceMode = "tandemSource"
   let samples: [SampleDTO]
   let effectiveMinDate: Date
   let effectiveMaxDate: Date
@@ -71,6 +77,305 @@ final class SyncCoordinatorTests: XCTestCase {
   override func tearDown() {
     URLProtocolStub.requestHandler = nil
     super.tearDown()
+  }
+
+  func testPreviewActivityDefersManualAndBackgroundWithoutPersistentChanges() async throws {
+    let health = FakeHealthKitService()
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    coordinator.setDemoPreviewActive(true)
+    let background = await coordinator.refreshIfStale(reason: .background)
+    let manual = await coordinator.sync(reason: .manual)
+    XCTAssertEqual(background, .skippedPreviewActive)
+    XCTAssertFalse(manual)
+    XCTAssertNil(metadata.metadata.lastAttemptAt)
+    XCTAssertNil(metadata.metadata.lastErrorMessage)
+    XCTAssertEqual(coordinator.operationState, .idle)
+    coordinator.setDemoPreviewActive(false)
+    URLProtocolStub.requestHandler = syncResponseHandler(samples: [], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    let resumed = await coordinator.sync(reason: .manual)
+    XCTAssertTrue(resumed)
+  }
+
+  func testSyntheticAndMissingBatchProvenanceNeverReachWriterOrRealMetadata() async throws {
+    for mode in ["syntheticDemo", "unknown", ""] {
+      let health = FakeHealthKitService()
+      let metadata = makeSyncMetadataStore()
+      let before = metadata.metadata
+      URLProtocolStub.requestHandler = { request in
+        let source = mode.isEmpty ? "" : ",\"dataSourceMode\":\"\(mode)\""
+        let data = Data("{\"samples\":[],\"effectiveMinDate\":\"2026-10-01T00:00:00Z\",\"effectiveMaxDate\":\"2026-10-01T01:00:00Z\"\(source)}".utf8)
+        return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
+      }
+      let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+      let result = await coordinator.sync(reason: .manual)
+      XCTAssertFalse(result)
+      XCTAssertTrue(health.savedConcentrations.isEmpty)
+      XCTAssertEqual(metadata.metadata.lastAttemptAt, before.lastAttemptAt)
+      XCTAssertEqual(metadata.metadata.lastSuccessfulSyncAt, before.lastSuccessfulSyncAt)
+      XCTAssertEqual(metadata.metadata.lastErrorMessage, before.lastErrorMessage)
+    }
+  }
+
+  func testLateUnauthorizedFailureFromReplacedTokenInSameFamilyDoesNotClearFreshSessionOrMetadata() async throws {
+    try await verifyStaleDownloadFailure(change: "sameFamilyToken", status: 401, code: "invalid_token")
+  }
+
+  func testLateUnauthorizedFailureDoesNotClearReplacementSessionOrPersistFailure() async throws {
+    try await verifyStaleDownloadFailure(change: "session", status: 401, code: "invalid_token")
+  }
+
+  func testLateTandemRejectionDoesNotInvalidateReplacementCredentialsOrPersistFailure() async throws {
+    try await verifyStaleDownloadFailure(change: "credentials", status: 424, code: "tandem_authentication_failed")
+  }
+
+  func testLateTransportFailureAfterConfigurationSwitchDoesNotPersistFailure() async throws {
+    try await verifyStaleDownloadFailure(change: "configuration", status: nil, code: "")
+  }
+
+  private func verifyStaleDownloadFailure(change: String, status: Int?, code: String) async throws {
+    let started = expectation(description: "old download suspended")
+    let allow = DispatchSemaphore(value: 0)
+    let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "LateFailureConfig-\(UUID().uuidString)")!)
+    let sessionStore = makeSessionStore()
+    let auth = makeReplacingAuthService(configuration: config, newFamily: change == "sameFamilyToken" ? "debug-session-family" : "replacement-family", sessionStore: sessionStore)
+    auth.applyScreenshotSession(serviceMode: "hosted")
+    let credentials = try makeValidatedCredentialStore()
+    let metadata = makeSyncMetadataStore()
+    metadata.recordSuccess(sampleCount: 8, importedCount: 7, completedAt: Date(timeIntervalSince1970: 1_000), watermark: Date(timeIntervalSince1970: 900))
+    let prior = metadata.metadata
+    let health = FakeHealthKitService()
+    let failure = status.map { errorResponseHandler(statusCode: $0, code: code, message: "Old request rejected.") }
+    URLProtocolStub.requestHandler = { request in
+      started.fulfill()
+      allow.wait()
+      if let failure { return try failure(request) }
+      throw URLError(.networkConnectionLost)
+    }
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
+    let task = Task { await coordinator.sync(reason: .manual) }
+    await fulfillment(of: [started], timeout: 2)
+    if change == "session" || change == "sameFamilyToken" { let restored = await auth.recoverHostedSubscriptionAfterAccessDenied(); XCTAssertTrue(restored) }
+    if change == "credentials" { try credentials.saveValidated(TandemCredentials(username: "replacement@example.com", password: "new", region: "us")) }
+    if change == "configuration" { config.mode = .selfHosted; config.selfHostedBaseURLString = "https://replacement.example/api" }
+    let expectedSession = auth.session
+    let expectedCredentialRevision = credentials.revision
+    let expectedCredentials = try credentials.load()
+    allow.signal()
+    let result = await task.value
+    XCTAssertFalse(result)
+    XCTAssertEqual(auth.session, expectedSession)
+    if change == "session" || change == "sameFamilyToken" { XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "replacement-token") }
+    XCTAssertTrue(credentials.hasValidatedCredentials)
+    XCTAssertEqual(credentials.revision, expectedCredentialRevision)
+    XCTAssertEqual(try credentials.load(), expectedCredentials)
+    XCTAssertEqual(metadata.metadata, prior)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertEqual(coordinator.lastMessage, "Your connection or pump credentials changed. Start a new sync.")
+  }
+
+  func testExpiredSessionSameFamilyRefreshContinuesOriginalOperation() async throws {
+    try await verifyExpiredSessionRecovery(reenroll: false)
+  }
+
+  func testExpiredSessionNewFamilyReenrollmentRejectsOriginalOperationWithoutWritesOrMetadata() async throws {
+    try await verifyExpiredSessionRecovery(reenroll: true)
+  }
+
+  private func verifyExpiredSessionRecovery(reenroll: Bool) async throws {
+    let sessionStore = makeSessionStore()
+    let expired = BackendSessionResponse(accessToken: "expired", expiresAt: Date().addingTimeInterval(-60), serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "expired-family", refreshToken: "refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+    try sessionStore.save(expired)
+    let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "ExpiredConfig-\(UUID().uuidString)")!)
+    let proof = RecoveringDeviceSessionProofProvider()
+    proof.acceptsRefresh = true
+    let restored = BackendSessionResponse(accessToken: "restored", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: reenroll ? "new-family" : "expired-family", refreshToken: "refresh-restored", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+    let auth = AuthService(apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0), configurationStore: config, sessionStore: sessionStore,
+      currentEntitlementJWS: { "signed-transaction" }, createSubscriptionSession: { _ in restored }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: proof)
+    XCTAssertFalse(auth.isSignedIn)
+    let refreshData = try JSONCodec.encoder.encode(restored)
+    let syncResponse = syncResponseHandler(samples: [sample(externalId: "expired-recovery")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    let rejectedRefresh = errorResponseHandler(statusCode: 401, code: "invalid_token", message: "Refresh rejected.")
+    URLProtocolStub.requestHandler = { request in
+      if request.url?.path.hasSuffix("/session/refresh") == true {
+        if reenroll { return try rejectedRefresh(request) }
+        return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, refreshData)
+      }
+      return try syncResponse(request)
+    }
+    let metadata = makeSyncMetadataStore()
+    let health = FakeHealthKitService()
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let result = await coordinator.sync(reason: .manual)
+    XCTAssertEqual(result, !reenroll)
+    XCTAssertEqual(health.savedConcentrations.count, reenroll ? 0 : 1)
+    XCTAssertEqual(auth.session?.sessionFamilyId, reenroll ? "new-family" : "expired-family")
+    if reenroll {
+      XCTAssertNil(metadata.metadata.lastAttemptAt)
+      XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+      XCTAssertNil(metadata.metadata.lastErrorMessage)
+      XCTAssertEqual(coordinator.lastMessage, "Your connection or pump credentials changed. Start a new sync.")
+    }
+  }
+
+  func testSameFamilyTokenReplacementDuringDownloadRemainsEligible() async throws {
+    try await verifySessionReplacementDuringDownload(newFamily: "debug-session-family", expectedSuccess: true)
+  }
+
+  func testNewSessionFamilyDuringDownloadRejectsBatchWithoutWriterOrMetadata() async throws {
+    try await verifySessionReplacementDuringDownload(newFamily: "new-family", expectedSuccess: false)
+  }
+
+  private func verifySessionReplacementDuringDownload(newFamily: String, expectedSuccess: Bool) async throws {
+    let started = expectation(description: "download suspended")
+    let allow = DispatchSemaphore(value: 0)
+    let health = FakeHealthKitService()
+    let metadata = makeSyncMetadataStore()
+    let configuration = BackendConfigurationStore(defaults: UserDefaults(suiteName: "SessionReplacement-\(UUID().uuidString)")!)
+    let auth = makeReplacingAuthService(configuration: configuration, newFamily: newFamily)
+    auth.applyScreenshotSession(serviceMode: "hosted")
+    let response = syncResponseHandler(samples: [sample(externalId: "replacement")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in started.fulfill(); allow.wait(); return try response(request) }
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let task = Task { await coordinator.sync(reason: .manual) }
+    await fulfillment(of: [started], timeout: 2)
+    let replaced = await auth.recoverHostedSubscriptionAfterAccessDenied()
+    XCTAssertTrue(replaced)
+    allow.signal()
+    let result = await task.value
+    XCTAssertEqual(result, expectedSuccess)
+    XCTAssertEqual(health.savedConcentrations.count, expectedSuccess ? 1 : 0)
+    XCTAssertEqual(metadata.metadata.lastSuccessfulSyncAt != nil, expectedSuccess)
+    if !expectedSuccess { XCTAssertNil(metadata.metadata.lastAttemptAt); XCTAssertNil(metadata.metadata.lastErrorMessage) }
+  }
+
+  func testConfigurationSwitchDuringAuthRecoveryCannotAdoptReplacementBackend() async throws {
+    let authStarted = expectation(description: "auth recovery suspended")
+    var resume: CheckedContinuation<String, Never>?
+    let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "AuthConfigSwitch-\(UUID().uuidString)")!)
+    let health = FakeHealthKitService()
+    let auth = AuthService(apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0), configurationStore: config,
+      currentEntitlementJWS: { await withCheckedContinuation { resume = $0; authStarted.fulfill() } },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: RecoveringDeviceSessionProofProvider())
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let task = Task { await coordinator.sync(reason: .manual) }
+    await fulfillment(of: [authStarted], timeout: 2)
+    config.mode = .selfHosted
+    config.selfHostedBaseURLString = "https://other.example/api"
+    resume?.resume(returning: "signed-transaction")
+    let result = await task.value
+    XCTAssertFalse(result)
+    XCTAssertEqual(coordinator.lastMessage, "Your connection or pump credentials changed. Start a new sync.")
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertNil(metadata.metadata.lastAttemptAt)
+  }
+
+  func testContextChangeAfterSubmittedSaveLedgersConfirmedWritesWithoutPublishingSuccess() async throws {
+    let started = expectation(description: "save submitted")
+    let health = FakeHealthKitService()
+    health.suspendsSave = true
+    health.saveStarted = { started.fulfill() }
+    let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "SaveContextSwitch-\(UUID().uuidString)")!)
+    let metadata = makeSyncMetadataStore()
+    let ledger = ImportedSampleLedger(keychain: SecureKeychainStore(service: "SaveContextSwitch.\(UUID().uuidString)"), defaults: UserDefaults(suiteName: "SaveContextLedger-\(UUID().uuidString)")!)
+    let confirmed = sample(externalId: "submitted")
+    URLProtocolStub.requestHandler = syncResponseHandler(samples: [confirmed], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(configuration: config), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, importedSampleLedger: ledger, syncMetadataStore: metadata)
+    let task = Task { await coordinator.sync(reason: .manual) }
+    await fulfillment(of: [started], timeout: 2)
+    config.mode = .selfHosted
+    config.selfHostedBaseURLString = "https://other.example/api"
+    health.resumeSave()
+    let result = await task.value
+    XCTAssertFalse(result)
+    XCTAssertTrue(try ledger.filterUnseen([confirmed]).isEmpty)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+    XCTAssertNil(metadata.metadata.syncWatermark)
+  }
+
+  private func makeReplacingAuthService(configuration: BackendConfigurationStore, newFamily: String, sessionStore: BackendSessionStore? = nil) -> AuthService {
+    AuthService(apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0), configurationStore: configuration, sessionStore: sessionStore,
+      currentEntitlementJWS: { "signed-transaction" },
+      createSubscriptionSession: { _ in BackendSessionResponse(accessToken: "replacement-token", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: newFamily, refreshToken: "refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture) },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: RecoveringDeviceSessionProofProvider())
+  }
+
+  func testConfigurationChangeDuringDownloadRejectsBatchWithoutRealStateMutation() async throws {
+    let started = expectation(description: "download suspended")
+    let allow = DispatchSemaphore(value: 0)
+    let health = FakeHealthKitService()
+    let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "StaleConfig-\(UUID().uuidString)")!)
+    let metadata = makeSyncMetadataStore()
+    let response = syncResponseHandler(samples: [sample(externalId: "stale-config")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in
+      started.fulfill()
+      allow.wait()
+      return try response(request)
+    }
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(configuration: config), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let task = Task { await coordinator.sync(reason: .manual) }
+    await fulfillment(of: [started], timeout: 2)
+    config.mode = .selfHosted
+    config.selfHostedBaseURLString = "https://other.example/api"
+    allow.signal()
+    let result = await task.value
+    XCTAssertFalse(result)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertNil(metadata.metadata.lastAttemptAt)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+    XCTAssertNil(metadata.metadata.lastErrorMessage)
+  }
+
+  func testCredentialChangeDuringDownloadRejectsBatchWithoutLedgeringOrSuccess() async throws {
+    let started = expectation(description: "download suspended")
+    let allow = DispatchSemaphore(value: 0)
+    let health = FakeHealthKitService()
+    let credentials = try makeValidatedCredentialStore()
+    let metadata = makeSyncMetadataStore()
+    let response = syncResponseHandler(samples: [sample(externalId: "stale")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in
+      started.fulfill()
+      allow.wait()
+      return try response(request)
+    }
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
+    let task = Task { await coordinator.sync(reason: .manual) }
+    await fulfillment(of: [started], timeout: 2)
+    try credentials.delete()
+    allow.signal()
+    let result = await task.value
+    XCTAssertFalse(result)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+  }
+
+  func testConcentrationIsCapturedForSharedOperationAndNextSyncUsesNewSetting() async throws {
+    let requestStarted = expectation(description: "download suspended")
+    let allowResponse = DispatchSemaphore(value: 0)
+    let health = FakeHealthKitService()
+    let response = syncResponseHandler(samples: [sample(externalId: "concentration")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in
+      requestStarted.fulfill()
+      allowResponse.wait()
+      return try response(request)
+    }
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), healthKitService: health)
+    let first = Task { await coordinator.sync(reason: .manual) }
+    await fulfillment(of: [requestStarted], timeout: 2)
+    health.concentration = .u500
+    let shared = Task { await coordinator.sync(reason: .manual) }
+    for _ in 0..<10 { await Task.yield() }
+    allowResponse.signal()
+    let firstResult = await first.value
+    let sharedResult = await shared.value
+    XCTAssertTrue(firstResult)
+    XCTAssertTrue(sharedResult)
+    XCTAssertEqual(health.savedConcentrations, [.u100])
+    URLProtocolStub.requestHandler = response
+    let nextResult = await coordinator.sync(reason: .manual)
+    XCTAssertTrue(nextResult)
+    XCTAssertEqual(health.savedConcentrations, [.u100, .u500])
   }
 
   func testAllCancelledWaitersCannotPublishSuccessAfterHealthSaveCompletes() async throws {
@@ -302,6 +607,55 @@ final class SyncCoordinatorTests: XCTestCase {
     )
   }
 
+  func testDismissingProgressDoesNotStopSyncOrReappearBetweenPhases() async throws {
+    let requestStarted = expectation(description: "download started")
+    let saveStarted = expectation(description: "save started")
+    let allowResponse = DispatchSemaphore(value: 0)
+    let health = FakeHealthKitService()
+    health.suspendsSave = true
+    health.saveStarted = { saveStarted.fulfill() }
+    let responseHandler = syncResponseHandler(
+      samples: [sample(externalId: "dismissed-notification")],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
+    )
+    URLProtocolStub.requestHandler = { request in
+      requestStarted.fulfill()
+      allowResponse.wait()
+      return try responseHandler(request)
+    }
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(
+      authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore(),
+      healthKitService: health,
+      syncMetadataStore: metadata
+    )
+    coordinator.startManualSync()
+    await fulfillment(of: [requestStarted], timeout: 2)
+    coordinator.dismissNotification()
+    XCTAssertTrue(coordinator.isNotificationDismissed)
+    XCTAssertTrue(coordinator.isSyncing)
+    XCTAssertEqual(coordinator.syncPhase, .downloading)
+    allowResponse.signal()
+    await fulfillment(of: [saveStarted], timeout: 2)
+    XCTAssertTrue(coordinator.isNotificationDismissed)
+    XCTAssertTrue(coordinator.isSyncing)
+    XCTAssertEqual(coordinator.syncPhase, .updatingHealth)
+    health.resumeSave()
+    await waitUntil { !coordinator.isSyncing }
+    guard case .succeeded = coordinator.operationState else {
+      return XCTFail("dismissed sync must still complete")
+    }
+    XCTAssertNotNil(metadata.metadata.lastSuccessfulSyncAt)
+    XCTAssertFalse(coordinator.isNotificationDismissed)
+    coordinator.dismissNotification()
+    guard case .succeeded = coordinator.operationState else {
+      return XCTFail("dismissing a result must preserve the operation result")
+    }
+    XCTAssertTrue(coordinator.isNotificationDismissed)
+  }
+
   func testDismissResultReturnsToIdleButCannotDismissRunningOperation() async throws {
     let requestStarted = expectation(description: "sync request started")
     let allowResponse = DispatchSemaphore(value: 0)
@@ -356,7 +710,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let configuration = BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!)
     configuration.mode = .selfHosted
     let authService = AuthService(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0),
       configurationStore: configuration,
       sessionStore: nil,
       currentEntitlementJWS: {
@@ -493,7 +847,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let sessionStore = makeSessionStore()
     try sessionStore.save(renewableHostedSession())
     let authService = AuthService(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0),
       configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
       sessionStore: sessionStore,
       currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
@@ -553,7 +907,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let sessionStore = makeSessionStore()
     try sessionStore.save(renewableHostedSession())
     let authService = AuthService(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0),
       configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
       sessionStore: sessionStore,
       currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
@@ -611,7 +965,7 @@ final class SyncCoordinatorTests: XCTestCase {
       return try responseHandler(request)
     }
     let authService = AuthService(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0),
       configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
       sessionStore: nil,
       currentEntitlementJWS: { "active-transaction" },
@@ -650,7 +1004,7 @@ final class SyncCoordinatorTests: XCTestCase {
       message: "An active PumpSync subscription is required."
     )
     let authService = AuthService(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0),
       configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
       sessionStore: nil,
       currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
@@ -843,7 +1197,7 @@ final class SyncCoordinatorTests: XCTestCase {
     var enrollmentCalls = 0
     let authService = AuthService(
       apiClient: PumpSyncAPIClient(
-        baseURL: URL(string: "https://example.com/api")!,
+        baseURL: AppConstants.defaultAPIBaseURL,
         urlSession: URLProtocolStub.makeSession(),
         maxRetryCount: 0
       ),
@@ -1075,7 +1429,7 @@ final class SyncCoordinatorTests: XCTestCase {
     diagnostics: DiagnosticsLogStore? = nil
   ) -> SyncCoordinator {
     SyncCoordinator(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0),
       authService: authService,
       credentialStore: credentialStore,
       healthKitService: healthKitService,
@@ -1088,10 +1442,10 @@ final class SyncCoordinatorTests: XCTestCase {
     )
   }
 
-  private func makeSignedInAuthService() -> AuthService {
+  private func makeSignedInAuthService(configuration: BackendConfigurationStore? = nil) -> AuthService {
     let service = AuthService(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
-      configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0),
+      configurationStore: configuration ?? BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
       sessionStore: nil,
       currentEntitlementJWS: {
         XCTFail("StoreKit should not be reached when a session is already present")
@@ -1113,7 +1467,7 @@ final class SyncCoordinatorTests: XCTestCase {
 
   private func makeSignedOutAuthService() -> AuthService {
     AuthService(
-      apiClient: PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: .shared, maxRetryCount: 0),
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: .shared, maxRetryCount: 0),
       configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!),
       sessionStore: nil,
       currentEntitlementJWS: {
@@ -1197,6 +1551,7 @@ final class SyncCoordinatorTests: XCTestCase {
   }
 
   private final class RecoveringDeviceSessionProofProvider: DeviceSessionProofProviding {
+    var acceptsRefresh = false
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
@@ -1232,7 +1587,8 @@ final class SyncCoordinatorTests: XCTestCase {
       installationId: String,
       mode: BackendAccessMode
     ) async throws -> SessionRefreshRequest {
-      throw APIClientError.invalidResponse
+      guard acceptsRefresh else { throw APIClientError.invalidResponse }
+      return SessionRefreshRequest(installationId: installationId, refreshToken: session.refreshToken, requestId: UUID().uuidString, issuedAt: Date(), proof: "test-proof")
     }
   }
 

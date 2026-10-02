@@ -8,6 +8,9 @@ final class TandemCredentialStore {
   private static let validationAccount = "tandem-source-credential-validation"
 
   private let keychain: SecureKeychainStore
+  private(set) var revision = 0
+  private var observedCredentials: TandemCredentials?
+  private var observedValidation: Date?
   private(set) var hasStoredCredentials = false
   private(set) var hasValidatedCredentials = false
   private(set) var validatedAt: Date?
@@ -18,12 +21,21 @@ final class TandemCredentialStore {
     refreshStatus()
   }
 
+  private func observe(_ credentials: TandemCredentials?) {
+    if observedCredentials != credentials || observedValidation != validatedAt {
+      revision &+= 1
+      observedCredentials = credentials
+      observedValidation = validatedAt
+    }
+  }
+
   func load() throws -> TandemCredentials? {
     guard let data = try keychain.readData(account: Self.account) else {
       hasStoredCredentials = false
       hasValidatedCredentials = false
       validatedAt = nil
       redactedUsername = nil
+      observe(nil)
       return nil
     }
 
@@ -31,6 +43,7 @@ final class TandemCredentialStore {
     hasStoredCredentials = true
     redactedUsername = credentials.redactedUsername
     refreshValidationStatus(for: credentials)
+    observe(credentials)
     return credentials
   }
 
@@ -45,6 +58,7 @@ final class TandemCredentialStore {
     hasValidatedCredentials = true
     self.validatedAt = validatedAt
     redactedUsername = credentials.redactedUsername
+    observe(credentials)
   }
 
   func delete() throws {
@@ -84,6 +98,7 @@ final class TandemCredentialStore {
 
     hasValidatedCredentials = false
     validatedAt = nil
+    observe(observedCredentials)
   }
 
   func refreshStatus() {
@@ -94,6 +109,7 @@ final class TandemCredentialStore {
       hasValidatedCredentials = false
       validatedAt = nil
       redactedUsername = nil
+      observe(nil)
     }
   }
 
