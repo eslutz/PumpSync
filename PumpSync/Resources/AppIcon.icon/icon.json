@@ -1,0 +1,48 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.00000,0.60000,0.78000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "arrow-a.png",
+          "name" : "Upper sync arrow"
+        },
+        {
+          "image-name" : "arrow-b.png",
+          "name" : "Lower sync arrow"
+        }
+      ],
+      "name" : "Sync arrows",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.15
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.15
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "pump.png",
+          "name" : "Pump and tubing"
+        }
+      ],
+      "name" : "Pump",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.15
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.1
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}
