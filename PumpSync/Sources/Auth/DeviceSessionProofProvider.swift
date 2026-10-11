@@ -54,6 +54,9 @@ enum AppAttestClientError: Error {
 
 @MainActor
 protocol DeviceSessionProofProviding {
+  func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition
+  func invalidateHostedProofOperation()
+
   func hostedEnrollment(
     challenge: SessionChallengeResponse,
     installationId: String,
@@ -103,9 +106,18 @@ private struct PersistedAppAttestKeyState: Codable, Equatable {
   var phase: AppAttestKeyPhase
   var pendingEnrollment: PendingHostedEnrollment?
   var registeredRequestId: String? = nil
+  // Nil retains conservative interpretation of legacy reconciliation records.
+  var requiresSubmissionReconciliation: Bool? = nil
+}
+
+enum HostedProofRecoveryDisposition: Equatable {
+  case ready
+  case enrollmentRequired
+  case reconciliationRequired(keyID: String, requestID: String?)
 }
 
 private struct HostedProofOperation {
+  let id = UUID()
   let requestId: String
 }
 
@@ -120,6 +132,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
   private let diagnostics: DiagnosticsLogStore?
   private let appAttestAssertionTimeout: Duration
   private var hostedProofOperation: HostedProofOperation?
+  private var cancelAppleOperation: (id: UUID, cancel: () -> Void)?
 
   init(
     keychain: any BackendSessionPersistence,
@@ -133,6 +146,23 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     self.appAttest = appAttest
     self.diagnostics = diagnostics
     self.appAttestAssertionTimeout = appAttestAssertionTimeout
+  }
+
+  func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition {
+    guard let state = try loadState() else { return .enrollmentRequired }
+    switch state.phase {
+    case .registered: return .ready
+    case .registrationUnknown, .registeredAssertionSubmitted:
+      return .reconciliationRequired(keyID: state.keyId, requestID: state.pendingEnrollment?.enrollment.requestId)
+    case .reconciliationPrepared:
+      return state.requiresSubmissionReconciliation == false ? .enrollmentRequired
+        : .reconciliationRequired(keyID: state.keyId, requestID: state.pendingEnrollment?.enrollment.requestId)
+    case .registeredAssertionPrepared:
+      return state.requiresSubmissionReconciliation == true
+        ? .reconciliationRequired(keyID: state.keyId, requestID: state.pendingEnrollment?.enrollment.requestId) : .enrollmentRequired
+    case .attesting, .attestationPrepared:
+      return .enrollmentRequired
+    }
   }
 
   func hostedEnrollment(
@@ -177,7 +207,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     transactionHash: String,
     requestId: String
   ) async throws -> HostedDeviceEnrollment {
-    var state = initialState
+    let state = initialState
     if let state, state.phase == .registeredAssertionPrepared,
        let pending = state.pendingEnrollment,
        pending.transactionHash == transactionHash,
@@ -198,7 +228,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
         signedTransactionInfo: signedTransactionInfo,
         transactionHash: transactionHash,
         requestId: requestId,
-        preparation: .generated
+        preparation: .generated,
+        wasSubmitted: state.phase == .registeredAssertionSubmitted || state.requiresSubmissionReconciliation == true
       )
     }
 
@@ -228,7 +259,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
         installationId: installationId,
         signedTransactionInfo: signedTransactionInfo,
         transactionHash: transactionHash,
-        requestId: requestId
+        requestId: requestId,
+        wasSubmitted: state.requiresSubmissionReconciliation ?? true
       )
     }
     if let state, state.phase == .attestationPrepared,
@@ -240,16 +272,18 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
       enrollment.preparation = .reused
       return enrollment
     }
-    if state?.phase == .attestationPrepared {
-      try clearState()
-      state = nil
+    if let state, state.phase == .attestationPrepared {
+      return try await reconciliationEnrollment(
+        keyId: state.keyId, challenge: challenge, installationId: installationId,
+        signedTransactionInfo: signedTransactionInfo, transactionHash: transactionHash, requestId: requestId, wasSubmitted: false
+      )
     }
 
     let keyId: String
     if let state, state.phase == .attesting {
       keyId = state.keyId
     } else {
-      keyId = try await appAttest.generateKey()
+      keyId = try await performAppleOperation { try await self.appAttest.generateKey() }
       try saveState(PersistedAppAttestKeyState(keyId: keyId, phase: .attesting, pendingEnrollment: nil))
     }
 
@@ -264,12 +298,12 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     )
     let attestation: Data
     do {
-      attestation = try await appAttest.attestKey(keyId, clientDataHash: payload.hash)
+      attestation = try await performAppleOperation { try await self.appAttest.attestKey(keyId, clientDataHash: payload.hash) }
     } catch AppAttestClientError.serverUnavailable {
       throw AppAttestClientError.serverUnavailable
-    } catch {
-      try? clearState()
-      throw error
+    } catch AppAttestClientError.invalidKey {
+      try clearState()
+      throw AppAttestClientError.invalidKey
     }
 
     let enrollment = HostedDeviceEnrollment(
@@ -308,6 +342,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     state.phase = state.phase == .registeredAssertionPrepared
       ? .registeredAssertionSubmitted
       : .registrationUnknown
+    state.requiresSubmissionReconciliation = true
     try saveState(state)
     return true
   }
@@ -319,7 +354,6 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
           state.pendingEnrollment?.enrollment.requestId == requestId else {
       return false
     }
-    defer { _ = releaseHostedProofOperation(requestId: requestId) }
     try saveState(PersistedAppAttestKeyState(keyId: keyId, phase: .registered, pendingEnrollment: nil, registeredRequestId: requestId))
     return true
   }
@@ -338,7 +372,9 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
       state.pendingEnrollment = nil
       try saveState(state)
     } else {
-      try clearState()
+      state.phase = .attestationPrepared
+      state.pendingEnrollment = nil
+      try saveState(state)
     }
     return true
   }
@@ -353,17 +389,18 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     switch state.phase {
     case .attestationPrepared:
       defer { _ = releaseHostedProofOperation(requestId: requestId) }
-      try clearState()
+      state.pendingEnrollment = nil
+      try saveState(state)
       return true
     case .reconciliationPrepared:
       defer { _ = releaseHostedProofOperation(requestId: requestId) }
-      state.phase = .registrationUnknown
+      state.phase = state.requiresSubmissionReconciliation == false ? .attestationPrepared : .registrationUnknown
       state.pendingEnrollment = nil
       try saveState(state)
       return true
     case .registeredAssertionPrepared:
       defer { _ = releaseHostedProofOperation(requestId: requestId) }
-      state.phase = .registered
+      state.phase = state.requiresSubmissionReconciliation == true ? .registeredAssertionSubmitted : .registered
       state.pendingEnrollment = nil
       try saveState(state)
       return true
@@ -410,9 +447,9 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     )
     let assertion: Data
     do {
-      assertion = try await appAttest.generateAssertion(keyId, clientDataHash: payload.hash)
+      assertion = try await performAppleOperation { try await self.appAttest.generateAssertion(keyId, clientDataHash: payload.hash) }
     } catch AppAttestClientError.invalidKey {
-      try? clearState()
+      try clearState()
       throw AppAttestClientError.invalidKey
     }
     return HostedDeviceEnrollment(
@@ -433,7 +470,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     installationId: String,
     signedTransactionInfo: String,
     transactionHash: String,
-    requestId: String
+    requestId: String,
+    wasSubmitted: Bool = true
   ) async throws -> HostedDeviceEnrollment {
     let enrollment = try await assertionEnrollment(
       keyId: keyId,
@@ -450,7 +488,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
         enrollment: enrollment,
         challengeExpiresAt: challenge.expiresAt,
         transactionHash: transactionHash
-      )
+      ),
+      requiresSubmissionReconciliation: wasSubmitted
     ))
     return enrollment
   }
@@ -462,7 +501,8 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     signedTransactionInfo: String,
     transactionHash: String,
     requestId: String,
-    preparation: HostedDeviceProofPreparation
+    preparation: HostedDeviceProofPreparation,
+    wasSubmitted: Bool = false
   ) async throws -> HostedDeviceEnrollment {
     let enrollment = try await assertionEnrollment(
       keyId: keyId,
@@ -479,9 +519,20 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
         enrollment: enrollment,
         challengeExpiresAt: challenge.expiresAt,
         transactionHash: transactionHash
-      )
+      ),
+      requiresSubmissionReconciliation: wasSubmitted
     ))
     return enrollment
+  }
+
+  func invalidateHostedProofOperation() {
+    guard let owner = hostedProofOperation else { return }
+    hostedProofOperation = nil
+    if cancelAppleOperation?.id == owner.id {
+      let cancel = cancelAppleOperation?.cancel
+      cancelAppleOperation = nil
+      cancel?()
+    }
   }
 
   func releaseHostedProofOperation(requestId: String) -> Bool {
@@ -497,11 +548,16 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     guard hostedProofOperation == nil else {
       throw DeviceSessionProofError.hostedProofOperationInProgress
     }
-    hostedProofOperation = HostedProofOperation(requestId: requestId)
+    try Task.checkCancellation()
+    let owner = HostedProofOperation(requestId: requestId)
+    hostedProofOperation = owner
     do {
-      return try await operation()
+      let result = try await operation()
+      try Task.checkCancellation()
+      guard hostedProofOperation?.id == owner.id else { throw CancellationError() }
+      return result
     } catch {
-      _ = releaseHostedProofOperation(requestId: requestId)
+      if hostedProofOperation?.id == owner.id { hostedProofOperation = nil }
       throw error
     }
   }
@@ -620,7 +676,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
             title: "App Attest assertion generation failed",
             message: "operation=sessionRefresh reason=invalidKey elapsedMs=\(elapsedMilliseconds(since: assertionStartedAt))"
           )
-          try? clearState()
+          try clearState()
           throw AppAttestClientError.invalidKey
         } catch {
           diagnostics?.record(
@@ -653,8 +709,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
 
   private func loadState() throws -> PersistedAppAttestKeyState? {
     guard let data = try keychain.readData(account: Self.appAttestStateAccount) else { return nil }
-    do { return try JSONCodec.decoder.decode(PersistedAppAttestKeyState.self, from: data) }
-    catch { try? clearState(); return nil }
+    return try JSONCodec.decoder.decode(PersistedAppAttestKeyState.self, from: data)
   }
 
   private func saveState(_ state: PersistedAppAttestKeyState) throws {
@@ -673,37 +728,47 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
     keyId: String,
     clientDataHash: Data
   ) async throws -> Data {
-    try await withCheckedThrowingContinuation { continuation in
-      var hasResumed = false
-      var timeoutTask: Task<Void, Never>?
+    try await performAppleOperation { try await self.appAttest.generateAssertion(keyId, clientDataHash: clientDataHash) }
+  }
 
-      let assertionTask = Task { @MainActor in
-        do {
-          let assertion = try await appAttest.generateAssertion(keyId, clientDataHash: clientDataHash)
-          guard !hasResumed else { return }
-          hasResumed = true
-          timeoutTask?.cancel()
-          continuation.resume(returning: assertion)
-        } catch {
-          guard !hasResumed else { return }
-          hasResumed = true
-          timeoutTask?.cancel()
-          continuation.resume(throwing: error)
-        }
-      }
-
-      timeoutTask = Task { @MainActor in
-        do {
-          try await Task.sleep(for: appAttestAssertionTimeout)
-        } catch {
-          return
-        }
-        guard !hasResumed else { return }
-        hasResumed = true
-        assertionTask.cancel()
-        continuation.resume(throwing: DeviceSessionProofError.appAttestTimedOut)
-      }
+  /// Race cancellation and timeout against Apple callbacks without allowing a
+  /// callback from a released owner to publish proof or mutate persisted state.
+  private func performAppleOperation<T: Sendable>(
+    _ operation: @escaping @MainActor () async throws -> T
+  ) async throws -> T {
+    try Task.checkCancellation()
+    guard let owner = hostedProofOperation else { throw CancellationError() }
+    let race = HostedAppleOperationRace<T>()
+    cancelAppleOperation = (owner.id, { race.finish(.failure(CancellationError())) })
+    defer {
+      if cancelAppleOperation?.id == owner.id { cancelAppleOperation = nil }
     }
+    let result = try await withTaskCancellationHandler(operation: {
+      try await withCheckedThrowingContinuation { continuation in
+        race.continuation = continuation
+        if Task.isCancelled { race.finish(.failure(CancellationError())); return }
+        race.appleTask = Task { @MainActor in
+          do {
+            let result = try await operation()
+            guard self.hostedProofOperation?.id == owner.id else {
+              race.finish(.failure(CancellationError()))
+              return
+            }
+            race.finish(.success(result))
+          } catch { race.finish(.failure(error)) }
+        }
+        race.timeoutTask = Task { @MainActor in
+          do { try await Task.sleep(for: self.appAttestAssertionTimeout) }
+          catch { return }
+          race.finish(.failure(DeviceSessionProofError.appAttestTimedOut))
+        }
+      }
+    }, onCancel: {
+      Task { @MainActor in race.finish(.failure(CancellationError())) }
+    })
+    try Task.checkCancellation()
+    guard hostedProofOperation?.id == owner.id else { throw CancellationError() }
+    return result
   }
 
   private static func assertionFailureReason(_ error: Error) -> String {
@@ -751,6 +816,23 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
 
   private static func clientDataFingerprint(_ clientData: Data) -> String {
     String(base64URL(Data(SHA256.hash(data: clientData))).prefix(16))
+  }
+}
+
+@MainActor
+private final class HostedAppleOperationRace<T: Sendable> {
+  var continuation: CheckedContinuation<T, Error>?
+  var appleTask: Task<Void, Never>?
+  var timeoutTask: Task<Void, Never>?
+
+  func finish(_ result: Result<T, Error>) {
+    guard let continuation else { return }
+    self.continuation = nil
+    appleTask?.cancel()
+    timeoutTask?.cancel()
+    appleTask = nil
+    timeoutTask = nil
+    continuation.resume(with: result)
   }
 }
 

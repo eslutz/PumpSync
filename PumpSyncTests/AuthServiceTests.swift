@@ -3,6 +3,195 @@ import XCTest
 
 @MainActor
 final class AuthServiceTests: XCTestCase {
+  func testNeverSubmittedPreparedReconciliationDoesNotInventServerUncertainty() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let apple = SequencedAppAttestClient()
+    apple.attestationResults = [.success(Data("attestation".utf8))]
+    apple.assertionResults = [.success(Data("fresh-assertion".utf8))]
+    let provider = DeviceSessionProofProvider(keychain: persistence, appAttest: apple)
+    let configuration = makeConfigurationStore()
+    let first = try await provider.hostedEnrollment(challenge: SessionChallengeResponse(protocolVersion: 3, proofKind: "appAttest", challengeToken: "one", expiresAt: .distantFuture), installationId: configuration.installationId, signedTransactionInfo: "active")
+    XCTAssertTrue(provider.releaseHostedProofOperation(requestId: first.requestId))
+    let prepared = try await provider.hostedEnrollment(challenge: SessionChallengeResponse(protocolVersion: 3, proofKind: "appAttest", challengeToken: "two", expiresAt: .distantFuture), installationId: configuration.installationId, signedTransactionInfo: "active")
+    XCTAssertTrue(provider.releaseHostedProofOperation(requestId: prepared.requestId))
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Plain background policy cannot enroll this unregistered key"); return "active" },
+      createSubscriptionSession: { _ in XCTFail("No permitted enrollment owner"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: DeviceSessionProofProvider(keychain: persistence, appAttest: apple))
+    URLProtocolStub.requestHandler = { _ in XCTFail("Unregistered key must not refresh old session"); throw APIClientError.invalidResponse }
+    defer { URLProtocolStub.requestHandler = nil }
+    let outcome = await service.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(outcome, .requiresUserAction(.interactiveRecoveryRequired))
+    XCTAssertNil(try store.loadAuthJournal(), "A proof that was never submitted cannot invent a consumed-source record")
+    XCTAssertNotNil(store.loadRecoverableSession())
+    XCTAssertEqual(apple.generatedKeyCount, 1)
+  }
+
+  func testActualProviderKeepsRefreshProofOwnedThroughPOSTBeforeStoreKitEnrollment() async throws {
+    let persistence = AuthJournalTestPersistence()
+    try persistence.writeData(Data(#"{"keyId":"registered-key","phase":"registered","pendingEnrollment":null}"#.utf8), account: "device-proof.app-attest-state.v4")
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let apple = SequencedAppAttestClient()
+    apple.assertionResults = [.success(Data("refresh".utf8)), .success(Data("enrollment".utf8))]
+    let refreshed = BackendSessionResponse(accessToken: "refreshed", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "rotated", refreshToken: "new-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+    let started = expectation(description: "refresh POST started")
+    let release = DispatchSemaphore(value: 0)
+    let responseReleased = LockedCounter()
+    URLProtocolStub.requestHandler = { request in
+      started.fulfill()
+      release.wait()
+      responseReleased.increment()
+      return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, try JSONCodec.encoder.encode(refreshed))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let diagnostics = makeDiagnostics()
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store,
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in
+        BackendSessionResponse(accessToken: "enrolled", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, diagnostics: diagnostics,
+      proofProvider: DeviceSessionProofProvider(keychain: persistence, appAttest: apple), createSessionChallenge: { _ in
+        XCTAssertEqual(responseReleased.value, 1, "Enrollment must wait for the refresh POST and commit owner")
+        return SessionChallengeResponse(protocolVersion: 3, proofKind: "appAttest", challengeToken: "fresh", expiresAt: .distantFuture)
+      })
+    let refresh = Task { await service.recoverSessionIfNeeded(policy: .background) }
+    await fulfillment(of: [started], timeout: 2)
+    let activation = Task { await service.activateSubscription(signedTransactionInfo: "active") }
+    await waitUntil { diagnostics.entries.contains { $0.title == "Subscription session started" } }
+    XCTAssertEqual(apple.assertionResults.count, 1, "No enrollment Apple operation may overlap the submitted refresh")
+    release.signal()
+    _ = await refresh.value
+    await activation.value
+    XCTAssertEqual(service.accessToken, "enrolled")
+    XCTAssertFalse(diagnostics.entries.contains { $0.title == "Hosted security operation deferred" })
+  }
+
+  func testTypedRecoveryReportsCachedRefreshAndReenrollmentTransitions() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store,
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in
+        BackendSessionResponse(accessToken: "enrolled", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    let replacement = BackendSessionResponse(accessToken: "refreshed", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "rotated", refreshToken: "new-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+    URLProtocolStub.requestHandler = { request in
+      (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, try JSONCodec.encoder.encode(replacement))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    guard case .ready(let refreshed, transition: .refreshed) = await service.recoverSessionIfNeeded(policy: .background) else { return XCTFail("Expected typed refreshed connection") }
+    XCTAssertEqual(refreshed.session.accessToken, "refreshed")
+    let cachedOutcome = await service.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(cachedOutcome, .ready(refreshed, transition: .cached))
+    service.clearSessionForConnectionChange()
+    guard case .ready(let enrolled, transition: .reenrolled) = await service.recoverSessionIfNeeded() else { return XCTFail("Expected typed fresh enrollment") }
+    XCTAssertNotEqual(enrolled.identity.id, refreshed.identity.id)
+  }
+
+  func testTypedRecoveryDistinguishesMissingEntitlementAndAppleUnavailable() async throws {
+    let missing = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription }, syncedCurrentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in XCTFail("Missing entitlement cannot enroll"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    let missingOutcome = await missing.recoverSessionIfNeeded()
+    XCTAssertEqual(missingOutcome, .requiresUserAction(.missingEntitlement))
+    let persistence = AuthJournalTestPersistence()
+    let apple = SequencedAppAttestClient()
+    apple.attestationResults = [.failure(AppAttestClientError.serverUnavailable)]
+    let unavailable = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: BackendSessionStore(keychain: persistence),
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in XCTFail("Unavailable Apple proof cannot POST"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: DeviceSessionProofProvider(keychain: persistence, appAttest: apple))
+    let unavailableOutcome = await unavailable.recoverSessionIfNeeded()
+    XCTAssertEqual(unavailableOutcome, .deferred(.appAttestUnavailable))
+    XCTAssertEqual(apple.generatedKeyCount, 1)
+    XCTAssertNotNil(try persistence.readData(account: "device-proof.app-attest-state.v4"))
+  }
+
+  func testLegacyUncertaintyAdoptionStorageFailureDoesNotEnrollOrDeleteProof() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let bytes = Data(#"{"keyId":"existing-key","phase":"registeredAssertionSubmitted","pendingEnrollment":null}"#.utf8)
+    try persistence.writeData(bytes, account: "device-proof.app-attest-state.v4")
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Failed adoption cannot request entitlement"); return "active" }, createSubscriptionSession: { _ in XCTFail("Failed adoption cannot POST"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: DeviceSessionProofProvider(keychain: persistence, appAttest: SequencedAppAttestClient()))
+    persistence.failWriteAccount = "backend.auth.operation-journal.v1"
+    let outcome = await service.recoverSessionIfNeeded()
+    XCTAssertEqual(outcome, .deferred(.storageUnavailable))
+    XCTAssertNil(service.accessToken)
+    XCTAssertEqual(try persistence.readData(account: "device-proof.app-attest-state.v4"), bytes)
+  }
+
+  func testLegacyReconciliationDefiniteRejectionStillBlocksOldRefreshAfterRestart() async throws {
+    let persistence = AuthJournalTestPersistence()
+    try persistence.writeData(Data(#"{"keyId":"existing-key","phase":"registeredAssertionSubmitted","pendingEnrollment":null}"#.utf8), account: "device-proof.app-attest-state.v4")
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let configuration = makeConfigurationStore()
+    let apple = SequencedAppAttestClient()
+    apple.assertionResults = [.success(Data("fresh".utf8))]
+    var posts = 0
+    func makeService() -> AuthService {
+      AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+        currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in posts += 1; throw APIClientError.httpStatus(401, code: "device_proof_rejected", message: "rejected") },
+        createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: DeviceSessionProofProvider(keychain: persistence, appAttest: apple))
+    }
+    let rejectedOutcome = await makeService().recoverSessionIfNeeded()
+    XCTAssertEqual(rejectedOutcome, .deferred(.uncertainSubmission))
+    XCTAssertEqual(posts, 1, "Generic proof rejection ends this recovery cycle")
+    URLProtocolStub.requestHandler = { _ in XCTFail("Old refresh must remain blocked"); throw APIClientError.invalidResponse }
+    defer { URLProtocolStub.requestHandler = nil }
+    let restartedOutcome = await makeService().recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(restartedOutcome, .deferred(.uncertainSubmission))
+    XCTAssertEqual(posts, 1)
+    XCTAssertEqual(apple.generatedKeyCount, 0)
+  }
+
+  func testInvalidEnrollmentKeyAllowsExactlyOneFreshKeyFallback() async throws {
+    let persistence = AuthJournalTestPersistence()
+    try persistence.writeData(Data(#"{"keyId":"invalid-key","phase":"registered","pendingEnrollment":null}"#.utf8), account: "device-proof.app-attest-state.v4")
+    let apple = SequencedAppAttestClient()
+    apple.assertionResults = [.failure(AppAttestClientError.invalidKey)]
+    apple.attestationResults = [.success(Data("fresh-attestation".utf8))]
+    var posts = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: BackendSessionStore(keychain: persistence),
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { request in
+        posts += 1
+        XCTAssertEqual(request.deviceEnrollment.proofKind, "attestation")
+        return BackendSessionResponse(accessToken: "fresh", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: DeviceSessionProofProvider(keychain: persistence, appAttest: apple))
+    guard case .ready(_, transition: .reenrolled) = await service.recoverSessionIfNeeded() else { return XCTFail("Explicit invalid key permits fresh-key fallback") }
+    XCTAssertEqual(posts, 1)
+    XCTAssertEqual(apple.generatedKeyCount, 1)
+  }
+
+  func testLegacySubmittedAssertionRestartReconcilesBeforeRefresh() async throws {
+    let persistence = AuthJournalTestPersistence()
+    try persistence.writeData(Data(#"{"keyId":"existing-key","phase":"registeredAssertionSubmitted","pendingEnrollment":null}"#.utf8), account: "device-proof.app-attest-state.v4")
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let apple = SequencedAppAttestClient()
+    apple.assertionResults = [.success(Data("fresh-assertion".utf8))]
+    var enrollments = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store,
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { request in
+        enrollments += 1
+        XCTAssertEqual(request.deviceEnrollment.keyId, "existing-key")
+        XCTAssertEqual(request.deviceEnrollment.proofKind, "assertion")
+        return BackendSessionResponse(accessToken: "reconciled", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: DeviceSessionProofProvider(keychain: persistence, appAttest: apple))
+    URLProtocolStub.requestHandler = { _ in XCTFail("Legacy submitted proof must not refresh old credentials"); throw APIClientError.invalidResponse }
+    defer { URLProtocolStub.requestHandler = nil }
+    _ = await service.recoverSessionIfNeeded(policy: .backgroundWithReenrollment)
+    XCTAssertEqual(enrollments, 1)
+    XCTAssertEqual(service.accessToken, "reconciled")
+    XCTAssertEqual(apple.generatedKeyCount, 0)
+  }
+
   func testConfirmedRefreshStorageFailureDoesNotRestoreConsumedCredentialAndRestartRepairsResponse() async throws {
     let persistence = AuthJournalTestPersistence()
     let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
@@ -18,12 +207,13 @@ final class AuthServiceTests: XCTestCase {
       return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, try JSONCodec.encoder.encode(replacement))
     }
     defer { URLProtocolStub.requestHandler = nil }
-    await original.recoverSessionIfNeeded(policy: .background)
+    let pendingOutcome = await original.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(pendingOutcome, .deferred(.commitPending))
     XCTAssertNil(original.authenticatedConnection, "Consumed source cannot remain current after local commit failure")
     persistence.failWriteAccount = nil
     URLProtocolStub.requestHandler = { _ in XCTFail("Restart must commit the confirmed response without network replay"); throw APIClientError.invalidResponse }
     let restarted = service()
-    await restarted.recoverSessionIfNeeded(policy: .background)
+    _ = await restarted.recoverSessionIfNeeded(policy: .background)
     XCTAssertEqual(restarted.accessToken, "replacement")
   }
 
@@ -38,7 +228,7 @@ final class AuthServiceTests: XCTestCase {
       let count = LockedCounter()
       URLProtocolStub.requestHandler = { _ in count.increment(); throw URLError(.networkConnectionLost) }
       defer { URLProtocolStub.requestHandler = nil }
-      await service.recoverSessionIfNeeded(policy: .background)
+      _ = await service.recoverSessionIfNeeded(policy: .background)
       XCTAssertEqual(count.value, 0, "Prepared/submitted boundary \(failingWrite) must persist before sending a consuming request")
     }
   }
@@ -110,7 +300,7 @@ final class AuthServiceTests: XCTestCase {
       currentEntitlementJWS: { reading = true; await gate.wait(); return "active" },
       createSubscriptionSession: { _ in posts += 1; return BackendSessionResponse(accessToken: "obsolete", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource") },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
-    let recovery = Task { await service.recoverSessionIfNeeded() }
+    let recovery = Task { _ = await service.recoverSessionIfNeeded() }
     await waitUntil { reading }
     service.clearSessionForConnectionChange()
     await gate.open()
@@ -132,7 +322,7 @@ final class AuthServiceTests: XCTestCase {
         persistence.failWriteAccount = "device-proof.app-attest-state.v4"
         return confirmed
       }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: provider)
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
     XCTAssertNil(service.authenticatedConnection)
     XCTAssertNil(service.accessToken)
     XCTAssertEqual(try store.loadAuthJournal()?.phase, .responseReceived)
@@ -176,11 +366,11 @@ final class AuthServiceTests: XCTestCase {
     }
     defer { URLProtocolStub.requestHandler = nil }
     let originalID = try XCTUnwrap(store.loadConnection(binding: XCTUnwrap(service.connectionBinding))).identity.id
-    await service.recoverSessionIfNeeded(policy: .background)
+    _ = await service.recoverSessionIfNeeded(policy: .background)
     XCTAssertEqual(service.session?.expiresAt, Date(timeIntervalSince1970: 4_000.125))
     XCTAssertEqual(service.accessToken, "fractional-1")
     now = Date(timeIntervalSince1970: 4_500)
-    await service.recoverSessionIfNeeded(policy: .background)
+    _ = await service.recoverSessionIfNeeded(policy: .background)
     XCTAssertEqual(count.value, 2)
     XCTAssertEqual(service.accessToken, "fractional-2")
     XCTAssertEqual(service.authenticatedConnection?.identity.id, originalID)
@@ -226,7 +416,7 @@ final class AuthServiceTests: XCTestCase {
       await fulfillment(of: [validationStarted], timeout: 1)
       if rotates {
         now = Date(timeIntervalSince1970: 2_800)
-        await service.recoverSessionIfNeeded(policy: .background)
+        _ = await service.recoverSessionIfNeeded(policy: .background)
         XCTAssertEqual(service.accessToken, replacement.accessToken)
       }
       rejectValidation.signal()
@@ -259,7 +449,7 @@ final class AuthServiceTests: XCTestCase {
           }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
       }
       let original = service()
-      await original.recoverSessionIfNeeded(policy: .background)
+      _ = await original.recoverSessionIfNeeded(policy: .background)
       XCTAssertEqual(refreshPosts.value, 1)
       XCTAssertNil(original.authenticatedConnection)
       let successor = service()
@@ -267,13 +457,13 @@ final class AuthServiceTests: XCTestCase {
         persistence.failWriteAccount = "backend.auth.operation-journal.v1"
         persistence.failWriteOrdinal = persistence.writeCounts["backend.auth.operation-journal.v1", default: 0] + 2
       }
-      await successor.recoverSessionIfNeeded()
+      _ = await successor.recoverSessionIfNeeded()
       XCTAssertEqual(enrollmentPosts, rejects ? 1 : 0, "A failed submitted marker must prevent replacement POST")
       persistence.failWriteAccount = nil
       persistence.failWriteOrdinal = nil
       let restarted = service()
       XCTAssertNil(restarted.authenticatedConnection, "Uncertainty must survive successor preparation/rejection")
-      await restarted.recoverSessionIfNeeded(policy: .background)
+      _ = await restarted.recoverSessionIfNeeded(policy: .background)
       XCTAssertNil(restarted.authenticatedConnection)
       XCTAssertEqual(refreshPosts.value, 1, "Restart cannot reuse the consumed source refresh credential")
       XCTAssertNotNil(try store.loadAuthJournal(), "Inherited uncertainty must remain durable")
@@ -302,7 +492,7 @@ final class AuthServiceTests: XCTestCase {
       XCTAssertNil(current.accessToken)
       XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
       XCTAssertEqual(current.statusMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
-      await current.recoverSessionIfNeeded(policy: .background)
+      _ = await current.recoverSessionIfNeeded(policy: .background)
       XCTAssertNil(current.accessToken)
       XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
       persistence.failAllWrites = false
@@ -328,7 +518,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
     XCTAssertEqual(current.statusMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
     current.recordSubscriptionPurchaseCancelled()
-    await current.recoverSessionIfNeeded(policy: .background)
+    _ = await current.recoverSessionIfNeeded(policy: .background)
     XCTAssertNil(current.accessToken)
     XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
     persistence.failAllWrites = false
@@ -349,7 +539,7 @@ final class AuthServiceTests: XCTestCase {
     }
     defer { URLProtocolStub.requestHandler = nil }
     let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store, currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in renewed }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
     XCTAssertEqual(service.accessToken, "enrolled")
   }
 
@@ -382,15 +572,15 @@ final class AuthServiceTests: XCTestCase {
       persistence.readFailure = unreadable
       persistence.writeFailure = !unreadable
       let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: BackendSessionStore(keychain: persistence), currentEntitlementJWS: { XCTFail("Inaccessible storage must defer recovery"); throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in XCTFail("Inaccessible storage must not enroll"); throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in XCTFail("Inaccessible storage must not enroll"); throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
-      await service.recoverSessionIfNeeded()
-      await service.recoverSessionIfNeeded(policy: .background)
+      _ = await service.recoverSessionIfNeeded()
+      _ = await service.recoverSessionIfNeeded(policy: .background)
       XCTAssertNil(service.accessToken)
       XCTAssertNil(service.operationImportSnapshot(credentialRevision: 0))
       XCTAssertEqual(persistence.data, legacy)
       XCTAssertEqual(persistence.deleteCount, 0)
       persistence.readFailure = false
       persistence.writeFailure = false
-      await service.recoverSessionIfNeeded()
+      _ = await service.recoverSessionIfNeeded()
       XCTAssertEqual(service.accessToken, "cached")
     }
   }
@@ -425,7 +615,7 @@ final class AuthServiceTests: XCTestCase {
     )
     service.setConnectionProgressVisible(true)
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertEqual(service.accessToken, "cached-token")
     XCTAssertTrue(service.isSignedIn)
@@ -459,7 +649,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
     var establishedSessionCallbacks = 0
     service.setHostedSubscriptionSessionEstablishedHandler {
       establishedSessionCallbacks += 1
@@ -602,8 +792,8 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    async let first: Void = service.recoverSessionIfNeeded()
-    async let second: Void = service.recoverSessionIfNeeded()
+    async let first = service.recoverSessionIfNeeded()
+    async let second = service.recoverSessionIfNeeded()
     _ = await (first, second)
 
     XCTAssertEqual(entitlementCalls, 1)
@@ -854,7 +1044,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertFalse(service.isConnecting)
     XCTAssertFalse(service.isSignedIn)
@@ -878,7 +1068,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertTrue(diagnostics.entries.contains {
       $0.message?.contains("timedOut=true timeoutKind=networkRequest") == true
@@ -917,7 +1107,7 @@ final class AuthServiceTests: XCTestCase {
       }
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertEqual(events, ["warmup", "challenge", "enrollment"])
     XCTAssertTrue(service.isSignedIn)
@@ -943,7 +1133,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertEqual(enrollmentCalls, 0)
     XCTAssertFalse(service.isSignedIn)
@@ -980,7 +1170,7 @@ final class AuthServiceTests: XCTestCase {
       }
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     let warmup = diagnostics.entries.first { $0.title == "Hosted service warm-up completed" }
     let challenge = diagnostics.entries.first { $0.title == "Hosted session challenge received" }
@@ -1003,8 +1193,9 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(recorded.contains("raw-proof-secret"), "diagnostics must not include raw proof material")
   }
 
-  func testDefinitiveDeviceProofRejectionGivesExplicitRetryCleanEnrollmentState() async {
+  func testDefinitiveDeviceProofRejectionRetainsKeyForNextExplicitRetry() async {
     let appAttest = SequencedAppAttestClient()
+    appAttest.assertionResults = [.success(Data("fresh-assertion".utf8))]
     appAttest.attestationResults = [
       .success(Data("attestation-1".utf8)),
       .success(Data("attestation-2".utf8))
@@ -1056,10 +1247,12 @@ final class AuthServiceTests: XCTestCase {
     await service.connectUsingCurrentSubscription()
 
     XCTAssertEqual(requests.count, 2)
+    guard requests.count == 2 else { return }
     XCTAssertEqual(requests[0].deviceEnrollment.challengeToken, "challenge-1")
     XCTAssertEqual(requests[1].deviceEnrollment.challengeToken, "challenge-2")
-    XCTAssertNotEqual(requests[1].deviceEnrollment.keyId, requests[0].deviceEnrollment.keyId)
-    XCTAssertEqual(appAttest.generatedKeyCount, 2)
+    XCTAssertEqual(requests[1].deviceEnrollment.keyId, requests[0].deviceEnrollment.keyId)
+    XCTAssertEqual(requests[1].deviceEnrollment.proofKind, "assertion")
+    XCTAssertEqual(appAttest.generatedKeyCount, 1)
     XCTAssertTrue(service.isSignedIn)
   }
 
@@ -1297,6 +1490,7 @@ final class AuthServiceTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(proofProvider.releaseHostedProofOperation(requestId: initial.requestId))
 
     var challengeCount = 0
     var requests: [SubscriptionSessionRequest] = []
@@ -1345,7 +1539,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
   }
 
-  func testRejectedRegisteredAssertionRetriesOnlyOnceWhenFreshAssertionIsRejected() async throws {
+  func testRejectedRegisteredAssertionDefersFreshAssertionToNextOwnedCycle() async throws {
     let appAttest = SequencedAppAttestClient()
     appAttest.attestationResults = [.success(Data("initial-attestation".utf8))]
     appAttest.assertionResults = [
@@ -1376,6 +1570,7 @@ final class AuthServiceTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(proofProvider.releaseHostedProofOperation(requestId: initial.requestId))
 
     var challengeCount = 0
     var requests: [SubscriptionSessionRequest] = []
@@ -1407,11 +1602,11 @@ final class AuthServiceTests: XCTestCase {
 
     await service.connectUsingCurrentSubscription()
 
-    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion", "assertion"])
-    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1", "key-1"])
-    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1", "challenge-2"])
-    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 2)
-    XCTAssertEqual(challengeCount, 2)
+    XCTAssertEqual(requests.map(\.deviceEnrollment.proofKind), ["assertion"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.keyId), ["key-1"])
+    XCTAssertEqual(requests.map(\.deviceEnrollment.challengeToken), ["challenge-1"])
+    XCTAssertEqual(Set(requests.map(\.deviceEnrollment.requestId)).count, 1)
+    XCTAssertEqual(challengeCount, 1)
     XCTAssertEqual(appAttest.generatedKeyCount, 1)
     XCTAssertFalse(service.isSignedIn)
   }
@@ -1447,6 +1642,7 @@ final class AuthServiceTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(proofProvider.releaseHostedProofOperation(requestId: initial.requestId))
 
     var challengeCount = 0
     var requests: [SubscriptionSessionRequest] = []
@@ -1505,7 +1701,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
     try await Task.sleep(for: .milliseconds(20))
 
     XCTAssertTrue(backendOperationWasCancelled)
@@ -1783,7 +1979,7 @@ final class AuthServiceTests: XCTestCase {
     })
   }
 
-  func testConfigurationChangeAfterAttestationDiscardsUnsubmittedEnrollmentForExplicitRetry() async {
+  func testConfigurationChangeRejectsLateAttestationAndRetainsKeyForExplicitRetry() async {
     let configuration = makeConfigurationStore()
     let diagnostics = makeDiagnostics()
     let attestationGate = AsyncGate()
@@ -1845,13 +2041,10 @@ final class AuthServiceTests: XCTestCase {
     service.clearSessionForConnectionChange()
     await service.activateSubscription(signedTransactionInfo: "different-transaction-jws")
 
-    XCTAssertEqual(appAttest.generatedKeyCount, 2)
+    XCTAssertEqual(appAttest.generatedKeyCount, 1)
     XCTAssertEqual(backendCalls, 1)
     XCTAssertEqual(service.accessToken, "retry-token")
-    XCTAssertTrue(diagnostics.entries.contains {
-      $0.title == "Unsubmitted App Attest enrollment discarded"
-        && $0.message == "reason=connectionModeChanged backendSubmitted=false"
-    })
+    XCTAssertTrue(diagnostics.entries.contains { $0.title == "Subscription session stopped" && $0.message == "reason=connectionModeChanged" })
     XCTAssertFalse(diagnostics.entries.contains {
       $0.title == "App Attest enrollment requires reconciliation"
     })
@@ -2404,7 +2597,7 @@ final class AuthServiceTests: XCTestCase {
     service.setConnectionProgressVisible(true)
 
     let staleRecovery = Task {
-      await service.recoverSessionIfNeeded()
+      _ = await service.recoverSessionIfNeeded()
     }
     await waitUntil { entitlementStarted }
     XCTAssertTrue(service.isConnecting)
@@ -2714,7 +2907,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertEqual(service.accessToken, "recovered-token")
     XCTAssertNil(service.errorMessage)
@@ -2740,7 +2933,7 @@ final class AuthServiceTests: XCTestCase {
     service.setConnectionProgressVisible(true)
 
     let recovery = Task {
-      await service.recoverSessionIfNeeded(policy: .foreground)
+      _ = await service.recoverSessionIfNeeded(policy: .foreground)
     }
     await waitUntil { entitlementStarted }
 
@@ -2759,7 +2952,7 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
       proofProvider: AcceptingProofProvider()
     )
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
     XCTAssertNotNil(service.errorMessage)
     XCTAssertFalse(service.isSignedIn)
   }
@@ -2780,7 +2973,7 @@ final class AuthServiceTests: XCTestCase {
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
       proofProvider: AcceptingProofProvider()
     )
-    let recovery = Task { await service.recoverSessionIfNeeded() }
+    let recovery = Task { _ = await service.recoverSessionIfNeeded() }
     await waitUntil { started }
     recovery.cancel()
     for _ in 0..<10 { await Task.yield() }
@@ -2808,7 +3001,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
     service.setConnectionProgressVisible(true)
-    let recovery = Task { await service.recoverSessionIfNeeded() }
+    let recovery = Task { _ = await service.recoverSessionIfNeeded() }
     await waitUntil { started }
     recovery.cancel()
     await waitUntil { !service.isConnecting }
@@ -2879,7 +3072,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let recovery = Task {
-      await service.recoverSessionIfNeeded(policy: .background)
+      _ = await service.recoverSessionIfNeeded(policy: .background)
     }
     await waitUntil { refreshProofStarted }
 
@@ -2929,7 +3122,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded(policy: .foreground)
+    _ = await service.recoverSessionIfNeeded(policy: .foreground)
 
     XCTAssertEqual(syncedEntitlementCalls, 1)
     XCTAssertEqual(service.accessToken, "recovered-token")
@@ -3003,7 +3196,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertFalse(service.isSignedIn)
     XCTAssertNotNil(service.errorMessage)
@@ -3025,7 +3218,7 @@ final class AuthServiceTests: XCTestCase {
         createSelfHostedSession: { _ in throw failure },
         proofProvider: AcceptingProofProvider()
       )
-      await service.recoverSessionIfNeeded()
+      _ = await service.recoverSessionIfNeeded()
       XCTAssertTrue(service.errorMessage?.contains("fixture-reference") == true, "Missing safe error for \(mode)")
       XCTAssertFalse(service.isSignedIn)
     }
@@ -3185,7 +3378,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let oldRecovery = Task {
-      await service.recoverSessionIfNeeded()
+      _ = await service.recoverSessionIfNeeded()
     }
     await waitUntil { staleResponseStarted }
 
@@ -3304,7 +3497,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertNil(service.accessToken)
     XCTAssertNil(service.authenticatedConnection)
@@ -3508,9 +3701,9 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: proofProvider
     )
 
-    let background = Task { await service.accessTokenRecoveringIfNeeded(policy: .background) }
+    let background = Task { await service.recoverSessionIfNeeded(policy: .background) }
     await fulfillment(of: [proofStarted], timeout: 1)
-    let foreground = Task { await service.accessTokenRecoveringIfNeeded(policy: .foreground) }
+    let foreground = Task { await service.recoverSessionIfNeeded(policy: .foreground) }
     await waitUntil {
       diagnostics.entries.contains { $0.title == "Renewable session refresh coalesced" }
     }
@@ -3518,10 +3711,11 @@ final class AuthServiceTests: XCTestCase {
     background.cancel()
     await proofGate.open()
 
-    let backgroundToken = await background.value
-    let foregroundToken = await foreground.value
-    XCTAssertNil(backgroundToken)
-    XCTAssertEqual(foregroundToken, replacement.accessToken)
+    let backgroundOutcome = await background.value
+    let foregroundOutcome = await foreground.value
+    XCTAssertEqual(backgroundOutcome, .canceled)
+    guard case .ready(let connection, transition: .refreshed) = foregroundOutcome else { return XCTFail("Shared owner must remain successful for its uncanceled waiter") }
+    XCTAssertEqual(connection.session.accessToken, replacement.accessToken)
     XCTAssertEqual(service.accessToken, replacement.accessToken)
     XCTAssertEqual(sessionStore.loadValidSession(), replacement)
   }
@@ -3596,7 +3790,7 @@ final class AuthServiceTests: XCTestCase {
       }
     )
 
-    let refresh = Task { await service.recoverSessionIfNeeded(policy: .foreground) }
+    let refresh = Task { _ = await service.recoverSessionIfNeeded(policy: .foreground) }
     await fulfillment(of: [refreshProofStarted], timeout: 1)
     let activation = Task { await service.activateSubscription(signedTransactionInfo: "active-transaction") }
     await waitUntil {
@@ -3787,7 +3981,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let staleRefresh = Task {
-      await service.recoverSessionIfNeeded(policy: .background)
+      _ = await service.recoverSessionIfNeeded(policy: .background)
     }
     await fulfillment(of: [refreshStarted], timeout: 1)
     let connection = Task { await service.connectUsingCurrentSubscription() }
@@ -3840,7 +4034,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    await service.recoverSessionIfNeeded()
+    _ = await service.recoverSessionIfNeeded()
 
     XCTAssertTrue(service.requiresSubscriptionAction)
   }
@@ -4133,7 +4327,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let staleRefresh = Task {
-      await service.recoverSessionIfNeeded(policy: .background)
+      _ = await service.recoverSessionIfNeeded(policy: .background)
     }
     await waitUntil { proofStarted }
 
@@ -4192,7 +4386,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let staleRefresh = Task {
-      await service.recoverSessionIfNeeded(policy: .background)
+      _ = await service.recoverSessionIfNeeded(policy: .background)
     }
     await fulfillment(of: [refreshStarted], timeout: 1)
 
@@ -4325,6 +4519,8 @@ final class AuthServiceTests: XCTestCase {
   }
 
   private final class AcceptingProofProvider: DeviceSessionProofProviding {
+  func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition { .ready }
+  func invalidateHostedProofOperation() {}
     private(set) var releasedHostedProofRequestIds: [String] = []
     private(set) var discardedRegisteredHostedKeyCount = 0
     private let refreshRequestHandler: (@MainActor (
@@ -4437,11 +4633,13 @@ final class AuthServiceTests: XCTestCase {
       if let attestationGate {
         await attestationGate.wait()
       }
+      guard !attestationResults.isEmpty else { XCTFail("Unexpected extra Apple attestation"); throw APIClientError.invalidResponse }
       return try attestationResults.removeFirst().get()
     }
 
     func generateAssertion(_ keyId: String, clientDataHash: Data) async throws -> Data {
-      try assertionResults.removeFirst().get()
+      guard !assertionResults.isEmpty else { XCTFail("Unexpected extra Apple assertion"); throw APIClientError.invalidResponse }
+      return try assertionResults.removeFirst().get()
     }
   }
 }

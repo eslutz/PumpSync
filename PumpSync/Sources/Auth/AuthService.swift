@@ -157,6 +157,10 @@ final class AuthService {
   private let sessionStore: BackendSessionStore?
   private let committer: AuthSessionCommitter
   private var authCommitBlocked = false
+  private var recoveryFailure: SessionRecoveryReason? {
+    get { SessionRecoveryContext.current?.failure }
+    set { SessionRecoveryContext.current?.failure = newValue }
+  }
   private var authOwnershipGeneration = UUID()
   private let proofProvider: DeviceSessionProofProviding
   private let diagnostics: DiagnosticsLogStore?
@@ -189,6 +193,7 @@ final class AuthService {
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
   private var subscriptionOperationID: UUID?
+  private var subscriptionRecoveryAttempt: SessionRecoveryAttempt?
   private var subscriptionWaiters: [UUID: Set<UUID>] = [:]
   private struct RenewableRefreshOperationKey: Equatable {
     let configurationRevision: Int
@@ -199,6 +204,7 @@ final class AuthService {
   }
   private var renewableRefreshTask: Task<Bool, Never>?
   private var renewableRefreshOperationID: UUID?
+  private var renewableRefreshRecoveryAttempt: SessionRecoveryAttempt?
   private var renewableRefreshOperationKey: RenewableRefreshOperationKey?
   private var renewableRefreshWaiters: [UUID: Set<UUID>] = [:]
   private var selfHostedOperationID: UUID?
@@ -324,6 +330,11 @@ final class AuthService {
   private func restoreStoredConnection() {
     do {
       guard let stored = try storedConnection(), (try? validateSessionPurpose(stored.session)) != nil else { return }
+      if configurationStore.mode == .hosted, try proofProvider.hostedRecoveryDisposition() != .ready {
+        authCommitBlocked = true
+        connectionIdentity = stored.identity
+        return
+      }
       authCommitBlocked = false
       connectionIdentity = stored.identity
       if sessionIsValid(stored.session) { session = stored.session }
@@ -352,7 +363,10 @@ final class AuthService {
   }
 
   private func invalidateDurableAuth(replacesOwnership: Bool = false) -> Bool {
-    if replacesOwnership { authOwnershipGeneration = UUID() }
+    if replacesOwnership {
+      authOwnershipGeneration = UUID()
+      proofProvider.invalidateHostedProofOperation()
+    }
     authCommitBlocked = true
     session = nil
     connectionIdentity = nil
@@ -487,11 +501,9 @@ final class AuthService {
   }
 
   func accessTokenRecoveringIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> String? {
-    await recoverSessionIfNeeded(policy: policy)
-    guard !Task.isCancelled else {
-      return nil
-    }
-    return accessToken
+    let outcome = await recoverSessionIfNeeded(policy: policy)
+    guard !Task.isCancelled, case .ready(let connection, _) = outcome else { return nil }
+    return connection.session.accessToken
   }
 
   var connectionRequiredMessage: String {
@@ -802,15 +814,75 @@ final class AuthService {
     finishSelfHostedOperation(operationID)
   }
 
-  func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground) async {
+  @discardableResult
+  func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> SessionRecoveryOutcome {
+    await SessionRecoveryContext.$current.withValue(SessionRecoveryAttempt()) {
+      await recoverSession(policy: policy)
+    }
+  }
+
+  private func recoverSession(policy: SessionRecoveryPolicy, forceHostedEnrollment: Bool = false) async -> SessionRecoveryOutcome {
+    guard !Task.isCancelled else { return .canceled }
+    let ownership = authOwnershipGeneration
+    let configurationRevision = configurationStore.revision
+    let binding = connectionBinding
+    let previousIdentity = connectionIdentity
+    let previousToken = session?.accessToken
+    let wasValid = session.map { sessionIsValid($0) } == true && authenticatedConnection != nil
+    recoveryFailure = nil
+    if forceHostedEnrollment {
+      await runCoalescedSubscriptionOperation {
+        await self.recoverSubscriptionSession(policy: policy, missingEntitlementDisposition: .preserveRenewableSession)
+      }
+    } else {
+      await performSessionRecovery(policy: policy)
+    }
+    guard !Task.isCancelled else { return .canceled }
+    guard ownership == authOwnershipGeneration, configurationRevision == configurationStore.revision,
+          binding == connectionBinding else { return .rejected(.connectionReplaced) }
+    if incompleteInvalidation { return .deferred(.invalidationIncomplete) }
+    do {
+      if let pending = try committer.unresolvedRecoveryError() { return .deferred(Self.recoveryReason(for: pending)) }
+    } catch { return .deferred(.storageUnavailable) }
+    if let connection = authenticatedConnection, sessionIsValid(connection.session) {
+      let transition: SessionRecoveryTransition = connection.identity != previousIdentity
+        ? .reenrolled : (!wasValid || previousToken != connection.session.accessToken ? .refreshed : .cached)
+      return .ready(connection, transition: transition)
+    }
+    let reason = recoveryFailure ?? (recoveryRequiresActiveSubscription ? .missingEntitlement : .interactiveRecoveryRequired)
+    switch reason {
+    case .missingEntitlement:
+      return policy.allowsInteractiveRecovery ? .requiresUserAction(reason) : .deferred(reason)
+    case .configurationInvalid, .interactiveRecoveryRequired:
+      return .requiresUserAction(reason)
+    case .authenticationRejected, .backendRejected, .unverifiedSource:
+      return .rejected(reason)
+    default:
+      return .deferred(reason)
+    }
+  }
+
+  private func performSessionRecovery(policy: SessionRecoveryPolicy) async {
+    if let task = subscriptionOperationTask {
+      let attempt = subscriptionRecoveryAttempt
+      await awaitSubscriptionOperation(task, operationID: subscriptionOperationID)
+      recoveryFailure = attempt?.failure
+      return
+    }
     if !committer.isBusy {
       do {
+        if configurationStore.mode == .hosted,
+           case .reconciliationRequired(let keyID, let requestID) = try proofProvider.hostedRecoveryDisposition(),
+           let binding = connectionBinding {
+          try committer.adoptLegacyProofUncertainty(binding: binding, proofKeyID: keyID, proofRequestID: requestID)
+        }
         if let repaired = try storedConnection() {
           authCommitBlocked = false
           connectionIdentity = repaired.identity
           session = repaired.session
         }
       } catch AuthCommitError.uncertainSubmission {
+        recoveryFailure = .uncertainSubmission
         authCommitBlocked = true
         session = nil
         errorMessage = AuthCommitError.uncertainSubmission.localizedDescription
@@ -823,9 +895,30 @@ final class AuthService {
         }
         return
       } catch {
+        recoveryFailure = Self.recoveryReason(for: error)
         authCommitBlocked = true
         session = nil
         errorMessage = "Your saved connection is unavailable. Try again after unlocking the device, or reconnect in Settings."
+        return
+      }
+    }
+    if configurationStore.mode == .hosted, !committer.isBusy {
+      do {
+        if try proofProvider.hostedRecoveryDisposition() != .ready,
+           session != nil || connectionIdentity != nil {
+          authCommitBlocked = true
+          session = nil
+          guard policy == .foreground || policy == .backgroundWithReenrollment else {
+            recoveryFailure = .interactiveRecoveryRequired
+            return
+          }
+          await runCoalescedSubscriptionOperation { await self.recoverSubscriptionSession(policy: policy) }
+          return
+        }
+      } catch {
+        recoveryFailure = Self.recoveryReason(for: error)
+        authCommitBlocked = true
+        session = nil
         return
       }
     }
@@ -838,6 +931,7 @@ final class AuthService {
     do {
       stored = authenticatedConnection == nil ? try storedConnection() : nil
     } catch {
+      recoveryFailure = Self.recoveryReason(for: error)
       errorMessage = "Your saved connection is unavailable. Try again after unlocking the device, or reconnect in Settings."
       diagnostics?.record(source: .auth, severity: .warning, title: "Saved connection unavailable")
       return
@@ -861,6 +955,7 @@ final class AuthService {
       guard (try? validateSessionPurpose(recoverableSession)) != nil else {
         session = nil
         let source = DataSourceMode(rawValue: recoverableSession.dataSourceMode) ?? .unknown
+        recoveryFailure = .unverifiedSource
         errorMessage = (source == .syntheticDemo ? HealthImportError.previewOnly : .unverifiedSource).localizedDescription
         return
       }
@@ -952,14 +1047,10 @@ final class AuthService {
     }
 
     let previousAccessToken = session?.accessToken
-    let progressLeaseID = beginConnectionProgressLease()
-    defer { endConnectionProgressLease(progressLeaseID) }
-    await runCoalescedSubscriptionOperation {
-      await self.recoverSubscriptionSession(
-        policy: policy,
-        missingEntitlementDisposition: .preserveRenewableSession
-      )
+    let outcome = await SessionRecoveryContext.$current.withValue(SessionRecoveryAttempt()) {
+      await recoverSession(policy: policy, forceHostedEnrollment: true)
     }
+    guard case .ready = outcome else { return false }
 
     guard let session,
           session.accessToken != previousAccessToken else {
@@ -1166,11 +1257,16 @@ final class AuthService {
           diagnostics?.record(source: .auth, severity: .warning, title: "Unsubmitted App Attest enrollment discarded",
             message: "reason=connectionModeChanged backendSubmitted=false")
         }
+        recordSubscriptionConfigurationChange()
         return true
       }
+      recoveryFailure = Self.recoveryReason(for: error)
       blockUnresolvedAuth()
       if Task.isCancelled || error is CancellationError { return false }
       let apiError = error as? APIClientError
+      if allowsRejectedAssertionRetry, (error as? AppAttestClientError) == .invalidKey {
+        rejectedAssertionRetry = .freshAttestation
+      }
       if let proofError = error as? DeviceSessionProofError,
          case .hostedProofOperationInProgress = proofError {
         diagnostics?.record(
@@ -1233,9 +1329,6 @@ final class AuthService {
            keyId: enrollmentKeyId,
            requestId: enrollmentRequestId
          )) == true {
-        if allowsRejectedAssertionRetry, enrollmentProofKind == "assertion" {
-          rejectedAssertionRetry = .freshAssertion
-        }
         diagnostics?.record(
           source: .auth,
           severity: .warning,
@@ -1260,15 +1353,15 @@ final class AuthService {
                 enrollmentProofKind == "attestation",
                 let apiError,
                 !apiError.hasAmbiguousOutcome,
-                (try? proofProvider.discardDefinitivelyFailedHostedEnrollment(
+                (try? proofProvider.resolveRejectedHostedEnrollment(
                   keyId: enrollmentKeyId,
                   requestId: enrollmentRequestId
                 )) == true {
         diagnostics?.record(
           source: .auth,
           severity: .warning,
-          title: "Definitively failed App Attest enrollment discarded",
-          message: "protocolVersion=3 proofKind=attestation backendOutcome=definitive"
+          title: "Definitively rejected App Attest enrollment retained",
+          message: "protocolVersion=3 proofKind=attestation backendOutcome=definitive localAction=retainKey"
         )
       }
       if error is SubscriptionConfigurationChangedError
@@ -1383,6 +1476,7 @@ final class AuthService {
         recordSubscriptionRecoveryConfigurationChange()
         return
       }
+      recoveryFailure = .missingEntitlement
       let credentialRetained = missingEntitlementDisposition == .preserveRenewableSession
         && session.map { sessionIsRenewable($0) } == true
       if !credentialRetained {
@@ -1421,6 +1515,7 @@ final class AuthService {
         recordSubscriptionRecoveryConfigurationChange()
         return
       }
+      recoveryFailure = Self.recoveryReason(for: error)
       if policy != .backgroundWithReenrollment || (error as? APIClientError)?.isAuthenticationFailure == true {
         session = nil
         if !committer.hasUnresolvedSubmission { _ = invalidateDurableAuth() }
@@ -1463,6 +1558,7 @@ final class AuthService {
     let configurationRevision = configurationStore.revision
     guard isCurrentConfiguration(configurationRevision, mode: .selfHosted),
           configurationStore.apply(to: apiClient) else {
+      recoveryFailure = .configurationInvalid
       diagnostics?.record(source: .auth, severity: .warning, title: "Self-hosted recovery skipped", message: "No valid self-hosted service URL is configured.")
       return
     }
@@ -1515,6 +1611,7 @@ final class AuthService {
         finishSelfHostedOperation(operationID)
         return
       }
+      recoveryFailure = Self.recoveryReason(for: error)
       blockUnresolvedAuth()
       resetDisconnectedStatus()
       errorMessage = safeMessage("The self-hosted connection could not be restored. Retry Connection or review Connection Settings.", error: error)
@@ -1710,6 +1807,7 @@ final class AuthService {
         recordRefreshConfigurationChange()
         return false
       }
+      recoveryFailure = Self.recoveryReason(for: error)
       blockUnresolvedAuth()
       if committer.hasUnresolvedSubmission {
         errorMessage = safeMessage("Your connection needs secure recovery. Retry after unlocking the device.", error: error)
@@ -1778,6 +1876,7 @@ final class AuthService {
       if permanentlyRejected {
         session = nil
         _ = invalidateDurableAuth()
+        if mode == .hosted, invalidAppAttestKey { try? sessionStore?.markHostedReenrollmentPending() }
       } else {
         session = currentSession
       }
@@ -1818,16 +1917,21 @@ final class AuthService {
           title: "Renewable session refresh coalesced",
           message: "coalesced=true"
         )
-        return await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+        let attempt = renewableRefreshRecoveryAttempt
+        let result = await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+        recoveryFailure = attempt?.failure
+        return result
       }
     }
 
     let operationID = UUID()
+    let attempt = SessionRecoveryContext.current ?? SessionRecoveryAttempt()
+    renewableRefreshRecoveryAttempt = attempt
     let task = Task { @MainActor [weak self] in
       guard let self else {
         return false
       }
-      let result = await self.refreshRenewableSession(source)
+      let result = await SessionRecoveryContext.$current.withValue(attempt) { await self.refreshRenewableSession(source) }
       if self.renewableRefreshOperationID == operationID {
         self.renewableRefreshTask = nil
         self.renewableRefreshOperationID = nil
@@ -1925,13 +2029,17 @@ final class AuthService {
     }
     if let subscriptionOperationTask {
       diagnostics?.record(source: .auth, title: "Subscription operation coalesced", message: "coalesced=true")
+      let attempt = subscriptionRecoveryAttempt
       await awaitSubscriptionOperation(subscriptionOperationTask, operationID: subscriptionOperationID)
+      recoveryFailure = attempt?.failure
       return false
     }
 
     let operationID = UUID()
+    let attempt = SessionRecoveryContext.current ?? SessionRecoveryAttempt()
+    subscriptionRecoveryAttempt = attempt
     let task = Task { @MainActor [weak self] in
-      await operation()
+      await SessionRecoveryContext.$current.withValue(attempt) { await operation() }
       guard self?.subscriptionOperationID == operationID else {
         return
       }
@@ -2092,6 +2200,41 @@ final class AuthService {
     case nil:
       return "unavailable"
     }
+  }
+
+  private static func recoveryReason(for error: Error) -> SessionRecoveryReason {
+    switch error as? AuthCommitError {
+    case .uncertainSubmission: return .uncertainSubmission
+    case .commitPending: return .commitPending
+    case .invalidationIncomplete: return .invalidationIncomplete
+    case .operationReplaced, .proofStateReplaced: return .connectionReplaced
+    case nil: break
+    }
+    switch error as? DeviceSessionProofError {
+    case .appAttestUnavailable: return .appAttestUnavailable
+    case .appAttestTimedOut: return .appAttestTimedOut
+    case .hostedProofOperationInProgress: return .proofOperationInProgress
+    case .secureEnclaveUnavailable: return .appAttestUnavailable
+    case .missingRenewableCredential: return .interactiveRecoveryRequired
+    case nil: break
+    }
+    switch error as? AppAttestClientError {
+    case .serverUnavailable: return .appAttestUnavailable
+    case .invalidKey: return .invalidDeviceKey
+    case .nonRetryable: return .backendRejected
+    case nil: break
+    }
+    if error is URLError || error is HostedServiceWarmupError || error is SubscriptionSessionTimeoutError { return .networkUnavailable }
+    if let api = error as? APIClientError {
+      return api.hasAmbiguousOutcome ? .networkUnavailable : (api.isAuthenticationFailure ? .authenticationRejected : .backendRejected)
+    }
+    if error is HealthImportError { return .unverifiedSource }
+    switch error as? AuthConnectionError {
+    case .bindingMismatch: return .configurationInvalid
+    case .sourceReplaced: return .connectionReplaced
+    case nil: break
+    }
+    return .storageUnavailable
   }
 
   private static func subscriptionJWSHash(_ signedTransactionInfo: String) -> Data {
@@ -2268,7 +2411,6 @@ private enum SubscriptionSessionTimeoutKind: String {
 }
 
 private enum RejectedAssertionRetry: String {
-  case freshAssertion
   case freshAttestation
 }
 

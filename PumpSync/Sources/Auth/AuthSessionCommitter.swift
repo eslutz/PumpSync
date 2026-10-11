@@ -63,6 +63,14 @@ final class AuthSessionCommitter {
     return try store?.loadConnection(binding: binding) ?? memory
   }
 
+  func unresolvedRecoveryError() throws -> AuthCommitError? {
+    guard !blockedInProcess else { return .invalidationIncomplete }
+    guard let record = try journal() else { return nil }
+    if record.phase == .responseReceived { return .commitPending }
+    if record.phase == .submitted || record.inheritedUncertainty != nil { return .uncertainSubmission }
+    return nil
+  }
+
   var hasUnresolvedSubmission: Bool {
     // Failure to inspect metadata blocks credentials as well as enrollment.
     do { return try journal().map { $0.phase != .prepared || $0.inheritedUncertainty != nil } ?? false }
@@ -95,6 +103,24 @@ final class AuthSessionCommitter {
     }
     guard !currentState.invalidated else { return nil }
     return try store?.loadConnection(binding: binding)
+  }
+
+  /// Adopt pre-journal App Attest submission state before any successor can
+  /// clear/replace its key. The exact stored source remains blocked until a
+  /// durable replacement or invalidation, including after failed enrollment.
+  func adoptLegacyProofUncertainty(binding: AuthConnectionBinding, proofKeyID: String, proofRequestID: String?) throws {
+    guard !blockedInProcess else { throw AuthCommitError.invalidationIncomplete }
+    guard lease == nil else { throw AuthCommitError.commitPending }
+    guard try journal() == nil else { return }
+    let currentState = try state()
+    guard !currentState.invalidated else { return }
+    let source = try store?.loadConnection(binding: binding)
+    var record = AuthOperationJournal(operationID: UUID(), kind: .enrollment,
+      generation: currentState.generation, binding: binding,
+      sourceIdentity: source?.identity, sourceFingerprint: try AuthOperationJournal.fingerprint(source),
+      proofRequestID: proofRequestID ?? UUID().uuidString, proofKeyID: proofKeyID, phase: .prepared, target: nil)
+    record.inheritedUncertainty = record.capturedSource
+    try saveJournal(record)
   }
 
   func begin(kind: AuthOperationJournal.Kind, binding: AuthConnectionBinding,

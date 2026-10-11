@@ -362,6 +362,8 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
 
 @MainActor
 private final class PreviewBoundaryProof: DeviceSessionProofProviding {
+  func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition { .ready }
+  func invalidateHostedProofOperation() {}
     func hostedEnrollment(challenge: SessionChallengeResponse, installationId: String, signedTransactionInfo: String) async throws -> HostedDeviceEnrollment {
         .init(requestId: "fixture", issuedAt: Date(), challengeToken: challenge.challengeToken, keyId: "fixture", proofKind: "attestation", proof: "test-target")
     }

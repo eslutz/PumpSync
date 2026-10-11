@@ -166,6 +166,8 @@ final class AuthSessionCommitterTests: XCTestCase {
 
 @MainActor
 private final class JournalProofProvider: DeviceSessionProofProviding {
+  func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition { .ready }
+  func invalidateHostedProofOperation() {}
   var failRegistration = false
   func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool {
     if failRegistration { throw AuthJournalTestPersistence.Failure.inaccessible }

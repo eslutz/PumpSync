@@ -3,6 +3,99 @@ import XCTest
 
 @MainActor
 final class DeviceSessionProofProviderTests: XCTestCase {
+  func testCanceledEnrollmentCannotPublishLateAssertionOrReleaseReplacementOwner() async throws {
+    let fixture = try await registeredFixture()
+    let gate = ProofAsyncGate()
+    fixture.client.assertionGates = [gate]
+    fixture.client.assertionResults = [.success(Data("late".utf8)), .success(Data("current".utf8))]
+    let old = Task { try await fixture.provider.hostedEnrollment(challenge: challenge("old"), installationId: "installation-1", signedTransactionInfo: "transaction") }
+    await waitUntil { fixture.client.assertedKeyIds.count == 1 }
+    old.cancel()
+    // Cancellation must complete without waiting for Apple's callback.
+    do { _ = try await old.value; XCTFail("Canceled Apple proof must not publish an enrollment") }
+    catch is CancellationError {}
+    let replacement = try await fixture.provider.hostedEnrollment(challenge: challenge("new"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    await gate.open()
+    await Task.yield()
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentSubmissionStarted(keyId: replacement.keyId, requestId: replacement.requestId))
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentRegistered(keyId: replacement.keyId, requestId: replacement.requestId))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: replacement.requestId))
+  }
+
+  func testTimedOutEnrollmentRetainsKeyAndLateCallbackCannotMutateReplacementProof() async throws {
+    let fixture = try await registeredFixture()
+    let provider = DeviceSessionProofProvider(keychain: fixture.keychain, appAttest: fixture.client, appAttestAssertionTimeout: .milliseconds(20))
+    let gate = ProofAsyncGate()
+    fixture.client.assertionGates = [gate]
+    fixture.client.assertionResults = [.success(Data("late".utf8)), .success(Data("current".utf8))]
+    do {
+      _ = try await provider.hostedEnrollment(challenge: challenge("old"), installationId: "installation-1", signedTransactionInfo: "transaction")
+      XCTFail("Expected Apple timeout")
+    } catch DeviceSessionProofError.appAttestTimedOut {}
+    let current = try await provider.hostedEnrollment(challenge: challenge("new"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    await gate.open()
+    await Task.yield()
+    XCTAssertTrue(try provider.markHostedEnrollmentSubmissionStarted(keyId: current.keyId, requestId: current.requestId))
+    XCTAssertTrue(try provider.markHostedEnrollmentRegistered(keyId: current.keyId, requestId: current.requestId))
+    XCTAssertTrue(provider.releaseHostedProofOperation(requestId: current.requestId))
+    XCTAssertEqual(fixture.client.generatedKeyCount, 1)
+  }
+
+  func testExternalInvalidationRevokesOnlyOldAppleOwner() async throws {
+    let fixture = try await registeredFixture()
+    let gate = ProofAsyncGate()
+    fixture.client.assertionGates = [gate]
+    fixture.client.assertionResults = [.success(Data("old".utf8)), .success(Data("new".utf8))]
+    let old = Task { try await fixture.provider.hostedEnrollment(challenge: challenge("old"), installationId: "installation-1", signedTransactionInfo: "transaction") }
+    await waitUntil { fixture.client.assertedKeyIds.count == 1 }
+    fixture.provider.invalidateHostedProofOperation()
+    do { _ = try await old.value; XCTFail("Invalidated proof cannot publish") } catch is CancellationError {}
+    let replacement = try await fixture.provider.hostedEnrollment(challenge: challenge("new"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    await gate.open()
+    await Task.yield()
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentSubmissionStarted(keyId: replacement.keyId, requestId: replacement.requestId))
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentRegistered(keyId: replacement.keyId, requestId: replacement.requestId))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: replacement.requestId))
+  }
+
+  func testRegisteredProofRetainsLeaseUntilDurableCommitOwnerReleasesIt() async throws {
+    let fixture = makeFixture()
+    fixture.client.attestationResults = [.success(Data("attestation".utf8))]
+    let prepared = try await fixture.provider.hostedEnrollment(challenge: challenge("one"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentSubmissionStarted(keyId: prepared.keyId, requestId: prepared.requestId))
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentRegistered(keyId: prepared.keyId, requestId: prepared.requestId))
+    do {
+      _ = try await fixture.provider.hostedEnrollment(challenge: challenge("two"), installationId: "installation-1", signedTransactionInfo: "transaction")
+      XCTFail("Registration is only one step of the auth commit; owner retains proof lease")
+    } catch DeviceSessionProofError.hostedProofOperationInProgress {}
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: prepared.requestId))
+  }
+
+  func testUnsubmittedAttestationRetainsKeyForFreshChallenge() async throws {
+    let fixture = makeFixture()
+    fixture.client.attestationResults = [.success(Data("attestation".utf8)), .success(Data("unexpected-new-key".utf8))]
+    fixture.client.assertionResults = [.success(Data("fresh-assertion".utf8))]
+    let first = try await fixture.provider.hostedEnrollment(challenge: challenge("one"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    XCTAssertTrue(try fixture.provider.discardUnsubmittedHostedEnrollment(keyId: first.keyId, requestId: first.requestId))
+    let fresh = try await fixture.provider.hostedEnrollment(challenge: challenge("two"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    XCTAssertEqual(fresh.keyId, first.keyId)
+    XCTAssertEqual(fresh.proofKind, "assertion")
+    XCTAssertEqual(fixture.client.generatedKeyCount, 1)
+  }
+
+  func testGenericRejectedAttestationRetainsKeyForNextOwnedChallenge() async throws {
+    let fixture = makeFixture()
+    fixture.client.attestationResults = [.success(Data("attestation".utf8)), .success(Data("unexpected-new-key".utf8))]
+    fixture.client.assertionResults = [.success(Data("fresh-assertion".utf8))]
+    let first = try await fixture.provider.hostedEnrollment(challenge: challenge("one"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentSubmissionStarted(keyId: first.keyId, requestId: first.requestId))
+    XCTAssertTrue(try fixture.provider.resolveRejectedHostedEnrollment(keyId: first.keyId, requestId: first.requestId))
+    let fresh = try await fixture.provider.hostedEnrollment(challenge: challenge("two"), installationId: "installation-1", signedTransactionInfo: "transaction")
+    XCTAssertEqual(fresh.keyId, first.keyId)
+    XCTAssertEqual(fresh.proofKind, "assertion")
+    XCTAssertEqual(fixture.client.generatedKeyCount, 1)
+  }
+
   func testRefreshPayloadMatchesProtocol3Vector() {
     let payload = DeviceProofPayload.refresh(
       installationId: "installation-1",
@@ -91,6 +184,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: first.keyId,
       requestId: first.requestId
     ))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: first.requestId))
     XCTAssertTrue(try fixture.provider.markHostedEnrollmentRegistered(keyId: first.keyId, requestId: first.requestId),
       "Durable response replay must accept the same already committed proof")
     XCTAssertFalse(try fixture.provider.markHostedEnrollmentRegistered(keyId: first.keyId, requestId: "newer-or-unowned-request"),
@@ -124,6 +218,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: initial.requestId))
 
     XCTAssertTrue(try fixture.provider.discardRegisteredHostedKey())
     let replacement = try await fixture.provider.hostedEnrollment(
@@ -151,6 +246,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: initial.requestId))
 
     fixture.client.assertionResults = [
       .success(Data("rejected-assertion".utf8)),
@@ -198,6 +294,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: initial.requestId))
 
     fixture.client.assertionResults = [.success(Data("rejected-assertion".utf8))]
     let rejected = try await fixture.provider.hostedEnrollment(
@@ -237,6 +334,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: initial.requestId))
 
     fixture.client.assertionResults = [
       .success(Data("unsubmitted-assertion".utf8)),
@@ -322,6 +420,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
 
   func testPendingEnrollmentDoesNotReplaceANewChallenge() async throws {
     let fixture = makeFixture()
+    fixture.client.assertionResults = [.success(Data("fresh-assertion".utf8))]
     fixture.client.attestationResults = [
       .success(Data("attestation-1".utf8)),
       .success(Data("attestation-2".utf8))
@@ -343,8 +442,9 @@ final class DeviceSessionProofProviderTests: XCTestCase {
 
     XCTAssertEqual(first.challengeToken, "challenge-1")
     XCTAssertEqual(second.challengeToken, "challenge-2")
-    XCTAssertNotEqual(second.keyId, first.keyId)
-    XCTAssertEqual(fixture.client.generatedKeyCount, 2)
+    XCTAssertEqual(second.keyId, first.keyId)
+    XCTAssertEqual(second.proofKind, "assertion")
+    XCTAssertEqual(fixture.client.generatedKeyCount, 1)
   }
 
   func testPendingEnrollmentForSameChallengeReportsProofReuse() async throws {
@@ -439,6 +539,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: reconciliation.keyId,
       requestId: reconciliation.requestId
     ))
+    XCTAssertTrue(recreated.releaseHostedProofOperation(requestId: reconciliation.requestId))
 
     fixture.client.assertionResults = [.success(Data("registered-assertion".utf8))]
     let recovered = try await recreated.hostedEnrollment(
@@ -847,6 +948,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: first.keyId,
       requestId: first.requestId
     ))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: first.requestId))
     fixture.client.assertionResults = [.failure(AppAttestClientError.invalidKey)]
     do {
       _ = try await fixture.provider.hostedEnrollment(
@@ -1013,6 +1115,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: initial.keyId,
       requestId: initial.requestId
     ))
+    XCTAssertTrue(fixture.provider.releaseHostedProofOperation(requestId: initial.requestId))
     return fixture
   }
 
@@ -1083,6 +1186,7 @@ private final class FakeAppAttestClient: AppAttestClient {
 
   func attestKey(_ keyId: String, clientDataHash: Data) async throws -> Data {
     attestedKeyIds.append(keyId)
+    guard !attestationResults.isEmpty else { XCTFail("Unexpected extra Apple attestation"); throw APIClientError.invalidResponse }
     let result = attestationResults.removeFirst()
     if !attestationGates.isEmpty {
       await attestationGates.removeFirst().wait()
@@ -1092,6 +1196,7 @@ private final class FakeAppAttestClient: AppAttestClient {
 
   func generateAssertion(_ keyId: String, clientDataHash: Data) async throws -> Data {
     assertedKeyIds.append(keyId)
+    guard !assertionResults.isEmpty else { XCTFail("Unexpected extra Apple assertion"); throw APIClientError.invalidResponse }
     let result = assertionResults.removeFirst()
     if !assertionGates.isEmpty {
       await assertionGates.removeFirst().wait()

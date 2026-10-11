@@ -1531,6 +1531,8 @@ final class SyncCoordinatorTests: XCTestCase {
   }
 
   private final class StubDeviceSessionProofProvider: DeviceSessionProofProviding {
+  func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition { .ready }
+  func invalidateHostedProofOperation() {}
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
       installationId: String,
@@ -1568,6 +1570,8 @@ final class SyncCoordinatorTests: XCTestCase {
   }
 
   private final class RecoveringDeviceSessionProofProvider: DeviceSessionProofProviding {
+  func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition { .ready }
+  func invalidateHostedProofOperation() {}
     var acceptsRefresh = false
     func hostedEnrollment(
       challenge: SessionChallengeResponse,
