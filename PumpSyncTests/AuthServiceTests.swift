@@ -3,6 +3,244 @@ import XCTest
 
 @MainActor
 final class AuthServiceTests: XCTestCase {
+  func testConfirmedRefreshStorageFailureDoesNotRestoreConsumedCredentialAndRestartRepairsResponse() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let configuration = makeConfigurationStore()
+    let replacement = BackendSessionResponse(accessToken: "replacement", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "rotated", refreshToken: "replacement-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+    func service() -> AuthService {
+      AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store, currentEntitlementJWS: { XCTFail("A confirmed response must repair without enrollment"); throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    }
+    let original = service()
+    URLProtocolStub.requestHandler = { request in
+      persistence.failWriteAccount = "backend.session.current"
+      return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, try JSONCodec.encoder.encode(replacement))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    await original.recoverSessionIfNeeded(policy: .background)
+    XCTAssertNil(original.authenticatedConnection, "Consumed source cannot remain current after local commit failure")
+    persistence.failWriteAccount = nil
+    URLProtocolStub.requestHandler = { _ in XCTFail("Restart must commit the confirmed response without network replay"); throw APIClientError.invalidResponse }
+    let restarted = service()
+    await restarted.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(restarted.accessToken, "replacement")
+  }
+
+  func testSubmissionMarkerStorageFailurePreventsRefreshPOST() async throws {
+    for failingWrite in [1, 2] {
+      let persistence = AuthJournalTestPersistence()
+      let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+      try store.save(Self.expiredRenewableSession())
+      let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store, currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+      persistence.failWriteAccount = "backend.auth.operation-journal.v1"
+      persistence.failWriteOrdinal = failingWrite
+      let count = LockedCounter()
+      URLProtocolStub.requestHandler = { _ in count.increment(); throw URLError(.networkConnectionLost) }
+      defer { URLProtocolStub.requestHandler = nil }
+      await service.recoverSessionIfNeeded(policy: .background)
+      XCTAssertEqual(count.value, 0, "Prepared/submitted boundary \(failingWrite) must persist before sending a consuming request")
+    }
+  }
+
+  func testDisconnectPersistsTombstoneWhenSessionDeletionFailsAndReportsFailedDurableInvalidation() async throws {
+    for durableFailure in [false, true] {
+      let persistence = AuthJournalTestPersistence()
+      let store = BackendSessionStore(keychain: persistence)
+      try store.save(BackendSessionResponse(accessToken: "cached", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"))
+      let configuration = makeConfigurationStore()
+      func makeService() -> AuthService {
+        AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store, currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+      }
+      let service = makeService()
+      persistence.failDeleteAccount = "backend.session.current"
+      persistence.failAllWrites = durableFailure
+      service.clearSessionForConnectionChange()
+      XCTAssertNil(service.accessToken)
+      if durableFailure {
+        XCTAssertNotNil(service.errorMessage, "Failed durable disconnect must be visible")
+      } else {
+        XCTAssertNil(makeService().accessToken, "Durable tombstone must prevent restart resurrection despite failed delete")
+      }
+    }
+  }
+
+  func testSelfHostedConfirmedEnrollmentRepairsAfterFailedLocalSessionWrite() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let store = BackendSessionStore(keychain: persistence)
+    let configuration = makeConfigurationStore()
+    configuration.mode = .selfHosted
+    configuration.selfHostedBaseURLString = "https://example.com/api"
+    let replacement = BackendSessionResponse(accessToken: "self-hosted-confirmed", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource")
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in persistence.failWriteAccount = "backend.session.current"; return replacement }, proofProvider: AcceptingProofProvider())
+    await service.connectSelfHosted()
+    XCTAssertNil(service.accessToken)
+    XCTAssertEqual(try store.loadAuthJournal()?.phase, .responseReceived)
+    persistence.failWriteAccount = nil
+    let restarted = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in XCTFail("Confirmed self-hosted response must not POST again"); throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    XCTAssertEqual(restarted.accessToken, replacement.accessToken)
+    XCTAssertNil(try store.loadAuthJournal())
+  }
+
+  func testExplicitDisconnectDuringWarmupPreventsOldEnrollmentPOSTWithoutConfigurationChange() async {
+    let gate = AsyncGate()
+    var warmingUp = false
+    var posts = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in posts += 1; return BackendSessionResponse(accessToken: "obsolete", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource") },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, warmupHostedService: { warmingUp = true; await gate.wait() }, proofProvider: AcceptingProofProvider())
+    let activation = Task { await service.activateSubscription(signedTransactionInfo: "active") }
+    await waitUntil { warmingUp }
+    service.clearSessionForConnectionChange()
+    await gate.open()
+    await activation.value
+    XCTAssertEqual(posts, 0, "A durable disconnect must stop pre-submission work even when configuration stays the same")
+    XCTAssertNil(service.accessToken)
+  }
+
+  func testExplicitDisconnectDuringEntitlementReadPreventsOldRecoveryEnrollment() async {
+    let gate = AsyncGate()
+    var reading = false
+    var posts = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { reading = true; await gate.wait(); return "active" },
+      createSubscriptionSession: { _ in posts += 1; return BackendSessionResponse(accessToken: "obsolete", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource") },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    let recovery = Task { await service.recoverSessionIfNeeded() }
+    await waitUntil { reading }
+    service.clearSessionForConnectionChange()
+    await gate.open()
+    await recovery.value
+    XCTAssertEqual(posts, 0)
+    XCTAssertNil(service.accessToken)
+  }
+
+  func testHostedConfirmedResponseRepairsActualProofPersistenceFailureOnServiceRestart() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let store = BackendSessionStore(keychain: persistence)
+    let configuration = makeConfigurationStore()
+    let apple = SequencedAppAttestClient()
+    apple.attestationResults = [.success(Data("attestation".utf8))]
+    let provider = DeviceSessionProofProvider(keychain: persistence, appAttest: apple)
+    let confirmed = BackendSessionResponse(accessToken: "confirmed-hosted", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in
+        persistence.failWriteAccount = "device-proof.app-attest-state.v4"
+        return confirmed
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: provider)
+    await service.recoverSessionIfNeeded()
+    XCTAssertNil(service.authenticatedConnection)
+    XCTAssertNil(service.accessToken)
+    XCTAssertEqual(try store.loadAuthJournal()?.phase, .responseReceived)
+    XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(service.connectionBinding))?.session.accessToken, "confirmed-hosted")
+    persistence.failWriteAccount = nil
+    let restartedProvider = DeviceSessionProofProvider(keychain: persistence, appAttest: apple)
+    let restarted = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Durable repair must not reacquire entitlement"); throw APIClientError.invalidResponse },
+      createSubscriptionSession: { _ in XCTFail("Durable repair must not repeat enrollment POST"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: restartedProvider)
+    XCTAssertEqual(restarted.accessToken, confirmed.accessToken)
+    XCTAssertNil(try store.loadAuthJournal())
+    XCTAssertTrue(try restartedProvider.hostedRegisteredKeyMatches("key-1"))
+    XCTAssertEqual(apple.generatedKeyCount, 1)
+  }
+
+  func testTwoHTTPRefreshesPreserveOwnershipAcrossFractionalWireExpiryAndStoredPrecision() async throws {
+    var now = Date(timeIntervalSince1970: 2_000)
+    let store = makeSessionStore(now: { now })
+    try store.save(Self.expiredRenewableSession())
+    let configuration = makeConfigurationStore()
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Ordinary rotation must not enroll"); throw APIClientError.invalidResponse },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    let first = BackendSessionResponse(accessToken: "fractional-1", expiresAt: Date(timeIntervalSince1970: 4_000.125), serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "family-2", refreshToken: "fractional-refresh-1", refreshTokenExpiresAt: Date(timeIntervalSince1970: 6_000.125), refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 7_000.125))
+    let second = BackendSessionResponse(accessToken: "fractional-2", expiresAt: Date(timeIntervalSince1970: 8_000.5), serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "family-3", refreshToken: "fractional-refresh-2", refreshTokenExpiresAt: Date(timeIntervalSince1970: 9_000.5), refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 10_000.5))
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .custom { date, encoder in
+      let formatter = ISO8601DateFormatter()
+      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+      var container = encoder.singleValueContainer()
+      try container.encode(formatter.string(from: date))
+    }
+    let bodies = try [encoder.encode(first), encoder.encode(second)]
+    let count = LockedCounter()
+    URLProtocolStub.requestHandler = { request in
+      count.increment()
+      let index = count.value - 1
+      guard bodies.indices.contains(index) else { throw APIClientError.invalidResponse }
+      return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, bodies[index])
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let originalID = try XCTUnwrap(store.loadConnection(binding: XCTUnwrap(service.connectionBinding))).identity.id
+    await service.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(service.session?.expiresAt, Date(timeIntervalSince1970: 4_000.125))
+    XCTAssertEqual(service.accessToken, "fractional-1")
+    now = Date(timeIntervalSince1970: 4_500)
+    await service.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(count.value, 2)
+    XCTAssertEqual(service.accessToken, "fractional-2")
+    XCTAssertEqual(service.authenticatedConnection?.identity.id, originalID)
+  }
+
+  func testValidationRequestRejectionClearsOnlyItsSubmittedConnectionAfterConcurrentRefresh() async throws {
+    for rotates in [false, true] {
+      var now = Date(timeIntervalSince1970: 2_000)
+      let store = makeSessionStore(now: { now })
+      let original = BackendSessionResponse(accessToken: "validation-source", expiresAt: Date(timeIntervalSince1970: 3_000), serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "validation-family", refreshToken: "validation-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+      let replacement = BackendSessionResponse(accessToken: "validation-replacement", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "replacement-family", refreshToken: "replacement-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+      try store.save(original)
+      let configuration = makeConfigurationStore()
+      let sessionConfiguration = URLSessionConfiguration.ephemeral
+      sessionConfiguration.protocolClasses = [ConcurrentAuthURLProtocol.self]
+      let client = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLSession(configuration: sessionConfiguration), maxRetryCount: 0)
+      _ = configuration.apply(to: client)
+      let service = AuthService(apiClient: client, configurationStore: configuration, sessionStore: store,
+        currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+      let validationStarted = expectation(description: "Validation submitted")
+      let rejectValidation = DispatchSemaphore(value: 0)
+      URLProtocolStub.requestHandler = { request in
+        if request.url!.path.contains("credentials/validate") {
+          validationStarted.fulfill()
+          guard rejectValidation.wait(timeout: .now() + 10) == .success else { throw URLError(.timedOut) }
+          return (HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!, Data(#"{"code":"invalid_token","message":"Expired"}"#.utf8))
+        }
+        return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, try JSONCodec.encoder.encode(replacement))
+      }
+      defer { URLProtocolStub.requestHandler = nil }
+      let submittedConnection = try XCTUnwrap(service.authenticatedConnection)
+      let validation = Task {
+        do {
+          _ = try await client.validateTandemCredentials(TandemCredentialValidationRequest(tandem: TandemCredentials(username: "fixture@example.com", password: "fixture", region: "us"), timeZoneIdentifier: "UTC"), accessToken: submittedConnection.session.accessToken)
+          XCTFail("Expected actual HTTP rejection")
+        } catch {
+          XCTAssertTrue((error as? APIClientError)?.isAuthenticationFailure == true, "Expected real HTTP auth rejection")
+          if (error as? APIClientError)?.isAuthenticationFailure == true {
+            service.clearSessionForAuthenticationFailure(expectedSource: submittedConnection)
+          }
+        }
+      }
+      await fulfillment(of: [validationStarted], timeout: 1)
+      if rotates {
+        now = Date(timeIntervalSince1970: 2_800)
+        await service.recoverSessionIfNeeded(policy: .background)
+        XCTAssertEqual(service.accessToken, replacement.accessToken)
+      }
+      rejectValidation.signal()
+      await validation.value
+      if rotates {
+        XCTAssertEqual(service.accessToken, replacement.accessToken, "A rejected old validation request cannot invalidate the new auth response")
+        XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(service.connectionBinding))?.session.accessToken, replacement.accessToken)
+      } else {
+        XCTAssertNil(service.accessToken, "An authoritative rejection of the still-current source must clear it")
+        XCTAssertNil(try store.loadConnection(binding: XCTUnwrap(service.connectionBinding)))
+      }
+    }
+  }
+
   func testNonRenewableLegacySessionEnrollsWithoutSubmittingExpiredRefreshCredential() async throws {
     let store = makeSessionStore()
     try store.save(BackendSessionResponse(accessToken: "expired", expiresAt: .distantPast, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "expired-family", refreshToken: "expired-refresh", refreshTokenExpiresAt: .distantPast, refreshTokenAbsoluteExpiresAt: .distantPast))
@@ -233,7 +471,8 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
-    service.clearSessionForAuthenticationFailure()
+    let submittedSource = try XCTUnwrap(service.authenticatedConnection)
+    XCTAssertTrue(service.clearSessionForAuthenticationFailure(expectedSource: submittedSource))
 
     XCTAssertFalse(service.isSignedIn)
     XCTAssertNil(sessionStore.loadRecoverableSession())
@@ -2454,11 +2693,13 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSignedIn)
   }
 
-  func testCancelledHostedRequestCannotApplyLateBackendSession() async {
+  func testCancelledHostedWaiterAllowsDurableLateAuthRepairWithoutRevivingCaller() async {
     let gate = AsyncGate()
     var started = false
+    let store = makeSessionStore()
+    let configuration = makeConfigurationStore()
     let service = AuthService(
-      apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
       currentEntitlementJWS: { "fixture-transaction" },
       createSubscriptionSession: { _ in
         started = true
@@ -2477,7 +2718,13 @@ final class AuthServiceTests: XCTestCase {
     await gate.open()
     await recovery.value
     for _ in 0..<10 { await Task.yield() }
-    XCTAssertFalse(service.isSignedIn)
+    XCTAssertTrue(recovery.isCancelled)
+    XCTAssertEqual(service.accessToken, "late-token")
+    let restarted = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Repair must persist without replay"); throw APIClientError.invalidResponse },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    XCTAssertEqual(restarted.accessToken, "late-token")
     XCTAssertNil(service.errorMessage)
   }
 
@@ -2591,15 +2838,18 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(sessionStore.loadValidSession(), session)
   }
 
-  func testAccessTokenRecoveryPreservesStaleSessionAfterAmbiguousRefreshFailure() async throws {
+  func testAccessTokenRecoveryBlocksStaleCredentialAfterLostRefreshResponse() async throws {
     var now = Date(timeIntervalSince1970: 1_000)
     let sessionStore = makeSessionStore(now: { now })
     let staleSession = BackendSessionResponse(
       accessToken: "stale-token",
       expiresAt: Date(timeIntervalSince1970: 2_000),
       serviceMode: "hosted",
-      dataSourceMode: "tandemSource"
+      dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "source-family",
+      refreshToken: "source-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture
     )
+    URLProtocolStub.requestHandler = { _ in throw URLError(.networkConnectionLost) }
+    defer { URLProtocolStub.requestHandler = nil }
     try sessionStore.save(staleSession)
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -2628,6 +2878,7 @@ final class AuthServiceTests: XCTestCase {
     let accessToken = await service.accessTokenRecoveringIfNeeded()
 
     XCTAssertNil(accessToken)
+    XCTAssertNil(service.authenticatedConnection)
     XCTAssertEqual(sessionStore.loadRecoverableSession(), staleSession)
   }
 
@@ -2926,14 +3177,17 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertFalse(service.isSignedIn)
   }
 
-  func testExpiredCachedSessionIsPreservedAfterAmbiguousRefreshFailure() async throws {
+  func testExpiredCachedSessionIsBlockedAfterLostRefreshResponse() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
     let expiredSession = BackendSessionResponse(
       accessToken: "expired-token",
       expiresAt: Date(timeIntervalSince1970: 1_999),
       serviceMode: "hosted",
-      dataSourceMode: "tandemSource"
+      dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "source-family",
+      refreshToken: "source-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture
     )
+    URLProtocolStub.requestHandler = { _ in throw URLError(.networkConnectionLost) }
+    defer { URLProtocolStub.requestHandler = nil }
     try sessionStore.save(expiredSession)
     let service = AuthService(
       apiClient: makeAPIClient(),
@@ -2955,6 +3209,7 @@ final class AuthServiceTests: XCTestCase {
     await service.recoverSessionIfNeeded()
 
     XCTAssertNil(service.accessToken)
+    XCTAssertNil(service.authenticatedConnection)
     XCTAssertEqual(sessionStore.loadRecoverableSession(), expiredSession)
   }
 
@@ -4030,6 +4285,10 @@ final class AuthServiceTests: XCTestCase {
       )
     }
 
+    func hostedProofKeyID(requestId: String) throws -> String { "app-attest-key" }
+
+    func hostedRegisteredKeyMatches(_ keyId: String) throws -> Bool { keyId == "app-attest-key" }
+
     func refreshRequest(
       session: BackendSessionResponse,
       installationId: String,
@@ -4087,4 +4346,28 @@ final class AuthServiceTests: XCTestCase {
       try assertionResults.removeFirst().get()
     }
   }
+}
+
+/// URLSession's protocol callbacks are serial. This test-only HTTP boundary
+/// moves a held response off that thread so another real request can complete.
+private final class ConcurrentAuthURLProtocol: URLProtocol, @unchecked Sendable {
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+  override func startLoading() {
+    guard let handler = URLProtocolStub.requestHandler else {
+      client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+      return
+    }
+    DispatchQueue.global().async { [self] in
+      do {
+        let (response, data) = try handler(request)
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+      } catch {
+        client?.urlProtocol(self, didFailWithError: error)
+      }
+    }
+  }
+  override func stopLoading() {}
 }

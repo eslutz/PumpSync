@@ -375,6 +375,8 @@ private final class PreviewBoundaryProof: DeviceSessionProofProviding {
     func selfHostedEnrollment(challenge: SessionChallengeResponse, installationId: String) throws -> SelfHostedDeviceEnrollment {
         .init(requestId: "fixture", issuedAt: Date(), challengeToken: challenge.challengeToken, publicKey: "test-target", signature: "test-target")
     }
+    func hostedProofKeyID(requestId: String) throws -> String { "app-attest-key" }
+    func hostedRegisteredKeyMatches(_ keyId: String) throws -> Bool { keyId == "app-attest-key" }
     func refreshRequest(session: BackendSessionResponse, installationId: String, mode: BackendAccessMode) async throws -> SessionRefreshRequest {
         .init(installationId: installationId, refreshToken: session.refreshToken, requestId: "fixture", issuedAt: Date(), proof: "test-target")
     }

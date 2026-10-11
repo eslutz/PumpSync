@@ -91,6 +91,10 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       keyId: first.keyId,
       requestId: first.requestId
     ))
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentRegistered(keyId: first.keyId, requestId: first.requestId),
+      "Durable response replay must accept the same already committed proof")
+    XCTAssertFalse(try fixture.provider.markHostedEnrollmentRegistered(keyId: first.keyId, requestId: "newer-or-unowned-request"),
+      "Registration replay must own the exact committed request")
     fixture.client.assertionResults = [.success(Data("assertion".utf8))]
 
     let recovered = try await fixture.provider.hostedEnrollment(

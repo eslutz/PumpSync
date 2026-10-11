@@ -212,7 +212,7 @@ final class ImportPreviewTests: XCTestCase {
         let url = URL(string: "https://example.com/api")!
         let client = PumpSyncAPIClient(baseURL: url, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
         let configuration = BackendConfigurationStore.ephemeral(selfHostedBaseURL: url, installationId: "preview-fixture")
-        let auth = AuthService(apiClient: client, configurationStore: configuration, purpose: .preview, proofProvider: DeviceSessionProofProvider(keychain: .init(service: "preview-fixture")))
+        let auth = AuthService(apiClient: client, configurationStore: configuration, purpose: .preview, proofProvider: DeviceSessionProofProvider(keychain: SecureKeychainStore(service: "preview-fixture")))
         return (client, auth)
     }
     private func snapshot() -> ImportSessionSnapshot {

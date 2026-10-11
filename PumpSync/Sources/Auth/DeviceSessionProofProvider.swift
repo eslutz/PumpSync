@@ -72,6 +72,9 @@ protocol DeviceSessionProofProviding {
     installationId: String
   ) throws -> SelfHostedDeviceEnrollment
 
+  func hostedProofKeyID(requestId: String) throws -> String
+  func hostedRegisteredKeyMatches(_ keyId: String) throws -> Bool
+
   func refreshRequest(
     session: BackendSessionResponse,
     installationId: String,
@@ -99,6 +102,7 @@ private struct PersistedAppAttestKeyState: Codable, Equatable {
   let keyId: String
   var phase: AppAttestKeyPhase
   var pendingEnrollment: PendingHostedEnrollment?
+  var registeredRequestId: String? = nil
 }
 
 private struct HostedProofOperation {
@@ -110,7 +114,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
   private static let secureEnclaveKeyAccount = "device-proof.secure-enclave-p256.v1"
   private static let appAttestStateAccount = "device-proof.app-attest-state.v4"
 
-  private let keychain: SecureKeychainStore
+  private let keychain: any BackendSessionPersistence
   private let now: () -> Date
   private let appAttest: AppAttestClient
   private let diagnostics: DiagnosticsLogStore?
@@ -118,7 +122,7 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
   private var hostedProofOperation: HostedProofOperation?
 
   init(
-    keychain: SecureKeychainStore,
+    keychain: any BackendSessionPersistence,
     now: @escaping () -> Date = Date.init,
     appAttest: AppAttestClient = LiveAppAttestClient(),
     diagnostics: DiagnosticsLogStore? = nil,
@@ -310,12 +314,13 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
 
   func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool {
     guard let state = try loadState(), state.keyId == keyId else { return false }
+    if state.phase == .registered { return state.registeredRequestId == requestId }
     guard (state.phase == .registrationUnknown || state.phase == .registeredAssertionSubmitted),
           state.pendingEnrollment?.enrollment.requestId == requestId else {
       return false
     }
     defer { _ = releaseHostedProofOperation(requestId: requestId) }
-    try saveState(PersistedAppAttestKeyState(keyId: keyId, phase: .registered, pendingEnrollment: nil))
+    try saveState(PersistedAppAttestKeyState(keyId: keyId, phase: .registered, pendingEnrollment: nil, registeredRequestId: requestId))
     return true
   }
 
@@ -519,6 +524,19 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
       publicKey: Self.subjectPublicKeyInfo(key.publicKey.x963Representation).base64EncodedString(),
       signature: signature.derRepresentation.base64EncodedString()
     )
+  }
+
+  func hostedProofKeyID(requestId: String) throws -> String {
+    guard hostedProofOperation?.requestId == requestId,
+          let state = try loadState(), state.phase == .registered else {
+      throw DeviceSessionProofError.hostedProofOperationInProgress
+    }
+    return state.keyId
+  }
+
+  func hostedRegisteredKeyMatches(_ keyId: String) throws -> Bool {
+    guard let state = try loadState() else { return false }
+    return state.phase == .registered && state.keyId == keyId
   }
 
   func refreshRequest(session: BackendSessionResponse, installationId: String, mode: BackendAccessMode) async throws -> SessionRefreshRequest {

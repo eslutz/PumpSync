@@ -299,7 +299,9 @@ struct TandemCredentialForm: View {
 
     guard let accessToken = await accessTokenForValidation(configurationRevision: configurationRevision),
           !Task.isCancelled,
-          configurationRevision == services.backendConfigurationStore.revision else {
+          configurationRevision == services.backendConfigurationStore.revision,
+          let submittedConnection = services.authService.authenticatedConnection,
+          submittedConnection.session.accessToken == accessToken else {
       return
     }
 
@@ -334,7 +336,7 @@ struct TandemCredentialForm: View {
     } catch {
       guard !Task.isCancelled, configurationRevision == services.backendConfigurationStore.revision else { return }
       if (error as? APIClientError)?.isAuthenticationFailure == true {
-        services.authService.clearSessionForAuthenticationFailure()
+        services.authService.clearSessionForAuthenticationFailure(expectedSource: submittedConnection)
       }
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials save failed")
       alert = CredentialAlert(

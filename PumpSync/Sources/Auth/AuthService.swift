@@ -155,6 +155,9 @@ final class AuthService {
   private let purpose: AuthPurpose
   private let configurationStore: BackendConfigurationStore
   private let sessionStore: BackendSessionStore?
+  private let committer: AuthSessionCommitter
+  private var authCommitBlocked = false
+  private var authOwnershipGeneration = UUID()
   private let proofProvider: DeviceSessionProofProviding
   private let diagnostics: DiagnosticsLogStore?
   private let currentEntitlementJWS: @MainActor () async throws -> String
@@ -206,6 +209,7 @@ final class AuthService {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
+    self.committer = AuthSessionCommitter(store: sessionStore)
     self.purpose = purpose
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
@@ -256,6 +260,7 @@ final class AuthService {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
+    self.committer = AuthSessionCommitter(store: sessionStore)
     self.purpose = purpose
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
@@ -297,21 +302,56 @@ final class AuthService {
   }
 
   var authenticatedConnection: AuthenticatedConnection? {
-    guard let session, let identity = connectionIdentity,
+    guard !authCommitBlocked, let session, let identity = connectionIdentity,
           identity.binding == connectionBinding else { return nil }
     return AuthenticatedConnection(session: session, identity: identity)
   }
 
   private func storedConnection() throws -> AuthenticatedConnection? {
     guard let binding = connectionBinding else { throw AuthConnectionError.bindingMismatch }
-    return try sessionStore?.loadConnection(binding: binding)
+    return try committer.load(binding: binding, proofProvider: proofProvider)
   }
 
   private func restoreStoredConnection() {
-    guard let stored = try? storedConnection(),
-          (try? validateSessionPurpose(stored.session)) != nil else { return }
-    connectionIdentity = stored.identity
-    if sessionIsValid(stored.session) { session = stored.session }
+    do {
+      guard let stored = try storedConnection(), (try? validateSessionPurpose(stored.session)) != nil else { return }
+      authCommitBlocked = false
+      connectionIdentity = stored.identity
+      if sessionIsValid(stored.session) { session = stored.session }
+    } catch {
+      authCommitBlocked = true
+      session = nil
+    }
+  }
+
+  private func publishCommitted(_ connection: AuthenticatedConnection) {
+    authCommitBlocked = false
+    connectionIdentity = connection.identity
+    session = connection.session
+  }
+
+  private func blockUnresolvedAuth() {
+    if committer.hasUnresolvedSubmission {
+      authCommitBlocked = true
+      session = nil
+    }
+  }
+
+  private func invalidateDurableAuth(replacesOwnership: Bool = false) -> Bool {
+    if replacesOwnership { authOwnershipGeneration = UUID() }
+    authCommitBlocked = true
+    session = nil
+    connectionIdentity = nil
+    do {
+      try committer.invalidate()
+      authCommitBlocked = false
+      return true
+    } catch {
+      errorMessage = AuthCommitError.invalidationIncomplete.localizedDescription
+      statusMessage = errorMessage ?? "Disconnection could not be saved."
+      diagnostics?.record(source: .auth, severity: .error, title: "Connection invalidation incomplete")
+      return false
+    }
   }
 
   /// Enrollment replaces continuity even if the server reuses a family. Only
@@ -332,9 +372,8 @@ final class AuthService {
       identity = source.identity
     }
     let connection = AuthenticatedConnection(session: response, identity: identity)
-    try sessionStore?.save(connection)
-    connectionIdentity = identity
-    session = response
+    try committer.install(connection)
+    publishCommitted(connection)
   }
 
   /// Captures local continuity before recovery, including renewable credentials.
@@ -459,9 +498,10 @@ final class AuthService {
   }
 
   private func restoreCurrentSubscription() async {
+    let ownershipGeneration = authOwnershipGeneration
     let configurationRevision = configurationStore.revision
     do {
-      try prepareHostedRequest(configurationRevision: configurationRevision)
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
     } catch {
       recordSubscriptionRestoreConfigurationChange()
       return
@@ -472,7 +512,7 @@ final class AuthService {
 
     do {
       let signedTransactionInfo = try await syncedCurrentEntitlementJWS()
-      try prepareHostedRequest(configurationRevision: configurationRevision)
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       _ = await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
         activityMessage: "Connecting to PumpSync…",
@@ -481,7 +521,7 @@ final class AuthService {
         expectedConfigurationRevision: configurationRevision
       )
     } catch StoreKitSubscriptionError.noActiveSubscription {
-      guard isCurrentHostedConfiguration(configurationRevision) else {
+      guard authOwnershipGeneration == ownershipGeneration, isCurrentHostedConfiguration(configurationRevision) else {
         recordSubscriptionRestoreConfigurationChange()
         return
       }
@@ -496,7 +536,7 @@ final class AuthService {
         message: "No current StoreKit entitlement was available for subscription restore."
       )
     } catch {
-      guard !(error is SubscriptionConfigurationChangedError),
+      guard authOwnershipGeneration == ownershipGeneration, !(error is SubscriptionConfigurationChangedError),
             isCurrentHostedConfiguration(configurationRevision) else {
         recordSubscriptionRestoreConfigurationChange()
         return
@@ -583,7 +623,7 @@ final class AuthService {
       // mid-replay. Only the transition from "had a session" to "don't
       // anymore" is actually informative.
       session = nil
-      try? sessionStore?.delete()
+      _ = invalidateDurableAuth(replacesOwnership: true)
       errorMessage = nil
       statusMessage = "Connect to PumpSync or a self-hosted service"
       diagnostics?.record(
@@ -701,15 +741,23 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Self-hosted session started")
 
     do {
+      let mutationLease = try await committer.acquireLease()
+      defer { committer.releaseLease(mutationLease) }
       let request = try await makeSelfHostedSessionRequest(
         configurationRevision: configurationRevision,
         operationID: operationID
       )
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      guard let binding = connectionBinding else { throw AuthConnectionError.bindingMismatch }
+      let source = try committer.enrollmentSource(binding: binding, memory: authenticatedConnection)
+      let journalID = try committer.begin(kind: .enrollment, binding: binding, source: source,
+        proofRequestID: request.deviceEnrollment.requestId, proofKeyID: nil)
+      try committer.submitted(journalID, binding: binding, source: source)
       let createdSession = try await createSelfHostedSession(request)
-      try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
-      try validateSessionPurpose(createdSession)
-      try installSession(createdSession, installation: .enrollment)
+      guard isCurrentConfiguration(configurationRevision, mode: .selfHosted), selfHostedOperationID == operationID,
+            connectionBinding == binding else { throw BackendConfigurationChangedError() }
+      let committed = try committer.receive(createdSession, operationID: journalID, binding: binding, proofProvider: proofProvider)
+      publishCommitted(committed)
       recordDemoModeIfNeeded(createdSession)
       statusMessage = Self.connectedStatusMessage(for: createdSession)
       diagnostics?.record(source: .auth, title: "Self-hosted session created")
@@ -728,8 +776,7 @@ final class AuthService {
         )
         return
       }
-      session = nil
-      try? sessionStore?.delete()
+      blockUnresolvedAuth()
       let message = safeMessage("Self-hosted connection could not be established.", error: error)
       errorMessage = message
       statusMessage = message
@@ -740,6 +787,32 @@ final class AuthService {
   }
 
   func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground) async {
+    if !committer.isBusy {
+      do {
+        if let repaired = try storedConnection() {
+          authCommitBlocked = false
+          connectionIdentity = repaired.identity
+          session = repaired.session
+        }
+      } catch AuthCommitError.uncertainSubmission {
+        authCommitBlocked = true
+        session = nil
+        errorMessage = AuthCommitError.uncertainSubmission.localizedDescription
+        guard policy == .foreground || policy == .backgroundWithReenrollment else { return }
+        switch configurationStore.mode {
+        case .hosted:
+          await runCoalescedSubscriptionOperation { await self.recoverSubscriptionSession(policy: policy) }
+        case .selfHosted:
+          await recoverSelfHostedSession()
+        }
+        return
+      } catch {
+        authCommitBlocked = true
+        session = nil
+        errorMessage = "Your saved connection is unavailable. Try again after unlocking the device, or reconnect in Settings."
+        return
+      }
+    }
     if let session, authenticatedConnection != nil, (try? validateSessionPurpose(session)) != nil, sessionIsValid(session) {
       diagnostics?.record(source: .auth, title: "Connection session cache hit", message: "cacheHit=true totalMs=0")
       return
@@ -789,9 +862,10 @@ final class AuthService {
         return
       }
 
-      // A transport/server failure leaves the renewable session and App Attest
-      // registration intact. Do not convert an ambiguous refresh result into a
-      // new enrollment/key; retry recovery later.
+      // This opportunity ends after an uncertain consuming POST. The next
+      // permitted owner can enroll with a fresh challenge; it cannot retry the
+      // old refresh credential or restore it as usable auth.
+      if committer.hasUnresolvedSubmission { return }
       if session != nil {
         return
       }
@@ -892,21 +966,38 @@ final class AuthService {
     renewableRefreshTask = nil
     selfHostedOperationID = nil
     invalidateConnectionProgressGeneration()
-    session = nil
     recoveryRequiresActiveSubscription = false
-    try? sessionStore?.delete()
+    guard invalidateDurableAuth(replacesOwnership: true) else { return }
     errorMessage = nil
     statusMessage = "Connect to PumpSync or a self-hosted service"
     diagnostics?.record(source: .auth, title: "Connection session reset")
   }
 
-  func clearSessionForAuthenticationFailure() {
-    session = nil
-    recoveryRequiresActiveSubscription = false
-    try? sessionStore?.delete()
-    errorMessage = nil
-    statusMessage = "Connect to PumpSync or a self-hosted service"
-    diagnostics?.record(source: .auth, severity: .warning, title: "Connection session expired")
+  @discardableResult
+  func clearSessionForAuthenticationFailure(expectedSource: AuthenticatedConnection) -> Bool {
+    guard let current = authenticatedConnection, current.identity == expectedSource.identity,
+          current.identity.binding == connectionBinding else { return false }
+    do {
+      guard try AuthOperationJournal.fingerprint(current) == AuthOperationJournal.fingerprint(expectedSource),
+            try committer.invalidateIfCurrent(expectedSource, binding: current.identity.binding) else { return false }
+      authOwnershipGeneration = UUID()
+      authCommitBlocked = false
+      session = nil
+      connectionIdentity = nil
+      recoveryRequiresActiveSubscription = false
+      resetDisconnectedStatus()
+      diagnostics?.record(source: .auth, severity: .warning, title: "Connection session expired")
+      return true
+    } catch {
+      authOwnershipGeneration = UUID()
+      authCommitBlocked = true
+      session = nil
+      connectionIdentity = nil
+      errorMessage = AuthCommitError.invalidationIncomplete.localizedDescription
+      statusMessage = errorMessage ?? "Disconnection could not be saved."
+      diagnostics?.record(source: .auth, severity: .error, title: "Connection invalidation incomplete")
+      return false
+    }
   }
 
   /// A successful protected hosted request is authoritative evidence that the
@@ -933,10 +1024,11 @@ final class AuthService {
   ) async -> Bool {
     let progressLeaseID = beginConnectionProgressLease()
     defer { endConnectionProgressLease(progressLeaseID) }
+    let ownershipGeneration = authOwnershipGeneration
     let configurationRevision = expectedConfigurationRevision ?? configurationStore.revision
     attemptedSubscriptionSessionJWSHashes.insert(Self.subscriptionJWSHash(signedTransactionInfo))
     do {
-      try prepareHostedRequest(configurationRevision: configurationRevision)
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
     } catch {
       recordSubscriptionConfigurationChange()
       return true
@@ -971,7 +1063,7 @@ final class AuthService {
         )
         throw HostedServiceWarmupError(timeoutKind: timeoutKind)
       }
-      try prepareHostedRequest(configurationRevision: configurationRevision)
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       diagnostics?.record(
         source: .auth,
         title: "Hosted service warm-up completed",
@@ -982,12 +1074,16 @@ final class AuthService {
       // subscription recovery must let an already-running session refresh finish.
       if let renewableRefreshTask {
         _ = await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
-        try prepareHostedRequest(configurationRevision: configurationRevision)
+        try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       }
 
+      let mutationLease = try await committer.acquireLease()
+      defer { committer.releaseLease(mutationLease) }
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       let request = try await makeSubscriptionSessionRequest(
         signedTransactionInfo: signedTransactionInfo,
-        configurationRevision: configurationRevision
+        configurationRevision: configurationRevision,
+        ownershipGeneration: ownershipGeneration
       )
       defer {
         _ = proofProvider.releaseHostedProofOperation(requestId: request.deviceEnrollment.requestId)
@@ -996,20 +1092,28 @@ final class AuthService {
       enrollmentRequestId = request.deviceEnrollment.requestId
       enrollmentProofKind = request.deviceEnrollment.proofKind
       enrollmentPreparation = request.deviceEnrollment.preparation
-      try prepareHostedRequest(configurationRevision: configurationRevision)
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
+      guard let binding = connectionBinding else { throw AuthConnectionError.bindingMismatch }
+      let source = try committer.enrollmentSource(binding: binding, memory: authenticatedConnection)
+      let journalID = try committer.begin(kind: .enrollment, binding: binding, source: source,
+        proofRequestID: request.deviceEnrollment.requestId, proofKeyID: request.deviceEnrollment.keyId)
       guard try proofProvider.markHostedEnrollmentSubmissionStarted(
         keyId: request.deviceEnrollment.keyId,
         requestId: request.deviceEnrollment.requestId
       ) else {
         throw SubscriptionEnrollmentStateChangedError()
       }
+      try committer.submitted(journalID, binding: binding, source: source)
       enrollmentSubmissionStarted = true
       let sessionRequestStartedAt = Date()
       let createdSession: BackendSessionResponse
       do {
         createdSession = try await createSubscriptionSessionWithTimeout(
           request,
-          configurationRevision: configurationRevision
+          configurationRevision: configurationRevision,
+          journalID: journalID,
+          binding: binding,
+          ownershipGeneration: ownershipGeneration
         )
         diagnostics?.record(
           source: .auth,
@@ -1025,22 +1129,28 @@ final class AuthService {
         )
         throw error
       }
-      guard try proofProvider.markHostedEnrollmentRegistered(
-        keyId: request.deviceEnrollment.keyId,
-        requestId: request.deviceEnrollment.requestId
-      ) else {
-        throw SubscriptionEnrollmentStateChangedError()
-      }
+      // The request completion journals and commits before returning, including
+      // confirmed responses arriving after the last sync waiter cancels.
       enrollmentRegistered = true
-      try prepareHostedRequest(configurationRevision: configurationRevision)
-      try validateSessionPurpose(createdSession)
-      try installSession(createdSession, installation: .enrollment)
+      guard connectionBinding == binding, isCurrentHostedConfiguration(configurationRevision) else {
+        throw SubscriptionConfigurationChangedError()
+      }
+      guard authenticatedConnection?.session == createdSession else { throw AuthCommitError.commitPending }
       recoveryRequiresActiveSubscription = false
       statusMessage = "PumpSync subscription active"
       hostedSubscriptionSessionEstablished?()
       diagnostics?.record(source: .auth, title: title)
     } catch {
       timeoutKind = SubscriptionSessionTimeoutKind(error: error)
+      guard authOwnershipGeneration == ownershipGeneration else {
+        if !enrollmentSubmissionStarted, let keyID = enrollmentKeyId, let requestID = enrollmentRequestId,
+           (try? proofProvider.discardUnsubmittedHostedEnrollment(keyId: keyID, requestId: requestID)) == true {
+          diagnostics?.record(source: .auth, severity: .warning, title: "Unsubmitted App Attest enrollment discarded",
+            message: "reason=connectionModeChanged backendSubmitted=false")
+        }
+        return true
+      }
+      blockUnresolvedAuth()
       if Task.isCancelled || error is CancellationError { return false }
       let apiError = error as? APIClientError
       if let proofError = error as? DeviceSessionProofError,
@@ -1167,11 +1277,10 @@ final class AuthService {
         )
       }
 
-      if hasValidPreviousSession {
+      if !committer.hasUnresolvedSubmission, hasValidPreviousSession {
         session = previousSession
       } else {
         session = nil
-        try? sessionStore?.delete()
       }
       if publishesErrors || !hasValidPreviousSession || error is HostedServiceWarmupError {
         let message = error is HostedServiceWarmupError
@@ -1206,9 +1315,10 @@ final class AuthService {
   ) async {
     let progressLeaseID = beginConnectionProgressLease()
     defer { endConnectionProgressLease(progressLeaseID) }
+    let ownershipGeneration = authOwnershipGeneration
     let configurationRevision = configurationStore.revision
     do {
-      try prepareHostedRequest(configurationRevision: configurationRevision)
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
     } catch {
       recordSubscriptionRecoveryConfigurationChange()
       return
@@ -1227,7 +1337,7 @@ final class AuthService {
     do {
       let entitlementStartedAt = Date()
       let signedTransactionInfo = try await subscriptionEntitlementJWS(for: policy)
-      try prepareHostedRequest(configurationRevision: configurationRevision)
+      try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       let entitlementMs = Int(Date().timeIntervalSince(entitlementStartedAt) * 1_000)
       let configurationChanged = await establishSubscriptionSession(
         signedTransactionInfo: signedTransactionInfo,
@@ -1251,7 +1361,7 @@ final class AuthService {
       diagnostics?.record(source: .auth, title: "Subscription recovery timing", message: "entitlementMs=\(entitlementMs) totalMs=\(Int(Date().timeIntervalSince(startedAt) * 1_000)) cacheHit=false")
     } catch StoreKitSubscriptionError.noActiveSubscription {
       guard !Task.isCancelled else { return }
-      guard isCurrentHostedConfiguration(configurationRevision) else {
+      guard authOwnershipGeneration == ownershipGeneration, isCurrentHostedConfiguration(configurationRevision) else {
         recordSubscriptionRecoveryConfigurationChange()
         return
       }
@@ -1259,7 +1369,7 @@ final class AuthService {
         && session.map { sessionIsRenewable($0) } == true
       if !credentialRetained {
         session = nil
-        try? sessionStore?.delete()
+        if !committer.hasUnresolvedSubmission { _ = invalidateDurableAuth() }
       }
       recoveryRequiresActiveSubscription = true
       resetDisconnectedStatus()
@@ -1288,14 +1398,14 @@ final class AuthService {
       )
     } catch {
       if Task.isCancelled || error is CancellationError { return }
-      guard !(error is SubscriptionConfigurationChangedError),
+      guard authOwnershipGeneration == ownershipGeneration, !(error is SubscriptionConfigurationChangedError),
             isCurrentHostedConfiguration(configurationRevision) else {
         recordSubscriptionRecoveryConfigurationChange()
         return
       }
       if policy != .backgroundWithReenrollment || (error as? APIClientError)?.isAuthenticationFailure == true {
         session = nil
-        try? sessionStore?.delete()
+        if !committer.hasUnresolvedSubmission { _ = invalidateDurableAuth() }
       }
       if (error as? APIClientError)?.isAuthenticationFailure == true {
         try? sessionStore?.clearHostedReenrollmentPending()
@@ -1348,15 +1458,23 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Self-hosted recovery started")
 
     do {
+      let mutationLease = try await committer.acquireLease()
+      defer { committer.releaseLease(mutationLease) }
       let request = try await makeSelfHostedSessionRequest(
         configurationRevision: configurationRevision,
         operationID: operationID
       )
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
+      guard let binding = connectionBinding else { throw AuthConnectionError.bindingMismatch }
+      let source = try committer.enrollmentSource(binding: binding, memory: authenticatedConnection)
+      let journalID = try committer.begin(kind: .enrollment, binding: binding, source: source,
+        proofRequestID: request.deviceEnrollment.requestId, proofKeyID: nil)
+      try committer.submitted(journalID, binding: binding, source: source)
       let createdSession = try await createSelfHostedSession(request)
-      try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
-      try validateSessionPurpose(createdSession)
-      try installSession(createdSession, installation: .enrollment)
+      guard isCurrentConfiguration(configurationRevision, mode: .selfHosted), selfHostedOperationID == operationID,
+            connectionBinding == binding else { throw BackendConfigurationChangedError() }
+      let committed = try committer.receive(createdSession, operationID: journalID, binding: binding, proofProvider: proofProvider)
+      publishCommitted(committed)
       recordDemoModeIfNeeded(createdSession)
       statusMessage = Self.connectedStatusMessage(for: createdSession)
       diagnostics?.record(source: .auth, title: "Self-hosted session recovered")
@@ -1379,8 +1497,7 @@ final class AuthService {
         finishSelfHostedOperation(operationID)
         return
       }
-      session = nil
-      try? sessionStore?.delete()
+      blockUnresolvedAuth()
       resetDisconnectedStatus()
       errorMessage = safeMessage("The self-hosted connection could not be restored. Retry Connection or review Connection Settings.", error: error)
       statusMessage = errorMessage ?? "Connection recovery failed."
@@ -1392,19 +1509,20 @@ final class AuthService {
 
   private func makeSubscriptionSessionRequest(
     signedTransactionInfo: String,
-    configurationRevision: Int
+    configurationRevision: Int,
+    ownershipGeneration: UUID
   ) async throws -> SubscriptionSessionRequest {
     let requestHash = DeviceSessionProofProvider.base64URL(
       Self.subscriptionJWSHash(signedTransactionInfo)
     )
-    try prepareHostedRequest(configurationRevision: configurationRevision)
+    try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
     let challengeStartedAt = Date()
     let challenge = try await createSessionChallenge(SessionChallengeRequest(
       installationId: configurationStore.installationId,
       purpose: "hostedEnrollment",
       requestHash: requestHash
     ))
-    try prepareHostedRequest(configurationRevision: configurationRevision)
+    try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
     guard challenge.protocolVersion == 3, challenge.proofKind == "appAttest", challenge.expiresAt > Date() else {
       throw DeviceSessionProofError.appAttestUnavailable
     }
@@ -1466,6 +1584,7 @@ final class AuthService {
       recordRefreshConfigurationChange()
       return false
     }
+    let ownershipGeneration = authOwnershipGeneration
     let startedAt = Date()
     diagnostics?.record(
       source: .auth,
@@ -1473,6 +1592,11 @@ final class AuthService {
       message: "protocolVersion=3 serviceMode=\(currentSession.serviceMode)"
     )
     do {
+      let mutationLease = try await committer.acquireLease()
+      defer { committer.releaseLease(mutationLease) }
+      guard authenticatedConnection == sourceConnection, connectionBinding == sourceConnection.identity.binding else {
+        throw AuthConnectionError.sourceReplaced
+      }
       let proofKind = mode == .hosted ? "appAttest" : "secureEnclaveP256"
       let proofStartedAt = Date()
       diagnostics?.record(
@@ -1507,6 +1631,13 @@ final class AuthService {
         }
       }
       try prepareConfiguredRequest(configurationRevision: configurationRevision, mode: mode)
+      try Task.checkCancellation()
+      guard authenticatedConnection == sourceConnection, connectionBinding == sourceConnection.identity.binding else {
+        throw AuthConnectionError.sourceReplaced
+      }
+      let journalID = try committer.begin(kind: .refresh, binding: sourceConnection.identity.binding, source: sourceConnection,
+        proofRequestID: request.requestId, proofKeyID: mode == .hosted ? try proofProvider.hostedProofKeyID(requestId: request.requestId) : nil)
+      try committer.submitted(journalID, binding: sourceConnection.identity.binding, source: sourceConnection)
       let requestStartedAt = Date()
       diagnostics?.record(
         source: .auth,
@@ -1522,6 +1653,9 @@ final class AuthService {
           message: "serviceMode=\(currentSession.serviceMode) outcome=success elapsedMs=\(elapsedMilliseconds(since: requestStartedAt))"
         )
       } catch {
+        if let apiError = error as? APIClientError, !apiError.hasAmbiguousOutcome {
+          try committer.rejectDefinitively(journalID, binding: sourceConnection.identity.binding)
+        }
         diagnostics?.record(
           source: .auth,
           severity: .warning,
@@ -1543,8 +1677,8 @@ final class AuthService {
         return isSignedIn
       }
 
-      try validateSessionPurpose(refreshed)
-      try installSession(refreshed, installation: .verifiedRefresh(source: sourceConnection))
+      let committed = try committer.receive(refreshed, operationID: journalID, binding: sourceConnection.identity.binding, proofProvider: proofProvider)
+      publishCommitted(committed)
       errorMessage = nil
       statusMessage = Self.connectedStatusMessage(for: refreshed)
       diagnostics?.record(
@@ -1554,6 +1688,16 @@ final class AuthService {
       )
       return true
     } catch {
+      guard authOwnershipGeneration == ownershipGeneration else {
+        recordRefreshConfigurationChange()
+        return false
+      }
+      blockUnresolvedAuth()
+      if committer.hasUnresolvedSubmission {
+        errorMessage = safeMessage("Your connection needs secure recovery. Retry after unlocking the device.", error: error)
+        statusMessage = errorMessage ?? "Connection recovery deferred."
+        return false
+      }
       if Task.isCancelled || error is CancellationError {
         guard isCurrentRefreshSource(currentSession), authenticatedConnection == sourceConnection else {
           diagnostics?.record(
@@ -1595,7 +1739,7 @@ final class AuthService {
       }
       if mode == .hosted, (error as? APIClientError)?.isDeviceKeyReenrollmentRequired == true {
         session = nil
-        try? sessionStore?.delete()
+        _ = invalidateDurableAuth()
         _ = try? proofProvider.discardRegisteredHostedKey()
         try? sessionStore?.markHostedReenrollmentPending()
         diagnostics?.record(
@@ -1615,7 +1759,7 @@ final class AuthService {
       let permanentlyRejected = (error as? APIClientError)?.isAuthenticationFailure == true || invalidAppAttestKey
       if permanentlyRejected {
         session = nil
-        try? sessionStore?.delete()
+        _ = invalidateDurableAuth()
       } else {
         session = currentSession
       }
@@ -1805,7 +1949,10 @@ final class AuthService {
 
   private func createSubscriptionSessionWithTimeout(
     _ request: SubscriptionSessionRequest,
-    configurationRevision: Int
+    configurationRevision: Int,
+    journalID: UUID,
+    binding: AuthConnectionBinding,
+    ownershipGeneration: UUID
   ) async throws -> BackendSessionResponse {
     let race = SubscriptionRequestRace()
     return try await withTaskCancellationHandler(operation: {
@@ -1817,11 +1964,19 @@ final class AuthService {
         }
         race.backendTask = Task { @MainActor in
           do {
-            try prepareHostedRequest(configurationRevision: configurationRevision)
+            try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
+            try committer.validateSubmitted(journalID, binding: binding)
             let response = try await createSubscriptionSession(request)
-            try Task.checkCancellation()
+            guard isCurrentHostedConfiguration(configurationRevision), connectionBinding == binding else {
+              throw SubscriptionConfigurationChangedError()
+            }
+            let committed = try committer.receive(response, operationID: journalID, binding: binding, proofProvider: proofProvider)
+            publishCommitted(committed)
             race.finish(.success(response))
           } catch {
+            if let apiError = error as? APIClientError, !apiError.hasAmbiguousOutcome {
+              try? committer.rejectDefinitively(journalID, binding: binding)
+            }
             race.finish(.failure(error))
           }
         }
@@ -1845,7 +2000,7 @@ final class AuthService {
       return
     }
     session = nil
-    try? sessionStore?.delete()
+    _ = invalidateDurableAuth()
   }
 
   /// The backend reports its data source on the session so a user who points
@@ -1933,8 +2088,11 @@ final class AuthService {
     configurationStore.mode == mode && configurationStore.revision == revision
   }
 
-  private func prepareHostedRequest(configurationRevision: Int) throws {
+  private func prepareHostedRequest(configurationRevision: Int, ownershipGeneration: UUID? = nil) throws {
     try Task.checkCancellation()
+    guard ownershipGeneration == nil || ownershipGeneration == authOwnershipGeneration else {
+      throw SubscriptionConfigurationChangedError()
+    }
     guard isCurrentHostedConfiguration(configurationRevision),
           configurationStore.apply(to: apiClient) else {
       throw SubscriptionConfigurationChangedError()

@@ -1554,6 +1554,10 @@ final class SyncCoordinatorTests: XCTestCase {
       throw APIClientError.invalidResponse
     }
 
+    func hostedProofKeyID(requestId: String) throws -> String { "app-attest-key" }
+
+    func hostedRegisteredKeyMatches(_ keyId: String) throws -> Bool { keyId == "app-attest-key" }
+
     func refreshRequest(
       session: BackendSessionResponse,
       installationId: String,
@@ -1594,6 +1598,10 @@ final class SyncCoordinatorTests: XCTestCase {
     ) throws -> SelfHostedDeviceEnrollment {
       throw APIClientError.invalidResponse
     }
+
+    func hostedProofKeyID(requestId: String) throws -> String { "app-attest-key" }
+
+    func hostedRegisteredKeyMatches(_ keyId: String) throws -> Bool { keyId == "app-attest-key" }
 
     func refreshRequest(
       session: BackendSessionResponse,

@@ -23,6 +23,40 @@ final class BackendSessionStore {
     self.now = now
   }
 
+  private static let journalAccount = "backend.auth.operation-journal.v1"
+  private static let invalidationAccount = "backend.auth.invalidation.v1"
+  private static let fallbackAccount = "backend.auth.invalidation-fallback.v1"
+
+  func loadAuthJournal() throws -> AuthOperationJournal? {
+    guard let data = try keychain.readData(account: Self.journalAccount) else { return nil }
+    return try JSONCodec.decoder.decode(AuthOperationJournal.self, from: data)
+  }
+
+  func saveAuthJournal(_ journal: AuthOperationJournal) throws {
+    try keychain.writeData(try JSONCodec.encoder.encode(journal), account: Self.journalAccount)
+  }
+
+  func clearAuthJournal() throws { try keychain.delete(account: Self.journalAccount) }
+
+  func loadAuthInvalidationState() throws -> AuthInvalidationState {
+    if let fallback = try keychain.readData(account: Self.fallbackAccount) {
+      return try JSONCodec.decoder.decode(AuthInvalidationState.self, from: fallback)
+    }
+    guard let data = try keychain.readData(account: Self.invalidationAccount) else {
+      return AuthInvalidationState(generation: AuthInvalidationState.initialGeneration, invalidated: false)
+    }
+    return try JSONCodec.decoder.decode(AuthInvalidationState.self, from: data)
+  }
+
+  func saveAuthInvalidationState(_ state: AuthInvalidationState) throws {
+    try keychain.writeData(try JSONCodec.encoder.encode(state), account: Self.invalidationAccount)
+    try keychain.delete(account: Self.fallbackAccount)
+  }
+
+  func saveAuthInvalidationFallback(_ state: AuthInvalidationState) throws {
+    try keychain.writeData(try JSONCodec.encoder.encode(state), account: Self.fallbackAccount)
+  }
+
   func loadValidSession() -> BackendSessionResponse? {
     guard let session = loadStoredSession() else {
       return nil

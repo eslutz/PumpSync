@@ -40,7 +40,7 @@ final class ImportPreviewController {
         let id = operationID
         state = .loading
         let task = Task { @MainActor in
-            var submittedToken: String?
+            var submittedConnection: AuthenticatedConnection?
             do {
                 let capabilities = try await apiClient.capabilities()
                 guard capabilities.supportsImportPreview else { throw PreviewError.upgradeRequired }
@@ -50,7 +50,8 @@ final class ImportPreviewController {
                 guard let token = await authService.accessTokenRecoveringIfNeeded() else { throw PreviewError.connectionRequired }
                 guard !Task.isCancelled, id == operationID else { return }
                 guard context == currentContext() else { state = .failed("Your connection or pump account changed. Reconnect or validate the account, then retry Preview."); return }
-                submittedToken = token
+                guard let connection = authService.authenticatedConnection, connection.session.accessToken == token else { throw PreviewError.connectionRequired }
+                submittedConnection = connection
                 let response = try await apiClient.previewTandem(request, accessToken: token)
                 guard !Task.isCancelled, id == operationID else { return }
                 guard context == currentContext(), context.backendIdentity == ImportSessionSnapshot.canonicalBackendIdentity(apiClient.baseURL) else { state = .failed("Your connection or pump account changed. Reconnect or validate the account, then retry Preview."); return }
@@ -60,7 +61,7 @@ final class ImportPreviewController {
                 guard !Task.isCancelled, id == operationID else { return }
                 // Backend messages can contain provider identifiers. Keep preview errors local.
                 if let error = error as? APIClientError, error.isAuthenticationFailure {
-                    if authService.session?.accessToken == submittedToken { authService.clearSessionForAuthenticationFailure() }
+                    if let submittedConnection { authService.clearSessionForAuthenticationFailure(expectedSource: submittedConnection) }
                     state = .failed("The preview connection expired. Reconnect to the service and try again.")
                 }
                 else if error is HealthImportError { state = .failed("The service returned unverified or invalid records. Reconnect or update the backend before previewing.") }

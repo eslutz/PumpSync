@@ -262,22 +262,53 @@ final class AuthConnectionPersistenceTests: XCTestCase {
 @MainActor
 final class ConnectionTestPersistence: BackendSessionPersistence {
   enum Failure: Error { case inaccessible }
-  var data: Data?
+  var records: [String: Data] = [:]
+  var data: Data? {
+    get { records["backend.session.current"] }
+    set { records["backend.session.current"] = newValue }
+  }
   var readFailure = false
   var writeFailure = false
   var writeCount = 0
   var deleteCount = 0
   func readData(account: String) throws -> Data? {
     if readFailure { throw Failure.inaccessible }
-    return data
+    return records[account]
   }
   func writeData(_ data: Data, account: String) throws {
     writeCount += 1
     if writeFailure { throw Failure.inaccessible }
-    self.data = data
+    records[account] = data
   }
   func delete(account: String) throws {
     deleteCount += 1
-    data = nil
+    records[account] = nil
+  }
+}
+
+@MainActor
+final class AuthJournalTestPersistence: BackendSessionPersistence {
+  enum Failure: Error { case inaccessible }
+  var records: [String: Data] = [:]
+  nonisolated(unsafe) var failWriteAccount: String?
+  var failDeleteAccount: String?
+  var failReads = false
+  var failAllWrites = false
+  var failWriteOrdinal: Int?
+  var writeCounts: [String: Int] = [:]
+  func readData(account: String) throws -> Data? {
+    if failReads { throw Failure.inaccessible }
+    return records[account]
+  }
+  func writeData(_ data: Data, account: String) throws {
+    writeCounts[account, default: 0] += 1
+    if failAllWrites || (failWriteAccount == account && (failWriteOrdinal == nil || writeCounts[account] == failWriteOrdinal)) {
+      throw Failure.inaccessible
+    }
+    records[account] = data
+  }
+  func delete(account: String) throws {
+    if failDeleteAccount == account { throw Failure.inaccessible }
+    records[account] = nil
   }
 }

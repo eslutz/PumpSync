@@ -423,6 +423,11 @@ final class SyncCoordinator {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
       return false
     }
+    guard let submittedConnection = authService.authenticatedConnection,
+          submittedConnection.session.accessToken == accessToken else {
+      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+      return false
+    }
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
     recordBackgroundStage(.preparing, startedAt: startedAt, reason: reason)
 
@@ -525,7 +530,7 @@ final class SyncCoordinator {
       }
       let subscriptionRequired = authService.isHostedMode && apiError?.isActiveSubscriptionRequired == true
       if apiError?.isAuthenticationFailure == true && !subscriptionRequired {
-        authService.clearSessionForAuthenticationFailure()
+        authService.clearSessionForAuthenticationFailure(expectedSource: submittedConnection)
       }
       if apiError?.isTandemCredentialFailure == true {
         // Tandem rejected the stored pump credentials — retrying cannot
