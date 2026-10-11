@@ -855,7 +855,7 @@ final class AuthService {
       return policy.allowsInteractiveRecovery ? .requiresUserAction(reason) : .deferred(reason)
     case .configurationInvalid, .interactiveRecoveryRequired:
       return .requiresUserAction(reason)
-    case .authenticationRejected, .backendRejected, .unverifiedSource:
+    case .authenticationRejected, .deviceProofRejected, .backendRejected, .unverifiedSource:
       return .rejected(reason)
     default:
       return .deferred(reason)
@@ -977,6 +977,9 @@ final class AuthService {
       // permitted owner can enroll with a fresh challenge; it cannot retry the
       // old refresh credential or restore it as usable auth.
       if committer.hasUnresolvedSubmission { return }
+      // Generic signature/counter rejection is terminal for this cycle. Only
+      // explicit enrollment/key-required outcomes authorize its fallback.
+      if recoveryFailure == .deviceProofRejected { return }
       if session != nil {
         return
       }
@@ -1333,7 +1336,7 @@ final class AuthService {
           source: .auth,
           severity: .warning,
           title: "Rejected App Attest proof handled",
-          message: "protocolVersion=3 proofKind=\(enrollmentProofKind ?? "unknown") preparation=\(enrollmentPreparation?.rawValue ?? "unknown") backendCode=device_proof_rejected localAction=\(enrollmentProofKind == "assertion" ? "retainKey" : "discardKey")"
+          message: "protocolVersion=3 proofKind=\(enrollmentProofKind ?? "unknown") preparation=\(enrollmentPreparation?.rawValue ?? "unknown") backendCode=device_proof_rejected localAction=retainKey"
         )
       } else if enrollmentSubmissionStarted,
                 !enrollmentRegistered,
@@ -2226,6 +2229,7 @@ final class AuthService {
     }
     if error is URLError || error is HostedServiceWarmupError || error is SubscriptionSessionTimeoutError { return .networkUnavailable }
     if let api = error as? APIClientError {
+      if api.isDeviceProofRejected { return .deviceProofRejected }
       return api.hasAmbiguousOutcome ? .networkUnavailable : (api.isAuthenticationFailure ? .authenticationRejected : .backendRejected)
     }
     if error is HealthImportError { return .unverifiedSource }

@@ -94,6 +94,16 @@ final class DeviceSessionProofProviderTests: XCTestCase {
     XCTAssertEqual(fresh.keyId, first.keyId)
     XCTAssertEqual(fresh.proofKind, "assertion")
     XCTAssertEqual(fixture.client.generatedKeyCount, 1)
+    XCTAssertTrue(try fixture.provider.markHostedEnrollmentSubmissionStarted(keyId: fresh.keyId, requestId: fresh.requestId))
+    XCTAssertTrue(try fixture.provider.resolveRejectedHostedEnrollment(keyId: fresh.keyId, requestId: fresh.requestId))
+    let restarted = DeviceSessionProofProvider(keychain: fixture.keychain, appAttest: fixture.client)
+    XCTAssertEqual(try restarted.hostedRecoveryDisposition(), .enrollmentRequired)
+    fixture.client.assertionResults = [.success(Data("unexpected-refresh".utf8))]
+    do {
+      _ = try await restarted.refreshRequest(session: renewableSession(), installationId: "installation-1", mode: .hosted)
+      XCTFail("Rejected never-confirmed key cannot refresh the old source")
+    } catch DeviceSessionProofError.appAttestUnavailable {}
+    XCTAssertEqual(fixture.client.assertedKeyIds.count, 1)
   }
 
   func testRefreshPayloadMatchesProtocol3Vector() {
@@ -569,7 +579,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
     XCTAssertEqual(fixture.client.generatedKeyCount, 1)
   }
 
-  func testRejectedReconciliationRestoresRegisteredKeyForFreshAssertion() async throws {
+  func testRejectedReconciliationRetainsUnconfirmedKeyForFreshAssertion() async throws {
     let fixture = makeFixture()
     fixture.client.attestationResults = [.success(Data("attestation-1".utf8))]
     let submitted = try await fixture.provider.hostedEnrollment(
@@ -599,6 +609,7 @@ final class DeviceSessionProofProviderTests: XCTestCase {
       requestId: reconciliation.requestId
     ))
 
+    XCTAssertEqual(try fixture.provider.hostedRecoveryDisposition(), .enrollmentRequired)
     let replacement = try await fixture.provider.hostedEnrollment(
       challenge: challenge("challenge-3"), installationId: "installation-1",
       signedTransactionInfo: "transaction"

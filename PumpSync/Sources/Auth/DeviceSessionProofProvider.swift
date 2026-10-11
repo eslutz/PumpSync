@@ -367,7 +367,9 @@ final class DeviceSessionProofProvider: DeviceSessionProofProviding {
       return false
     }
     defer { _ = releaseHostedProofOperation(requestId: requestId) }
-    if pendingEnrollment.enrollment.proofKind == "assertion" {
+    if pendingEnrollment.enrollment.proofKind == "assertion", state.phase == .registeredAssertionSubmitted {
+      // Only an assertion from a previously confirmed registered key can
+      // restore ordinary refresh eligibility after definitive rejection.
       state.phase = .registered
       state.pendingEnrollment = nil
       try saveState(state)

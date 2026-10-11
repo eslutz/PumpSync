@@ -21,6 +21,7 @@ enum SessionRecoveryReason: Equatable {
   case configurationInvalid
   case connectionReplaced
   case authenticationRejected
+  case deviceProofRejected
   case backendRejected
   case invalidDeviceKey
   case unverifiedSource

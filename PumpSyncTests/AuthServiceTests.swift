@@ -3,6 +3,72 @@ import XCTest
 
 @MainActor
 final class AuthServiceTests: XCTestCase {
+  func testRejectedNeverRegisteredAssertionPreventsOldSessionRefreshAfterRestart() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let apple = SequencedAppAttestClient()
+    apple.attestationResults = [.success(Data("attestation".utf8))]
+    apple.assertionResults = [.success(Data("reconciliation".utf8)), .success(Data("unexpected-refresh".utf8))]
+    let provider = DeviceSessionProofProvider(keychain: persistence, appAttest: apple)
+    let configuration = makeConfigurationStore()
+    let first = try await provider.hostedEnrollment(challenge: SessionChallengeResponse(protocolVersion: 3, proofKind: "appAttest", challengeToken: "one", expiresAt: .distantFuture), installationId: configuration.installationId, signedTransactionInfo: "active")
+    XCTAssertTrue(try provider.markHostedEnrollmentSubmissionStarted(keyId: first.keyId, requestId: first.requestId))
+    XCTAssertTrue(try provider.resolveRejectedHostedEnrollment(keyId: first.keyId, requestId: first.requestId))
+    let second = try await provider.hostedEnrollment(challenge: SessionChallengeResponse(protocolVersion: 3, proofKind: "appAttest", challengeToken: "two", expiresAt: .distantFuture), installationId: configuration.installationId, signedTransactionInfo: "active")
+    XCTAssertTrue(try provider.markHostedEnrollmentSubmissionStarted(keyId: second.keyId, requestId: second.requestId))
+    XCTAssertTrue(try provider.resolveRejectedHostedEnrollment(keyId: second.keyId, requestId: second.requestId))
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let restartedProvider = DeviceSessionProofProvider(keychain: persistence, appAttest: apple)
+    let restarted = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Background cannot enroll this never-confirmed key"); return "active" },
+      createSubscriptionSession: { _ in XCTFail("Background enrollment not permitted"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: restartedProvider)
+    let refreshCount = LockedCounter()
+    URLProtocolStub.requestHandler = { _ in refreshCount.increment(); throw URLError(.networkConnectionLost) }
+    defer { URLProtocolStub.requestHandler = nil }
+    XCTAssertEqual(try restartedProvider.hostedRecoveryDisposition(), .enrollmentRequired)
+    let outcome = await restarted.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(outcome, .requiresUserAction(.interactiveRecoveryRequired))
+    XCTAssertEqual(refreshCount.value, 0)
+    XCTAssertNil(try store.loadAuthJournal(), "Definitive proof rejection must not invent uncertainty or bypass the proof disposition")
+    XCTAssertEqual(apple.generatedKeyCount, 1)
+  }
+
+  func testForegroundGenericRefreshProofRejectionEndsCycleWithoutEnrollment() async throws {
+    let persistence = AuthJournalTestPersistence()
+    try persistence.writeData(Data(#"{"keyId":"registered-key","phase":"registered","pendingEnrollment":null}"#.utf8), account: "device-proof.app-attest-state.v4")
+    let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let apple = SequencedAppAttestClient()
+    apple.assertionResults = [.success(Data("refresh".utf8)), .success(Data("unexpected-enrollment".utf8))]
+    let provider = DeviceSessionProofProvider(keychain: persistence, appAttest: apple)
+    var challenges = 0
+    var enrollments = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store,
+      currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in
+        enrollments += 1
+        return BackendSessionResponse(accessToken: "unexpected", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: provider,
+      createSessionChallenge: { _ in
+        challenges += 1
+        return SessionChallengeResponse(protocolVersion: 3, proofKind: "appAttest", challengeToken: "unexpected", expiresAt: .distantFuture)
+      })
+    let refreshCount = LockedCounter()
+    URLProtocolStub.requestHandler = { request in
+      refreshCount.increment()
+      return (HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!, Data(#"{"code":"device_proof_rejected","message":"rejected"}"#.utf8))
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let outcome = await service.recoverSessionIfNeeded(policy: .foreground)
+    XCTAssertEqual(outcome, .rejected(.deviceProofRejected))
+    XCTAssertEqual(refreshCount.value, 1)
+    XCTAssertEqual(enrollments, 0)
+    XCTAssertEqual(challenges, 0)
+    XCTAssertTrue(try provider.hostedRegisteredKeyMatches("registered-key"))
+    XCTAssertEqual(apple.generatedKeyCount, 0)
+    XCTAssertNil(service.accessToken)
+  }
+
   func testNeverSubmittedPreparedReconciliationDoesNotInventServerUncertainty() async throws {
     let persistence = AuthJournalTestPersistence()
     let apple = SequencedAppAttestClient()
