@@ -174,22 +174,26 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(coordinator.lastMessage, "Your connection or pump credentials changed. Start a new sync.")
   }
 
-  func testExpiredSessionSameFamilyRefreshContinuesOriginalOperation() async throws {
-    try await verifyExpiredSessionRecovery(reenroll: false)
+  func testExpiredSessionRotatingFamilyRefreshContinuesOriginalOperation() async throws {
+    try await verifyExpiredSessionRecovery(reenroll: false, rotatesFamily: true)
   }
 
   func testExpiredSessionNewFamilyReenrollmentRejectsOriginalOperationWithoutWritesOrMetadata() async throws {
     try await verifyExpiredSessionRecovery(reenroll: true)
   }
 
-  private func verifyExpiredSessionRecovery(reenroll: Bool) async throws {
+  func testExpiredSessionSameFamilyRefreshContinuesOriginalOperation() async throws {
+    try await verifyExpiredSessionRecovery(reenroll: false)
+  }
+
+  private func verifyExpiredSessionRecovery(reenroll: Bool, rotatesFamily: Bool = false) async throws {
     let sessionStore = makeSessionStore()
     let expired = BackendSessionResponse(accessToken: "expired", expiresAt: Date().addingTimeInterval(-60), serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "expired-family", refreshToken: "refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
     try sessionStore.save(expired)
     let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "ExpiredConfig-\(UUID().uuidString)")!)
     let proof = RecoveringDeviceSessionProofProvider()
     proof.acceptsRefresh = true
-    let restored = BackendSessionResponse(accessToken: "restored", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: reenroll ? "new-family" : "expired-family", refreshToken: "refresh-restored", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+    let restored = BackendSessionResponse(accessToken: "restored", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: reenroll ? "new-family" : (rotatesFamily ? "rotated-family" : "expired-family"), refreshToken: "refresh-restored", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
     let auth = AuthService(apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0), configurationStore: config, sessionStore: sessionStore,
       currentEntitlementJWS: { "signed-transaction" }, createSubscriptionSession: { _ in restored }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: proof)
     XCTAssertFalse(auth.isSignedIn)
@@ -209,7 +213,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let result = await coordinator.sync(reason: .manual)
     XCTAssertEqual(result, !reenroll)
     XCTAssertEqual(health.savedConcentrations.count, reenroll ? 0 : 1)
-    XCTAssertEqual(auth.session?.sessionFamilyId, reenroll ? "new-family" : "expired-family")
+    XCTAssertEqual(auth.session?.sessionFamilyId, reenroll ? "new-family" : (rotatesFamily ? "rotated-family" : "expired-family"))
     if reenroll {
       XCTAssertNil(metadata.metadata.lastAttemptAt)
       XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
@@ -218,8 +222,8 @@ final class SyncCoordinatorTests: XCTestCase {
     }
   }
 
-  func testSameFamilyTokenReplacementDuringDownloadRemainsEligible() async throws {
-    try await verifySessionReplacementDuringDownload(newFamily: "debug-session-family", expectedSuccess: true)
+  func testSameFamilyEnrollmentDuringDownloadRejectsOriginalOperation() async throws {
+    try await verifySessionReplacementDuringDownload(newFamily: "debug-session-family", expectedSuccess: false)
   }
 
   func testNewSessionFamilyDuringDownloadRejectsBatchWithoutWriterOrMetadata() async throws {
@@ -941,7 +945,7 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(subscriptionSessionRequestCount.value, 0)
   }
 
-  func testHostedSyncRetriesOnceAfterSubscriptionAccessIsRecovered() async throws {
+  func testHostedEnrollmentStopsOriginalSyncAndFreshOwnedSyncUsesReplacement() async throws {
     let attempts = LockIsolated(0)
     let subscriptionSessions = LockIsolated(0)
     let responseHandler = syncResponseHandler(
@@ -989,11 +993,20 @@ final class SyncCoordinatorTests: XCTestCase {
 
     let result = await coordinator.sync(reason: .manual)
 
-    XCTAssertTrue(result)
+    XCTAssertFalse(result)
+    XCTAssertEqual(attempts.value, 1)
+    XCTAssertEqual(subscriptionSessions.value, 1)
+    XCTAssertEqual(authService.accessToken, "replacement-access-token")
+    guard case .failed = coordinator.operationState else {
+      return XCTFail("Enrollment must stop the original owned sync")
+    }
+
+    let freshResult = await coordinator.sync(reason: .manual)
+    XCTAssertTrue(freshResult)
     XCTAssertEqual(attempts.value, 2)
     XCTAssertEqual(subscriptionSessions.value, 1)
     guard case .succeeded = coordinator.operationState else {
-      return XCTFail("expected successful retry after subscription recovery")
+      return XCTFail("A fresh owned sync must use the replacement connection")
     }
   }
 

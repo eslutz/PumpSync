@@ -21,7 +21,7 @@ struct ImportSessionSnapshot: Equatable {
     let backendIdentity: String
     let configurationRevision: Int
     let credentialRevision: Int
-    let sessionFamilyId: String
+    let connectionId: UUID
     let dataSourceMode: DataSourceMode
 
     static func canonicalBackendIdentity(_ url: URL) -> String {

@@ -1,15 +1,24 @@
 import Foundation
 
 @MainActor
+protocol BackendSessionPersistence {
+  func readData(account: String) throws -> Data?
+  func writeData(_ data: Data, account: String) throws
+  func delete(account: String) throws
+}
+
+extension SecureKeychainStore: BackendSessionPersistence {}
+
+@MainActor
 final class BackendSessionStore {
   private static let account = "backend.session.current"
   private static let hostedReenrollmentAccount = "backend.session.hosted-reenrollment-pending"
   private static let refreshWindow: TimeInterval = 5 * 60
 
-  private let keychain: SecureKeychainStore
+  private let keychain: any BackendSessionPersistence
   private let now: () -> Date
 
-  init(keychain: SecureKeychainStore, now: @escaping () -> Date = Date.init) {
+  init(keychain: any BackendSessionPersistence, now: @escaping () -> Date = Date.init) {
     self.keychain = keychain
     self.now = now
   }
@@ -66,6 +75,31 @@ final class BackendSessionStore {
       try? delete()
       return nil
     }
+  }
+
+  /// Missing data is nil. Inaccessible, malformed, mismatched, or unsuccessfully
+  /// migrated storage throws so callers cannot silently enroll over it.
+  func loadConnection(binding: AuthConnectionBinding) throws -> AuthenticatedConnection? {
+    guard let data = try keychain.readData(account: Self.account) else { return nil }
+    let stored = try JSONCodec.decoder.decode(StoredAuthConnection.self, from: data)
+    guard stored.session.serviceMode == binding.mode.rawValue else {
+      throw AuthConnectionError.bindingMismatch
+    }
+    if let identity = stored.identity {
+      guard identity.binding == binding else { throw AuthConnectionError.bindingMismatch }
+      return AuthenticatedConnection(session: stored.session, identity: identity)
+    }
+    let migrated = AuthenticatedConnection(
+      session: stored.session,
+      identity: AuthConnectionIdentity(id: UUID(), binding: binding)
+    )
+    try save(migrated)
+    return migrated
+  }
+
+  func save(_ connection: AuthenticatedConnection) throws {
+    let data = try JSONCodec.encoder.encode(StoredAuthConnection(session: connection.session, identity: connection.identity))
+    try keychain.writeData(data, account: Self.account)
   }
 
   func save(_ session: BackendSessionResponse) throws {

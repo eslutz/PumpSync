@@ -3,7 +3,7 @@ import Foundation
 import Observation
 import StoreKit
 
-enum BackendAccessMode: String, CaseIterable, Identifiable {
+enum BackendAccessMode: String, Codable, CaseIterable, Identifiable {
   case hosted
   case selfHosted
 
@@ -132,7 +132,7 @@ enum SessionRecoveryPolicy: Equatable {
   }
 }
 
-enum AuthPurpose { case liveImport, preview }
+enum AuthPurpose: String, Codable { case liveImport, preview }
 
 @MainActor
 @Observable
@@ -169,6 +169,7 @@ final class AuthService {
   private var connectionProgressVisible = false
   private var connectionProgressGeneration = UUID()
   private var connectionProgressLeases: [UUID: UUID] = [:]
+  private var connectionIdentity: AuthConnectionIdentity?
   private(set) var session: BackendSessionResponse?
   private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
   private(set) var errorMessage: String?
@@ -181,6 +182,8 @@ final class AuthService {
     let configurationRevision: Int
     let mode: BackendAccessMode
     let sessionFamilyId: String
+    let refreshToken: String
+    let connectionId: UUID?
   }
   private var renewableRefreshTask: Task<Bool, Never>?
   private var renewableRefreshOperationID: UUID?
@@ -231,8 +234,7 @@ final class AuthService {
     warmupHostedService = {
       try await apiClient.warmup()
     }
-    session = sessionStore?.loadValidSession()
-    if let session, (try? validateSessionPurpose(session)) == nil { self.session = nil }
+    restoreStoredConnection()
   }
 
   #if DEBUG
@@ -271,8 +273,7 @@ final class AuthService {
         expiresAt: .distantFuture
       )
     }
-    session = sessionStore?.loadValidSession()
-    if let session, (try? validateSessionPurpose(session)) == nil { self.session = nil }
+    restoreStoredConnection()
   }
   #endif
 
@@ -285,20 +286,71 @@ final class AuthService {
     return operationImportSnapshot(credentialRevision: credentialRevision)
   }
 
-  /// Captures the existing family before recovery, including a renewable
-  /// session whose access token is expired or due for refresh. Eligibility
-  /// for a Health commit still requires currentImportSnapshot's valid token.
-  func operationImportSnapshot(credentialRevision: Int) -> ImportSessionSnapshot? {
-    guard let session = session ?? sessionStore?.loadRecoverableSession(),
-          let selected = configurationStore.selectedBaseURL,
-          ImportSessionSnapshot.canonicalBackendIdentity(selected) == ImportSessionSnapshot.canonicalBackendIdentity(apiClient.baseURL),
-          !session.sessionFamilyId.isEmpty else { return nil }
-    return ImportSessionSnapshot(
+  var connectionBinding: AuthConnectionBinding? {
+    guard let selected = configurationStore.selectedBaseURL else { return nil }
+    return AuthConnectionBinding(
       backendIdentity: ImportSessionSnapshot.canonicalBackendIdentity(selected),
+      mode: configurationStore.mode,
+      installationId: configurationStore.installationId,
+      purpose: purpose
+    )
+  }
+
+  var authenticatedConnection: AuthenticatedConnection? {
+    guard let session, let identity = connectionIdentity,
+          identity.binding == connectionBinding else { return nil }
+    return AuthenticatedConnection(session: session, identity: identity)
+  }
+
+  private func storedConnection() throws -> AuthenticatedConnection? {
+    guard let binding = connectionBinding else { throw AuthConnectionError.bindingMismatch }
+    return try sessionStore?.loadConnection(binding: binding)
+  }
+
+  private func restoreStoredConnection() {
+    guard let stored = try? storedConnection(),
+          (try? validateSessionPurpose(stored.session)) != nil else { return }
+    connectionIdentity = stored.identity
+    if sessionIsValid(stored.session) { session = stored.session }
+  }
+
+  /// Enrollment replaces continuity even if the server reuses a family. Only
+  /// refresh of the exact captured connection may retain its local identity.
+  func installSession(_ response: BackendSessionResponse, installation: AuthSessionInstallation) throws {
+    guard let binding = connectionBinding, response.serviceMode == binding.mode.rawValue else {
+      throw AuthConnectionError.bindingMismatch
+    }
+    try validateSessionPurpose(response)
+    let identity: AuthConnectionIdentity
+    switch installation {
+    case .enrollment:
+      identity = AuthConnectionIdentity(id: UUID(), binding: binding)
+    case .verifiedRefresh(let source):
+      guard authenticatedConnection == source, source.identity.binding == binding else {
+        throw AuthConnectionError.sourceReplaced
+      }
+      identity = source.identity
+    }
+    let connection = AuthenticatedConnection(session: response, identity: identity)
+    try sessionStore?.save(connection)
+    connectionIdentity = identity
+    session = response
+  }
+
+  /// Captures local continuity before recovery, including renewable credentials.
+  func operationImportSnapshot(credentialRevision: Int) -> ImportSessionSnapshot? {
+    guard let connection = authenticatedConnection ?? (try? storedConnection()),
+          let selected = configurationStore.selectedBaseURL,
+          connection.identity.binding == connectionBinding,
+          ImportSessionSnapshot.canonicalBackendIdentity(selected) == ImportSessionSnapshot.canonicalBackendIdentity(apiClient.baseURL),
+          !connection.session.sessionFamilyId.isEmpty,
+          (try? validateSessionPurpose(connection.session)) != nil else { return nil }
+    return ImportSessionSnapshot(
+      backendIdentity: connection.identity.binding.backendIdentity,
       configurationRevision: configurationStore.revision,
       credentialRevision: credentialRevision,
-      sessionFamilyId: session.sessionFamilyId,
-      dataSourceMode: DataSourceMode(rawValue: session.dataSourceMode) ?? .unknown
+      connectionId: connection.identity.id,
+      dataSourceMode: DataSourceMode(rawValue: connection.session.dataSourceMode) ?? .unknown
     )
   }
 
@@ -317,7 +369,7 @@ final class AuthService {
   }
 
   var isSignedIn: Bool {
-    guard let session, (try? validateSessionPurpose(session)) != nil else {
+    guard let session, authenticatedConnection != nil, (try? validateSessionPurpose(session)) != nil else {
       return false
     }
 
@@ -657,8 +709,7 @@ final class AuthService {
       let createdSession = try await createSelfHostedSession(request)
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
       try validateSessionPurpose(createdSession)
-      session = createdSession
-      try? sessionStore?.save(createdSession)
+      try installSession(createdSession, installation: .enrollment)
       recordDemoModeIfNeeded(createdSession)
       statusMessage = Self.connectedStatusMessage(for: createdSession)
       diagnostics?.record(source: .auth, title: "Self-hosted session created")
@@ -689,17 +740,27 @@ final class AuthService {
   }
 
   func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground) async {
-    if let session, (try? validateSessionPurpose(session)) != nil, sessionIsValid(session) {
+    if let session, authenticatedConnection != nil, (try? validateSessionPurpose(session)) != nil, sessionIsValid(session) {
       diagnostics?.record(source: .auth, title: "Connection session cache hit", message: "cacheHit=true totalMs=0")
       return
     }
 
-    let recoverableSession = session.flatMap { current in
+    let stored: AuthenticatedConnection?
+    do {
+      stored = authenticatedConnection == nil ? try storedConnection() : nil
+    } catch {
+      errorMessage = "Your saved connection is unavailable. Try again after unlocking the device, or reconnect in Settings."
+      diagnostics?.record(source: .auth, severity: .warning, title: "Saved connection unavailable")
+      return
+    }
+    let recoverableSession = (authenticatedConnection?.session).flatMap { current in
       if sessionIsRenewable(current) {
         return current
       }
       return nil
-    } ?? sessionStore?.loadRecoverableSession()
+    } ?? (stored?.session).flatMap { current in
+      sessionIsValid(current) || sessionIsRenewable(current) ? current : nil
+    }
     var progressLeaseID: UUID?
     defer {
       if let progressLeaseID {
@@ -714,6 +775,7 @@ final class AuthService {
         errorMessage = (source == .syntheticDemo ? HealthImportError.previewOnly : .unverifiedSource).localizedDescription
         return
       }
+      if let stored { connectionIdentity = stored.identity }
       session = recoverableSession
       if sessionIsValid(recoverableSession) {
         errorMessage = nil
@@ -972,9 +1034,8 @@ final class AuthService {
       enrollmentRegistered = true
       try prepareHostedRequest(configurationRevision: configurationRevision)
       try validateSessionPurpose(createdSession)
-      session = createdSession
+      try installSession(createdSession, installation: .enrollment)
       recoveryRequiresActiveSubscription = false
-      try? sessionStore?.save(createdSession)
       statusMessage = "PumpSync subscription active"
       hostedSubscriptionSessionEstablished?()
       diagnostics?.record(source: .auth, title: title)
@@ -1295,8 +1356,7 @@ final class AuthService {
       let createdSession = try await createSelfHostedSession(request)
       try prepareSelfHostedRequest(configurationRevision: configurationRevision, operationID: operationID)
       try validateSessionPurpose(createdSession)
-      session = createdSession
-      try? sessionStore?.save(createdSession)
+      try installSession(createdSession, installation: .enrollment)
       recordDemoModeIfNeeded(createdSession)
       statusMessage = Self.connectedStatusMessage(for: createdSession)
       diagnostics?.record(source: .auth, title: "Self-hosted session recovered")
@@ -1397,6 +1457,7 @@ final class AuthService {
   }
 
   private func refreshRenewableSession(_ currentSession: BackendSessionResponse) async -> Bool {
+    guard let sourceConnection = authenticatedConnection, sourceConnection.session == currentSession else { return false }
     let configurationRevision = configurationStore.revision
     let mode = configurationStore.mode
     do {
@@ -1473,7 +1534,7 @@ final class AuthService {
       guard refreshed.protocolVersion == 3, refreshed.serviceMode == currentSession.serviceMode else {
         throw APIClientError.invalidResponse
       }
-      guard isCurrentRefreshSource(currentSession) else {
+      guard isCurrentRefreshSource(currentSession), authenticatedConnection == sourceConnection else {
         diagnostics?.record(
           source: .auth,
           title: "Renewable session refresh stopped",
@@ -1483,8 +1544,7 @@ final class AuthService {
       }
 
       try validateSessionPurpose(refreshed)
-      session = refreshed
-      try sessionStore?.save(refreshed)
+      try installSession(refreshed, installation: .verifiedRefresh(source: sourceConnection))
       errorMessage = nil
       statusMessage = Self.connectedStatusMessage(for: refreshed)
       diagnostics?.record(
@@ -1495,7 +1555,7 @@ final class AuthService {
       return true
     } catch {
       if Task.isCancelled || error is CancellationError {
-        guard isCurrentRefreshSource(currentSession) else {
+        guard isCurrentRefreshSource(currentSession), authenticatedConnection == sourceConnection else {
           diagnostics?.record(
             source: .auth,
             title: "Renewable session refresh stopped",
@@ -1525,7 +1585,7 @@ final class AuthService {
         recordRefreshConfigurationChange()
         return false
       }
-      guard isCurrentRefreshSource(currentSession) else {
+      guard isCurrentRefreshSource(currentSession), authenticatedConnection == sourceConnection else {
         diagnostics?.record(
           source: .auth,
           title: "Renewable session refresh stopped",
@@ -1575,7 +1635,9 @@ final class AuthService {
     let key = RenewableRefreshOperationKey(
       configurationRevision: configurationStore.revision,
       mode: configurationStore.mode,
-      sessionFamilyId: source.sessionFamilyId
+      sessionFamilyId: source.sessionFamilyId,
+      refreshToken: source.refreshToken,
+      connectionId: authenticatedConnection?.identity.id
     )
     if let renewableRefreshTask,
        renewableRefreshOperationKey == key {
@@ -1662,6 +1724,7 @@ final class AuthService {
       && current.serviceMode == source.serviceMode
       && current.sessionFamilyId == source.sessionFamilyId
       && current.refreshToken == source.refreshToken
+      && current.accessToken == source.accessToken
   }
 
   private func resetDisconnectedStatus() {
@@ -2135,12 +2198,12 @@ private extension Date {
 #if DEBUG
 extension AuthService {
   func applyScreenshotSession(serviceMode: String) {
-    session = BackendSessionResponse(
+    try? installSession(BackendSessionResponse(
       accessToken: "screenshot-access-token",
       expiresAt: Date().addingTimeInterval(60 * 60),
       serviceMode: serviceMode,
       dataSourceMode: "tandemSource"
-    )
+    ), installation: .enrollment)
     statusMessage = serviceMode == "hosted" ? "PumpSync subscription active" : "Connected to self-hosted service"
     errorMessage = nil
   }

@@ -216,7 +216,7 @@ final class ImportPreviewTests: XCTestCase {
         return (client, auth)
     }
     private func snapshot() -> ImportSessionSnapshot {
-        .init(backendIdentity: "https://example.com/api", configurationRevision: 0, credentialRevision: 0, sessionFamilyId: "fixture", dataSourceMode: .syntheticDemo)
+        .init(backendIdentity: "https://example.com/api", configurationRevision: 0, credentialRevision: 0, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .syntheticDemo)
     }
     private func request() -> TandemSyncRequest {
         .init(tandem: .init(username: "fixture", password: "fixture", region: "us"), minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC")

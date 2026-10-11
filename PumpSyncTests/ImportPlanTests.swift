@@ -2,7 +2,7 @@ import XCTest
 @testable import PumpSync
 
 final class ImportPlanTests: XCTestCase {
-    private let context = ImportSessionSnapshot(backendIdentity: "https://service.example/api", configurationRevision: 1, credentialRevision: 2, sessionFamilyId: "family", dataSourceMode: .tandemSource)
+    private let context = ImportSessionSnapshot(backendIdentity: "https://service.example/api", configurationRevision: 1, credentialRevision: 2, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource)
     func testCapturedConcentrationConvertsInsulinExactlyOnceAndLeavesCarbohydratesUnchanged() throws {
         for (concentration, expected): (InsulinConcentration, Decimal) in [(.u100, 1.25), (.u200, 2.5), (.u500, 6.25)] {
             let plan = try ImportPlanner.makePlan(response: response([sample(value: 1.25), sample(id: "carbs", type: "nutrition.carbohydrates", unit: "g", value: 12)]), context: context, concentration: concentration)
@@ -31,7 +31,7 @@ final class ImportPlanTests: XCTestCase {
         XCTAssertEqual(deduplicated.selectingSamples([]).downloadedRecordCount, 2)
     }
     func testSyntheticPlanRemainsDisplayableButCannotAuthorizeHealth() throws {
-        let synthetic = ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 1, credentialRevision: 2, sessionFamilyId: "family", dataSourceMode: .syntheticDemo)
+        let synthetic = ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 1, credentialRevision: 2, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .syntheticDemo)
         let plan = try ImportPlanner.makePlan(response: response([sample()], source: .syntheticDemo), context: synthetic, concentration: .u100)
         XCTAssertEqual(plan.samples.count, 1)
         XCTAssertThrowsError(try HealthImportPolicy.authorize(plan: plan, current: synthetic))
@@ -47,10 +47,10 @@ final class ImportPlanTests: XCTestCase {
         let plan = try ImportPlanner.makePlan(response: response([sample()]), context: context, concentration: .u100)
         let batch = try HealthImportPolicy.authorize(plan: plan, current: context)
         for changed in [
-            ImportSessionSnapshot(backendIdentity: "https://other.example/api", configurationRevision: 1, credentialRevision: 2, sessionFamilyId: "family", dataSourceMode: .tandemSource),
-            ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 3, credentialRevision: 2, sessionFamilyId: "family", dataSourceMode: .tandemSource),
-            ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 1, credentialRevision: 3, sessionFamilyId: "family", dataSourceMode: .tandemSource),
-            ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 1, credentialRevision: 2, sessionFamilyId: "new-family", dataSourceMode: .tandemSource)
+            ImportSessionSnapshot(backendIdentity: "https://other.example/api", configurationRevision: 1, credentialRevision: 2, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource),
+            ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 3, credentialRevision: 2, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource),
+            ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 1, credentialRevision: 3, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource),
+            ImportSessionSnapshot(backendIdentity: context.backendIdentity, configurationRevision: 1, credentialRevision: 2, connectionId: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!, dataSourceMode: .tandemSource)
         ] { XCTAssertThrowsError(try HealthImportPolicy.validate(batch: batch, current: changed)) }
         XCTAssertThrowsError(try HealthImportPolicy.validate(batch: batch, current: nil))
     }

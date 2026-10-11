@@ -217,11 +217,11 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         try assertLiveUnchanged()
     }
 
-    func testExpiredDemoPreviewRefreshesSameFamilyBeforeDownloading() async throws {
+    func testExpiredDemoPreviewRefreshesRotatingFamilyBeforeDownloading() async throws {
         let (auth, api) = makeAuth(expired: true)
         await auth.connectSelfHosted()
         let context = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 0))
-        let refreshedData = try JSONCodec.encoder.encode(session(expired: false))
+        let refreshedData = try JSONCodec.encoder.encode(BackendSessionResponse(accessToken: "valid-preview-token", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "syntheticDemo", protocolVersion: 3, sessionFamilyId: "rotated-preview-family", refreshToken: "rotated-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture))
         let paths = BoundaryLocked<[String]>([])
         let previewAuthorization = BoundaryLocked<String?>(nil)
         URLProtocolStub.requestHandler = { request in
@@ -233,9 +233,43 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         }
         let controller = ImportPreviewController(apiClient: api, authService: auth, purpose: .sample, currentContext: { auth.operationImportSnapshot(credentialRevision: 0) })
         await controller.load(request: previewRequest(), context: context, concentration: .u100)
-        guard case .ready = controller.state else { return XCTFail("Same-family renewal must allow preview") }
+        guard case .ready = controller.state else { return XCTFail("Rotating-family renewal must allow preview") }
         XCTAssertEqual(paths.value, ["/api/v1/capabilities", "/api/v1/session/refresh", "/api/v1/preview/tandem"])
         XCTAssertEqual(previewAuthorization.value, "Bearer valid-preview-token")
+    }
+
+    func testExpiredRealPreviewRotatesFamilyAndRetainsCapturedContext() async throws {
+        let api = PumpSyncAPIClient(baseURL: URL(string: "https://real-preview.example/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+        let configuration = BackendConfigurationStore.ephemeral(selfHostedBaseURL: api.baseURL, installationId: "real-preview")
+        let keychain = SecureKeychainStore(service: "real-preview-rotation-\(UUID().uuidString)")
+        defer { try? keychain.deleteAll() }
+        let store = BackendSessionStore(keychain: keychain)
+        let expired = BackendSessionResponse(accessToken: "expired-real", expiresAt: .distantPast, serviceMode: "selfHosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "old-real-family", refreshToken: "old-real-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+        try store.save(expired)
+        let auth = AuthService(apiClient: api, configurationStore: configuration, sessionStore: store, purpose: .liveImport, currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in XCTFail("Ordinary refresh must not enroll"); throw APIClientError.invalidResponse }, proofProvider: PreviewBoundaryProof())
+        let context = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 4))
+        let refreshed = BackendSessionResponse(accessToken: "new-real", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "new-real-family", refreshToken: "new-real-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+        let data = try JSONCodec.encoder.encode(refreshed)
+        let paths = BoundaryLocked<[String]>([])
+        URLProtocolStub.requestHandler = { request in
+            paths.append(request.url!.path)
+            let body: Data
+            if request.url!.path.hasSuffix("capabilities") {
+                body = Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8)
+            } else if request.url!.path.hasSuffix("refresh") { body = data }
+            else {
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer new-real")
+                body = Data(#"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"tandemSource"}"#.utf8)
+            }
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, body)
+        }
+        let controller = ImportPreviewController(apiClient: api, authService: auth, currentContext: { auth.operationImportSnapshot(credentialRevision: 4) })
+        await controller.load(request: previewRequest(), context: context, concentration: .u100)
+        guard case .ready(let plan) = controller.state else { return XCTFail("Real preview must survive ordinary rotating refresh") }
+        XCTAssertEqual(plan.context, context)
+        XCTAssertEqual(auth.session, refreshed)
+        XCTAssertEqual(paths.value, ["/api/v1/capabilities", "/api/v1/session/refresh", "/api/v1/preview/tandem"])
+        XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(auth.connectionBinding))?.identity.id, context.connectionId)
     }
 
     func testReenrollmentIntoNewFamilyRejectsCapturedPreviewWithActionableFeedback() async throws {

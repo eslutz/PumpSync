@@ -3,6 +3,62 @@ import XCTest
 
 @MainActor
 final class AuthServiceTests: XCTestCase {
+  func testNonRenewableLegacySessionEnrollsWithoutSubmittingExpiredRefreshCredential() async throws {
+    let store = makeSessionStore()
+    try store.save(BackendSessionResponse(accessToken: "expired", expiresAt: .distantPast, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "expired-family", refreshToken: "expired-refresh", refreshTokenExpiresAt: .distantPast, refreshTokenAbsoluteExpiresAt: .distantPast))
+    let renewed = BackendSessionResponse(accessToken: "enrolled", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+    URLProtocolStub.requestHandler = { _ in
+      XCTFail("Expired refresh credentials must not be submitted")
+      throw APIClientError.invalidResponse
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: store, currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in renewed }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    await service.recoverSessionIfNeeded()
+    XCTAssertEqual(service.accessToken, "enrolled")
+  }
+
+  func testConnectionIdentitySurvivesAuthServiceRestartAndRejectsExactResponseReenrollmentAsRefreshSource() throws {
+    let store = makeSessionStore()
+    let configuration = makeConfigurationStore()
+    let response = BackendSessionResponse(accessToken: "persisted", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+    try store.save(response)
+    func makeService() -> AuthService {
+      AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store, currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    }
+    let service = makeService()
+    let original = try XCTUnwrap(service.authenticatedConnection)
+    let restart = makeService()
+    XCTAssertEqual(restart.authenticatedConnection, original)
+    try restart.installSession(response, installation: .enrollment)
+    let replacement = try XCTUnwrap(restart.authenticatedConnection)
+    XCTAssertNotEqual(replacement.identity.id, original.identity.id)
+    XCTAssertThrowsError(try restart.installSession(response, installation: .verifiedRefresh(source: original)))
+    XCTAssertEqual(restart.authenticatedConnection, replacement)
+    XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(restart.connectionBinding)), replacement)
+  }
+
+  func testUnavailableReadOrFailedLegacyMigrationCannotFallThroughToEnrollment() async throws {
+    for unreadable in [true, false] {
+      let persistence = ConnectionTestPersistence()
+      let response = BackendSessionResponse(accessToken: "cached", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      let legacy = try JSONCodec.encoder.encode(response)
+      persistence.data = legacy
+      persistence.readFailure = unreadable
+      persistence.writeFailure = !unreadable
+      let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: BackendSessionStore(keychain: persistence), currentEntitlementJWS: { XCTFail("Inaccessible storage must defer recovery"); throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in XCTFail("Inaccessible storage must not enroll"); throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in XCTFail("Inaccessible storage must not enroll"); throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+      await service.recoverSessionIfNeeded()
+      await service.recoverSessionIfNeeded(policy: .background)
+      XCTAssertNil(service.accessToken)
+      XCTAssertNil(service.operationImportSnapshot(credentialRevision: 0))
+      XCTAssertEqual(persistence.data, legacy)
+      XCTAssertEqual(persistence.deleteCount, 0)
+      persistence.readFailure = false
+      persistence.writeFailure = false
+      await service.recoverSessionIfNeeded()
+      XCTAssertEqual(service.accessToken, "cached")
+    }
+  }
+
   func testLoadsValidCachedSessionWithoutCallingStoreKitOrBackend() async throws {
     let sessionStore = makeSessionStore(now: { Date(timeIntervalSince1970: 1_000) })
     let cachedSession = BackendSessionResponse(

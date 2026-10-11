@@ -17,6 +17,7 @@
 		1B03175A1F27037B703EC8D1 /* AuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09FB4217C5DEDCAC6BBF19B1 /* AuthServiceTests.swift */; };
 		1F1F4F0E1826A0A2BDB7D4FF /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B8ED0AEB98A53C1A0C48F8 /* SyncView.swift */; };
 		26448D39917E7A13F46266A7 /* SyncStatusBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0F4BE066A2E453B955A070 /* SyncStatusBanner.swift */; };
+		27BC42F754C1A5A808E86BB5 /* AuthConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 305130CF00AA4FD7DA07A0AD /* AuthConnectionState.swift */; };
 		2885E36760B844D9924EF676 /* ImportPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE24E807D01C781297C1D160 /* ImportPlan.swift */; };
 		2E581DC0577F1D384651346A /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C23E211038A242211F7416AF /* AppServices.swift */; };
 		3126AD243E9F89EFDF53AFEC /* DeviceSessionProofProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE867E4AB95A704FF058E35 /* DeviceSessionProofProviderTests.swift */; };
@@ -119,6 +120,7 @@
 		25627B66B5FFC3BEAD2108EE /* AppLaunchEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLaunchEnvironment.swift; sourceTree = "<group>"; };
 		2A0F4BE066A2E453B955A070 /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
 		2DB888F8622C1E2DF516A712 /* SyncMetadataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMetadataStore.swift; sourceTree = "<group>"; };
+		305130CF00AA4FD7DA07A0AD /* AuthConnectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthConnectionState.swift; sourceTree = "<group>"; };
 		3256EF7EB4927D3CF3BD72A0 /* SupportBundleBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportBundleBuilderTests.swift; sourceTree = "<group>"; };
 		3619EA52241C6F7F703E374C /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		36ABBE2A707B83D4D4006E57 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -344,6 +346,7 @@
 		ECF7705B3123F56BD81DF6A2 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				305130CF00AA4FD7DA07A0AD /* AuthConnectionState.swift */,
 				490EE136418A1B6AE164F633 /* AuthService.swift */,
 				70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */,
 				7BD584B88E13A677DF615346 /* DeviceSessionProofProvider.swift */,
@@ -513,6 +516,7 @@
 				0ED99E75A53490C4E83A40F0 /* AppLaunchEnvironment.swift in Sources */,
 				2E581DC0577F1D384651346A /* AppServices.swift in Sources */,
 				18701BDFE904793BC7E5CEB8 /* AppView.swift in Sources */,
+				27BC42F754C1A5A808E86BB5 /* AuthConnectionState.swift in Sources */,
 				B071813F6A46DD557EC13A9D /* AuthService.swift in Sources */,
 				E51C48749D481E9DCB3C15BE /* BackendSessionStore.swift in Sources */,
 				D37A29BA9341593037F2AF8D /* BackgroundSyncDiagnostics.swift in Sources */,

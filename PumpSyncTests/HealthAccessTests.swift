@@ -93,7 +93,7 @@ private final class RecordingHealthPersistence: HealthSamplePersisting {
 
 extension HealthAccessTests {
   func testAdapterOmitsDeniedTypeAndOnlyReturnsConfirmedAuthorizedSamples() async throws {
-    let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, sessionFamilyId: "family", dataSourceMode: .tandemSource)
+    let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource)
     let insulin = SampleDTO(externalId: "insulin", type: "insulin.bolus", value: 1, unit: "IU", startAt: Date(timeIntervalSince1970: 100), endAt: Date(timeIntervalSince1970: 100), metadata: [:], source: SourceDTO(deviceId: "pump", eventIds: ["insulin"]))
     let carbs = SampleDTO(externalId: "carbs", type: "nutrition.carbohydrates", value: 12, unit: "g", startAt: Date(timeIntervalSince1970: 100), endAt: Date(timeIntervalSince1970: 100), metadata: [:], source: SourceDTO(deviceId: "pump", eventIds: ["carbs"]))
     let plan = try ImportPlanner.makePlan(response: TandemSyncResponse(samples: [insulin, carbs], effectiveMinDate: .distantPast, effectiveMaxDate: .distantFuture, dataSourceMode: .tandemSource), context: context, concentration: .u100)
@@ -106,7 +106,7 @@ extension HealthAccessTests {
   }
 
   func testAdapterRechecksContextAtFinalSubmissionAndDoesNotPersistStaleBatch() async throws {
-    let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, sessionFamilyId: "family", dataSourceMode: .tandemSource)
+    let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource)
     let sample = SampleDTO(externalId: "one", type: "insulin.bolus", value: 1.25, unit: "IU", startAt: Date(timeIntervalSince1970: 100), endAt: Date(timeIntervalSince1970: 100), metadata: [:], source: SourceDTO(deviceId: "pump", eventIds: ["one"]))
     let plan = try ImportPlanner.makePlan(response: TandemSyncResponse(samples: [sample], effectiveMinDate: .distantPast, effectiveMaxDate: .distantFuture, dataSourceMode: .tandemSource), context: context, concentration: .u500)
     let batch = try HealthImportPolicy.authorize(plan: plan, current: context)
@@ -123,7 +123,7 @@ extension HealthAccessTests {
   }
 
   func testAdapterPersistsCapturedConvertedValueExactlyOnceAndReturnsConfirmedOriginal() async throws {
-    let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, sessionFamilyId: "family", dataSourceMode: .tandemSource)
+    let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource)
     let sample = SampleDTO(externalId: "one", type: "insulin.bolus", value: 1.25, unit: "IU", startAt: Date(timeIntervalSince1970: 100), endAt: Date(timeIntervalSince1970: 100), metadata: [:], source: SourceDTO(deviceId: "pump", eventIds: ["one"]))
     let plan = try ImportPlanner.makePlan(response: TandemSyncResponse(samples: [sample], effectiveMinDate: .distantPast, effectiveMaxDate: .distantFuture, dataSourceMode: .tandemSource), context: context, concentration: .u500)
     let persistence = RecordingHealthPersistence()

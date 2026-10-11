@@ -180,3 +180,104 @@ final class BackendSessionStoreTests: XCTestCase {
     )
   }
 }
+
+@MainActor
+final class AuthConnectionPersistenceTests: XCTestCase {
+  private func binding(backend: String = "https://service.example/api", mode: BackendAccessMode = .hosted, installation: String = "install", purpose: AuthPurpose = .liveImport) -> AuthConnectionBinding {
+    AuthConnectionBinding(backendIdentity: backend, mode: mode, installationId: installation, purpose: purpose)
+  }
+
+  private var response: BackendSessionResponse {
+    BackendSessionResponse(accessToken: "access", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "family", refreshToken: "refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+  }
+
+  func testLegacyMigrationPersistsOneIdentityAcrossRestartAndPreservesFlatResponse() throws {
+    let persistence = ConnectionTestPersistence()
+    persistence.data = try JSONCodec.encoder.encode(response)
+    let store = BackendSessionStore(keychain: persistence)
+    let migrated = try XCTUnwrap(store.loadConnection(binding: binding()))
+    XCTAssertEqual(persistence.writeCount, 1)
+    let restarted = BackendSessionStore(keychain: persistence)
+    XCTAssertEqual(try restarted.loadConnection(binding: binding()), migrated)
+    XCTAssertEqual(persistence.writeCount, 1)
+    XCTAssertEqual(try JSONCodec.decoder.decode(BackendSessionResponse.self, from: XCTUnwrap(persistence.data)), response)
+    let wireJSON = try JSONSerialization.jsonObject(with: JSONCodec.encoder.encode(response)) as! [String: Any]
+    XCTAssertNil(wireJSON["localConnectionIdentity"])
+  }
+
+  func testMigrationWriteFailureBlocksUsePreservesLegacyAndRetriesLater() throws {
+    let persistence = ConnectionTestPersistence()
+    let legacy = try JSONCodec.encoder.encode(response)
+    persistence.data = legacy
+    persistence.writeFailure = true
+    let store = BackendSessionStore(keychain: persistence)
+    XCTAssertThrowsError(try store.loadConnection(binding: binding()))
+    XCTAssertEqual(persistence.data, legacy)
+    XCTAssertEqual(persistence.deleteCount, 0)
+    persistence.writeFailure = false
+    XCTAssertNotNil(try store.loadConnection(binding: binding()))
+    XCTAssertEqual(persistence.writeCount, 2)
+  }
+
+  func testUnreadableStorageIsNotAbsentAndDoesNotDeleteOrMigrate() throws {
+    let persistence = ConnectionTestPersistence()
+    persistence.data = try JSONCodec.encoder.encode(response)
+    persistence.readFailure = true
+    let store = BackendSessionStore(keychain: persistence)
+    XCTAssertThrowsError(try store.loadConnection(binding: binding()))
+    XCTAssertEqual(persistence.writeCount, 0)
+    XCTAssertEqual(persistence.deleteCount, 0)
+    persistence.readFailure = false
+    persistence.data = nil
+    XCTAssertNil(try store.loadConnection(binding: binding()))
+  }
+
+  func testEveryPersistentBindingChangeRejectsStoredConnectionWithoutRebinding() throws {
+    let persistence = ConnectionTestPersistence()
+    let store = BackendSessionStore(keychain: persistence)
+    let connection = AuthenticatedConnection(session: response, identity: AuthConnectionIdentity(id: UUID(), binding: binding()))
+    try store.save(connection)
+    let data = persistence.data
+    for changed in [binding(backend: "https://other.example/api"), binding(mode: .selfHosted), binding(installation: "other"), binding(purpose: .preview)] {
+      XCTAssertThrowsError(try store.loadConnection(binding: changed))
+      XCTAssertEqual(persistence.data, data)
+    }
+    XCTAssertEqual(try store.loadConnection(binding: binding()), connection)
+    XCTAssertEqual(persistence.writeCount, 1)
+  }
+
+  func testMalformedIdentityDoesNotDowngradeToLegacyOrDeleteData() throws {
+    let persistence = ConnectionTestPersistence()
+    var json = try JSONSerialization.jsonObject(with: JSONCodec.encoder.encode(response)) as! [String: Any]
+    json["localConnectionIdentity"] = ["id": "invalid"]
+    persistence.data = try JSONSerialization.data(withJSONObject: json)
+    let before = persistence.data
+    XCTAssertThrowsError(try BackendSessionStore(keychain: persistence).loadConnection(binding: binding()))
+    XCTAssertEqual(persistence.data, before)
+    XCTAssertEqual(persistence.writeCount, 0)
+    XCTAssertEqual(persistence.deleteCount, 0)
+  }
+}
+
+@MainActor
+final class ConnectionTestPersistence: BackendSessionPersistence {
+  enum Failure: Error { case inaccessible }
+  var data: Data?
+  var readFailure = false
+  var writeFailure = false
+  var writeCount = 0
+  var deleteCount = 0
+  func readData(account: String) throws -> Data? {
+    if readFailure { throw Failure.inaccessible }
+    return data
+  }
+  func writeData(_ data: Data, account: String) throws {
+    writeCount += 1
+    if writeFailure { throw Failure.inaccessible }
+    self.data = data
+  }
+  func delete(account: String) throws {
+    deleteCount += 1
+    data = nil
+  }
+}
