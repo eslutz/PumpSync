@@ -65,7 +65,7 @@ final class AuthSessionCommitter {
 
   var hasUnresolvedSubmission: Bool {
     // Failure to inspect metadata blocks credentials as well as enrollment.
-    do { return try journal().map { $0.phase != .prepared } ?? false }
+    do { return try journal().map { $0.phase != .prepared || $0.inheritedUncertainty != nil } ?? false }
     catch { return true }
   }
 
@@ -81,6 +81,10 @@ final class AuthSessionCommitter {
       } else {
         switch record.phase {
         case .prepared:
+          if let inherited = record.inheritedUncertainty {
+            guard inherited == record.capturedSource else { throw AuthCommitError.operationReplaced }
+            throw AuthCommitError.uncertainSubmission
+          }
           try clearJournal() // No POST was permitted for this record.
         case .submitted:
           throw AuthCommitError.uncertainSubmission
@@ -98,15 +102,25 @@ final class AuthSessionCommitter {
     guard !blockedInProcess else { throw AuthCommitError.invalidationIncomplete }
     let currentState = try state()
     if let source, source.identity.binding != binding { throw AuthCommitError.operationReplaced }
+    let fingerprint = try AuthOperationJournal.fingerprint(source)
+    var inherited: AuthOperationJournal.SourceUncertainty?
     if let old = try journal(), old.generation == currentState.generation, old.binding == binding {
       if old.phase == .responseReceived { throw AuthCommitError.commitPending }
-      if old.phase == .submitted, kind == .refresh { throw AuthCommitError.uncertainSubmission }
+      if old.phase == .submitted || old.inheritedUncertainty != nil {
+        if kind == .refresh { throw AuthCommitError.uncertainSubmission }
+        inherited = old.inheritedUncertainty ?? old.capturedSource
+        let expected = AuthOperationJournal.SourceUncertainty(generation: currentState.generation,
+          binding: binding, identity: source?.identity, fingerprint: fingerprint)
+        guard inherited == expected, inherited == old.capturedSource else { throw AuthCommitError.operationReplaced }
+      }
     }
     if kind == .refresh, currentState.invalidated { throw AuthCommitError.operationReplaced }
     let id = UUID()
-    try saveJournal(AuthOperationJournal(operationID: id, kind: kind, generation: currentState.generation,
-      binding: binding, sourceIdentity: source?.identity, sourceFingerprint: try AuthOperationJournal.fingerprint(source),
-      proofRequestID: proofRequestID, proofKeyID: proofKeyID, phase: .prepared, target: nil))
+    var record = AuthOperationJournal(operationID: id, kind: kind, generation: currentState.generation,
+      binding: binding, sourceIdentity: source?.identity, sourceFingerprint: fingerprint,
+      proofRequestID: proofRequestID, proofKeyID: proofKeyID, phase: .prepared, target: nil)
+    record.inheritedUncertainty = inherited
+    try saveJournal(record)
     return id
   }
 
@@ -139,9 +153,15 @@ final class AuthSessionCommitter {
   }
 
   func rejectDefinitively(_ id: UUID, binding: AuthConnectionBinding) throws {
-    let record = try owned(id, binding: binding)
+    var record = try owned(id, binding: binding)
     guard record.phase == .submitted else { return }
-    try clearJournal()
+    if let inherited = record.inheritedUncertainty {
+      guard inherited == record.capturedSource else { throw AuthCommitError.operationReplaced }
+      record.phase = .prepared // This request was rejected; its ancestor remains uncertain.
+      try saveJournal(record)
+    } else {
+      try clearJournal()
+    }
   }
 
   func receive(_ response: BackendSessionResponse, operationID: UUID, binding: AuthConnectionBinding,

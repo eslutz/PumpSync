@@ -174,8 +174,17 @@ final class AuthService {
   private var connectionProgressLeases: [UUID: UUID] = [:]
   private var connectionIdentity: AuthConnectionIdentity?
   private(set) var session: BackendSessionResponse?
-  private(set) var statusMessage = "Connect to PumpSync or a self-hosted service"
-  private(set) var errorMessage: String?
+  private var incompleteInvalidation = false
+  private var storedStatusMessage = "Connect to PumpSync or a self-hosted service"
+  private var storedErrorMessage: String?
+  private(set) var statusMessage: String {
+    get { incompleteInvalidation ? AuthCommitError.invalidationIncomplete.localizedDescription : storedStatusMessage }
+    set { storedStatusMessage = newValue }
+  }
+  private(set) var errorMessage: String? {
+    get { incompleteInvalidation ? AuthCommitError.invalidationIncomplete.localizedDescription : storedErrorMessage }
+    set { storedErrorMessage = newValue }
+  }
   private var recoveryRequiresActiveSubscription = false
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
@@ -325,6 +334,11 @@ final class AuthService {
   }
 
   private func publishCommitted(_ connection: AuthenticatedConnection) {
+    if incompleteInvalidation {
+      incompleteInvalidation = false
+      storedErrorMessage = nil
+      storedStatusMessage = Self.connectedStatusMessage(for: connection.session)
+    }
     authCommitBlocked = false
     connectionIdentity = connection.identity
     session = connection.session
@@ -344,9 +358,11 @@ final class AuthService {
     connectionIdentity = nil
     do {
       try committer.invalidate()
+      incompleteInvalidation = false
       authCommitBlocked = false
       return true
     } catch {
+      incompleteInvalidation = true
       errorMessage = AuthCommitError.invalidationIncomplete.localizedDescription
       statusMessage = errorMessage ?? "Disconnection could not be saved."
       diagnostics?.record(source: .auth, severity: .error, title: "Connection invalidation incomplete")
@@ -622,21 +638,21 @@ final class AuthService {
       // diagnostics log and briefly leaving the app looking disconnected
       // mid-replay. Only the transition from "had a session" to "don't
       // anymore" is actually informative.
-      session = nil
-      _ = invalidateDurableAuth(replacesOwnership: true)
-      errorMessage = nil
-      statusMessage = "Connect to PumpSync or a self-hosted service"
-      diagnostics?.record(
-        source: .auth,
-        severity: .warning,
-        title: "PumpSync subscription revoked or expired",
-        message: transaction.diagnosticSummary(active: false)
-      )
+      recordSubscriptionRevokedOrExpired(diagnosticSummary: transaction.diagnosticSummary(active: false))
     }
 
     if !transaction.isActiveSubscriptionEntitlement {
       await transaction.finish()
     }
+  }
+
+  func recordSubscriptionRevokedOrExpired(diagnosticSummary: String) {
+    guard configurationStore.mode == .hosted, session != nil else { return }
+    session = nil
+    _ = invalidateDurableAuth(replacesOwnership: true)
+    errorMessage = nil
+    statusMessage = "Connect to PumpSync or a self-hosted service"
+    diagnostics?.record(source: .auth, severity: .warning, title: "PumpSync subscription revoked or expired", message: diagnosticSummary)
   }
 
   /// Handles only verified, active updates from `Transaction.updates` after
@@ -981,6 +997,7 @@ final class AuthService {
       guard try AuthOperationJournal.fingerprint(current) == AuthOperationJournal.fingerprint(expectedSource),
             try committer.invalidateIfCurrent(expectedSource, binding: current.identity.binding) else { return false }
       authOwnershipGeneration = UUID()
+      incompleteInvalidation = false
       authCommitBlocked = false
       session = nil
       connectionIdentity = nil
@@ -989,6 +1006,7 @@ final class AuthService {
       diagnostics?.record(source: .auth, severity: .warning, title: "Connection session expired")
       return true
     } catch {
+      incompleteInvalidation = true
       authOwnershipGeneration = UUID()
       authCommitBlocked = true
       session = nil

@@ -17,6 +17,20 @@ struct AuthOperationJournal: Codable {
   var phase: Phase
   var target: StoredAuthConnection?
   var finalProofState: FinalProofState? = nil
+  var inheritedUncertainty: SourceUncertainty? = nil
+
+  /// A successor's prepared/rejected phase cannot make this consumed source
+  /// usable. Ownership remains explicit even as the operation ID changes.
+  struct SourceUncertainty: Codable, Equatable {
+    let generation: UUID
+    let binding: AuthConnectionBinding
+    let identity: AuthConnectionIdentity?
+    let fingerprint: String?
+  }
+
+  var capturedSource: SourceUncertainty {
+    SourceUncertainty(generation: generation, binding: binding, identity: sourceIdentity, fingerprint: sourceFingerprint)
+  }
 
   static func fingerprint(_ connection: AuthenticatedConnection?) throws -> String? {
     guard let connection else { return nil }

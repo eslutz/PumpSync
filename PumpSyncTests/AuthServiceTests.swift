@@ -241,6 +241,104 @@ final class AuthServiceTests: XCTestCase {
     }
   }
 
+  func testUncertainRefreshRemainsBlockedAfterSuccessorEnrollmentCannotSubmitOrIsRejected() async throws {
+    for rejects in [false, true] {
+      let persistence = AuthJournalTestPersistence()
+      let store = BackendSessionStore(keychain: persistence, now: { Date(timeIntervalSince1970: 2_000) })
+      try store.save(Self.expiredRenewableSession())
+      let configuration = makeConfigurationStore()
+      let refreshPosts = LockedCounter()
+      URLProtocolStub.requestHandler = { _ in refreshPosts.increment(); throw URLError(.networkConnectionLost) }
+      defer { URLProtocolStub.requestHandler = nil }
+      var enrollmentPosts = 0
+      func service() -> AuthService {
+        AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+          currentEntitlementJWS: { "active" }, createSubscriptionSession: { _ in
+            enrollmentPosts += 1
+            throw APIClientError.httpStatus(401, code: "device_proof_rejected", message: "Rejected")
+          }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+      }
+      let original = service()
+      await original.recoverSessionIfNeeded(policy: .background)
+      XCTAssertEqual(refreshPosts.value, 1)
+      XCTAssertNil(original.authenticatedConnection)
+      let successor = service()
+      if !rejects {
+        persistence.failWriteAccount = "backend.auth.operation-journal.v1"
+        persistence.failWriteOrdinal = persistence.writeCounts["backend.auth.operation-journal.v1", default: 0] + 2
+      }
+      await successor.recoverSessionIfNeeded()
+      XCTAssertEqual(enrollmentPosts, rejects ? 1 : 0, "A failed submitted marker must prevent replacement POST")
+      persistence.failWriteAccount = nil
+      persistence.failWriteOrdinal = nil
+      let restarted = service()
+      XCTAssertNil(restarted.authenticatedConnection, "Uncertainty must survive successor preparation/rejection")
+      await restarted.recoverSessionIfNeeded(policy: .background)
+      XCTAssertNil(restarted.authenticatedConnection)
+      XCTAssertEqual(refreshPosts.value, 1, "Restart cannot reuse the consumed source refresh credential")
+      XCTAssertNotNil(try store.loadAuthJournal(), "Inherited uncertainty must remain durable")
+    }
+  }
+
+  func testFailedRecoveryInvalidationRemainsVisiblyIncompleteWhileRestartUsesLastDurableState() async throws {
+    for missingEntitlement in [false, true] {
+      let persistence = AuthJournalTestPersistence()
+      let store = BackendSessionStore(keychain: persistence)
+      let configuration = makeConfigurationStore()
+      let saved = BackendSessionResponse(accessToken: "last-durable", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "durable-family", refreshToken: "", refreshTokenExpiresAt: .distantPast, refreshTokenAbsoluteExpiresAt: .distantPast)
+      try store.save(saved)
+      func service() -> AuthService {
+        AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+          currentEntitlementJWS: { if missingEntitlement { throw StoreKitSubscriptionError.noActiveSubscription }; throw URLError(.notConnectedToInternet) },
+          syncedCurrentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+          createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+      }
+      let current = service()
+      persistence.failAllWrites = true
+      persistence.failDeleteAccount = "backend.session.current"
+      // Access-denied recovery bypasses the valid cache. An internal clear is
+      // required when entitlement/network recovery cannot restore this source.
+      _ = await current.recoverHostedSubscriptionAfterAccessDenied()
+      XCTAssertNil(current.accessToken)
+      XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
+      XCTAssertEqual(current.statusMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
+      await current.recoverSessionIfNeeded(policy: .background)
+      XCTAssertNil(current.accessToken)
+      XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
+      persistence.failAllWrites = false
+      persistence.failDeleteAccount = nil
+      XCTAssertEqual(service().accessToken, "last-durable", "A failed durable invalidation cannot promise restart disconnection")
+    }
+  }
+
+  func testFailedRevocationInvalidationCannotAdvertiseRestartSafeDisconnection() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let store = BackendSessionStore(keychain: persistence)
+    let configuration = makeConfigurationStore()
+    try store.save(BackendSessionResponse(accessToken: "last-durable", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"))
+    func service() -> AuthService {
+      AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+        currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    }
+    let current = service()
+    persistence.failAllWrites = true
+    persistence.failDeleteAccount = "backend.session.current"
+    current.recordSubscriptionRevokedOrExpired(diagnosticSummary: "fixture-revocation")
+    XCTAssertNil(current.accessToken)
+    XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
+    XCTAssertEqual(current.statusMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
+    current.recordSubscriptionPurchaseCancelled()
+    await current.recoverSessionIfNeeded(policy: .background)
+    XCTAssertNil(current.accessToken)
+    XCTAssertEqual(current.errorMessage, AuthCommitError.invalidationIncomplete.localizedDescription)
+    persistence.failAllWrites = false
+    persistence.failDeleteAccount = nil
+    XCTAssertEqual(service().accessToken, "last-durable")
+    current.clearSessionForConnectionChange()
+    XCTAssertNil(current.errorMessage, "A successful durable retry clears the incomplete result")
+    XCTAssertNil(service().accessToken)
+  }
+
   func testNonRenewableLegacySessionEnrollsWithoutSubmittingExpiredRefreshCredential() async throws {
     let store = makeSessionStore()
     try store.save(BackendSessionResponse(accessToken: "expired", expiresAt: .distantPast, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "expired-family", refreshToken: "expired-refresh", refreshTokenExpiresAt: .distantPast, refreshTokenAbsoluteExpiresAt: .distantPast))

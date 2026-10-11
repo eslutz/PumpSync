@@ -9,6 +9,8 @@ final class InstallStateReconcilerTests: XCTestCase {
     let unrelatedKeychain = SecureKeychainStore(service: "dev.ericslutz.PumpSyncTests.other.\(UUID().uuidString)")
     try appKeychain.writeData(Data("credential".utf8), account: "tandem-source-credentials")
     try appKeychain.writeData(Data("session".utf8), account: currentBackendSessionAccount)
+    let recoveryAccounts = ["backend.auth.operation-journal.v1", "backend.auth.invalidation.v1", "backend.auth.invalidation-fallback.v1"]
+    for account in recoveryAccounts { try appKeychain.writeData(Data("recovery-metadata".utf8), account: account) }
     try unrelatedKeychain.writeData(Data("keep".utf8), account: "unrelated")
     defer {
       try? appKeychain.deleteAll()
@@ -22,6 +24,7 @@ final class InstallStateReconcilerTests: XCTestCase {
 
     XCTAssertNil(try appKeychain.readData(account: "tandem-source-credentials"))
     XCTAssertNil(try appKeychain.readData(account: currentBackendSessionAccount))
+    for account in recoveryAccounts { XCTAssertNil(try appKeychain.readData(account: account)) }
     XCTAssertEqual(try unrelatedKeychain.readData(account: "unrelated"), Data("keep".utf8))
   }
 
