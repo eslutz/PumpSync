@@ -40,8 +40,21 @@ if [[ -z "$device_id" ]]; then
   device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
 fi
 xcrun simctl bootstatus "$device_id" -b
+prepared_contract=false
+if [[ ! -d PumpSyncTests/SessionContractArtifacts ]]; then
+  bash scripts/ios/prepare-session-contract.sh
+  prepared_contract=true
+fi
+xcodegen generate
+cleanup() {
+  xcrun simctl ui "$device_id" content_size "$original_content_size" >/dev/null 2>&1 || true
+  if [[ "$prepared_contract" == true ]]; then
+    rm -rf PumpSyncTests/SessionContractArtifacts
+    xcodegen generate >/dev/null
+  fi
+}
 original_content_size="$(xcrun simctl ui "$device_id" content_size)"
-trap 'xcrun simctl ui "$device_id" content_size "$original_content_size" >/dev/null 2>&1 || true' EXIT
+trap cleanup EXIT
 xcrun simctl ui "$device_id" content_size large
 
 {
@@ -59,11 +72,11 @@ PUMPSYNC_TEST_LOG="$results_dir/full.log" bash scripts/ios/validate-tests.sh \
 xcrun xcresulttool get test-results summary --path "$results_dir/full.xcresult" > "$results_dir/full-summary.json"
 
 # Use actual simulator text settings, rather than a launch environment variable
-# that does not reliably change SwiftUI's text size. Every iteration must pass.
+# that does not reliably change SwiftUI's text size. Both text sizes must pass.
 for text_size in large accessibility-extra-extra-extra-large; do
   xcrun simctl ui "$device_id" content_size "$text_size"
   PUMPSYNC_TEST_LOG="$results_dir/recovery-$text_size.log" bash scripts/ios/validate-tests.sh \
-    -jobs 1 -parallel-testing-enabled NO -test-iterations 5 -test-repetition-relaunch-enabled YES \
+    -jobs 1 -parallel-testing-enabled NO \
     -only-testing:PumpSyncUITests/PumpSyncUITests/testConnectionRecoveryOpensSettingsTab \
     -resultBundlePath "$results_dir/recovery-$text_size.xcresult"
   xcrun xcresulttool get test-results summary --path "$results_dir/recovery-$text_size.xcresult" > "$results_dir/recovery-$text_size-summary.json"

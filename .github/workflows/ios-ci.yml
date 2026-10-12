@@ -15,6 +15,8 @@ on:
       - "scripts/ios/validate-tests.sh"
       - "scripts/ios/validate-cloud-tests.sh"
       - "scripts/ios/validate-session-contract.sh"
+      - "scripts/ios/prepare-session-contract.sh"
+      - "ci_scripts/**"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
   pull_request:
@@ -27,6 +29,8 @@ on:
       - "scripts/ios/validate-tests.sh"
       - "scripts/ios/validate-cloud-tests.sh"
       - "scripts/ios/validate-session-contract.sh"
+      - "scripts/ios/prepare-session-contract.sh"
+      - "ci_scripts/**"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
 
@@ -74,7 +78,7 @@ jobs:
           import json, sys
           device_types = json.load(sys.stdin)["devicetypes"]
           by_identifier = {device_type["identifier"]: device_type for device_type in device_types}
-          # Keep the small-screen coverage used by Xcode Cloud's test action.
+          # Keep the small-screen coverage used by the Xcode Cloud test action.
           preferred = [
               "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
               "com.apple.CoreSimulator.SimDeviceType.iPhone-16",
@@ -99,12 +103,6 @@ jobs:
           xcrun simctl bootstatus "$device_id" -b
           echo "destination=id=$device_id" >> "$GITHUB_OUTPUT"
 
-      - name: Validate tests and reject warnings
-        env:
-          PUMPSYNC_TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
-        run: |
-          bash scripts/ios/validate-tests.sh -jobs 1 -parallel-testing-enabled NO -derivedDataPath .DerivedData
-
       - name: Read pinned backend contract revision
         id: contract
         run: |
@@ -128,7 +126,8 @@ jobs:
         with:
           global-json-file: .session-contract-backend/global.json
 
-      - name: Validate actual cross-repository session contract
+      - name: Validate tests and reject warnings
         env:
           PUMPSYNC_TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
-        run: bash scripts/ios/validate-session-contract.sh --backend-path .session-contract-backend
+        run: |
+          bash scripts/ios/validate-tests.sh -jobs 1 -parallel-testing-enabled NO -derivedDataPath .DerivedData

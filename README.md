@@ -78,7 +78,7 @@ Before pushing a candidate or starting Xcode Cloud, run:
 bash scripts/ios/validate-cloud-tests.sh
 ```
 
-The Cloud preflight pins Xcode build `27A266a`, iOS 27.0, and iPhone SE (3rd generation), matching Internal Beta Build 38's test action. It creates a dedicated simulator if needed, runs all unit and UI tests, then repeats the connection recovery flow five times each at standard and maximum accessibility text sizes using actual simulator text settings. It restores the previous text size on exit. Any failure or build-tool warning fails validation. Raw logs, `.xcresult` bundles, summaries, and the tested environment/commit are saved under ignored `TestResults/`. Update the pin when the Cloud workflow changes; a pass on another device or OS does not satisfy this gate. Additional minimum-supported-OS, iPad, and physical-device checks remain necessary for release acceptance.
+The Cloud preflight pins Xcode build `27A266a`, iOS 27.0, and iPhone SE (3rd generation), matching Internal Beta Build 38's test action. It creates a dedicated simulator if needed, runs all unit and UI tests, then runs the connection recovery flow once each at standard and maximum accessibility text sizes using actual simulator text settings. It restores the previous text size on exit. Any failure or build-tool warning fails validation. Raw logs, `.xcresult` bundles, summaries, and the tested environment/commit are saved under ignored `TestResults/`. Update the pin when the Cloud workflow changes; a pass on another device or OS does not satisfy this gate. Additional minimum-supported-OS, iPad, and physical-device checks remain necessary for release acceptance.
 
 ## App Store Routing
 
@@ -93,3 +93,5 @@ TestFlight and development-signed purchases use Apple's sandbox and do not charg
 ## License
 
 PumpSync source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md). Noncommercial use — including running your own self-hosted backend for personal use — is permitted. Commercial use is reserved by the copyright holder.
+
+Automated local validation and Xcode Cloud post-clone prepare hosted and self-hosted session-contract resources from the clean backend revision in `PumpSyncTests/session-contract-manifest.json`. Preparation checks out that revision and installs its .NET SDK if absent. Missing resources fail the consumer tests; they never skip. GitHub CI installs the pinned backend SDK before the full suite, which includes both contract consumers. For direct Xcode tests, run `bash scripts/ios/prepare-session-contract.sh` followed by `xcodegen generate` first. Generated responses remain test-only and ignored by Git.

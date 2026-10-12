@@ -2,17 +2,17 @@ import XCTest
 import Synchronization
 @testable import PumpSync
 
-/// Resources exist only while validate-session-contract.sh runs the backend exporter.
-/// Normal unit/Cloud runs skip this separate, pinned cross-repository lane.
+/// Required backend-generated resources are prepared before automated test runs.
 @MainActor
 final class SessionContractConsumerTests: XCTestCase {
   func testHostedExportCompletesAuthRotationThroughGuardedImport() async throws { try await consume(mode: "hosted") }
   func testSelfHostedExportCompletesAuthRotationThroughGuardedImport() async throws { try await consume(mode: "selfHosted") }
 
   private func consume(mode: String) async throws {
-    guard let url = Bundle(for: Self.self).url(forResource: mode, withExtension: "json") else {
-      throw XCTSkip("Run scripts/ios/validate-session-contract.sh for backend-generated resources")
-    }
+    let url = try XCTUnwrap(
+      Bundle(for: Self.self).url(forResource: mode, withExtension: "json"),
+      "Missing backend contract data. Run scripts/ios/prepare-session-contract.sh before generating the test project."
+    )
     let artifact = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
     let beforeData = try JSONSerialization.data(withJSONObject: try XCTUnwrap(artifact["before"]))
     let afterData = try JSONSerialization.data(withJSONObject: try XCTUnwrap(artifact["after"]))

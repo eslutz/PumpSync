@@ -8,4 +8,5 @@ if ! command -v xcodegen >/dev/null 2>&1; then
   brew install xcodegen
 fi
 
+bash scripts/ios/prepare-session-contract.sh
 xcodegen generate

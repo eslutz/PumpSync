@@ -4,6 +4,18 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 log_path="${PUMPSYNC_TEST_LOG:-$(mktemp /tmp/pumpsync-test-validation.XXXXXX)}"
 destination="${PUMPSYNC_TEST_DESTINATION:-platform=iOS Simulator,name=iPhone 17,OS=latest}"
+prepared_contract=false
+if [[ ! -d PumpSyncTests/SessionContractArtifacts ]]; then
+  bash scripts/ios/prepare-session-contract.sh
+  prepared_contract=true
+fi
+cleanup() {
+  if [[ "$prepared_contract" == true ]]; then
+    rm -rf PumpSyncTests/SessionContractArtifacts
+    xcodegen generate >/dev/null
+  fi
+}
+trap cleanup EXIT
 xcodegen generate
 set +e
 xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync \
