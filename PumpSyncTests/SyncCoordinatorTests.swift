@@ -133,6 +133,10 @@ final class SyncCoordinatorTests: XCTestCase {
     try await verifyStaleDownloadFailure(change: "configuration", status: nil, code: "")
   }
 
+  func testSupersededRequestTokenWithSameImportContextRemainsFailedAndPreservesFreshAuth() async throws {
+    try await verifyStaleDownloadFailure(change: "sameContextToken", status: 401, code: "invalid_token")
+  }
+
   private func verifyStaleDownloadFailure(change: String, status: Int?, code: String) async throws {
     let started = expectation(description: "old download suspended")
     let allow = DispatchSemaphore(value: 0)
@@ -153,9 +157,15 @@ final class SyncCoordinatorTests: XCTestCase {
       throw URLError(.networkConnectionLost)
     }
     let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
-    let task = Task { await coordinator.sync(reason: .manual) }
+    let task = Task { await coordinator.run(reason: .manual) }
     await fulfillment(of: [started], timeout: 2)
     if change == "session" || change == "sameFamilyToken" { let restored = await auth.recoverHostedSubscriptionAfterAccessDenied(); XCTAssertTrue(restored) }
+    if change == "sameContextToken" {
+      let source = try XCTUnwrap(auth.authenticatedConnection)
+      let originalContext = auth.currentImportSnapshot(credentialRevision: credentials.revision)
+      try auth.installSession(.init(accessToken: "replacement-token", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: source.session.sessionFamilyId, refreshToken: "replacement-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture), installation: .verifiedRefresh(source: source))
+      XCTAssertEqual(auth.currentImportSnapshot(credentialRevision: credentials.revision), originalContext)
+    }
     if change == "credentials" { try credentials.saveValidated(TandemCredentials(username: "replacement@example.com", password: "new", region: "us")) }
     if change == "configuration" { config.mode = .selfHosted; config.selfHostedBaseURLString = "https://replacement.example/api" }
     let expectedSession = auth.session
@@ -163,9 +173,9 @@ final class SyncCoordinatorTests: XCTestCase {
     let expectedCredentials = try credentials.load()
     allow.signal()
     let result = await task.value
-    XCTAssertFalse(result)
+    XCTAssertEqual(result, change == "sameContextToken" ? .failed : .contextReplaced)
     XCTAssertEqual(auth.session, expectedSession)
-    if change == "session" || change == "sameFamilyToken" { XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "replacement-token") }
+    if change == "session" || change == "sameFamilyToken" || change == "sameContextToken" { XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "replacement-token") }
     XCTAssertTrue(credentials.hasValidatedCredentials)
     XCTAssertEqual(credentials.revision, expectedCredentialRevision)
     XCTAssertEqual(try credentials.load(), expectedCredentials)
@@ -343,12 +353,12 @@ final class SyncCoordinatorTests: XCTestCase {
       return try response(request)
     }
     let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
-    let task = Task { await coordinator.sync(reason: .manual) }
+    let task = Task { await coordinator.run(reason: .manual) }
     await fulfillment(of: [started], timeout: 2)
     try credentials.delete()
     allow.signal()
     let result = await task.value
-    XCTAssertFalse(result)
+    XCTAssertEqual(result, .contextReplaced)
     XCTAssertTrue(health.savedConcentrations.isEmpty)
     XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
   }
@@ -1093,6 +1103,73 @@ final class SyncCoordinatorTests: XCTestCase {
     await waitUntil { bootstraps == 3 && !foreground.isRecovering }
     for _ in 0..<10 { await Task.yield() }
     XCTAssertEqual(count.value, 1, "Reconciliation must reevaluate freshness")
+  }
+
+  func testBackgroundOnlySurvivorCannotRequestInteractiveSubscriptionRecoveryAfterDownload() async throws {
+    try await verifyBackgroundOnlyRecoveryHandoff(revokeDuringEntitlementLookup: false)
+  }
+
+  func testForegroundLeaseEndingDuringEntitlementLookupFencesInteractiveFallback() async throws {
+    try await verifyBackgroundOnlyRecoveryHandoff(revokeDuringEntitlementLookup: true)
+  }
+
+  private func verifyBackgroundOnlyRecoveryHandoff(revokeDuringEntitlementLookup: Bool) async throws {
+    let downloadEntered = expectation(description: "foreground download entered")
+    let releaseDownload = DispatchSemaphore(value: 0)
+    let entitlementEntered = revokeDuringEntitlementLookup ? expectation(description: "entitlement lookup entered") : nil
+    let entitlementGate = SyncRecoveryGate()
+    let interactiveLookups = LockIsolated(0)
+    let enrollments = LockIsolated(0)
+    let requests = LockIsolated(0)
+    let auth = AuthService(
+      apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0),
+      configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "PolicyHandoff-\(UUID().uuidString)")!),
+      currentEntitlementJWS: {
+        if revokeDuringEntitlementLookup { entitlementEntered?.fulfill(); await entitlementGate.wait() }
+        throw StoreKitSubscriptionError.noActiveSubscription
+      },
+      syncedCurrentEntitlementJWS: { interactiveLookups.withValue { $0 += 1 }; return "verified-fixture" },
+      createSubscriptionSession: { _ in
+        enrollments.withValue { $0 += 1 }
+        return BackendSessionResponse(accessToken: "replacement-fixture", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: RecoveringDeviceSessionProofProvider())
+    auth.applyScreenshotSession(serviceMode: "hosted")
+    let original = auth.session
+    let denial = errorResponseHandler(statusCode: 401, code: "active_subscription_required", message: "Subscription required.")
+    let response = syncResponseHandler(samples: [], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in
+      let number = requests.withValue { $0 += 1; return $0 }
+      if number == 1 {
+        downloadEntered.fulfill()
+        _ = releaseDownload.wait(timeout: .now() + 5)
+        return try denial(request)
+      }
+      return try response(request)
+    }
+    let health = FakeHealthKitService()
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let foreground = Task { await coordinator.run(reason: .manual) }
+    await fulfillment(of: [downloadEntered], timeout: 2)
+    let background = Task { await coordinator.run(reason: .background, lease: grantedBackgroundLease()) }
+    for _ in 0..<10 { await Task.yield() }
+    if !revokeDuringEntitlementLookup { coordinator.setForegroundActive(false) }
+    releaseDownload.signal()
+    if revokeDuringEntitlementLookup {
+      await fulfillment(of: [try XCTUnwrap(entitlementEntered)], timeout: 2)
+      coordinator.setForegroundActive(false)
+      await entitlementGate.open()
+    }
+    let foregroundResult = await foreground.value
+    let backgroundResult = await background.value
+    XCTAssertEqual(foregroundResult, .canceled)
+    XCTAssertEqual(backgroundResult, .failed)
+    XCTAssertEqual(interactiveLookups.value, 0, "A background grant cannot request StoreKit UI")
+    XCTAssertEqual(enrollments.value, 0)
+    XCTAssertEqual(requests.value, 1)
+    XCTAssertEqual(auth.session, original)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
   }
 
   func testBackgroundSyncRequiresAnExplicitFiniteGrant() async throws {

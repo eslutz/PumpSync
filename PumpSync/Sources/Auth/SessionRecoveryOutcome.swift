@@ -41,6 +41,11 @@ final class SessionRecoveryAttempt {
   var failure: SessionRecoveryReason?
 }
 
+typealias SessionRecoveryPolicyProvider = @MainActor @Sendable () -> SessionRecoveryPolicy
+
 enum SessionRecoveryContext {
   @TaskLocal static var current: SessionRecoveryAttempt?
+  // Recovery may suspend while its scene owner ends. Read the surviving
+  // owners again at each policy decision instead of retaining permission to UI.
+  @TaskLocal static var policyProvider: SessionRecoveryPolicyProvider?
 }

@@ -819,13 +819,16 @@ final class AuthService {
   }
 
   @discardableResult
-  func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground) async -> SessionRecoveryOutcome {
-    await SessionRecoveryContext.$current.withValue(SessionRecoveryAttempt()) {
-      await recoverSession(policy: policy)
+  func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground, policyProvider: SessionRecoveryPolicyProvider? = nil) async -> SessionRecoveryOutcome {
+    await SessionRecoveryContext.$policyProvider.withValue(policyProvider) {
+      await SessionRecoveryContext.$current.withValue(SessionRecoveryAttempt()) {
+        await recoverSession(policy: policy)
+      }
     }
   }
 
-  private func recoverSession(policy: SessionRecoveryPolicy, forceHostedEnrollment: Bool = false) async -> SessionRecoveryOutcome {
+  private func recoverSession(policy requestedPolicy: SessionRecoveryPolicy, forceHostedEnrollment: Bool = false) async -> SessionRecoveryOutcome {
+    var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     guard !Task.isCancelled else { return .canceled }
     let ownership = authOwnershipGeneration
     let configurationRevision = configurationStore.revision
@@ -866,7 +869,8 @@ final class AuthService {
     }
   }
 
-  private func performSessionRecovery(policy: SessionRecoveryPolicy) async {
+  private func performSessionRecovery(policy requestedPolicy: SessionRecoveryPolicy) async {
+    var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     if let task = subscriptionOperationTask {
       let attempt = subscriptionRecoveryAttempt
       await awaitSubscriptionOperation(task, operationID: subscriptionOperationID)
@@ -1047,15 +1051,18 @@ final class AuthService {
   /// retrying a request that the backend has already rejected for entitlement
   /// access.
   func recoverHostedSubscriptionAfterAccessDenied(
-    policy: SessionRecoveryPolicy = .foreground
+    policy: SessionRecoveryPolicy = .foreground,
+    policyProvider: SessionRecoveryPolicyProvider? = nil
   ) async -> Bool {
     guard configurationStore.mode == .hosted else {
       return false
     }
 
     let previousAccessToken = session?.accessToken
-    let outcome = await SessionRecoveryContext.$current.withValue(SessionRecoveryAttempt()) {
-      await recoverSession(policy: policy, forceHostedEnrollment: true)
+    let outcome = await SessionRecoveryContext.$policyProvider.withValue(policyProvider) {
+      await SessionRecoveryContext.$current.withValue(SessionRecoveryAttempt()) {
+        await recoverSession(policy: policy, forceHostedEnrollment: true)
+      }
     }
     guard case .ready = outcome else { return false }
 
@@ -1427,9 +1434,10 @@ final class AuthService {
   }
 
   private func recoverSubscriptionSession(
-    policy: SessionRecoveryPolicy = .foreground,
+    policy requestedPolicy: SessionRecoveryPolicy = .foreground,
     missingEntitlementDisposition: MissingEntitlementDisposition = .clearUnusableSession
   ) async {
+    var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     let progressLeaseID = beginConnectionProgressLease()
     defer { endConnectionProgressLease(progressLeaseID) }
     let ownershipGeneration = authOwnershipGeneration
@@ -1547,7 +1555,8 @@ final class AuthService {
     }
   }
 
-  private func subscriptionEntitlementJWS(for policy: SessionRecoveryPolicy) async throws -> String {
+  private func subscriptionEntitlementJWS(for requestedPolicy: SessionRecoveryPolicy) async throws -> String {
+    var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     do {
       return try await currentEntitlementJWS()
     } catch StoreKitSubscriptionError.noActiveSubscription where policy.allowsInteractiveRecovery {

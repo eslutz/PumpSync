@@ -98,6 +98,7 @@ final class SyncCoordinator {
   private struct Waiter {
     let lease: SyncExecutionLease
     let trigger: SyncTriggerReason
+    let recoveryPolicy: SessionRecoveryPolicy
   }
   private var syncWaiters: [UUID: [UUID: Waiter]] = [:]
   private var foregroundActive = false
@@ -230,8 +231,8 @@ final class SyncCoordinator {
           let task = makeSyncTask(reason: .manual, lease: lease),
           let operationID = syncOperationID else { return }
     let waiterID = UUID()
-    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: .manual)
-    Task { _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID, lease: lease, trigger: .manual) }
+    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: .manual, recoveryPolicy: .foreground)
+    Task { _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID, lease: lease, trigger: .manual, recoveryPolicy: .foreground) }
   }
 
   func setForegroundActive(_ active: Bool) {
@@ -275,22 +276,23 @@ final class SyncCoordinator {
     guard !demoPreviewActive else { return .skippedPreviewActive }
     guard reason != .background || lease?.kind == .background else { return .deferred(.executionLeaseExpired) }
     let lease = lease ?? SyncExecutionLease(kind: .foreground)
+    let recoveryPolicy = recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background))
     guard lease.isValid, lease.kind != .foreground || foregroundActive else { return .deferred(.executionLeaseExpired) }
     if let previous = syncTask, previous.isCancelled {
       _ = await previous.value
       guard !Task.isCancelled else { return .canceled }
       guard lease.isValid, lease.kind != .foreground || foregroundActive else { return .deferred(.executionLeaseExpired) }
     }
-    if let syncTask { return await awaitSyncTask(syncTask, lease: lease, trigger: reason) }
+    if let syncTask { return await awaitSyncTask(syncTask, lease: lease, trigger: reason, recoveryPolicy: recoveryPolicy) }
     guard let task = makeSyncTask(reason: reason, lease: lease, recoveryPolicy: recoveryPolicy, reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery) else { return .failed }
-    return await awaitSyncTask(task, lease: lease, trigger: reason)
+    return await awaitSyncTask(task, lease: lease, trigger: reason, recoveryPolicy: recoveryPolicy)
   }
 
   private func awaitSyncTask(
-    _ task: Task<SyncRunOutcome, Never>, operationID: UUID? = nil, waiterID: UUID = UUID(), lease: SyncExecutionLease, trigger: SyncTriggerReason
+    _ task: Task<SyncRunOutcome, Never>, operationID: UUID? = nil, waiterID: UUID = UUID(), lease: SyncExecutionLease, trigger: SyncTriggerReason, recoveryPolicy: SessionRecoveryPolicy
   ) async -> SyncRunOutcome {
     guard let operationID = operationID ?? syncOperationID else { return .contextReplaced }
-    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: trigger)
+    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: trigger, recoveryPolicy: recoveryPolicy)
     defer { removeSyncWaiter(waiterID, operationID: operationID) }
     return await withTaskCancellationHandler(operation: {
       let result = await task.value
@@ -313,6 +315,15 @@ final class SyncCoordinator {
 
   private func hasForcedSyncWaiter(_ operationID: UUID) -> Bool {
     syncWaiters[operationID]?.values.contains(where: { $0.lease.isValid && $0.trigger != .appOpen }) == true
+  }
+
+  private func recoveryPolicy(for intent: SyncIntent) -> SessionRecoveryPolicy {
+    let owners = syncWaiters[intent.operationID]?.values.filter { $0.lease.isValid } ?? []
+    if foregroundActive, owners.contains(where: { $0.lease.kind == .foreground && $0.recoveryPolicy.allowsInteractiveRecovery }) {
+      return .foreground
+    }
+    if owners.contains(where: { $0.lease.kind == .background }) { return .backgroundWithReenrollment }
+    return .background
   }
 
   private func removeSyncWaiter(_ waiterID: UUID, operationID: UUID) {
@@ -379,8 +390,10 @@ final class SyncCoordinator {
     // so refresh it here rather than relying on a view's .task/.onAppear.
     healthKitService.refreshAuthorizationStatus()
 
-    let recoveryPolicy = intent.recoveryPolicy
-    let recovery = await authService.recoverSessionIfNeeded(policy: recoveryPolicy)
+    let policyProvider: SessionRecoveryPolicyProvider = { [weak self] in
+      self?.recoveryPolicy(for: intent) ?? .background
+    }
+    let recovery = await authService.recoverSessionIfNeeded(policy: policyProvider(), policyProvider: policyProvider)
     let recoveredAccessToken: String?
     if case .ready(let connection, _) = recovery { recoveredAccessToken = connection.session.accessToken }
     else { recoveredAccessToken = nil }
@@ -561,11 +574,13 @@ final class SyncCoordinator {
             authService.operationImportSnapshot(credentialRevision: credentialStore.revision) == context else {
         fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
         diagnostics?.record(source: .sync, severity: .warning, title: "Stale sync response discarded")
-        return .failed
+        return .contextReplaced
       }
       let apiError = error as? APIClientError
       // Same-family refresh keeps successful downloads eligible. A rejection
       // of the old request token does not invalidate the fresh token, though.
+      // Its import context still matches: report the obsolete request's failure
+      // rather than claiming that the connection/account context was replaced.
       if case .httpStatus(401, _, _, _)? = apiError,
          authService.session?.accessToken != accessToken {
         fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
@@ -595,7 +610,7 @@ final class SyncCoordinator {
         )
       } else if subscriptionRequired,
                 !replacementAttemptUsed,
-                await authService.recoverHostedSubscriptionAfterAccessDenied(policy: recoveryPolicy) {
+                await authService.recoverHostedSubscriptionAfterAccessDenied(policy: policyProvider(), policyProvider: policyProvider) {
         diagnostics?.record(
           source: .sync,
           title: "Subscription access recovered",
