@@ -62,7 +62,10 @@ final class AppServices {
     self.backgroundSyncScheduler = backgroundSyncScheduler
     self.metricKitDiagnosticsCollector = metricKitDiagnosticsCollector
     foregroundRecovery = ForegroundRecoveryController(
-      setVisible: { authService.setConnectionProgressVisible($0) }
+      setVisible: {
+        authService.setConnectionProgressVisible($0)
+        syncCoordinator.setForegroundActive($0)
+      }
     ) {
       guard !syncCoordinator.isDemoPreviewActive else { return }
       do {
@@ -74,10 +77,9 @@ final class AppServices {
       }
       backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
       healthKitService.refreshAuthorizationStatus()
-      await authService.recoverSessionIfNeeded()
-      guard !Task.isCancelled, authService.isSignedIn else { return }
-      await syncCoordinator.refreshIfStale(reason: .appOpen)
+      await syncCoordinator.reconcileForegroundRecovery()
     }
+    foregroundRecovery.observeSessionRecovery(authService, syncCoordinator: syncCoordinator)
   }
 
   static func live() -> AppServices {
@@ -124,9 +126,6 @@ final class AppServices {
       syncMetadataStore: syncMetadataStore,
       diagnostics: diagnosticsLogStore
     )
-    authService.setHostedSubscriptionSessionEstablishedHandler { [weak syncCoordinator] in
-      syncCoordinator?.retryAfterSubscriptionAccessRestored()
-    }
     let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier) { error in
       Task { @MainActor in
         diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync scheduling failed")

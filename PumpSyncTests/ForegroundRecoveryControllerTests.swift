@@ -49,4 +49,40 @@ final class ForegroundRecoveryControllerTests: XCTestCase {
     while attempts < 2, Date() < retryDeadline { await Task.yield() }
     XCTAssertEqual(attempts, 2)
   }
+  func testReconciliationMergesExistingRecoveryAndWaitsForNextActiveScene() async {
+    var attempts = 0
+    var continuation: CheckedContinuation<Void, Never>?
+    let controller = ForegroundRecoveryController(setVisible: { _ in }) {
+      attempts += 1
+      if attempts == 1 { await withCheckedContinuation { continuation = $0 } }
+    }
+    controller.reconcileRecovery()
+    await Task.yield()
+    XCTAssertEqual(attempts, 0)
+    controller.setScenePhase(.active)
+    await waitUntil { continuation != nil }
+    controller.reconcileRecovery()
+    controller.reconcileRecovery()
+    await Task.yield()
+    XCTAssertEqual(attempts, 1)
+    continuation?.resume()
+    await waitUntil { !controller.isRecovering }
+    controller.reconcileRecovery()
+    await waitUntil { !controller.isRecovering }
+    XCTAssertEqual(attempts, 2)
+    controller.setScenePhase(.background)
+    controller.reconcileRecovery()
+    await Task.yield()
+    XCTAssertEqual(attempts, 2)
+    controller.setScenePhase(.active)
+    await waitUntil { !controller.isRecovering }
+    XCTAssertEqual(attempts, 3)
+  }
+
+  private func waitUntil(_ predicate: () -> Bool) async {
+    let deadline = Date().addingTimeInterval(1)
+    while !predicate(), Date() < deadline { await Task.yield() }
+    XCTAssertTrue(predicate())
+  }
+
 }

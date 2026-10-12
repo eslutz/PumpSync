@@ -55,13 +55,6 @@ enum SyncOperationState: Equatable {
   case failed(SyncFailure)
 }
 
-enum SyncRunOutcome: Equatable {
-  case completed
-  case skippedFresh
-  case skippedPreviewActive
-  case failed
-}
-
 /// The slice of HealthKitService's surface SyncCoordinator depends on,
 /// extracted as a seam so tests can substitute a fake — real HealthKit
 /// authorization/writes require device interaction and aren't something a
@@ -100,9 +93,14 @@ final class SyncCoordinator {
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
   private var demoPreviewActive = false
-  private var syncTask: Task<Bool, Never>?
+  private var syncTask: Task<SyncRunOutcome, Never>?
   private var syncOperationID: UUID?
-  private var syncWaiters: [UUID: Set<UUID>] = [:]
+  private struct Waiter {
+    let lease: SyncExecutionLease
+    let trigger: SyncTriggerReason
+  }
+  private var syncWaiters: [UUID: [UUID: Waiter]] = [:]
+  private var foregroundActive = false
 
   private(set) var isNotificationDismissed = false
 
@@ -183,7 +181,11 @@ final class SyncCoordinator {
   }
 
   @discardableResult
-  func refreshIfStale(reason: SyncTriggerReason) async -> SyncRunOutcome {
+  func refreshIfStale(reason: SyncTriggerReason, lease: SyncExecutionLease? = nil) async -> SyncRunOutcome {
+    guard !Task.isCancelled else { return .canceled }
+    // Join an existing owner before evaluating freshness: it may be committing
+    // the success that makes this request fresh.
+    if syncTask != nil { return await run(reason: reason, lease: lease) }
     guard !demoPreviewActive else { return .skippedPreviewActive }
     if reason == .background {
       diagnostics?.record(
@@ -191,9 +193,21 @@ final class SyncCoordinator {
         title: "Background sync policy evaluated",
         message: "build=\(BackgroundSyncDiagnostics.buildNumber) reason=background decision=sync policy=grantedTask"
       )
-      return await sync(reason: reason) ? .completed : .failed
+      return await run(reason: reason, lease: lease)
     }
 
+    guard shouldRefresh(reason: reason) else { return .skippedFresh }
+    return await run(reason: reason, lease: lease)
+  }
+
+  /// Foreground bootstrap and late committed-auth signals enter the same owner.
+  /// Capture guards before auth and reevaluate freshness after it completes.
+  @discardableResult
+  func reconcileForegroundRecovery() async -> SyncRunOutcome {
+    await run(reason: .appOpen, recoveryPolicy: .foreground, reevaluatesFreshnessAfterRecovery: true)
+  }
+
+  private func shouldRefresh(reason: SyncTriggerReason) -> Bool {
     let lastSuccessfulSyncAt = syncMetadataStore.metadata.lastSuccessfulSyncAt
     let ageSeconds = lastSuccessfulSyncAt.map { max(0, Date().timeIntervalSince($0)) }
     let shouldRefresh = ageSeconds.map { $0 >= AppConstants.staleSyncInterval } ?? true
@@ -204,25 +218,29 @@ final class SyncCoordinator {
       message: "build=\(BackgroundSyncDiagnostics.buildNumber) reason=\(reason.rawValue) decision=\(shouldRefresh ? "sync" : "skip") lastSuccessAgeSeconds=\(ageDescription) targetSeconds=\(Int(AppConstants.staleSyncInterval))"
     )
 
-    guard shouldRefresh else {
+    if !shouldRefresh {
       diagnostics?.record(source: .sync, title: "Sync skipped", message: "Last successful sync is within the four-hour freshness target.")
-      return .skippedFresh
     }
-
-    return await sync(reason: reason) ? .completed : .failed
+    return shouldRefresh
   }
 
   func startManualSync() {
-    guard syncTask == nil,
-          let task = makeSyncTask(reason: .manual) else {
-      return
-    }
-    guard let operationID = syncOperationID else { return }
+    let lease = SyncExecutionLease(kind: .foreground)
+    guard syncTask == nil, foregroundActive,
+          let task = makeSyncTask(reason: .manual, lease: lease),
+          let operationID = syncOperationID else { return }
     let waiterID = UUID()
-    syncWaiters[operationID, default: []].insert(waiterID)
-    Task {
-      _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID)
+    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: .manual)
+    Task { _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID, lease: lease, trigger: .manual) }
+  }
+
+  func setForegroundActive(_ active: Bool) {
+    foregroundActive = active
+    guard !active, let operationID = syncOperationID else { return }
+    if let waiters = syncWaiters[operationID] {
+      for waiter in waiters.values where waiter.lease.kind == .foreground { waiter.lease.revoke() }
     }
+    if !hasExecutionLease(operationID) { syncTask?.cancel() }
   }
 
   func retry() {
@@ -245,74 +263,82 @@ final class SyncCoordinator {
     }
   }
 
-  /// A successful subscription purchase or restore can finish after the
-  /// original sync has already failed. Replace only that subscription warning
-  /// with a single manual sync; generic authentication and Tandem failures
-  /// remain visible for the user to address.
-  func retryAfterSubscriptionAccessRestored() {
-    guard case .failed(let failure) = operationState,
-          failure.recovery == .openSubscription else {
-      return
-    }
-    operationState = .idle
-    diagnostics?.record(source: .sync, title: "Subscription access recovered", message: "retry=sync reason=subscriptionSessionEstablished")
-    startManualSync()
+  @discardableResult
+  func sync(reason: SyncTriggerReason, lease: SyncExecutionLease? = nil) async -> Bool {
+    await run(reason: reason, lease: lease).succeeded
   }
 
-  @discardableResult
-  func sync(reason: SyncTriggerReason) async -> Bool {
-    guard !Task.isCancelled, !demoPreviewActive else { return false }
-    if let syncTask {
-      return await awaitSyncTask(syncTask)
+  /// All triggers share one execution and retain their individual leases.
+  /// Canceling one caller cannot cancel work still owned by another caller.
+  func run(reason: SyncTriggerReason, lease: SyncExecutionLease? = nil, recoveryPolicy: SessionRecoveryPolicy? = nil, reevaluatesFreshnessAfterRecovery: Bool = false) async -> SyncRunOutcome {
+    guard !Task.isCancelled else { return .canceled }
+    guard !demoPreviewActive else { return .skippedPreviewActive }
+    guard reason != .background || lease?.kind == .background else { return .deferred(.executionLeaseExpired) }
+    let lease = lease ?? SyncExecutionLease(kind: .foreground)
+    guard lease.isValid, lease.kind != .foreground || foregroundActive else { return .deferred(.executionLeaseExpired) }
+    if let previous = syncTask, previous.isCancelled {
+      _ = await previous.value
+      guard !Task.isCancelled else { return .canceled }
+      guard lease.isValid, lease.kind != .foreground || foregroundActive else { return .deferred(.executionLeaseExpired) }
     }
-
-    guard let task = makeSyncTask(reason: reason) else {
-      return false
-    }
-    return await awaitSyncTask(task)
+    if let syncTask { return await awaitSyncTask(syncTask, lease: lease, trigger: reason) }
+    guard let task = makeSyncTask(reason: reason, lease: lease, recoveryPolicy: recoveryPolicy, reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery) else { return .failed }
+    return await awaitSyncTask(task, lease: lease, trigger: reason)
   }
 
   private func awaitSyncTask(
-    _ task: Task<Bool, Never>, operationID: UUID? = nil, waiterID: UUID = UUID()
-  ) async -> Bool {
-    guard let operationID = operationID ?? syncOperationID else { return false }
-    syncWaiters[operationID, default: []].insert(waiterID)
+    _ task: Task<SyncRunOutcome, Never>, operationID: UUID? = nil, waiterID: UUID = UUID(), lease: SyncExecutionLease, trigger: SyncTriggerReason
+  ) async -> SyncRunOutcome {
+    guard let operationID = operationID ?? syncOperationID else { return .contextReplaced }
+    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: trigger)
     defer { removeSyncWaiter(waiterID, operationID: operationID) }
     return await withTaskCancellationHandler(operation: {
       let result = await task.value
-      return Task.isCancelled ? false : result
+      if Task.isCancelled || result == .canceled { return .canceled }
+      guard lease.isValid else { return lease.kind == .foreground ? .canceled : .deferred(.executionLeaseExpired) }
+      return result
     }, onCancel: {
+      lease.revoke()
       Task { @MainActor [weak self] in
         guard let self else { return }
         self.removeSyncWaiter(waiterID, operationID: operationID)
-        if self.syncOperationID == operationID, self.syncWaiters[operationID] == nil {
-          task.cancel()
-        }
+        if self.syncOperationID == operationID, !self.hasExecutionLease(operationID) { task.cancel() }
       }
     })
   }
 
+  private func hasExecutionLease(_ operationID: UUID) -> Bool {
+    syncWaiters[operationID]?.values.contains(where: { $0.lease.isValid }) == true
+  }
+
+  private func hasForcedSyncWaiter(_ operationID: UUID) -> Bool {
+    syncWaiters[operationID]?.values.contains(where: { $0.lease.isValid && $0.trigger != .appOpen }) == true
+  }
+
   private func removeSyncWaiter(_ waiterID: UUID, operationID: UUID) {
-    syncWaiters[operationID]?.remove(waiterID)
+    syncWaiters[operationID]?.removeValue(forKey: waiterID)
     if syncWaiters[operationID]?.isEmpty == true { syncWaiters[operationID] = nil }
   }
 
-  private func makeSyncTask(reason: SyncTriggerReason) -> Task<Bool, Never>? {
-    guard beginSync(reason: reason) else {
-      return nil
-    }
-
+  private func makeSyncTask(reason: SyncTriggerReason, lease: SyncExecutionLease, recoveryPolicy: SessionRecoveryPolicy? = nil, reevaluatesFreshnessAfterRecovery: Bool = false) -> Task<SyncRunOutcome, Never>? {
+    let previousPresentation = operationState
+    let previousNotificationDismissed = isNotificationDismissed
+    guard beginSync(reason: reason) else { return nil }
     let operationID = UUID()
-    let concentration = healthKitService.concentration
-    let credentialRevision = credentialStore.revision
-    let configuration = authService.importConfigurationSnapshot
-    let initialContext = authService.operationImportSnapshot(credentialRevision: credentialRevision)
+    let intent = SyncIntent(operationID: operationID, trigger: reason,
+      configuration: authService.importConfigurationSnapshot, credentialRevision: credentialStore.revision,
+      concentration: healthKitService.concentration,
+      initialContext: authService.operationImportSnapshot(credentialRevision: credentialStore.revision), lease: lease,
+      recoveryPolicy: recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background)),
+      reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery)
     let task = Task { @MainActor [weak self] in
-      guard let self else {
-        return false
-      }
-      let result = await self.performSync(reason: reason, concentration: concentration, credentialRevision: credentialRevision, configuration: configuration, capturedContext: initialContext)
+      guard let self else { return SyncRunOutcome.canceled }
+      let result = await self.performSync(intent: intent, capturedContext: intent.initialContext)
       if self.syncOperationID == operationID {
+        if result == .skippedFresh, case .succeeded = previousPresentation {
+          self.operationState = previousPresentation
+          self.isNotificationDismissed = previousNotificationDismissed
+        }
         self.syncTask = nil
         self.syncOperationID = nil
       }
@@ -332,44 +358,43 @@ final class SyncCoordinator {
   }
 
   private func performSync(
-    reason: SyncTriggerReason,
-    concentration: InsulinConcentration,
-    credentialRevision: Int,
-    configuration: ImportConfigurationSnapshot,
+    intent: SyncIntent,
     capturedContext: ImportSessionSnapshot? = nil,
-    allowsSubscriptionRecovery: Bool = true
-  ) async -> Bool {
+    replacementAttemptUsed: Bool = false
+  ) async -> SyncRunOutcome {
+    let reason = intent.trigger
+    let configuration = intent.configuration
+    let credentialRevision = intent.credentialRevision
+    let concentration = intent.concentration
     let startedAt: Date
     if case .running(let progress) = operationState {
       startedAt = progress.startedAt
     } else {
-      return false
+      return .failed
     }
+
+    if let stopped = stoppedOutcome(intent) { recordCancellation(reason: reason); return stopped }
 
     // A background launch has no view lifecycle to refresh permission state,
     // so refresh it here rather than relying on a view's .task/.onAppear.
     healthKitService.refreshAuthorizationStatus()
 
-    let recoveryPolicy: SessionRecoveryPolicy
-    switch reason {
-    case .manual:
-      recoveryPolicy = .foreground
-    case .appOpen:
-      recoveryPolicy = .background
-    case .background:
-      recoveryPolicy = .backgroundWithReenrollment
-    }
-    let recoveredAccessToken = await authService.accessTokenRecoveringIfNeeded(policy: recoveryPolicy)
-    guard !Task.isCancelled else {
-      recordCancellation(reason: reason)
-      return false
-    }
+    let recoveryPolicy = intent.recoveryPolicy
+    let recovery = await authService.recoverSessionIfNeeded(policy: recoveryPolicy)
+    let recoveredAccessToken: String?
+    if case .ready(let connection, _) = recovery { recoveredAccessToken = connection.session.accessToken }
+    else { recoveredAccessToken = nil }
+    if let stopped = stoppedOutcome(intent) { recordCancellation(reason: reason); return stopped }
 
     guard configuration == authService.importConfigurationSnapshot else {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return false
+      return .contextReplaced
     }
 
+    if recovery == .rejected(.connectionReplaced) {
+      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+      return .contextReplaced
+    }
     guard let accessToken = recoveredAccessToken else {
       if authService.requiresSubscriptionAction {
         fail(
@@ -380,53 +405,71 @@ final class SyncCoordinator {
         fail("Connect PumpSync before syncing.", recovery: .openSettings)
       }
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")
-      return false
+      switch recovery {
+      case .deferred(let reason): return .deferred(.recovery(reason))
+      case .requiresUserAction(let reason), .rejected(let reason): return .blocked(.session(reason))
+      case .canceled: return .canceled
+      case .ready: return .failed
+      }
+    }
+
+    guard credentialRevision == credentialStore.revision else {
+      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+      return .contextReplaced
+    }
+    if intent.reevaluatesFreshnessAfterRecovery, !hasForcedSyncWaiter(intent.operationID), !shouldRefresh(reason: reason) {
+      operationState = .idle
+      return .skippedFresh
     }
 
     guard credentialStore.hasValidatedCredentials else {
       fail("Save your pump account credentials before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Pump account credentials are not validated.")
-      return false
+      return .blocked(.credentials)
     }
 
     guard let credentials = try? credentialStore.load() else {
       fail("Add your pump account before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing pump account credentials.")
-      return false
+      return .blocked(.credentials)
     }
 
     guard healthKitService.hasAnyWritePermission else {
       fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "No Apple Health write permissions are enabled.")
-      return false
+      return .blocked(.healthPermission)
     }
 
     // Cancellation can arrive while validating local prerequisites after auth
     // recovery. Do not issue a new request after the BGTask budget has expired.
-    guard !Task.isCancelled else {
+    if let stopped = stoppedOutcome(intent) {
       recordCancellation(reason: reason)
-      return false
+      return stopped
     }
 
     guard credentialStore.revision == credentialRevision,
           let currentContext = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return false
+      return .contextReplaced
+    }
+    if let capturedContext, capturedContext != currentContext,
+       case .ready(_, transition: .reenrolled) = recovery, !replacementAttemptUsed {
+      return await performSync(intent: intent, capturedContext: currentContext, replacementAttemptUsed: true)
     }
     let context = capturedContext ?? currentContext
     guard context.dataSourceMode == .tandemSource else {
       let error: HealthImportError = context.dataSourceMode == .syntheticDemo ? .previewOnly : .unverifiedSource
       fail(error.localizedDescription, recovery: .openSettings)
-      return false
+      return .blocked(.unverifiedSource)
     }
     guard context == currentContext else {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return false
+      return .contextReplaced
     }
     guard let submittedConnection = authService.authenticatedConnection,
           submittedConnection.session.accessToken == accessToken else {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return false
+      return .contextReplaced
     }
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
     recordBackgroundStage(.preparing, startedAt: startedAt, reason: reason)
@@ -445,12 +488,12 @@ final class SyncCoordinator {
       )
       operationState = .running(SyncProgress(phase: .downloading, trigger: reason, startedAt: startedAt))
       recordBackgroundStage(.downloading, startedAt: startedAt, reason: reason)
-      guard !Task.isCancelled else {
+      if let stopped = stoppedOutcome(intent) {
         recordCancellation(reason: reason)
-        return false
+        return stopped
       }
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
-      try Task.checkCancellation()
+      try checkExecution(intent)
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
       let plan = try ImportPlanner.makePlan(response: response, context: context, concentration: concentration)
       _ = try HealthImportPolicy.authorize(plan: plan, current: current)
@@ -464,14 +507,14 @@ final class SyncCoordinator {
       // sample.
       operationState = .running(SyncProgress(phase: .updatingHealth, trigger: reason, startedAt: startedAt))
       recordBackgroundStage(.updatingHealth, startedAt: startedAt, reason: reason)
-      try Task.checkCancellation()
+      try checkExecution(intent)
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
       let batch = try HealthImportPolicy.authorize(plan: plan.selectingSamples(unseenSamples), current: current)
       let writtenSamples = try await healthKitService.save(batch: batch)
       try importedSampleLedger.recordImported(writtenSamples)
       // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
       // writes for deduplication, but never publish success for abandoned work.
-      try Task.checkCancellation()
+      try checkExecution(intent)
       try HealthImportPolicy.validate(batch: batch, current: authService.currentImportSnapshot(credentialRevision: credentialStore.revision))
       let importedCount = writtenSamples.count
       let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
@@ -503,12 +546,13 @@ final class SyncCoordinator {
       } else {
         operationState = .succeeded(SyncCompletion(message: completionMessage, completedAt: Date()))
       }
-      return true
+      return .completed
     } catch {
-      if Task.isCancelled || error is CancellationError {
+      if let stopped = stoppedOutcome(intent) {
         recordCancellation(reason: reason)
-        return false
+        return stopped
       }
+      if error is CancellationError { recordCancellation(reason: reason); return .canceled }
       // A response belongs to the captured operation, not to replacement
       // credentials or a new connection established during the download.
       // Refuse stale failures before any session/validation/metadata mutation.
@@ -517,7 +561,7 @@ final class SyncCoordinator {
             authService.operationImportSnapshot(credentialRevision: credentialStore.revision) == context else {
         fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
         diagnostics?.record(source: .sync, severity: .warning, title: "Stale sync response discarded")
-        return false
+        return .failed
       }
       let apiError = error as? APIClientError
       // Same-family refresh keeps successful downloads eligible. A rejection
@@ -526,7 +570,7 @@ final class SyncCoordinator {
          authService.session?.accessToken != accessToken {
         fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
         diagnostics?.record(source: .sync, severity: .warning, title: "Superseded authentication failure discarded")
-        return false
+        return .failed
       }
       let subscriptionRequired = authService.isHostedMode && apiError?.isActiveSubscriptionRequired == true
       if apiError?.isAuthenticationFailure == true && !subscriptionRequired {
@@ -550,14 +594,21 @@ final class SyncCoordinator {
           recovery: .openSettings
         )
       } else if subscriptionRequired,
-                allowsSubscriptionRecovery,
+                !replacementAttemptUsed,
                 await authService.recoverHostedSubscriptionAfterAccessDenied(policy: recoveryPolicy) {
         diagnostics?.record(
           source: .sync,
           title: "Subscription access recovered",
           message: "retry=sync reason=\(reason.rawValue)"
         )
-        return await performSync(reason: reason, concentration: concentration, credentialRevision: credentialRevision, configuration: configuration, capturedContext: context, allowsSubscriptionRecovery: false)
+        if let stopped = stoppedOutcome(intent) { recordCancellation(reason: reason); return stopped }
+        guard configuration == authService.importConfigurationSnapshot,
+              credentialRevision == credentialStore.revision,
+              let freshContext = authService.currentImportSnapshot(credentialRevision: credentialRevision) else {
+          fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+          return .contextReplaced
+        }
+        return await performSync(intent: intent, capturedContext: freshContext, replacementAttemptUsed: true)
       } else if subscriptionRequired {
         fail(
           "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
@@ -582,8 +633,17 @@ final class SyncCoordinator {
         fail("Sync could not be completed. Try again.", recovery: .none)
       }
       diagnostics?.record(error: error, source: .sync, title: "Sync failed")
-      return false
+      return .failed
     }
+  }
+
+  private func stoppedOutcome(_ intent: SyncIntent) -> SyncRunOutcome? {
+    if !hasExecutionLease(intent.operationID) { return Task.isCancelled ? .canceled : .deferred(.executionLeaseExpired) }
+    return Task.isCancelled ? .canceled : nil
+  }
+
+  private func checkExecution(_ intent: SyncIntent) throws {
+    if stoppedOutcome(intent) != nil { throw CancellationError() }
   }
 
   private func fail(_ message: String, recovery: SyncRecovery) {
@@ -641,13 +701,8 @@ final class SyncCoordinator {
     ].contains(error.code)
   }
 
-  func performBackgroundSync() async -> Bool {
-    switch await refreshIfStale(reason: .background) {
-    case .completed, .skippedFresh:
-      return true
-    case .failed, .skippedPreviewActive:
-      return false
-    }
+  func performBackgroundSync(lease: SyncExecutionLease) async -> Bool {
+    await refreshIfStale(reason: .background, lease: lease).succeeded
   }
 
   private func message(sampleCount: Int, importedCount: Int, reason: SyncTriggerReason) -> String {

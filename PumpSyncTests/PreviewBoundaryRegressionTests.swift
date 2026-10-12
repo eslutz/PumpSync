@@ -55,6 +55,44 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         XCTAssertTrue(message.contains("Settings"))
     }
 
+    func testRealPreviewReenrollmentCapturesFreshContextBeforeDownload() async throws {
+        let keychain = SecureKeychainStore(service: "real-preview-reenrollment-\(UUID().uuidString)")
+        defer { try? keychain.deleteAll() }
+        let credentials = TandemCredentialStore(keychain: keychain)
+        try credentials.saveValidated(.init(username: "real-fixture", password: "real-fixture", region: "us"))
+        let api = PumpSyncAPIClient(baseURL: URL(string: "https://preview.example/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+        var enrollments = 0
+        let auth = AuthService(apiClient: api, configurationStore: .ephemeral(selfHostedBaseURL: api.baseURL, installationId: "real-fixture"),
+            currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+            createSelfHostedSession: { _ in
+                enrollments += 1
+                return BackendSessionResponse(accessToken: enrollments == 1 ? "expired-fixture" : "fresh-fixture", expiresAt: enrollments == 1 ? .distantPast : .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: enrollments == 1 ? "expired-family" : "fresh-family", refreshToken: "fixture", refreshTokenExpiresAt: enrollments == 1 ? .distantPast : .distantFuture, refreshTokenAbsoluteExpiresAt: enrollments == 1 ? .distantPast : .distantFuture)
+            }, proofProvider: PreviewBoundaryProof())
+        await auth.connectSelfHosted()
+        let original = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: credentials.revision))
+        let suite = "real-preview-reenrollment-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let downloads = BoundaryLocked<[String]>([])
+        URLProtocolStub.requestHandler = { request in
+            if request.url!.path.hasSuffix("capabilities") {
+                return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8))
+            }
+            downloads.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"tandemSource"}"#.utf8))
+        }
+        let metadata = SyncMetadataStore(defaults: defaults)
+        let prior = metadata.metadata
+        let preview = RealImportPreviewSession(apiClient: api, authService: auth, credentialStore: credentials, metadataStore: metadata, concentrationStore: .init(defaults: defaults))
+        await preview.load()
+        guard case .ready(let plan) = preview.controller.state else { return XCTFail("Fresh reenrollment should enable one preview download") }
+        XCTAssertEqual(enrollments, 2)
+        XCTAssertEqual(downloads.value, ["Bearer fresh-fixture"])
+        XCTAssertNotEqual(plan.context.connectionId, original.connectionId)
+        XCTAssertEqual(plan.context, auth.currentImportSnapshot(credentialRevision: credentials.revision))
+        XCTAssertEqual(metadata.metadata, prior)
+    }
+
     func testCanceledAndReplacedRequestsCannotPublishLateResults() async throws {
         let (auth, api) = makeAuth(expired: false)
         await auth.connectSelfHosted()

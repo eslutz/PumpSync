@@ -6,8 +6,9 @@ final class BackgroundExecutionDeadlineTests: XCTestCase {
   func testCancellingCallerCancelsOperationBeforeDeadline() async {
     let operationStarted = Mutex(false)
     let cancellationObserved = Mutex(false)
+    let lease = SyncExecutionLease(kind: .background, deadline: Date().addingTimeInterval(3))
     let caller = Task {
-      await BackgroundExecutionDeadline.run(timeout: .seconds(3)) {
+      await BackgroundExecutionDeadline.run(timeout: .seconds(3), lease: lease) {
         operationStarted.withLock { $0 = true }
         do {
           try await Task.sleep(for: .seconds(60))
@@ -29,6 +30,7 @@ final class BackgroundExecutionDeadlineTests: XCTestCase {
 
     let outcome = await caller.value
     XCTAssertEqual(outcome, .cancelled)
+    XCTAssertFalse(lease.isValid, "The system expiration cancellation path revokes the grant immediately")
     let cancellationDeadline = Date().addingTimeInterval(1)
     while !cancellationObserved.withLock({ $0 }), Date() < cancellationDeadline {
       await Task.yield()
@@ -38,8 +40,9 @@ final class BackgroundExecutionDeadlineTests: XCTestCase {
 
   func testDeadlineReturnsFailureAndCancelsStalledOperation() async {
     let cancellationObserved = Mutex(false)
+    let lease = SyncExecutionLease(kind: .background, deadline: Date().addingTimeInterval(3))
 
-    let outcome = await BackgroundExecutionDeadline.run(timeout: .milliseconds(50)) {
+    let outcome = await BackgroundExecutionDeadline.run(timeout: .milliseconds(50), lease: lease) {
       do {
         try await Task.sleep(for: .seconds(60))
         return true
@@ -50,6 +53,7 @@ final class BackgroundExecutionDeadlineTests: XCTestCase {
     }
 
     XCTAssertEqual(outcome, .timedOut)
+    XCTAssertFalse(lease.isValid)
     let cancellationDeadline = Date().addingTimeInterval(1)
     while !cancellationObserved.withLock({ $0 }), Date() < cancellationDeadline {
       await Task.yield()

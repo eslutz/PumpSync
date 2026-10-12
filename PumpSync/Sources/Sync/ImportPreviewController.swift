@@ -38,8 +38,10 @@ final class ImportPreviewController {
     func load(request: TandemSyncRequest, context: ImportSessionSnapshot, concentration: InsulinConcentration) async {
         cancel()
         let id = operationID
+        let configuration = authService.importConfigurationSnapshot
         state = .loading
         let task = Task { @MainActor in
+            var context = context
             var submittedConnection: AuthenticatedConnection?
             do {
                 let capabilities = try await apiClient.capabilities()
@@ -47,8 +49,21 @@ final class ImportPreviewController {
                 guard capabilities.dataSourceMode == context.dataSourceMode else { throw HealthImportError.sourceMismatch }
                 guard id == operationID, !Task.isCancelled else { return }
                 guard context == currentContext() else { state = .failed("Your connection or pump account changed. Reconnect or validate the account, then retry Preview."); return }
-                guard let token = await authService.accessTokenRecoveringIfNeeded() else { throw PreviewError.connectionRequired }
+                let recovery = await authService.recoverSessionIfNeeded()
                 guard !Task.isCancelled, id == operationID else { return }
+                guard case .ready(let recovered, let transition) = recovery else { throw PreviewError.connectionRequired }
+                let token = recovered.session.accessToken
+                // Recovery may replace continuity before any preview records
+                // have been downloaded. Capture that fresh source once, only
+                // while the original configuration/account still owns the view.
+                if purpose == .real, transition == .reenrolled, let fresh = currentContext(),
+                   configuration == authService.importConfigurationSnapshot,
+                   fresh.backendIdentity == context.backendIdentity,
+                   fresh.configurationRevision == context.configurationRevision,
+                   fresh.credentialRevision == context.credentialRevision,
+                   fresh.dataSourceMode == context.dataSourceMode {
+                    context = fresh
+                }
                 guard context == currentContext() else { state = .failed("Your connection or pump account changed. Reconnect or validate the account, then retry Preview."); return }
                 guard let connection = authService.authenticatedConnection, connection.session.accessToken == token else { throw PreviewError.connectionRequired }
                 submittedConnection = connection
@@ -70,7 +85,11 @@ final class ImportPreviewController {
             }
         }
         self.task = task
-        await task.value
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
         if id == operationID { self.task = nil }
     }
 

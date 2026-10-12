@@ -12,6 +12,7 @@ enum BackgroundExecutionOutcome: Equatable {
 enum BackgroundExecutionDeadline {
   static func run(
     timeout: Duration,
+    lease: SyncExecutionLease? = nil,
     operation: @escaping @Sendable () async -> Bool
   ) async -> BackgroundExecutionOutcome {
     let workTaskBox = Mutex<Task<Void, Never>?>(nil)
@@ -22,6 +23,7 @@ enum BackgroundExecutionDeadline {
         let completed = Mutex(false)
         let timeoutTaskBox = Mutex<Task<Void, Never>?>(nil)
         let finish: @Sendable (BackgroundExecutionOutcome) -> Void = { outcome in
+          lease?.revoke()
           let shouldFinish = completed.withLock { completed in
             guard !completed else { return false }
             completed = true
@@ -62,6 +64,7 @@ enum BackgroundExecutionDeadline {
           } catch {
             return
           }
+          lease?.revoke()
           work.cancel()
           finish(.timedOut)
         }
@@ -73,6 +76,7 @@ enum BackgroundExecutionDeadline {
         }
       }
     } onCancel: {
+      lease?.revoke()
       workTaskBox.withLock { $0?.cancel() }
       let finish = finishBox.withLock { $0 }
       finish?(.cancelled)
@@ -101,7 +105,7 @@ final class BackgroundSyncScheduler {
     self.onEvent = onEvent
   }
 
-  func register(handler: @escaping @Sendable () async -> Bool) {
+  func register(handler: @escaping @Sendable (SyncExecutionLease) async -> Bool) {
     guard !isRegistered else {
       return
     }
@@ -186,7 +190,7 @@ final class BackgroundSyncScheduler {
     }
   }
 
-  private func handle(task: BGTask, handler: @escaping @Sendable () async -> Bool) {
+  private func handle(task: BGTask, handler: @escaping @Sendable (SyncExecutionLease) async -> Bool) {
     scheduleDailySync(trigger: "taskLaunch")
 
     let onEvent = onEvent
@@ -220,8 +224,12 @@ final class BackgroundSyncScheduler {
     }
 
     let executionTimeout = executionTimeout
+    let lease = SyncExecutionLease(kind: .background, deadline: startedAt.addingTimeInterval(Double(executionTimeout.components.seconds) + Double(executionTimeout.components.attoseconds) / 1e18))
     let work = Task {
-      let outcome = await BackgroundExecutionDeadline.run(timeout: executionTimeout, operation: handler)
+      let outcome = await BackgroundExecutionDeadline.run(timeout: executionTimeout, lease: lease) {
+        await handler(lease)
+      }
+      lease.revoke()
       let cancelled = Task.isCancelled
       switch outcome {
       case .completed(let succeeded):
@@ -239,6 +247,7 @@ final class BackgroundSyncScheduler {
     }
 
     task.expirationHandler = {
+      lease.revoke()
       work.cancel()
       let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
       onEvent?("Background sync task expired", "build=\(BackgroundSyncDiagnostics.buildNumber) elapsedMs=\(elapsedMs)")

@@ -717,7 +717,7 @@ final class AuthServiceTests: XCTestCase {
 
     _ = await service.recoverSessionIfNeeded()
     var establishedSessionCallbacks = 0
-    service.setHostedSubscriptionSessionEstablishedHandler {
+    service.setSessionEstablishedHandler {
       establishedSessionCallbacks += 1
     }
     let recovered = await service.recoverHostedSubscriptionAfterAccessDenied()

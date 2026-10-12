@@ -208,7 +208,7 @@ final class AuthService {
   private var renewableRefreshOperationKey: RenewableRefreshOperationKey?
   private var renewableRefreshWaiters: [UUID: Set<UUID>] = [:]
   private var selfHostedOperationID: UUID?
-  private var hostedSubscriptionSessionEstablished: (@MainActor () -> Void)?
+  private var sessionEstablished: (@MainActor () -> Void)?
   // Process-local by design: explicit purchase/restore actions may retry the
   // same JWS, while StoreKit's automatic update stream must not replay it.
   private var attemptedSubscriptionSessionJWSHashes = Set<Data>()
@@ -350,9 +350,13 @@ final class AuthService {
       storedErrorMessage = nil
       storedStatusMessage = Self.connectedStatusMessage(for: connection.session)
     }
+    let changed = connectionIdentity != connection.identity || session != connection.session
     authCommitBlocked = false
     connectionIdentity = connection.identity
     session = connection.session
+    // A confirmed late response remains committed, but a canceled auth owner
+    // cannot grant a new sync execution through the reconciliation signal.
+    if changed, !Task.isCancelled { sessionEstablished?() }
   }
 
   private func blockUnresolvedAuth() {
@@ -1062,10 +1066,10 @@ final class AuthService {
     return true
   }
 
-  func setHostedSubscriptionSessionEstablishedHandler(
+  func setSessionEstablishedHandler(
     _ handler: @escaping @MainActor () -> Void
   ) {
-    hostedSubscriptionSessionEstablished = handler
+    sessionEstablished = handler
   }
 
   func clearSessionForConnectionChange() {
@@ -1250,7 +1254,6 @@ final class AuthService {
       guard authenticatedConnection?.session == createdSession else { throw AuthCommitError.commitPending }
       recoveryRequiresActiveSubscription = false
       statusMessage = "PumpSync subscription active"
-      hostedSubscriptionSessionEstablished?()
       diagnostics?.record(source: .auth, title: title)
     } catch {
       timeoutKind = SubscriptionSessionTimeoutKind(error: error)

@@ -11,8 +11,8 @@ struct PumpSyncApp: App {
 #else
     let services = AppServices.live()
 #endif
-    services.backgroundSyncScheduler.register {
-      await services.syncCoordinator.performBackgroundSync()
+    services.backgroundSyncScheduler.register { lease in
+      await services.syncCoordinator.performBackgroundSync(lease: lease)
     }
     services.authService.startObservingTransactionUpdates()
     _services = State(initialValue: services)
