@@ -40,18 +40,10 @@ if [[ -z "$device_id" ]]; then
   device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
 fi
 xcrun simctl bootstatus "$device_id" -b
-prepared_contract=false
-if [[ ! -d PumpSyncTests/SessionContractArtifacts ]]; then
-  bash scripts/ios/prepare-session-contract.sh
-  prepared_contract=true
-fi
+bash scripts/ios/prepare-session-contract.sh
 xcodegen generate
 cleanup() {
   xcrun simctl ui "$device_id" content_size "$original_content_size" >/dev/null 2>&1 || true
-  if [[ "$prepared_contract" == true ]]; then
-    rm -rf PumpSyncTests/SessionContractArtifacts
-    xcodegen generate >/dev/null
-  fi
 }
 original_content_size="$(xcrun simctl ui "$device_id" content_size)"
 trap cleanup EXIT

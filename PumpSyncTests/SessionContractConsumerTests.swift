@@ -2,7 +2,7 @@ import XCTest
 import Synchronization
 @testable import PumpSync
 
-/// Required backend-generated resources are prepared before automated test runs.
+/// Committed, sanitized actual-backend snapshots are required in every test run.
 @MainActor
 final class SessionContractConsumerTests: XCTestCase {
   func testHostedExportCompletesAuthRotationThroughGuardedImport() async throws { try await consume(mode: "hosted") }
@@ -11,7 +11,7 @@ final class SessionContractConsumerTests: XCTestCase {
   private func consume(mode: String) async throws {
     let url = try XCTUnwrap(
       Bundle(for: Self.self).url(forResource: mode, withExtension: "json"),
-      "Missing backend contract data. Run scripts/ios/prepare-session-contract.sh before generating the test project."
+      "Missing backend contract data. Restore the committed session contract snapshots and regenerate the test project."
     )
     let artifact = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
     let beforeData = try JSONSerialization.data(withJSONObject: try XCTUnwrap(artifact["before"]))
@@ -38,7 +38,7 @@ final class SessionContractConsumerTests: XCTestCase {
       paths.withLock { $0.append(path) }
       let data: Data
       if path.hasSuffix("/session/refresh") {
-        clock.withLock { $0 = Date() }
+        clock.withLock { $0 = after.expiresAt.addingTimeInterval(-3600) }
         data = afterData
       } else if path.hasSuffix("/sync/tandem") {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer " + after.accessToken)

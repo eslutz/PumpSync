@@ -16,6 +16,8 @@ on:
       - "scripts/ios/validate-cloud-tests.sh"
       - "scripts/ios/validate-session-contract.sh"
       - "scripts/ios/prepare-session-contract.sh"
+      - "scripts/ios/update-session-contract-snapshots.sh"
+      - "scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
@@ -30,6 +32,8 @@ on:
       - "scripts/ios/validate-cloud-tests.sh"
       - "scripts/ios/validate-session-contract.sh"
       - "scripts/ios/prepare-session-contract.sh"
+      - "scripts/ios/update-session-contract-snapshots.sh"
+      - "scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
@@ -49,6 +53,9 @@ jobs:
         run: |
           scripts/tests/validate-version-tests.sh
           scripts/validate-version.sh
+
+      - name: Validate committed contract snapshots
+        run: bash scripts/tests/validate-session-contract-snapshots-tests.sh
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -102,29 +109,6 @@ jobs:
           xcrun simctl boot "$device_id" || true
           xcrun simctl bootstatus "$device_id" -b
           echo "destination=id=$device_id" >> "$GITHUB_OUTPUT"
-
-      - name: Read pinned backend contract revision
-        id: contract
-        run: |
-          python3 - <<'PYTHON'
-          import json, os
-          manifest = json.load(open("PumpSyncTests/session-contract-manifest.json"))
-          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write("repository=" + manifest["repository"] + "\n")
-              output.write("revision=" + manifest["revision"] + "\n")
-          PYTHON
-
-      - name: Checkout pinned backend test contract
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ steps.contract.outputs.repository }}
-          ref: ${{ steps.contract.outputs.revision }}
-          path: .session-contract-backend
-
-      - name: Install backend test SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          global-json-file: .session-contract-backend/global.json
 
       - name: Validate tests and reject warnings
         env:

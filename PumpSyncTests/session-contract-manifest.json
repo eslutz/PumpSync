@@ -1,6 +1,11 @@
 {
   "repository": "eslutz/PumpSync-Backend",
-  "revision": "cb93abff50f6e2f216d91ea76446e34224499d51",
+  "revision": "13fc3ab714ffb180bec0956ba470e2872ce2841b",
   "exporterTest": "PumpSync.Tests.SessionContractTests",
-  "consumerTest": "PumpSyncTests/SessionContractConsumerTests"
+  "consumerTest": "PumpSyncTests/SessionContractConsumerTests",
+  "snapshotVersion": 1,
+  "checksums": {
+    "hosted": "1bde3ec6c52cc5b71cd468872824de72fadc41fdbaa7b97b00928ab7031f00fb",
+    "selfHosted": "9499281ece79e8bac3a97a4a0f54fc8e06158ca91e1c87c9cebc1f0d68b00a05"
+  }
 }
