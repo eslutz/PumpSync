@@ -93,6 +93,43 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         XCTAssertEqual(metadata.metadata, prior)
     }
 
+    func testRealPreviewUsesOnlyMatchingDurableAccountAndBackendCursorWithoutMutatingMetadata() async throws {
+        let keychain = SecureKeychainStore(service: "preview-cursor-owner-\(UUID().uuidString)")
+        defer { try? keychain.deleteAll() }
+        let credentials = TandemCredentialStore(keychain: keychain)
+        try credentials.saveValidated(.init(username: "real-fixture", password: "fixture", region: "us"))
+        let api = PumpSyncAPIClient(baseURL: URL(string: "https://real-preview.example/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+        let response = BackendSessionResponse(accessToken: "fixture", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource")
+        let auth = AuthService(apiClient: api, configurationStore: .ephemeral(selfHostedBaseURL: api.baseURL, installationId: "preview-owner"), currentEntitlementJWS: { throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in response }, proofProvider: PreviewBoundaryProof())
+        await auth.connectSelfHosted()
+        let suite = "preview-cursor-owner-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let metadata = SyncMetadataStore(defaults: defaults)
+        metadata.setInitialImportRange(.pastTwoDays)
+        let cursor = Date(timeIntervalSince1970: 100)
+        let minima = BoundaryLocked<[Date]>([])
+        URLProtocolStub.requestHandler = { request in
+            if request.url!.path.hasSuffix("capabilities") {
+                return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8))
+            }
+            let body = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Self.bodyString(request).utf8)) as? [String: Any])
+            let minimum = try XCTUnwrap(ISO8601DateFormatter().date(from: XCTUnwrap(body["minDate"] as? String)))
+            minima.update { $0.append(minimum) }
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"tandemSource"}"#.utf8))
+        }
+        let preview = RealImportPreviewSession(apiClient: api, authService: auth, credentialStore: credentials, metadataStore: metadata, concentrationStore: .init(defaults: defaults))
+        let currentAccount = try XCTUnwrap(credentials.accountId)
+        for owner in [TandemSyncOwner(accountId: currentAccount, backendIdentity: "https://real-preview.example/api"), TandemSyncOwner(accountId: UUID(), backendIdentity: "https://real-preview.example/api"), TandemSyncOwner(accountId: currentAccount, backendIdentity: "https://other.example/api")] {
+            metadata.recordSuccess(sampleCount: 4, importedCount: 3, completedAt: Date(), watermark: cursor, owner: owner)
+            let before = defaults.data(forKey: "sync-metadata")
+            await preview.load()
+            guard case .ready = preview.controller.state else { return XCTFail("Expected real preview") }
+            XCTAssertEqual(minima.value.last, owner.accountId == currentAccount && owner.backendIdentity == "https://real-preview.example/api" ? cursor : InitialImportRange.pastTwoDays.minimumDate(relativeTo: Date()))
+            XCTAssertEqual(defaults.data(forKey: "sync-metadata"), before)
+        }
+    }
+
     func testCanceledAndReplacedRequestsCannotPublishLateResults() async throws {
         let (auth, api) = makeAuth(expired: false)
         await auth.connectSelfHosted()
@@ -201,7 +238,7 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         let liveConcentration = InsulinConcentrationStore()
         liveConcentration.concentration = .u500
         let liveMetadata = SyncMetadataStore()
-        liveMetadata.recordSuccess(sampleCount: 4, importedCount: 3, completedAt: Date(timeIntervalSince1970: 123456), watermark: Date(timeIntervalSince1970: 123000))
+        liveMetadata.recordSuccess(sampleCount: 4, importedCount: 3, completedAt: Date(timeIntervalSince1970: 123456), watermark: Date(timeIntervalSince1970: 123000), owner: TandemSyncOwner(accountId: try XCTUnwrap(realCredentials.accountId), backendIdentity: "https://real-fixture.example/api"))
         let liveLedger = ImportedSampleLedger(keychain: liveKeychain)
         try liveLedger.recordImported([SampleDTO(externalId: "real-existing-record", type: "insulin.bolus", value: 1, unit: "IU", startAt: Date(), endAt: Date(), metadata: [:], source: .init(deviceId: "real-existing-source", eventIds: []))])
         let beforeDefaults = NSDictionary(dictionary: Dictionary(uniqueKeysWithValues: keys.compactMap { key in defaults.object(forKey: key).map { (key, $0) } }))

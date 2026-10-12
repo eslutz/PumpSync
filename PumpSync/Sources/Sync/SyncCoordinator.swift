@@ -70,6 +70,13 @@ protocol SyncHealthWriting {
 
 extension HealthKitService: SyncHealthWriting {}
 
+protocol SyncSampleLedger {
+  func filterUnseen(_ samples: [SampleDTO]) throws -> [SampleDTO]
+  func recordImported(_ samples: [SampleDTO], importedAt: Date) throws
+}
+
+extension ImportedSampleLedger: SyncSampleLedger {}
+
 @MainActor
 @Observable
 final class SyncCoordinator {
@@ -89,7 +96,7 @@ final class SyncCoordinator {
   private let authService: AuthService
   private let credentialStore: TandemCredentialStore
   private let healthKitService: SyncHealthWriting
-  private let importedSampleLedger: ImportedSampleLedger
+  private let importedSampleLedger: any SyncSampleLedger
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
   private var demoPreviewActive = false
@@ -162,7 +169,7 @@ final class SyncCoordinator {
     authService: AuthService,
     credentialStore: TandemCredentialStore,
     healthKitService: SyncHealthWriting,
-    importedSampleLedger: ImportedSampleLedger,
+    importedSampleLedger: any SyncSampleLedger,
     syncMetadataStore: SyncMetadataStore,
     diagnostics: DiagnosticsLogStore? = nil
   ) {
@@ -173,6 +180,32 @@ final class SyncCoordinator {
     self.importedSampleLedger = importedSampleLedger
     self.syncMetadataStore = syncMetadataStore
     self.diagnostics = diagnostics
+    reconcileHistoryOwner()
+    observeHistoryOwner()
+  }
+
+  private func reconcileHistoryOwner() {
+    guard !demoPreviewActive, credentialStore.ownershipAvailable else { return }
+    let backendIdentity = authService.importConfigurationSnapshot.backendIdentity
+    let owner = credentialStore.accountId.flatMap { accountId in
+      backendIdentity.map { TandemSyncOwner(accountId: accountId, backendIdentity: $0) }
+    }
+    let previous = syncMetadataStore.metadata.owner
+    syncMetadataStore.reconcileOwner(owner, resetReason: backendIdentity == nil ? .backendChanged : nil)
+    if previous != owner, case .succeeded = operationState { operationState = .idle }
+  }
+
+  private func observeHistoryOwner() {
+    withObservationTracking {
+      _ = credentialStore.accountId
+      _ = credentialStore.ownershipAvailable
+      _ = authService.importConfigurationSnapshot.backendIdentity
+    } onChange: { [weak self] in
+      Task { @MainActor [weak self] in
+        self?.reconcileHistoryOwner()
+        self?.observeHistoryOwner()
+      }
+    }
   }
 
   var isDemoPreviewActive: Bool { demoPreviewActive }
@@ -209,6 +242,7 @@ final class SyncCoordinator {
   }
 
   private func shouldRefresh(reason: SyncTriggerReason) -> Bool {
+    reconcileHistoryOwner()
     let lastSuccessfulSyncAt = syncMetadataStore.metadata.lastSuccessfulSyncAt
     let ageSeconds = lastSuccessfulSyncAt.map { max(0, Date().timeIntervalSince($0)) }
     let shouldRefresh = ageSeconds.map { $0 >= AppConstants.staleSyncInterval } ?? true
@@ -435,6 +469,7 @@ final class SyncCoordinator {
       return .skippedFresh
     }
 
+    reconcileHistoryOwner()
     guard credentialStore.hasValidatedCredentials else {
       fail("Save your pump account credentials before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Pump account credentials are not validated.")
@@ -447,6 +482,10 @@ final class SyncCoordinator {
       return .blocked(.credentials)
     }
 
+    guard let accountId = credentialStore.accountId else {
+      fail("Validate your pump account before syncing.", recovery: .openSettings)
+      return .blocked(.credentials)
+    }
     guard healthKitService.hasAnyWritePermission else {
       fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "No Apple Health write permissions are enabled.")
@@ -475,6 +514,7 @@ final class SyncCoordinator {
       fail(error.localizedDescription, recovery: .openSettings)
       return .blocked(.unverifiedSource)
     }
+    let historyOwner = TandemSyncOwner(accountId: accountId, backendIdentity: context.backendIdentity)
     guard context == currentContext else {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
       return .contextReplaced
@@ -524,14 +564,14 @@ final class SyncCoordinator {
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
       let batch = try HealthImportPolicy.authorize(plan: plan.selectingSamples(unseenSamples), current: current)
       let writtenSamples = try await healthKitService.save(batch: batch)
-      try importedSampleLedger.recordImported(writtenSamples)
+      try importedSampleLedger.recordImported(writtenSamples, importedAt: Date())
       // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
       // writes for deduplication, but never publish success for abandoned work.
       try checkExecution(intent)
       try HealthImportPolicy.validate(batch: batch, current: authService.currentImportSnapshot(credentialRevision: credentialStore.revision))
       let importedCount = writtenSamples.count
       let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
-      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark)
+      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark, owner: historyOwner)
       var completionMessage = message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
 
       // Tandem Source only retains ~14 days of history. If the requested

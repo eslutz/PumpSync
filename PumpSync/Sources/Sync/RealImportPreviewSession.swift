@@ -26,7 +26,11 @@ final class RealImportPreviewSession {
             return
         }
         let now = Date()
-        let minimum = metadataStore.metadata.syncWatermark ?? metadataStore.metadata.initialImportRange.minimumDate(relativeTo: now)
+        // Preview may use a cursor only when its durable owner matches. It does
+        // not mutate live sync metadata while inspecting replacement credentials.
+        let owner = credentialStore.accountId.map { TandemSyncOwner(accountId: $0, backendIdentity: context.backendIdentity) }
+        let watermark = owner != nil && metadataStore.metadata.owner == owner ? metadataStore.metadata.syncWatermark : nil
+        let minimum = watermark ?? metadataStore.metadata.initialImportRange.minimumDate(relativeTo: now)
         await controller.load(request: .init(tandem: credentials, minDate: minimum, maxDate: now, timeZoneIdentifier: TimeZone.current.identifier), context: context, concentration: concentrationStore.concentration)
     }
 }

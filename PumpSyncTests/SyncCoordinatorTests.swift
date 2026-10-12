@@ -48,6 +48,15 @@ private final class FakeHealthKitService: SyncHealthWriting {
   }
 }
 
+private final class FailingSyncSampleLedger: SyncSampleLedger {
+  private(set) var commitCount = 0
+  func filterUnseen(_ samples: [SampleDTO]) throws -> [SampleDTO] { samples }
+  func recordImported(_ samples: [SampleDTO], importedAt: Date) throws {
+    commitCount += 1
+    throw KeychainStoreError.invalidData
+  }
+}
+
 private struct StubTandemSyncResponse: Encodable {
   var dataSourceMode = "tandemSource"
   let samples: [SampleDTO]
@@ -74,9 +83,159 @@ private final class LockIsolated<Value>: @unchecked Sendable {
 
 @MainActor
 final class SyncCoordinatorTests: XCTestCase {
+  func testLegacyUnboundCursorResetsBeforeDownloadEvenWithValidatedAccount() async throws {
+    let metadata = makeSyncMetadataStore()
+    metadata.setInitialImportRange(.pastTwoDays)
+    metadata.applyScreenshotMetadata(.init(lastAttemptAt: nil, lastSuccessfulSyncAt: Date(), lastSampleCount: 9, lastImportedCount: 8, lastErrorMessage: nil, initialImportRange: .pastTwoDays, syncWatermark: Date(timeIntervalSince1970: 100)))
+    let health = FakeHealthKitService(hasAnyWritePermission: false)
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let result = await coordinator.run(reason: .manual)
+    XCTAssertEqual(result, .blocked(.healthPermission))
+    XCTAssertNil(metadata.metadata.syncWatermark)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+    XCTAssertEqual(metadata.metadata.lastSampleCount, 0)
+    XCTAssertEqual(metadata.metadata.lastImportedCount, 0)
+    XCTAssertEqual(metadata.metadata.initialImportRange, .pastTwoDays)
+    XCTAssertTrue(health.savedSamples.isEmpty)
+  }
+
+  func testAccountReplacementResetsCursorBeforeFreshnessAndPreservesLedger() async throws {
+    let credentials = try makeValidatedCredentialStore()
+    let auth = makeSignedInAuthService()
+    let metadata = makeSyncMetadataStore()
+    metadata.setInitialImportRange(.pastTwoDays)
+    let health = FakeHealthKitService()
+    let ledger = ImportedSampleLedger(keychain: SecureKeychainStore(service: "CursorAccount.\(UUID().uuidString)"), defaults: UserDefaults(suiteName: "CursorAccount.\(UUID().uuidString)")!)
+    let confirmed = sample(externalId: "preserved-ledger")
+    let minima = LockIsolated<[Date]>([])
+    let response = syncResponseHandler(samples: [confirmed], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in
+      let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(Self.bodyData(from: request))) as? [String: Any])
+      let minimum = try XCTUnwrap(ISO8601DateFormatter().date(from: XCTUnwrap(body["minDate"] as? String)))
+      minima.withValue { $0.append(minimum) }
+      return try response(request)
+    }
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, importedSampleLedger: ledger, syncMetadataStore: metadata)
+    let first = await coordinator.run(reason: .manual)
+    XCTAssertEqual(first, .completed)
+    try credentials.saveValidated(.init(username: "replacement@example.com", password: "two", region: "us"))
+    let replacement = await coordinator.refreshIfStale(reason: .appOpen)
+    XCTAssertEqual(replacement, .completed)
+    XCTAssertEqual(minima.value.count, 2)
+    XCTAssertEqual(minima.value.last, InitialImportRange.pastTwoDays.minimumDate(relativeTo: Date()))
+    XCTAssertTrue(health.savedSamples.isEmpty, "Existing identifiers must still deduplicate after changing the cursor owner")
+    XCTAssertTrue(try ledger.filterUnseen([confirmed]).isEmpty)
+  }
+
   override func tearDown() {
     URLProtocolStub.requestHandler = nil
     super.tearDown()
+  }
+
+  func testSameAccountRevalidationPasswordChangeAndAuthReplacementPreserveCursor() async throws {
+    let credentials = try makeValidatedCredentialStore()
+    let auth = makeSignedInAuthService()
+    let metadata = makeSyncMetadataStore()
+    let health = FakeHealthKitService()
+    let expectedWatermark = Date(timeIntervalSince1970: 1_100_000).addingTimeInterval(-24 * 60 * 60)
+    let minima = LockIsolated<[Date]>([])
+    let response = syncResponseHandler(samples: [sample(externalId: "repeat-record")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000))
+    URLProtocolStub.requestHandler = { request in
+      let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(Self.bodyData(from: request))) as? [String: Any])
+      let minimum = try XCTUnwrap(ISO8601DateFormatter().date(from: XCTUnwrap(body["minDate"] as? String)))
+      minima.withValue { $0.append(minimum) }
+      return try response(request)
+    }
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
+    let first = await coordinator.run(reason: .manual)
+    XCTAssertEqual(first, .completed)
+    let owner = metadata.metadata.owner
+    for transition in ["refresh", "reenroll", "revalidate", "password"] {
+      let source = try XCTUnwrap(auth.authenticatedConnection)
+      let replacement = BackendSessionResponse(accessToken: "fixture-\(transition)", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "family-\(transition)", refreshToken: "fixture-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+      if transition == "refresh" { try auth.installSession(replacement, installation: .verifiedRefresh(source: source)) }
+      if transition == "reenroll" { try auth.installSession(replacement, installation: .enrollment) }
+      if transition == "revalidate" {
+        let successfulHandler = URLProtocolStub.requestHandler
+        URLProtocolStub.requestHandler = errorResponseHandler(statusCode: 424, code: "tandem_authentication_failed", message: "Revalidate the account.")
+        let rejected = await coordinator.run(reason: .manual)
+        XCTAssertEqual(rejected, .failed)
+        XCTAssertFalse(credentials.hasValidatedCredentials)
+        XCTAssertEqual(metadata.metadata.owner, owner)
+        XCTAssertEqual(metadata.metadata.syncWatermark, expectedWatermark)
+        URLProtocolStub.requestHandler = successfulHandler
+      }
+      if transition == "revalidate" || transition == "password" {
+        let prior = try XCTUnwrap(credentials.load())
+        try credentials.saveValidated(.init(username: prior.username, password: transition == "password" ? "changed" : prior.password, region: prior.region))
+      }
+      let result = await coordinator.run(reason: .manual)
+      XCTAssertEqual(result, .completed, transition)
+      XCTAssertEqual(metadata.metadata.syncWatermark, expectedWatermark, transition)
+      XCTAssertEqual(metadata.metadata.owner, owner, transition)
+      XCTAssertEqual(minima.value.last, expectedWatermark, transition)
+      XCTAssertTrue(health.savedSamples.isEmpty, "Repeated imports must retain deduplication across \(transition)")
+    }
+  }
+
+  func testBackendReplacementClearsSuccessDisplayWithoutTouchingPreferences() async throws {
+    let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "CursorBackend.\(UUID().uuidString)")!)
+    let auth = makeSignedInAuthService(configuration: config)
+    let credentials = try makeValidatedCredentialStore()
+    let metadata = makeSyncMetadataStore()
+    metadata.setInitialImportRange(.pastTwoWeeks)
+    let health = FakeHealthKitService()
+    URLProtocolStub.requestHandler = syncResponseHandler(samples: [], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
+    let first = await coordinator.run(reason: .manual)
+    XCTAssertEqual(first, .completed)
+    config.mode = .selfHosted
+    config.selfHostedBaseURLString = "https://replacement.example/api/"
+    for _ in 0..<10 { await Task.yield() }
+    XCTAssertNil(metadata.metadata.syncWatermark)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+    XCTAssertEqual(metadata.metadata.cursorResetReason, .backendChanged)
+    XCTAssertEqual(metadata.metadata.initialImportRange, .pastTwoWeeks)
+    XCTAssertEqual(metadata.metadata.owner?.accountId, credentials.accountId)
+    XCTAssertEqual(metadata.metadata.owner?.backendIdentity, "https://replacement.example/api")
+    XCTAssertNil(coordinator.lastMessage)
+  }
+
+  func testCanceledSubmittedSaveStillLedgersConfirmedWritesWithoutSuccess() async throws {
+    let started = expectation(description: "Health submission")
+    let health = FakeHealthKitService()
+    health.suspendsSave = true
+    health.saveStarted = { started.fulfill() }
+    let ledger = ImportedSampleLedger(keychain: SecureKeychainStore(service: "CanceledSave.\(UUID().uuidString)"), defaults: UserDefaults(suiteName: "CanceledSave.\(UUID().uuidString)")!)
+    let metadata = makeSyncMetadataStore()
+    let confirmed = sample(externalId: "confirmed-after-cancel")
+    URLProtocolStub.requestHandler = syncResponseHandler(samples: [confirmed], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, importedSampleLedger: ledger, syncMetadataStore: metadata)
+    let task = Task { await coordinator.run(reason: .manual) }
+    await fulfillment(of: [started], timeout: 2)
+    task.cancel()
+    for _ in 0..<10 { await Task.yield() }
+    health.resumeSave()
+    let result = await task.value
+    XCTAssertEqual(result, .canceled)
+    XCTAssertTrue(try ledger.filterUnseen([confirmed]).isEmpty)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+    XCTAssertNil(metadata.metadata.syncWatermark)
+  }
+
+  func testLedgerCommitFailureAfterHealthSaveDoesNotPublishSuccess() async throws {
+    let health = FakeHealthKitService()
+    let ledger = FailingSyncSampleLedger()
+    let metadata = makeSyncMetadataStore()
+    URLProtocolStub.requestHandler = syncResponseHandler(samples: [sample(externalId: "ledger-failure")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, importedSampleLedger: ledger, syncMetadataStore: metadata)
+    let result = await coordinator.run(reason: .manual)
+    XCTAssertEqual(result, .failed)
+    XCTAssertEqual(health.savedSamples.count, 1)
+    XCTAssertEqual(ledger.commitCount, 1)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+    XCTAssertNil(metadata.metadata.syncWatermark)
+    XCTAssertNotNil(metadata.metadata.lastErrorMessage)
   }
 
   func testPreviewActivityDefersManualAndBackgroundWithoutPersistentChanges() async throws {
@@ -91,6 +250,8 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertNil(metadata.metadata.lastAttemptAt)
     XCTAssertNil(metadata.metadata.lastErrorMessage)
     XCTAssertEqual(coordinator.operationState, .idle)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertEqual(health.refreshAuthorizationStatusCallCount, 0)
     coordinator.setDemoPreviewActive(false)
     URLProtocolStub.requestHandler = syncResponseHandler(samples: [], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
     let resumed = await coordinator.sync(reason: .manual)
@@ -146,7 +307,7 @@ final class SyncCoordinatorTests: XCTestCase {
     auth.applyScreenshotSession(serviceMode: "hosted")
     let credentials = try makeValidatedCredentialStore()
     let metadata = makeSyncMetadataStore()
-    metadata.recordSuccess(sampleCount: 8, importedCount: 7, completedAt: Date(timeIntervalSince1970: 1_000), watermark: Date(timeIntervalSince1970: 900))
+    metadata.recordSuccess(sampleCount: 8, importedCount: 7, completedAt: Date(timeIntervalSince1970: 1_000), watermark: Date(timeIntervalSince1970: 900), owner: try historyOwner(credentials, auth: auth))
     let prior = metadata.metadata
     let health = FakeHealthKitService()
     let failure = status.map { errorResponseHandler(statusCode: $0, code: code, message: "Old request rejected.") }
@@ -179,7 +340,13 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertTrue(credentials.hasValidatedCredentials)
     XCTAssertEqual(credentials.revision, expectedCredentialRevision)
     XCTAssertEqual(try credentials.load(), expectedCredentials)
-    XCTAssertEqual(metadata.metadata, prior)
+    if change == "credentials" || change == "configuration" {
+      XCTAssertNil(metadata.metadata.syncWatermark)
+      XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+      XCTAssertEqual(metadata.metadata.cursorResetReason, change == "credentials" ? .accountChanged : .backendChanged)
+    } else {
+      XCTAssertEqual(metadata.metadata, prior)
+    }
     XCTAssertTrue(health.savedConcentrations.isEmpty)
     XCTAssertEqual(coordinator.lastMessage, "Your connection or pump credentials changed. Start a new sync.")
   }
@@ -1239,11 +1406,12 @@ final class SyncCoordinatorTests: XCTestCase {
       return try syncResponse(request)
     }
     let metadata = makeSyncMetadataStore()
-    metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date().addingTimeInterval(-60))
+    let credentials = try makeValidatedCredentialStore()
+    metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date().addingTimeInterval(-60), owner: try historyOwner(credentials, auth: auth))
     let prior = metadata.metadata
     let health = FakeHealthKitService()
     let diagnostics = makeDiagnostics()
-    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata, diagnostics: diagnostics)
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata, diagnostics: diagnostics)
     let outcome: SyncRunOutcome
     if forcedOverlap {
       let bootstrap = Task { await coordinator.reconcileForegroundRecovery() }
@@ -1273,8 +1441,10 @@ final class SyncCoordinatorTests: XCTestCase {
   func testFreshReconciliationPreservesDismissedCompletionPresentation() async throws {
     URLProtocolStub.requestHandler = { _ in XCTFail("A fresh reconciliation cannot download"); throw APIClientError.invalidResponse }
     let metadata = makeSyncMetadataStore()
-    metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date())
-    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), syncMetadataStore: metadata)
+    let auth = makeSignedInAuthService()
+    let credentials = try makeValidatedCredentialStore()
+    metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date(), owner: try historyOwner(credentials, auth: auth))
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, syncMetadataStore: metadata)
     coordinator.applyScreenshotSuccess()
     coordinator.dismissNotification()
     let prior = coordinator.operationState
@@ -1412,14 +1582,16 @@ final class SyncCoordinatorTests: XCTestCase {
 
   func testRefreshIfStaleSkipsSyncWhenRecentlySuccessful() async throws {
     let syncMetadataStore = makeSyncMetadataStore()
-    syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date())
+    let auth = makeSignedInAuthService()
+    let credentials = try makeValidatedCredentialStore()
+    syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date(), owner: try historyOwner(credentials, auth: auth))
     let diagnostics = makeDiagnostics()
     // No requestHandler installed: if sync() were reached, the client would
     // fail with badServerResponse instead of silently succeeding, so a
     // non-nil lastMessage here would prove the guard didn't hold.
     let coordinator = makeCoordinator(
-      authService: makeSignedInAuthService(),
-      credentialStore: try makeValidatedCredentialStore(),
+      authService: auth,
+      credentialStore: credentials,
       syncMetadataStore: syncMetadataStore,
       diagnostics: diagnostics
     )
@@ -1435,7 +1607,9 @@ final class SyncCoordinatorTests: XCTestCase {
 
   func testBackgroundSyncRunsWhenRecentlySuccessful() async throws {
     let syncMetadataStore = makeSyncMetadataStore()
-    syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date())
+    let auth = makeSignedInAuthService()
+    let credentials = try makeValidatedCredentialStore()
+    syncMetadataStore.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date(), owner: try historyOwner(credentials, auth: auth))
     let diagnostics = makeDiagnostics()
     let requestCount = LockIsolated(0)
     let responseHandler = syncResponseHandler(
@@ -1448,8 +1622,8 @@ final class SyncCoordinatorTests: XCTestCase {
       return try responseHandler(request)
     }
     let coordinator = makeCoordinator(
-      authService: makeSignedInAuthService(),
-      credentialStore: try makeValidatedCredentialStore(),
+      authService: auth,
+      credentialStore: credentials,
       syncMetadataStore: syncMetadataStore,
       diagnostics: diagnostics
     )
@@ -1801,7 +1975,7 @@ final class SyncCoordinatorTests: XCTestCase {
     authService: AuthService,
     credentialStore: TandemCredentialStore,
     healthKitService: SyncHealthWriting = FakeHealthKitService(),
-    importedSampleLedger: ImportedSampleLedger? = nil,
+    importedSampleLedger: (any SyncSampleLedger)? = nil,
     syncMetadataStore: SyncMetadataStore? = nil,
     diagnostics: DiagnosticsLogStore? = nil
   ) -> SyncCoordinator {
@@ -1894,6 +2068,10 @@ final class SyncCoordinatorTests: XCTestCase {
     let store = makeCredentialStore()
     try store.saveValidated(TandemCredentials(username: "demo@pumpsync.app", password: "hunter2", region: "us"))
     return store
+  }
+
+  private func historyOwner(_ credentials: TandemCredentialStore, auth: AuthService) throws -> TandemSyncOwner {
+    TandemSyncOwner(accountId: try XCTUnwrap(credentials.accountId), backendIdentity: try XCTUnwrap(auth.importConfigurationSnapshot.backendIdentity))
   }
 
   private func makeSyncMetadataStore() -> SyncMetadataStore {

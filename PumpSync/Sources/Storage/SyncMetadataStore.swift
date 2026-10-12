@@ -1,6 +1,15 @@
 import Foundation
 import Observation
 
+struct TandemSyncOwner: Codable, Equatable {
+  let accountId: UUID
+  let backendIdentity: String
+}
+
+enum SyncCursorResetReason: String, Codable {
+  case legacyUnbound, accountChanged, backendChanged, credentialsDeleted
+}
+
 struct SyncMetadata: Codable, Equatable {
   var lastAttemptAt: Date?
   /// The actual wall-clock time the last sync completed successfully — used
@@ -20,6 +29,8 @@ struct SyncMetadata: Codable, Equatable {
   /// `lastSuccessfulSyncAt` — the two serve different purposes and must not
   /// share a value.
   var syncWatermark: Date?
+  var owner: TandemSyncOwner?
+  var cursorResetReason: SyncCursorResetReason?
 
   private enum CodingKeys: String, CodingKey {
     case lastAttemptAt
@@ -29,6 +40,8 @@ struct SyncMetadata: Codable, Equatable {
     case lastErrorMessage
     case initialImportRange
     case syncWatermark
+    case owner
+    case cursorResetReason
   }
 
   init(
@@ -38,7 +51,9 @@ struct SyncMetadata: Codable, Equatable {
     lastImportedCount: Int,
     lastErrorMessage: String?,
     initialImportRange: InitialImportRange = .default,
-    syncWatermark: Date? = nil
+    syncWatermark: Date? = nil,
+    owner: TandemSyncOwner? = nil,
+    cursorResetReason: SyncCursorResetReason? = nil
   ) {
     self.lastAttemptAt = lastAttemptAt
     self.lastSuccessfulSyncAt = lastSuccessfulSyncAt
@@ -47,6 +62,8 @@ struct SyncMetadata: Codable, Equatable {
     self.lastErrorMessage = lastErrorMessage
     self.initialImportRange = initialImportRange
     self.syncWatermark = syncWatermark ?? lastSuccessfulSyncAt
+    self.owner = owner
+    self.cursorResetReason = cursorResetReason
   }
 
   init(from decoder: Decoder) throws {
@@ -57,11 +74,9 @@ struct SyncMetadata: Codable, Equatable {
     lastImportedCount = try container.decode(Int.self, forKey: .lastImportedCount)
     lastErrorMessage = try container.decodeIfPresent(String.self, forKey: .lastErrorMessage)
     initialImportRange = try container.decodeIfPresent(InitialImportRange.self, forKey: .initialImportRange) ?? .default
-    // Data persisted before this field existed has no syncWatermark key.
-    // Falling back to lastSuccessfulSyncAt (the old, dual-purpose value) is
-    // the correct one-time migration: it's exactly what the watermark would
-    // already have been under the old behavior this field replaces.
     syncWatermark = try container.decodeIfPresent(Date.self, forKey: .syncWatermark) ?? lastSuccessfulSyncAt
+    owner = try container.decodeIfPresent(TandemSyncOwner.self, forKey: .owner)
+    cursorResetReason = try container.decodeIfPresent(SyncCursorResetReason.self, forKey: .cursorResetReason)
   }
 }
 
@@ -76,6 +91,40 @@ final class SyncMetadataStore {
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
     self.metadata = Self.load(defaults: defaults)
+    if metadata.owner == nil, hasAccountHistory {
+      resetHistory(reason: .legacyUnbound)
+    }
+  }
+
+  /// Reconcile only a durably known account and the selected real backend.
+  /// Auth connection/token rotation deliberately has no role in cursor ownership.
+  func reconcileOwner(_ owner: TandemSyncOwner?, resetReason: SyncCursorResetReason? = nil) {
+    guard metadata.owner != owner else { return }
+    if let previous = metadata.owner {
+      let reason = resetReason ?? (owner == nil ? SyncCursorResetReason.credentialsDeleted
+        : (previous.accountId == owner?.accountId ? .backendChanged : .accountChanged))
+      resetHistory(reason: reason)
+    } else if hasAccountHistory {
+      resetHistory(reason: .legacyUnbound)
+    }
+    metadata.owner = owner
+    save()
+  }
+
+  private var hasAccountHistory: Bool {
+    metadata.syncWatermark != nil || metadata.lastSuccessfulSyncAt != nil
+      || metadata.lastSampleCount != 0 || metadata.lastImportedCount != 0
+  }
+
+  private func resetHistory(reason: SyncCursorResetReason) {
+    metadata.syncWatermark = nil
+    metadata.lastSuccessfulSyncAt = nil
+    metadata.lastSampleCount = 0
+    metadata.lastImportedCount = 0
+    metadata.lastAttemptAt = nil
+    metadata.lastErrorMessage = nil
+    metadata.cursorResetReason = reason
+    save()
   }
 
   func recordAttempt() {
@@ -94,7 +143,8 @@ final class SyncMetadataStore {
   ///   a later, locally-captured timestamp here would create a permanent gap
   ///   between what was actually requested and what the next sync resumes
   ///   from.
-  func recordSuccess(sampleCount: Int, importedCount: Int, completedAt: Date, watermark: Date) {
+  func recordSuccess(sampleCount: Int, importedCount: Int, completedAt: Date, watermark: Date, owner: TandemSyncOwner) {
+    metadata.owner = owner
     metadata.lastSuccessfulSyncAt = completedAt
     metadata.syncWatermark = watermark
     metadata.lastSampleCount = sampleCount
