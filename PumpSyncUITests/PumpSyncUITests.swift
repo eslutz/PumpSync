@@ -179,6 +179,20 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertFalse(banner.waitForNonExistence(timeout: 9))
   }
 
+  func testMinimumHitTargetAcceptsOnlyFloatingPointPrecisionError() {
+    XCTAssertTrue(meetsMinimumHitTargetDimension(CGFloat(44).nextDown))
+    XCTAssertTrue(meetsMinimumHitTargetDimension(43.999999999999986))
+    XCTAssertTrue(meetsMinimumHitTargetDimension(44))
+    XCTAssertFalse(meetsMinimumHitTargetDimension(43.999))
+  }
+
+  private func meetsMinimumHitTargetDimension(_ dimension: CGFloat) -> Bool {
+    // Accessibility frames can lose a few floating-point bits when their
+    // coordinates are converted. Keep the 44-point requirement while
+    // tolerating only numerical noise, not a visibly smaller hit target.
+    dimension >= 44 - 1e-9
+  }
+
   func testFailureBannerKeepsNavigationAndActionsReachable() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-failure"])
     XCTAssertTrue(app.staticTexts["Sync needs attention"].waitForExistence(timeout: 5))
@@ -205,8 +219,8 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(settings.isHittable)
     let dismiss = app.buttons["Dismiss notification"]
     XCTAssertTrue(dismiss.isHittable)
-    XCTAssertGreaterThanOrEqual(dismiss.frame.width, 44)
-    XCTAssertGreaterThanOrEqual(dismiss.frame.height, 44)
+    XCTAssertTrue(meetsMinimumHitTargetDimension(dismiss.frame.width), "Dismiss width must be at least 44 points: \(dismiss.frame.width)")
+    XCTAssertTrue(meetsMinimumHitTargetDimension(dismiss.frame.height), "Dismiss height must be at least 44 points: \(dismiss.frame.height)")
 
     // The full message and recovery action remain available by scrolling the
     // bounded banner at large text sizes, without scrolling the app content.
