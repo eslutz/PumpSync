@@ -57,7 +57,7 @@ struct DeveloperView: View {
           ShareLink(item: supportBundleText) {
             GlassPrimaryLabel(title: "Share Support Bundle", systemImage: "square.and.arrow.up")
           }
-          .buttonStyle(.plain)
+          .buttonStyle(GroupedRowActionButtonStyle())
           .foregroundStyle(.tint)
         }
 
