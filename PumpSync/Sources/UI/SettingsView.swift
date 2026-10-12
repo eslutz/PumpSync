@@ -386,15 +386,12 @@ private struct InsulinConcentrationView: View {
 
   private var concentrationMenu: some View {
     Menu {
-      ForEach(InsulinConcentration.allCases) { concentration in
-        Button {
-          services.insulinConcentrationStore.concentration = concentration
-        } label: {
-          if concentration == services.insulinConcentrationStore.concentration {
-            Label(concentration.title, systemImage: "checkmark")
-          } else {
-            Text(concentration.title)
-          }
+      Picker("Insulin Concentration", selection: Binding(
+        get: { services.insulinConcentrationStore.concentration },
+        set: { services.insulinConcentrationStore.concentration = $0 }
+      )) {
+        ForEach(InsulinConcentration.allCases) { concentration in
+          Text(concentration.title).tag(concentration)
         }
       }
     } label: {

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct DeveloperView: View {
   @Environment(AppServices.self) private var services
+  @State private var expandedLog: DiagnosticsLogDestination?
   @State private var copiedItem: CopiedDiagnosticsItem?
 
   var body: some View {
@@ -63,20 +64,28 @@ struct DeveloperView: View {
 
         GlassSection {
           VStack(alignment: .leading, spacing: 18) {
-            diagnosticsSubheading("App Event Log")
-            appEventLogContent
+            logHeading(.appEvents)
+            appEventLogContent()
           }
         }
 
         GlassSection {
           VStack(alignment: .leading, spacing: 18) {
-            diagnosticsSubheading("Device Performance Diagnostics")
-            devicePerformanceDiagnosticsContent
+            logHeading(.devicePerformance)
+            devicePerformanceDiagnosticsContent()
           }
         }
       }
     }
     .navigationTitle("Developer")
+    .fullScreenCover(item: $expandedLog) { destination in
+      DiagnosticsLogFullScreen(title: destination.title) {
+        switch destination {
+        case .appEvents: appEventLogContent(expanded: true)
+        case .devicePerformance: devicePerformanceDiagnosticsContent(expanded: true)
+        }
+      }
+    }
   }
 
   private var appVersion: String {
@@ -121,15 +130,15 @@ struct DeveloperView: View {
   }
 
   @ViewBuilder
-  private var appEventLogContent: some View {
+  private func appEventLogContent(expanded: Bool = false) -> some View {
     if services.diagnosticsLogStore.entries.isEmpty {
       Text("No app events recorded.")
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 8)
     } else {
-      VStack(alignment: .leading, spacing: 12) {
-        ForEach(services.diagnosticsLogStore.entries.prefix(50)) { entry in
+      logViewport(expanded: expanded, identifier: "AppEventLogScroll") {
+        ForEach(services.diagnosticsLogStore.entries) { entry in
           diagnosticRow(entry)
         }
       }
@@ -147,15 +156,15 @@ struct DeveloperView: View {
   }
 
   @ViewBuilder
-  private var devicePerformanceDiagnosticsContent: some View {
+  private func devicePerformanceDiagnosticsContent(expanded: Bool = false) -> some View {
     if services.nativeDiagnosticsStore.entries.isEmpty {
       Text("No device performance diagnostics recorded.")
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 8)
     } else {
-      VStack(alignment: .leading, spacing: 12) {
-        ForEach(services.nativeDiagnosticsStore.entries.prefix(50)) { entry in
+      logViewport(expanded: expanded, identifier: "DevicePerformanceLogScroll") {
+        ForEach(services.nativeDiagnosticsStore.entries) { entry in
           nativeDiagnosticRow(entry)
         }
       }
@@ -170,6 +179,29 @@ struct DeveloperView: View {
         clear: { services.nativeDiagnosticsStore.clear() }
       )
     }
+  }
+
+  private func logHeading(_ destination: DiagnosticsLogDestination) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      diagnosticsSubheading(destination.title)
+      Button("Open Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") {
+        expandedLog = destination
+      }
+      .accessibilityLabel("Open \(destination.title) Full Screen")
+      .accessibilityIdentifier(destination.rawValue + "FullScreen")
+      .frame(minHeight: 44)
+    }
+  }
+
+  private func logViewport<Content: View>(expanded: Bool, identifier: String, @ViewBuilder content: () -> Content) -> some View {
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: 12, content: content)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .scrollIndicators(.visible)
+    .frame(height: expanded ? nil : 280)
+    .frame(maxHeight: expanded ? .infinity : nil)
+    .accessibilityIdentifier(identifier)
   }
 
   private func diagnosticsActions(
@@ -341,4 +373,40 @@ private enum CopiedDiagnosticsItem {
   case installationId
   case appEventLog
   case devicePerformanceDiagnostics
+}
+
+private enum DiagnosticsLogDestination: String, Identifiable {
+  case appEvents, devicePerformance
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .appEvents: "App Event Log"
+    case .devicePerformance: "Device Performance Diagnostics"
+    }
+  }
+}
+
+private struct DiagnosticsLogFullScreen<Content: View>: View {
+  @Environment(\.dismiss) private var dismiss
+  let title: String
+  @ViewBuilder let content: () -> Content
+
+  var body: some View {
+    NavigationStack {
+      VStack(alignment: .leading, spacing: 18) {
+        content()
+      }
+      .padding(20)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+      .background(Color(.systemGroupedBackground))
+      .navigationTitle(title)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Close", systemImage: "xmark") { dismiss() }
+            .accessibilityIdentifier("CloseDiagnosticsLog")
+        }
+      }
+    }
+  }
 }

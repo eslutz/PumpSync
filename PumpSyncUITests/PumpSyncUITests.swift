@@ -251,6 +251,47 @@ final class PumpSyncUITests: XCTestCase {
     assertDeveloperDiagnosticsVisible(in: app)
   }
 
+  func testDiagnosticsLogsOpenFullScreenAndClose() {
+    let app = launchScreenshotFixture()
+    navigate(to: "Settings", in: app)
+    tapNavigationLink("Developer", in: app)
+
+    for identifier in ["appEventsFullScreen", "devicePerformanceFullScreen"] {
+      let open = app.buttons[identifier]
+      for _ in 0..<12 {
+        if open.isHittable { break }
+        // Scroll the outer page along its margin, outside either log viewport.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.8))
+          .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.25)))
+      }
+      XCTAssertTrue(open.isHittable)
+      attachScreenshot(named: identifier + "-card", from: app)
+      open.tap()
+      let close = app.buttons["CloseDiagnosticsLog"]
+      XCTAssertTrue(close.waitForExistence(timeout: 5))
+      attachScreenshot(named: identifier + "-expanded", from: app)
+      close.tap()
+      XCTAssertTrue(close.waitForNonExistence(timeout: 5))
+    }
+  }
+
+  func testConcentrationMenuKeepsSelectionAndAlignedLabels() {
+    let app = launchScreenshotFixture()
+    navigate(to: "Settings", in: app)
+    tapNavigationLink("Insulin Concentration", in: app)
+    let picker = app.buttons["InsulinConcentrationPicker"]
+    XCTAssertTrue(picker.waitForExistence(timeout: 5))
+    picker.tap()
+    let choice = app.buttons["U-200"].firstMatch
+    XCTAssertTrue(choice.waitForExistence(timeout: 5))
+    choice.tap()
+    XCTAssertEqual(picker.value as? String, "U-200")
+    picker.tap()
+    attachScreenshot(named: "concentration-native-selection", from: app)
+    XCTAssertTrue(app.buttons["U-100"].exists)
+    XCTAssertTrue(app.buttons["U-500"].exists)
+  }
+
   func testSettingsShowsCompactInsulinConcentrationRow() {
     let app = launchScreenshotFixture()
 
