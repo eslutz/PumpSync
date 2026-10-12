@@ -6,7 +6,6 @@ struct SettingsView: View {
   @Environment(AppServices.self) private var services
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var showsSamplePreview = false
   @State private var isShowingSubscriptionStore = false
   @State private var connectionAlert: ConnectionAlert?
   @State private var selfHostedURLDraft = ""
@@ -14,13 +13,6 @@ struct SettingsView: View {
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
-      GlassSection("Sample Preview") {
-        Button("Sample Preview") {
-          if services.beginDemoPreview() { showsSamplePreview = true }
-        }
-        .disabled(services.syncCoordinator.isSyncing || services.demoPreviewActive)
-        .accessibilityHint("Opens a separate sample connection without saving to Apple Health")
-      }
       GlassSection("Connection") {
         connectionModeSelector
 
@@ -93,13 +85,17 @@ struct SettingsView: View {
         }
 
         if services.backendConfigurationStore.mode == .selfHosted && !services.authService.isConnecting {
-          Text(services.authService.errorMessage ?? services.authService.statusMessage)
+          Text(services.authService.errorMessage ?? (
+            services.authService.isSignedIn
+              ? services.authService.statusMessage
+              : "Enter your backend’s base API URL, then tap Connect."
+          ))
             .font(.footnote)
             .foregroundStyle(services.authService.errorMessage == nil ? Color.secondary : Color.primary)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("SelfHostedConnectionFeedback")
             .accessibilityAddTraits(.updatesFrequently)
-          Text("Use the base API URL, including /api (for example, https://your-server.example/api).")
+          Text(verbatim: "Use the base API URL, including /api (for example, https://your-server.example/api).")
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
@@ -205,9 +201,7 @@ struct SettingsView: View {
       hasLoadedSelfHostedURLDraft = true
       selfHostedURLDraft = services.backendConfigurationStore.selfHostedBaseURLString
     }
-    .sheet(isPresented: $showsSamplePreview, onDismiss: { services.endDemoPreview() }) {
-      DemoPreviewConnectionView()
-    }
+
     .sheet(isPresented: $isShowingSubscriptionStore) {
 #if DEBUG
       if AppLaunchEnvironment.isScreenshotMode {

@@ -5,13 +5,13 @@ import XCTest
 final class PreviewBoundaryRegressionTests: XCTestCase {
     override func tearDown() { URLProtocolStub.requestHandler = nil; super.tearDown() }
 
-    func testInMemoryDemoExpiredTokenIsNotSignedIn() async {
+    func testInMemorySessionExpiredTokenIsNotSignedIn() async {
         let (auth, _) = makeAuth(expired: true)
         await auth.connectSelfHosted()
         XCTAssertFalse(auth.isSignedIn, "In-memory persistence must not make expired tokens valid")
     }
 
-    func testInMemoryDemoRenewalUsesRefreshInsteadOfExpiredAccessToken() async throws {
+    func testInMemorySessionRenewalUsesRefreshInsteadOfExpiredAccessToken() async throws {
         let refreshed = session(expired: false)
         let data = try JSONCodec.encoder.encode(refreshed)
         let paths = BoundaryLocked<[String]>([])
@@ -150,7 +150,7 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
             }
             return Self.emptyResponse(request)
         }
-        let controller = ImportPreviewController(apiClient: api, authService: auth, purpose: .sample, currentContext: { context })
+        let controller = ImportPreviewController(apiClient: api, authService: auth, currentContext: { context })
         let old = Task { await controller.load(request: previewRequest(), context: context, concentration: .u500) }
         await waitUntil { started.value }
         controller.cancel()
@@ -165,138 +165,13 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         XCTAssertEqual(previewCount.value, 2)
     }
 
-    func testBackgroundCloseDuringActualPreviewRequestRejectsLatePayload() async throws {
-        let (auth, api) = makeAuth(expired: false)
-        let demo = DemoPreviewSession(apiClient: api, authService: auth, diagnostics: nil)
-        await demo.connect()
-        let started = BoundaryLocked(false)
-        let completed = BoundaryLocked(false)
-        let gate = DispatchSemaphore(value: 0)
-        URLProtocolStub.requestHandler = { request in
-            if request.url!.path.hasSuffix("capabilities") { return Self.capabilities(request) }
-            if request.url!.path.hasSuffix("validate") { return Self.validatedResponse(request) }
-            started.update { $0 = true }
-            _ = gate.wait(timeout: .now() + 5)
-            completed.update { $0 = true }
-            return Self.emptyResponse(request)
-        }
-        try await demo.validate(credentials: .init(username: "sample-only", password: "sample-only", region: "us"))
-        let context = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: demo.credentialRevision))
-        let operation = Task { await demo.controller.load(request: previewRequest(), context: context, concentration: .u100) }
-        await waitUntil { started.value }
-        demo.close() // The production scene/background and dismissal boundary.
-        gate.signal()
-        await operation.value
-        XCTAssertTrue(completed.value)
-        XCTAssertNil(demo.credentials)
-        XCTAssertNil(auth.session)
-        guard case .idle = demo.controller.state else { return XCTFail("Late payload must not resurrect a closed preview") }
-    }
 
-    func testCloseDuringActualEnrollmentRejectsLateSession() async throws {
-        let data = try JSONCodec.encoder.encode(session(expired: false))
-        let started = BoundaryLocked(false)
-        let gate = DispatchSemaphore(value: 0)
-        URLProtocolStub.requestHandler = { request in
-            if request.url!.path.hasSuffix("challenge") { return Self.challengeResponse(request) }
-            started.update { $0 = true }
-            _ = gate.wait(timeout: .now() + 5)
-            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
-        }
-        let demo = productionDemo()
-        let operation = Task { await demo.connect() }
-        await waitUntil { started.value }
-        demo.close()
-        gate.signal()
-        await operation.value
-        XCTAssertNil(demo.authService.session)
-        XCTAssertNil(demo.credentials)
-    }
 
-    func testConnectedDemoLifecyclePreservesActualLiveNamespaceBytes() async throws {
-        let defaults = UserDefaults.standard
-        let keys = ["backend.mode", "backend.selfHostedBaseURL", "backend.installationId", "insulinConcentration", "sync-metadata", "imported-sample-ledger"]
-        let defaultsBackup = keys.map { ($0, defaults.object(forKey: $0)) }
-        let liveKeychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
-        let accounts = ["backend.session.current", "tandem-source-credentials", "tandem-source-credential-validation", "imported-sample-ledger-hmac-key"]
-        let keychainBackup = try accounts.map { ($0, try liveKeychain.readData(account: $0)) }
-        defer {
-            for (key, value) in defaultsBackup {
-                if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
-            }
-            for (account, data) in keychainBackup {
-                if let data { try? liveKeychain.writeData(data, account: account) } else { try? liveKeychain.delete(account: account) }
-            }
-        }
-        let liveConfiguration = BackendConfigurationStore()
-        liveConfiguration.mode = .selfHosted
-        liveConfiguration.selfHostedBaseURLString = "https://real-fixture.example/api"
-        let realCredentials = TandemCredentialStore(keychain: liveKeychain)
-        try realCredentials.saveValidated(.init(username: "real-only-account", password: "real-only-secret", region: "us"))
-        let realSession = BackendSessionResponse(accessToken: "real-only-token", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource")
-        try BackendSessionStore(keychain: liveKeychain).save(realSession)
-        let liveConcentration = InsulinConcentrationStore()
-        liveConcentration.concentration = .u500
-        let liveMetadata = SyncMetadataStore()
-        liveMetadata.recordSuccess(sampleCount: 4, importedCount: 3, completedAt: Date(timeIntervalSince1970: 123456), watermark: Date(timeIntervalSince1970: 123000), owner: TandemSyncOwner(accountId: try XCTUnwrap(realCredentials.accountId), backendIdentity: "https://real-fixture.example/api"))
-        let liveLedger = ImportedSampleLedger(keychain: liveKeychain)
-        try liveLedger.recordImported([SampleDTO(externalId: "real-existing-record", type: "insulin.bolus", value: 1, unit: "IU", startAt: Date(), endAt: Date(), metadata: [:], source: .init(deviceId: "real-existing-source", eventIds: []))])
-        let beforeDefaults = NSDictionary(dictionary: Dictionary(uniqueKeysWithValues: keys.compactMap { key in defaults.object(forKey: key).map { (key, $0) } }))
-        let beforeKeychain = try accounts.map { try liveKeychain.readData(account: $0) }
-        func assertLiveUnchanged() throws {
-            let after = NSDictionary(dictionary: Dictionary(uniqueKeysWithValues: keys.compactMap { key in defaults.object(forKey: key).map { (key, $0) } }))
-            XCTAssertEqual(after, beforeDefaults)
-            XCTAssertEqual(try accounts.map { try liveKeychain.readData(account: $0) }, beforeKeychain)
-            XCTAssertEqual(liveConcentration.concentration, .u500)
-            XCTAssertEqual(try realCredentials.load(), .init(username: "real-only-account", password: "real-only-secret", region: "us"))
-        }
-        let sessionData = try JSONCodec.encoder.encode(session(expired: false))
-        let bodies = BoundaryLocked<[String]>([])
-        let fails = BoundaryLocked(false)
-        URLProtocolStub.requestHandler = { request in
-            bodies.append(Self.bodyString(request))
-            switch request.url!.path {
-            case "/api/v1/session/challenge": return Self.challengeResponse(request)
-            case "/api/v1/self-host/session": return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, sessionData)
-            case "/api/v1/capabilities": return Self.capabilities(request)
-            case "/api/v1/tandem/credentials/validate": return Self.validatedResponse(request)
-            case "/api/v1/preview/tandem":
-                if fails.value { return (HTTPURLResponse(url: request.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!, Data(#"{"code":"fixture","message":"Unavailable"}"#.utf8)) }
-                return Self.emptyResponse(request)
-            default: throw URLError(.unsupportedURL)
-            }
-        }
-        let demo = productionDemo()
-        await demo.connect()
-        XCTAssertTrue(demo.authService.isSignedIn)
-        try assertLiveUnchanged()
-        try await demo.validate(credentials: .init(username: "sample-only", password: "sample-only", region: "us"))
-        try assertLiveUnchanged()
-        let context = try XCTUnwrap(demo.authService.operationImportSnapshot(credentialRevision: demo.credentialRevision))
-        await demo.controller.load(request: previewRequest(), context: context, concentration: .u100)
-        guard case .ready = demo.controller.state else { return XCTFail("Expected sample preview") }
-        try assertLiveUnchanged()
-        fails.update { $0 = true }
-        await demo.controller.load(request: previewRequest(), context: context, concentration: .u200)
-        guard case .failed = demo.controller.state else { return XCTFail("Expected controlled failure") }
-        try assertLiveUnchanged()
-        fails.update { $0 = false }
-        await demo.controller.load(request: previewRequest(), context: context, concentration: .u500)
-        try assertLiveUnchanged()
-        demo.close()
-        try assertLiveUnchanged()
-        XCTAssertFalse(bodies.value.contains { $0.contains("real-only") })
-        XCTAssertTrue(bodies.value.contains { $0.contains("sample-only") })
-        let factorySession = try DemoPreviewSession.make()
-        factorySession.close()
-        try assertLiveUnchanged()
-    }
-
-    func testExpiredDemoPreviewRefreshesRotatingFamilyBeforeDownloading() async throws {
+    func testExpiredInspectionRefreshesRotatingFamilyBeforeDownloading() async throws {
         let (auth, api) = makeAuth(expired: true)
         await auth.connectSelfHosted()
         let context = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 0))
-        let refreshedData = try JSONCodec.encoder.encode(BackendSessionResponse(accessToken: "valid-preview-token", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "syntheticDemo", protocolVersion: 3, sessionFamilyId: "rotated-preview-family", refreshToken: "rotated-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture))
+        let refreshedData = try JSONCodec.encoder.encode(BackendSessionResponse(accessToken: "valid-preview-token", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "rotated-preview-family", refreshToken: "rotated-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture))
         let paths = BoundaryLocked<[String]>([])
         let previewAuthorization = BoundaryLocked<String?>(nil)
         URLProtocolStub.requestHandler = { request in
@@ -306,7 +181,7 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
             previewAuthorization.update { $0 = request.value(forHTTPHeaderField: "Authorization") }
             return Self.emptyResponse(request)
         }
-        let controller = ImportPreviewController(apiClient: api, authService: auth, purpose: .sample, currentContext: { auth.operationImportSnapshot(credentialRevision: 0) })
+        let controller = ImportPreviewController(apiClient: api, authService: auth, currentContext: { auth.operationImportSnapshot(credentialRevision: 0) })
         await controller.load(request: previewRequest(), context: context, concentration: .u100)
         guard case .ready = controller.state else { return XCTFail("Rotating-family renewal must allow preview") }
         XCTAssertEqual(paths.value, ["/api/v1/capabilities", "/api/v1/session/refresh", "/api/v1/preview/tandem"])
@@ -347,21 +222,25 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(auth.connectionBinding))?.identity.id, context.connectionId)
     }
 
-    func testReenrollmentIntoNewFamilyRejectsCapturedPreviewWithActionableFeedback() async throws {
-        let expired = BackendSessionResponse(accessToken: "expired", expiresAt: .distantPast, serviceMode: "selfHosted", dataSourceMode: "syntheticDemo", protocolVersion: 3, sessionFamilyId: "old-family", refreshToken: "expired", refreshTokenExpiresAt: .distantPast, refreshTokenAbsoluteExpiresAt: .distantPast)
+    func testReenrollmentIntoNewFamilyUsesFreshContextForInspection() async throws {
+        let expired = BackendSessionResponse(accessToken: "expired", expiresAt: .distantPast, serviceMode: "selfHosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "old-family", refreshToken: "expired", refreshTokenExpiresAt: .distantPast, refreshTokenAbsoluteExpiresAt: .distantPast)
         let replacement = session(expired: false)
         let api = PumpSyncAPIClient(baseURL: URL(string: "https://preview.example/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
         var enrollments = 0
-        let auth = AuthService(apiClient: api, configurationStore: .ephemeral(selfHostedBaseURL: api.baseURL, installationId: "preview-only"), purpose: .preview, currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in replacement }, createSelfHostedSession: { _ in enrollments += 1; return enrollments == 1 ? expired : replacement }, proofProvider: PreviewBoundaryProof())
+        let auth = AuthService(apiClient: api, configurationStore: .ephemeral(selfHostedBaseURL: api.baseURL, installationId: "preview-only"), purpose: .liveImport, currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in replacement }, createSelfHostedSession: { _ in enrollments += 1; return enrollments == 1 ? expired : replacement }, proofProvider: PreviewBoundaryProof())
         await auth.connectSelfHosted()
         let context = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 0))
         let paths = BoundaryLocked<[String]>([])
-        URLProtocolStub.requestHandler = { request in paths.append(request.url!.path); return Self.capabilities(request) }
-        let controller = ImportPreviewController(apiClient: api, authService: auth, purpose: .sample, currentContext: { auth.operationImportSnapshot(credentialRevision: 0) })
+        URLProtocolStub.requestHandler = { request in
+            paths.append(request.url!.path)
+            return request.url!.path.hasSuffix("capabilities") ? Self.capabilities(request) : Self.emptyResponse(request)
+        }
+        let controller = ImportPreviewController(apiClient: api, authService: auth, currentContext: { auth.operationImportSnapshot(credentialRevision: 0) })
         await controller.load(request: previewRequest(), context: context, concentration: .u100)
-        guard case .failed(let message) = controller.state else { return XCTFail("New family requires a new preview") }
-        XCTAssertTrue(message.contains("Reconnect"))
-        XCTAssertEqual(paths.value, ["/api/v1/capabilities"])
+        guard case .ready(let plan) = controller.state else { return XCTFail("Inspection must recapture the renewed connection") }
+        XCTAssertNotEqual(plan.context.connectionId, context.connectionId)
+        XCTAssertEqual(plan.context, auth.operationImportSnapshot(credentialRevision: 0))
+        XCTAssertEqual(paths.value, ["/api/v1/capabilities", "/api/v1/preview/tandem"])
         XCTAssertEqual(enrollments, 2)
     }
 
@@ -374,18 +253,14 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         await auth.connectSelfHosted()
         let context = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 0))
         URLProtocolStub.requestHandler = { request in Self.capabilities(request) }
-        let controller = ImportPreviewController(apiClient: api, authService: auth, purpose: .sample, diagnostics: diagnostics, currentContext: { nil })
+        let controller = ImportPreviewController(apiClient: api, authService: auth, diagnostics: diagnostics, currentContext: { nil })
         await controller.load(request: previewRequest(), context: context, concentration: .u100)
-        XCTAssertTrue(diagnostics.entries.allSatisfy { $0.message?.contains("purpose=sample") == true })
+        XCTAssertTrue(diagnostics.entries.allSatisfy { $0.message?.contains("purpose=real") == true })
         XCTAssertFalse(diagnostics.entries.contains { $0.message?.contains("sample-only") == true })
         XCTAssertFalse(diagnostics.entries.contains { $0.message?.contains("2026") == true })
     }
 
-    private func productionDemo() -> DemoPreviewSession {
-        let api = PumpSyncAPIClient(baseURL: URL(string: "https://preview.example/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
-        let auth = AuthService(apiClient: api, configurationStore: .ephemeral(selfHostedBaseURL: api.baseURL, installationId: "isolated-preview-identity"), purpose: .preview, proofProvider: PreviewBoundaryProof())
-        return DemoPreviewSession(apiClient: api, authService: auth, diagnostics: nil)
-    }
+
     private func previewRequest() -> TandemSyncRequest {
         .init(tandem: .init(username: "sample-only", password: "sample-only", region: "us"), minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC")
     }
@@ -397,10 +272,10 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         XCTFail("Suspended request never started")
     }
     private nonisolated static func capabilities(_ request: URLRequest) -> (HTTPURLResponse, Data) {
-        (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"syntheticDemo","supportsImportPreview":true}"#.utf8))
+        (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8))
     }
     private nonisolated static func emptyResponse(_ request: URLRequest) -> (HTTPURLResponse, Data) {
-        (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"syntheticDemo"}"#.utf8))
+        (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"tandemSource"}"#.utf8))
     }
     private nonisolated static func validatedResponse(_ request: URLRequest) -> (HTTPURLResponse, Data) {
         (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"validated":true}"#.utf8))
@@ -426,12 +301,12 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
     private func makeAuth(expired: Bool) -> (AuthService, PumpSyncAPIClient) {
         let response = session(expired: expired)
         let api = PumpSyncAPIClient(baseURL: URL(string: "https://preview.example/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
-        let auth = AuthService(apiClient: api, configurationStore: .ephemeral(selfHostedBaseURL: api.baseURL, installationId: "preview-only"), purpose: .preview, currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in response }, createSelfHostedSession: { _ in response }, proofProvider: PreviewBoundaryProof())
+        let auth = AuthService(apiClient: api, configurationStore: .ephemeral(selfHostedBaseURL: api.baseURL, installationId: "preview-only"), purpose: .liveImport, currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in response }, createSelfHostedSession: { _ in response }, proofProvider: PreviewBoundaryProof())
         return (auth, api)
     }
 
     private func session(expired: Bool) -> BackendSessionResponse {
-        .init(accessToken: expired ? "expired-preview-token" : "valid-preview-token", expiresAt: expired ? .distantPast : .distantFuture, serviceMode: "selfHosted", dataSourceMode: "syntheticDemo", protocolVersion: 3, sessionFamilyId: "preview-family", refreshToken: "preview-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+        .init(accessToken: expired ? "expired-preview-token" : "valid-preview-token", expiresAt: expired ? .distantPast : .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "preview-family", refreshToken: "preview-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
     }
 }
 

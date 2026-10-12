@@ -8,103 +8,33 @@ final class PumpSyncUITests: XCTestCase {
     continueAfterFailure = false
   }
 
-  func testSamplePreviewIsSeparateAndClosesWithoutChangingConnection() {
-    XCUIDevice.shared.orientation = .portrait
-    let app = XCUIApplication()
-    app.launch()
-    recordUIState(named: "sample-preview-before-settings", in: app)
+  func testPreviewEntryPointsLiveOnlyInDiagnostics() {
+    let app = launchScreenshotFixture()
+    XCTAssertFalse(app.buttons["Preview Import"].exists)
     navigate(to: "Settings", in: app)
-    let preview = app.buttons["Sample Preview"]
-    XCTAssertTrue(preview.waitForExistence(timeout: 5))
-    revealPreviewControl(preview, in: app, swipingUp: false)
-    preview.tap()
-    let close = app.buttons["Close"]
-    XCTAssertTrue(close.wait(for: \.isHittable, toEqual: true, timeout: 10), "Sample Preview sheet did not finish presenting")
-
-    let username = app.textFields["Sample username"]
-    revealPreviewControl(username, in: app)
-    XCTAssertEqual(username.value as? String, "Sample username")
-    let password = app.secureTextFields["Sample password"]
-    revealPreviewControl(password, in: app)
-    XCTAssertEqual(password.value as? String, "Sample password")
-    assertPreviewConnectionDisabled(in: app)
-
-    // Close with an actual edited value; reopening an untouched form would
-    // not prove that the temporary inputs were cleared.
-    revealPreviewControl(username, in: app, swipingUp: false)
-    username.tap()
-    username.typeText("preview-reset-fixture")
-    XCTAssertEqual(username.value as? String, "preview-reset-fixture")
-    close.tap()
-    XCTAssertTrue(close.waitForNonExistence(timeout: 5))
-    XCTAssertTrue(preview.wait(for: \.isEnabled, toEqual: true, timeout: 5))
-    revealPreviewControl(preview, in: app, swipingUp: false)
-    preview.tap()
-    XCTAssertTrue(close.wait(for: \.isHittable, toEqual: true, timeout: 10))
-    revealPreviewControl(username, in: app)
-    XCTAssertEqual(username.value as? String, "Sample username")
-    revealPreviewControl(password, in: app)
-    XCTAssertEqual(password.value as? String, "Sample password")
-    assertPreviewConnectionDisabled(in: app)
-    close.tap()
-    XCTAssertTrue(close.waitForNonExistence(timeout: 5))
-    XCTAssertTrue(preview.wait(for: \.isEnabled, toEqual: true, timeout: 5))
+    XCTAssertFalse(app.buttons["Sample Preview"].exists)
+    tapNavigationLink("Developer", in: app)
+    let inspect = app.buttons["Inspect source data"]
+    if !inspect.isHittable { app.swipeUp() }
+    XCTAssertTrue(inspect.waitForExistence(timeout: 5))
+    inspect.tap()
+    XCTAssertTrue(app.staticTexts["Read-only — nothing is saved to Apple Health"].waitForExistence(timeout: 5))
   }
 
-  func testBackgroundingSamplePreviewClosesItAndAllowsANewPreview() {
-    XCUIDevice.shared.orientation = .portrait
-    let app = XCUIApplication()
-    app.launch()
+  func testConnectionRecoveryOpensSettingsTab() {
+    let app = launchScreenshotFixture()
     navigate(to: "Settings", in: app)
-    let preview = app.buttons["Sample Preview"]
-    XCTAssertTrue(preview.waitForExistence(timeout: 5))
-    revealPreviewControl(preview, in: app, swipingUp: false)
-    preview.tap()
-    let close = app.buttons["Close"]
-    XCTAssertTrue(close.wait(for: \.isHittable, toEqual: true, timeout: 10))
-    let username = app.textFields["Sample username"]
-    revealPreviewControl(username, in: app)
-    username.tap()
-    username.typeText("preview-background-fixture")
-
-    XCUIDevice.shared.press(.home)
-    XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5) || app.state == .runningBackgroundSuspended)
-    app.activate()
-    XCTAssertTrue(close.waitForNonExistence(timeout: 5), "Backgrounding must dismiss the closed sample session")
-    recordUIState(named: "sample-preview-after-background", in: app)
-    XCTAssertTrue(preview.wait(for: \.isEnabled, toEqual: true, timeout: 5))
-    revealPreviewControl(preview, in: app, swipingUp: false)
-    preview.tap()
-    XCTAssertTrue(close.wait(for: \.isHittable, toEqual: true, timeout: 10))
-    revealPreviewControl(username, in: app)
-    XCTAssertEqual(username.value as? String, "Sample username")
-    close.tap()
-    XCTAssertTrue(close.waitForNonExistence(timeout: 5))
+    tapSegment("Self-hosted", in: app)
+    navigate(to: "Sync", in: app)
+    let settings = app.buttons["Connection Settings"]
+    XCTAssertTrue(settings.waitForExistence(timeout: 5))
+    attachScreenshot(named: "connection-recovery-card", from: app)
+    settings.tap()
+    XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected)
+    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
   }
 
-  private func assertPreviewConnectionDisabled(in app: XCUIApplication) {
-    let connect = app.buttons["Connect and Preview"]
-    revealPreviewControl(connect, in: app)
-    XCTAssertFalse(connect.isEnabled)
-    attachScreenshot(named: "sample-preview-disabled-connection-action", from: app)
-  }
 
-  private func revealPreviewControl(
-    _ element: XCUIElement,
-    in app: XCUIApplication,
-    swipingUp: Bool = true,
-    file: StaticString = #filePath,
-    line: UInt = #line
-  ) {
-    // SwiftUI Form rows may be absent from the accessibility hierarchy until
-    // scrolled into view. Waiting alone cannot materialize an offscreen row.
-    for _ in 0..<10 {
-      if element.exists && element.isHittable { return }
-      if swipingUp { app.swipeUp() } else { app.swipeDown() }
-    }
-    attachScreenshot(named: "sample-preview-unreachable-control", from: app)
-    XCTFail("Could not reveal the Sample Preview control after ten scrolls", file: file, line: line)
-  }
 
   func testAppLaunches() {
     let app = XCUIApplication()
@@ -268,6 +198,31 @@ final class PumpSyncUITests: XCTestCase {
     assertDeveloperDiagnosticsVisible(in: app)
   }
 
+  func testInstallationIDCopiesFromContextMenu() {
+    let app = launchScreenshotFixture()
+    navigate(to: "Settings", in: app)
+    tapNavigationLink("Developer", in: app)
+
+    let row = app.descendants(matching: .any)["InstallationIDRow"].firstMatch
+    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    let installationID = row.value as? String
+    XCTAssertNotNil(installationID)
+    XCTAssertFalse(app.buttons["Copy Installation ID"].exists)
+    attachScreenshot(named: "installation-id-without-separate-copy-row", from: app)
+
+    row.press(forDuration: 1)
+    let copy = app.buttons["Copy"].firstMatch
+    XCTAssertTrue(copy.waitForExistence(timeout: 5))
+    attachScreenshot(named: "installation-id-copy-menu", from: app)
+    copy.tap()
+    XCTAssertTrue(copy.waitForNonExistence(timeout: 5))
+    XCTAssertEqual(row.value as? String, installationID)
+    let expectedCopy = XCTAttachment(string: installationID ?? "")
+    expectedCopy.name = "expected-copied-installation-id"
+    expectedCopy.lifetime = .keepAlways
+    add(expectedCopy)
+  }
+
   func testDeveloperDiagnosticsActionsUseUniqueAccessibleNames() {
     let app = launchScreenshotFixture()
 
@@ -395,6 +350,11 @@ final class PumpSyncUITests: XCTestCase {
     tapNavigationLink("Apple Health", in: app)
     XCTAssertTrue(app.staticTexts["Write Permissions"].waitForExistence(timeout: 5))
     attachScreenshot(named: "iphone-6-7-app-store-listing-07-apple-health.png", from: app)
+    app.navigationBars.buttons.firstMatch.tap()
+
+    tapNavigationLink("Insulin Concentration", in: app)
+    XCTAssertTrue(app.staticTexts["Current Setting"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "iphone-insulin-concentration-alignment.png", from: app)
     app.navigationBars.buttons.firstMatch.tap()
 
     tapNavigationLink("Data Handling", in: app)

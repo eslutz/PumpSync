@@ -16,10 +16,9 @@ final class ImportPreviewController {
             case .ready(let plan): summary = "state=ready source=\(plan.context.dataSourceMode.rawValue) count=\(plan.downloadedRecordCount)"
             case .failed: summary = "state=failed reason=previewUnavailable"
             }
-            diagnostics?.record(source: .sync, title: "Import preview", message: "purpose=\(purpose.rawValue) \(summary)")
+            diagnostics?.record(source: .sync, title: "Import preview", message: "purpose=real \(summary)")
         }
     }
-    private let purpose: ImportPreviewPurpose
     private let diagnostics: DiagnosticsLogStore?
     private let apiClient: PumpSyncAPIClient
     private let authService: AuthService
@@ -27,8 +26,7 @@ final class ImportPreviewController {
     private var task: Task<Void, Never>?
     private let currentContext: () -> ImportSessionSnapshot?
 
-    init(apiClient: PumpSyncAPIClient, authService: AuthService, purpose: ImportPreviewPurpose = .real, diagnostics: DiagnosticsLogStore? = nil, currentContext: @escaping () -> ImportSessionSnapshot?) {
-        self.purpose = purpose
+    init(apiClient: PumpSyncAPIClient, authService: AuthService, diagnostics: DiagnosticsLogStore? = nil, currentContext: @escaping () -> ImportSessionSnapshot?) {
         self.diagnostics = diagnostics
         self.apiClient = apiClient
         self.authService = authService
@@ -56,7 +54,7 @@ final class ImportPreviewController {
                 // Recovery may replace continuity before any preview records
                 // have been downloaded. Capture that fresh source once, only
                 // while the original configuration/account still owns the view.
-                if purpose == .real, transition == .reenrolled, let fresh = currentContext(),
+                if transition == .reenrolled, let fresh = currentContext(),
                    configuration == authService.importConfigurationSnapshot,
                    fresh.backendIdentity == context.backendIdentity,
                    fresh.configurationRevision == context.configurationRevision,
@@ -106,15 +104,12 @@ final class ImportPreviewController {
     }
 }
 
-enum ImportPreviewPurpose: String { case real, sample }
-
 enum PreviewError: LocalizedError {
-    case upgradeRequired, connectionRequired, invalidCredentials
+    case upgradeRequired, connectionRequired
     var errorDescription: String? {
         switch self {
-        case .upgradeRequired: "This service needs an update to support Import Preview."
-        case .connectionRequired: "Connect to the service before previewing records."
-        case .invalidCredentials: "The sample account could not be validated. Check the details and try again."
+        case .upgradeRequired: "This service needs an update to support source data inspection."
+        case .connectionRequired: "Connect to the service before inspecting records."
         }
     }
 }

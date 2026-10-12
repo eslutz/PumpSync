@@ -78,7 +78,7 @@ Before pushing a candidate or starting Xcode Cloud, run:
 bash scripts/ios/validate-cloud-tests.sh
 ```
 
-The Cloud preflight pins Xcode build `27A266a`, iOS 27.0, and iPhone SE (3rd generation), matching Internal Beta Build 38's test action. It creates a dedicated simulator if needed, runs all unit and UI tests, then repeats the Sample Preview flow five times each at standard and maximum accessibility text sizes using actual simulator text settings. It restores the previous text size on exit. Any failure or build-tool warning fails validation. Raw logs, `.xcresult` bundles, summaries, and the tested environment/commit are saved under ignored `TestResults/`. Update the pin when the Cloud workflow changes; a pass on another device or OS does not satisfy this gate. Additional minimum-supported-OS, iPad, and physical-device checks remain necessary for release acceptance.
+The Cloud preflight pins Xcode build `27A266a`, iOS 27.0, and iPhone SE (3rd generation), matching Internal Beta Build 38's test action. It creates a dedicated simulator if needed, runs all unit and UI tests, then repeats the connection recovery flow five times each at standard and maximum accessibility text sizes using actual simulator text settings. It restores the previous text size on exit. Any failure or build-tool warning fails validation. Raw logs, `.xcresult` bundles, summaries, and the tested environment/commit are saved under ignored `TestResults/`. Update the pin when the Cloud workflow changes; a pass on another device or OS does not satisfy this gate. Additional minimum-supported-OS, iPad, and physical-device checks remain necessary for release acceptance.
 
 ## App Store Routing
 

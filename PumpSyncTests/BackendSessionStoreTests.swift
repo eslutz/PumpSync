@@ -238,7 +238,7 @@ final class AuthConnectionPersistenceTests: XCTestCase {
     let connection = AuthenticatedConnection(session: response, identity: AuthConnectionIdentity(id: UUID(), binding: binding()))
     try store.save(connection)
     let data = persistence.data
-    for changed in [binding(backend: "https://other.example/api"), binding(mode: .selfHosted), binding(installation: "other"), binding(purpose: .preview)] {
+    for changed in [binding(backend: "https://other.example/api"), binding(mode: .selfHosted), binding(installation: "other")] {
       XCTAssertThrowsError(try store.loadConnection(binding: changed))
       XCTAssertEqual(persistence.data, data)
     }

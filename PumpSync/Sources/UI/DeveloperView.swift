@@ -11,29 +11,18 @@ struct DeveloperView: View {
       GlassSection("Build") {
         GlassStatusRow(title: "Version", value: appVersion, systemImage: "number")
         GlassDivider()
-        GlassStatusRow(title: "Installation ID", value: services.backendConfigurationStore.installationId, systemImage: "number.square")
-        GlassDivider()
-        Button {
-          copyToClipboard(services.backendConfigurationStore.installationId)
-          showCopiedFeedback(for: .installationId)
-        } label: {
-          HStack(spacing: 14) {
-            Image(systemName: copiedItem == .installationId ? "checkmark.circle" : "doc.on.doc")
-              .font(.title3)
-              .frame(width: 28)
-              .accessibilityHidden(true)
-
-            Text(copiedItem == .installationId ? "Copied Installation ID" : "Copy Installation ID")
-              .layoutPriority(1)
-
-            Spacer(minLength: 0)
-          }
-          .frame(maxWidth: .infinity, alignment: .leading)
+        GlassStatusRow(
+          title: "Installation ID",
+          value: services.backendConfigurationStore.installationId,
+          systemImage: copiedItem == .installationId ? "checkmark.circle" : "number.square"
+        )
+        .contentShape(Rectangle())
+        .contextMenu {
+          Button("Copy", systemImage: "doc.on.doc", action: copyInstallationID)
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(.tint)
-        .padding(.vertical, 6)
-        .accessibilityHint("Copies the PumpSync installation ID used for support and data deletion requests")
+        .accessibilityIdentifier("InstallationIDRow")
+        .accessibilityHint("Touch and hold to copy the installation ID")
+        .accessibilityAction(named: "Copy", copyInstallationID)
       }
 
       GlassSection("Sync") {
@@ -55,8 +44,18 @@ struct DeveloperView: View {
         diagnosticsSectionHeading("Diagnostics")
 
         GlassSection {
+          NavigationLink {
+            RealImportPreviewView(services: services)
+          } label: {
+            GlassNavigationRow("Inspect source data", subtitle: "Read-only download; nothing is saved to Apple Health", systemImage: "doc.text.magnifyingglass")
+          }
+          .buttonStyle(.plain)
+          .disabled(!services.authService.isSignedIn || !services.credentialStore.hasValidatedCredentials || services.syncCoordinator.isSyncing)
+          .accessibilityHint("Inspects records from your connected pump account without importing them")
+          GlassDivider()
+
           ShareLink(item: supportBundleText) {
-            Label("Share Support Bundle", systemImage: "square.and.arrow.up")
+            GlassPrimaryLabel(title: "Share Support Bundle", systemImage: "square.and.arrow.up")
           }
           .buttonStyle(.plain)
           .foregroundStyle(.tint)
@@ -212,6 +211,12 @@ struct DeveloperView: View {
       [[UTType.plainText.identifier: string]],
       options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(2 * 60)]
     )
+  }
+
+  private func copyInstallationID() {
+    copyToClipboard(services.backendConfigurationStore.installationId)
+    showCopiedFeedback(for: .installationId)
+    UIAccessibility.post(notification: .announcement, argument: "Installation ID copied")
   }
 
   private func showCopiedFeedback(for item: CopiedDiagnosticsItem) {

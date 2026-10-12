@@ -132,7 +132,7 @@ enum SessionRecoveryPolicy: Equatable {
   }
 }
 
-enum AuthPurpose: String, Codable { case liveImport, preview }
+enum AuthPurpose: String, Codable { case liveImport }
 
 @MainActor
 @Observable
@@ -432,7 +432,7 @@ final class AuthService {
   private func validateSessionPurpose(_ session: BackendSessionResponse) throws {
     let source = DataSourceMode(rawValue: session.dataSourceMode) ?? .unknown
     guard source != .unknown else { throw HealthImportError.unverifiedSource }
-    if purpose == .liveImport, source == .syntheticDemo { throw HealthImportError.previewOnly }
+    if source == .syntheticDemo { throw HealthImportError.previewOnly }
   }
 
   private func sessionIsValid(_ session: BackendSessionResponse) -> Bool {

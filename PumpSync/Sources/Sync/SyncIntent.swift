@@ -51,7 +51,6 @@ enum SyncDeferralReason: Equatable {
 enum SyncRunOutcome: Equatable {
   case completed
   case skippedFresh
-  case skippedPreviewActive
   case blocked(SyncBlockReason)
   case deferred(SyncDeferralReason)
   case canceled

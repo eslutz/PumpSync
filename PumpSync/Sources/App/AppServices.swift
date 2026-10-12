@@ -19,22 +19,6 @@ final class AppServices {
   let foregroundRecovery: ForegroundRecoveryController
   private let metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector
 
-  private(set) var demoPreviewActive = false
-
-  func beginDemoPreview() -> Bool {
-    guard !demoPreviewActive, !syncCoordinator.isSyncing else { return false }
-    demoPreviewActive = true
-    syncCoordinator.setDemoPreviewActive(true)
-    foregroundRecovery.setPreviewActive(true)
-    return true
-  }
-
-  func endDemoPreview() {
-    demoPreviewActive = false
-    syncCoordinator.setDemoPreviewActive(false)
-    foregroundRecovery.setPreviewActive(false)
-  }
-
   private init(
     apiClient: PumpSyncAPIClient,
     backendConfigurationStore: BackendConfigurationStore,
@@ -75,7 +59,6 @@ final class AppServices {
       // their state by attempting real foreground authentication recovery.
       guard !AppLaunchEnvironment.isScreenshotMode else { return }
 #endif
-      guard !syncCoordinator.isDemoPreviewActive else { return }
       do {
         if try importedSampleLedger.migrateHmacKeyForBackgroundAccess() {
           diagnosticsLogStore.record(source: .sync, title: "Background sync ledger key migrated")

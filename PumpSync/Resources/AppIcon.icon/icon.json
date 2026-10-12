@@ -6,11 +6,11 @@
     {
       "layers" : [
         {
-          "image-name" : "arrow-a.png",
+          "image-name" : "arrow-a.svg",
           "name" : "Upper sync arrow"
         },
         {
-          "image-name" : "arrow-b.png",
+          "image-name" : "arrow-b.svg",
           "name" : "Lower sync arrow"
         }
       ],
@@ -27,7 +27,7 @@
     {
       "layers" : [
         {
-          "image-name" : "pump.png",
+          "image-name" : "pump.svg",
           "name" : "Pump and tubing"
         }
       ],
@@ -37,7 +37,7 @@
         "opacity" : 0.15
       },
       "translucency" : {
-        "enabled" : true,
+        "enabled" : false,
         "value" : 0.1
       }
     }

@@ -524,25 +524,7 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertNotNil(metadata.metadata.lastErrorMessage)
   }
 
-  func testPreviewActivityDefersManualAndBackgroundWithoutPersistentChanges() async throws {
-    let health = FakeHealthKitService()
-    let metadata = makeSyncMetadataStore()
-    let coordinator = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
-    coordinator.setDemoPreviewActive(true)
-    let background = await coordinator.refreshIfStale(reason: .background, lease: grantedBackgroundLease())
-    let manual = await coordinator.sync(reason: .manual)
-    XCTAssertEqual(background, .skippedPreviewActive)
-    XCTAssertFalse(manual)
-    XCTAssertNil(metadata.metadata.lastAttemptAt)
-    XCTAssertNil(metadata.metadata.lastErrorMessage)
-    XCTAssertEqual(coordinator.operationState, .idle)
-    XCTAssertTrue(health.savedConcentrations.isEmpty)
-    XCTAssertEqual(health.refreshAuthorizationStatusCallCount, 0)
-    coordinator.setDemoPreviewActive(false)
-    URLProtocolStub.requestHandler = syncResponseHandler(samples: [], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
-    let resumed = await coordinator.sync(reason: .manual)
-    XCTAssertTrue(resumed)
-  }
+
 
   func testSyntheticAndMissingBatchProvenanceNeverReachWriterOrRealMetadata() async throws {
     for mode in ["syntheticDemo", "unknown", ""] {

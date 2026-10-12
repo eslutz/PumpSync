@@ -2,21 +2,20 @@ import SwiftUI
 
 struct ImportPreviewView: View {
     let controller: ImportPreviewController
-    let isSample: Bool
     let retry: () async -> Void
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                Text(isSample ? "Sample data — nothing is saved to Apple Health" : "Preview only — nothing has been saved to Apple Health")
+                Text("Read-only — nothing is saved to Apple Health")
                     .font(.headline)
                     .accessibilityIdentifier("PreviewSafetyNotice")
                 switch controller.state {
                 case .idle:
-                    Button("Download Preview") { Task { await retry() } }
+                    Button("Download Records") { Task { await retry() } }
                 case .loading:
-                    ProgressView("Downloading preview…")
+                    ProgressView("Downloading source data…")
                     Button("Cancel") { controller.cancel() }
                 case .failed(let message):
                     Text(message).foregroundStyle(.secondary)
@@ -47,11 +46,11 @@ struct ImportPreviewView: View {
                         }
                         .padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
                     }
-                    Button("Refresh Preview") { Task { await retry() } }
+                    Button("Refresh Records") { Task { await retry() } }
                 }
             }.padding().frame(maxWidth: 700, alignment: .leading).frame(maxWidth: .infinity)
         }
-        .navigationTitle("Import Preview")
+        .navigationTitle("Inspect Source Data")
         .onDisappear { controller.cancel() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { controller.cancel() } }
     }
@@ -71,6 +70,6 @@ struct RealImportPreviewView: View {
         _session = State(initialValue: RealImportPreviewSession(apiClient: services.apiClient, authService: services.authService, credentialStore: services.credentialStore, metadataStore: services.syncMetadataStore, concentrationStore: services.insulinConcentrationStore, diagnostics: services.diagnosticsLogStore))
     }
     var body: some View {
-        ImportPreviewView(controller: session.controller, isSample: false, retry: session.load).task { await session.load() }
+        ImportPreviewView(controller: session.controller, retry: session.load).task { await session.load() }
     }
 }

@@ -95,7 +95,6 @@ final class SyncAttemptStore {
     switch result {
     case .completed: finish(operationID: operationID, outcome: .completed, reason: .completed)
     case .skippedFresh: finish(operationID: operationID, outcome: .skipped, reason: .fresh)
-    case .skippedPreviewActive: finish(operationID: operationID, outcome: .skipped, reason: .unverifiedSource)
     case .blocked(let reason):
       switch reason {
       case .session(let reason): finish(operationID: operationID, outcome: .blocked, reason: .recovery(reason))

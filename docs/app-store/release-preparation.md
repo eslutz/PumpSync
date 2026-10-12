@@ -17,7 +17,7 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 
 ### Test Matrix
 
-- [ ] Run `bash scripts/ios/validate-cloud-tests.sh` on the candidate and record its source state, Xcode build, iOS runtime, device type, full-suite result, and all ten Sample Preview repetition results.
+- [ ] Run `bash scripts/ios/validate-cloud-tests.sh` on the candidate and record its source state, Xcode build, iOS runtime, device type, full-suite result, and all ten connection recovery repetition results.
 - [ ] Check the actual Cloud test destination before changing the local preflight pin; matching only the iOS major version is insufficient.
 - [ ] Confirm no test filters, retry-until-pass options, or excluded failures weakened the full-suite gate.
 - [ ] Test on at least one physical iPhone.
@@ -58,27 +58,13 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 - [ ] Open Apple subscription management from PumpSync.
 - [ ] Verify expired or revoked entitlement handling does not leave a stale connected session.
 
-### Self-Hosted and Demo Connection
+### Self-hosted connection and reviewer access
 
-The approved design retains the public demo for an authenticated, non-writing Sample Preview; implementation and Apple confirmation are still pending. See the canonical [App Review access plan](https://github.com/eslutz/PumpSync/wiki/App-Review-Access-Plan). The configuration below describes the existing service, not an approved synthetic Health import test. Do not sync synthetic samples into personal or reviewer Health stores.
-
-Existing demo configuration:
-
-- Server URL: `https://demo.pumpsync.ericslutz.dev/api`
-- Username: `demo@pumpsync.app`
-- Password: `PumpSyncDemo123!`
-- Region: United States
-
-- [ ] Switch from PumpSync to Self-hosted.
-- [ ] Verify Self-hosted enrollment and renewal use the Secure Enclave proof and succeed without an Apple Account, StoreKit entitlement, or App Attest service.
-- [ ] Open Settings → Sample Preview and authenticate to the demo service without replacing the live connection.
-- [ ] Verify missing `/api`, unreachable hosts, invalid TLS, and malformed URLs produce understandable errors.
-- [ ] Verify non-loopback HTTP URLs are rejected.
-- [ ] Validate public demo credentials in Sample Preview; verify they remain in memory and never overwrite live credentials.
-- [ ] Verify invalid credentials produce an actionable error.
-- [ ] Change the username, password, and region individually and verify save behavior.
-- [ ] Switch between PumpSync and Self-hosted and verify sessions are not reused across modes.
-- [ ] Confirm switching modes does not delete credentials without an explicit removal action.
+- [ ] Verify Settings → Self-hosted with a legitimate compatible backend, its URL validation, authentication, errors, and reconnect behavior.
+- [ ] Verify synthetic/unverified services cannot import records into Apple Health.
+- [ ] Confirm no dedicated Sample Preview entry point is shipped.
+- [ ] Complete the [App Review access plan](https://github.com/eslutz/PumpSync/wiki/App-Review-Access-Plan): prepare the access brief, request prior approval for any replacement demonstration mode, record Apple's written answer and conditions, and verify the agreed access before submission.
+- [ ] Treat developer-support advice, TestFlight distribution, and backend availability as separate from demonstration-mode approval.
 
 ### Tandem Credentials
 
@@ -101,7 +87,7 @@ Existing demo configuration:
 - [ ] Follow the displayed Settings instructions and confirm they are accurate.
 - [ ] Revoke access after a successful sync and verify the next sync fails safely.
 - [ ] Confirm PumpSync does not request unrelated Health data.
-- [ ] Confirm synthetic samples never reach HealthKit; verify values, dates, units, and provenance through test-target recording writers or the agreed non-writing preview.
+- [ ] Confirm synthetic samples never reach HealthKit; verify values, dates, units, and provenance through test-target recording writers or the agreed reviewer-access evidence.
 - [ ] Preserve existing real Health data; do not use synthetic Health writes on a personal device as a test strategy.
 
 ### Initial and Subsequent Syncing
@@ -388,10 +374,14 @@ gh release create v1.0.0 --verify-tag --title "PumpSync v1.0.0" --notes-from-tag
 - [ ] Close the release only after monitoring is stable and all release records are complete.
 
 
-## Safe preview candidate acceptance
+## Read-only inspection and review acceptance
 
-Preview-capable rollout remains pending. Verify authenticated **Settings → Sample Preview** connection, public credential validation, Past 2 days/U100 defaults, converted row details, invalid-input/network recovery, retry, dismissal, and background cancellation. No Health permission is needed. Confirm zero synthetic Health writes and byte-for-byte preservation of live configuration, credential records, concentration, ledger, and metadata with test-target instrumentation; screenshot inspection alone cannot prove this boundary.
+Verify Settings → Developer → Diagnostics → Inspect source data with an authenticated real account, including denied Health permission, converted row details, effective window/concentration, failures, retries, and dismissal/background cancellation.
+Counts represent downloaded records, including records already imported, rather than new or imported counts.
+Inspection cannot commit cached rows, update the import ledger/watermark, or become a required step for manual or background syncing.
+Keep synthetic/unknown/inconsistent/stale provenance rejection tests at every Health submission boundary.
 
-Verify optional real **Preview Import** with denied Health permission; it reports downloaded records (including already imported records), effective window and concentration, never imported/new counts. It closes back to normal Sync and cannot commit cached rows. Test missing/unknown/inconsistent/stale provenance and all manual/app-open/granted-background/retry entry points.
-
-Actual iPhone Secure Enclave/App Attest authentication, legitimate Health writes and repeat-sync deduplication, spoken VoiceOver, hosted purchase/restore, and distribution-specific acceptance remain separate release gates. Preserve personal data and use an agreed device arrangement for reinstall/reset tests. Apple's confirmation of the sample-preview plus legitimate-import-video arrangement is still pending; do not send or submit this draft without authorization.
+The dedicated Sample Preview flow has been removed.
+Follow the canonical [App Review access plan](https://github.com/eslutz/PumpSync/wiki/App-Review-Access-Plan) for the prior-approval request, required evidence, written decision, and submission notes.
+Actual App Attest hardware behavior, legitimate Health writes and deduplication, subscription purchase/restore, natural background execution, and physical accessibility acceptance remain separate evidence requirements.
+No replacement demo is approved or implemented by this source change, and no request or App Store submission is sent automatically.

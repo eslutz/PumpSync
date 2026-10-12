@@ -27,7 +27,7 @@ enum HealthImportError: LocalizedError {
     case previewOnly, unverifiedSource, sourceMismatch, staleContext, invalidWindow, invalidSample, conflictingDuplicate
     var errorDescription: String? {
         switch self {
-        case .previewOnly: "This service supplies sample data. Open Sample Preview instead."
+        case .previewOnly: "This service supplies sample data and cannot import into Apple Health."
         case .unverifiedSource: "The service could not verify the data source. Upgrade the backend before importing."
         case .sourceMismatch: "The service data source changed. Reconnect before importing."
         case .staleContext: "Your connection or pump credentials changed. Start a new sync."

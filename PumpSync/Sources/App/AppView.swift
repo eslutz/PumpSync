@@ -4,6 +4,8 @@ struct AppView: View {
   @Environment(AppServices.self) private var services
   @State private var selectedTab: AppTab = .sync
   @State private var isShowingSubscriptionStore = false
+  @State private var settingsNavigationID = UUID()
+  @State private var syncNavigationID = UUID()
 
   var body: some View {
     GeometryReader { geometry in
@@ -24,9 +26,14 @@ struct AppView: View {
           NavigationStack {
             tab.content
           }
+          .id(tab == .settings ? settingsNavigationID : syncNavigationID)
         }
       }
     }
+    .environment(\.openConnectionSettings, {
+      settingsNavigationID = UUID()
+      selectedTab = .settings
+    })
     .tabViewStyle(.sidebarAdaptable)
     .safeAreaInset(edge: .top, spacing: 0) {
       if !services.syncCoordinator.isNotificationDismissed,
@@ -97,5 +104,16 @@ enum AppTab: String, CaseIterable, Identifiable {
     case .settings:
       SettingsView()
     }
+  }
+}
+
+private struct OpenConnectionSettingsKey: EnvironmentKey {
+  static let defaultValue: @MainActor () -> Void = {}
+}
+
+extension EnvironmentValues {
+  var openConnectionSettings: @MainActor () -> Void {
+    get { self[OpenConnectionSettingsKey.self] }
+    set { self[OpenConnectionSettingsKey.self] = newValue }
   }
 }

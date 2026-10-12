@@ -133,8 +133,8 @@ final class AuthSessionCommitterTests: XCTestCase {
     let id = try committer.begin(kind: .refresh, binding: binding, source: source, proofRequestID: "request", proofKeyID: nil)
     let changed = AuthenticatedConnection(session: response(token: "changed"), identity: source.identity)
     XCTAssertThrowsError(try committer.submitted(id, binding: binding, source: changed))
-    let different = AuthConnectionBinding(backendIdentity: binding.backendIdentity, mode: .hosted,
-      installationId: binding.installationId, purpose: .preview)
+    let different = AuthConnectionBinding(backendIdentity: binding.backendIdentity + "/other", mode: .hosted,
+      installationId: binding.installationId, purpose: .liveImport)
     XCTAssertThrowsError(try committer.submitted(id, binding: different, source: source))
     XCTAssertThrowsError(try committer.submitted(UUID(), binding: binding, source: source))
     XCTAssertEqual(try store.loadAuthJournal()?.phase, .prepared)

@@ -3,7 +3,9 @@ import SwiftUI
 struct SyncView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(AppServices.self) private var services
+  @ScaledMetric(relativeTo: .title3) private var iconColumnWidth = 28
   @State private var showsSubscription = false
+  @Environment(\.openConnectionSettings) private var openConnectionSettings
 
   var body: some View {
     PumpSyncScreen {
@@ -14,6 +16,33 @@ struct SyncView: View {
           systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
           showsProgress: services.authService.isConnecting
         )
+
+        if !services.authService.isSignedIn && !services.authService.isConnecting {
+          Text(services.authService.errorMessage ?? "Connect before syncing pump data to Apple Health.")
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 6)
+            .padding(.leading, iconColumnWidth + 14)
+
+          GlassDivider()
+          Button {
+            if services.authService.requiresSubscriptionAction { showsSubscription = true }
+            else { services.foregroundRecovery.retryConnection() }
+          } label: {
+            GlassPrimaryLabel(
+              title: services.authService.requiresSubscriptionAction ? "View Subscription" : "Retry Connection",
+              systemImage: services.authService.requiresSubscriptionAction ? "creditcard" : "arrow.clockwise"
+            )
+          }
+          .buttonStyle(GroupedRowActionButtonStyle())
+
+          GlassDivider()
+          Button(action: openConnectionSettings) {
+            GlassNavigationRow("Connection Settings", systemImage: "gearshape")
+          }
+          .buttonStyle(.plain)
+        }
 
         GlassDivider()
 
@@ -47,29 +76,16 @@ struct SyncView: View {
       .buttonStyle(GroupedActionButtonStyle())
       .disabled(!canSync)
 
-      NavigationLink("Preview Import") { RealImportPreviewView(services: services) }
-        .buttonStyle(GroupedActionButtonStyle())
-        .disabled(!services.authService.isSignedIn || !services.credentialStore.hasValidatedCredentials || services.demoPreviewActive)
-
-      if let message = Self.readinessMessage(
-        isBackendConnected: services.authService.isSignedIn,
-        isConnecting: services.authService.isConnecting,
-        hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
-        hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
-      ) {
+      if services.authService.isSignedIn,
+         let message = Self.readinessMessage(
+           isBackendConnected: true,
+           isConnecting: services.authService.isConnecting,
+           hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
+           hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
+         ) {
         GlassSection {
-          Text(!services.authService.isSignedIn && !services.authService.isConnecting
-               ? services.authService.errorMessage ?? message : message)
+          Text(message).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(.secondary)
-          if !services.authService.isSignedIn && !services.authService.isConnecting {
-            if services.authService.requiresSubscriptionAction {
-              Button("View Subscription") { showsSubscription = true }
-            } else {
-              Button("Retry Connection") { services.foregroundRecovery.retryConnection() }
-            }
-            NavigationLink("Connection Settings") { SettingsView() }
-          }
         }
       }
 
@@ -157,7 +173,6 @@ struct SyncView: View {
       && services.credentialStore.hasValidatedCredentials
       && services.healthKitService.hasAnyWritePermission
       && !services.syncCoordinator.isSyncing
-      && !services.demoPreviewActive
   }
 
   private var connectionStatus: String {

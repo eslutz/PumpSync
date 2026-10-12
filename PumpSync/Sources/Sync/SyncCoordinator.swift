@@ -100,7 +100,6 @@ final class SyncCoordinator {
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
   let attemptStore: SyncAttemptStore
-  private var demoPreviewActive = false
   private var syncTask: Task<SyncRunOutcome, Never>?
   private var syncOperationID: UUID?
   private struct Waiter {
@@ -190,7 +189,7 @@ final class SyncCoordinator {
   }
 
   private func reconcileHistoryOwner() {
-    guard !demoPreviewActive, credentialStore.ownershipAvailable else { return }
+    guard credentialStore.ownershipAvailable else { return }
     let backendIdentity = authService.importConfigurationSnapshot.backendIdentity
     let owner = credentialStore.accountId.flatMap { accountId in
       backendIdentity.map { TandemSyncOwner(accountId: accountId, backendIdentity: $0) }
@@ -213,19 +212,12 @@ final class SyncCoordinator {
     }
   }
 
-  var isDemoPreviewActive: Bool { demoPreviewActive }
-
-  func setDemoPreviewActive(_ active: Bool) {
-    demoPreviewActive = active
-  }
-
   @discardableResult
   func refreshIfStale(reason: SyncTriggerReason, lease: SyncExecutionLease? = nil) async -> SyncRunOutcome {
     guard !Task.isCancelled else { return .canceled }
     // Join an existing owner before evaluating freshness: it may be committing
     // the success that makes this request fresh.
     if syncTask != nil { return await run(reason: reason, lease: lease) }
-    guard !demoPreviewActive else { return .skippedPreviewActive }
     if reason == .background {
       diagnostics?.record(
         source: .sync,
@@ -329,7 +321,6 @@ final class SyncCoordinator {
   /// Canceling one caller cannot cancel work still owned by another caller.
   func run(reason: SyncTriggerReason, lease: SyncExecutionLease? = nil, recoveryPolicy: SessionRecoveryPolicy? = nil, reevaluatesFreshnessAfterRecovery: Bool = false) async -> SyncRunOutcome {
     guard !Task.isCancelled else { return .canceled }
-    guard !demoPreviewActive else { return .skippedPreviewActive }
     guard reason != .background || lease?.kind == .background else { return .deferred(.executionLeaseExpired) }
     let lease = lease ?? SyncExecutionLease(kind: .foreground)
     let recoveryPolicy = recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background))
@@ -419,7 +410,7 @@ final class SyncCoordinator {
   }
 
   private func beginSync(reason: SyncTriggerReason) -> Bool {
-    guard !isSyncing, !demoPreviewActive else {
+    guard !isSyncing else {
       return false
     }
     operationState = .running(SyncProgress(phase: .preparing, trigger: reason, startedAt: Date()))

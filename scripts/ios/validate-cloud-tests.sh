@@ -62,11 +62,11 @@ xcrun xcresulttool get test-results summary --path "$results_dir/full.xcresult" 
 # that does not reliably change SwiftUI's text size. Every iteration must pass.
 for text_size in large accessibility-extra-extra-extra-large; do
   xcrun simctl ui "$device_id" content_size "$text_size"
-  PUMPSYNC_TEST_LOG="$results_dir/preview-$text_size.log" bash scripts/ios/validate-tests.sh \
+  PUMPSYNC_TEST_LOG="$results_dir/recovery-$text_size.log" bash scripts/ios/validate-tests.sh \
     -jobs 1 -parallel-testing-enabled NO -test-iterations 5 -test-repetition-relaunch-enabled YES \
-    -only-testing:PumpSyncUITests/PumpSyncUITests/testSamplePreviewIsSeparateAndClosesWithoutChangingConnection \
-    -resultBundlePath "$results_dir/preview-$text_size.xcresult"
-  xcrun xcresulttool get test-results summary --path "$results_dir/preview-$text_size.xcresult" > "$results_dir/preview-$text_size-summary.json"
+    -only-testing:PumpSyncUITests/PumpSyncUITests/testConnectionRecoveryOpensSettingsTab \
+    -resultBundlePath "$results_dir/recovery-$text_size.xcresult"
+  xcrun xcresulttool get test-results summary --path "$results_dir/recovery-$text_size.xcresult" > "$results_dir/recovery-$text_size-summary.json"
 done
 shasum -a 256 -c "$results_dir/source-hashes.txt" > "$results_dir/source-verification.txt"
 echo "Cloud device preflight passed. Evidence: $results_dir"
