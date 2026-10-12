@@ -429,8 +429,7 @@ private struct InsulinConcentrationView: View {
     } label: {
       adaptiveMenuLayout {
         Image(systemName: "drop.fill")
-          .font(.title3)
-          .fixedSize()
+          .rowIconColumn()
           .foregroundStyle(.tint)
           .accessibilityHidden(true)
 
@@ -471,8 +470,7 @@ private struct InsulinConcentrationDetailRow: View {
   var body: some View {
     HStack(alignment: .top, spacing: 14) {
       Image(systemName: systemImage)
-        .font(.title3)
-        .fixedSize()
+        .rowIconColumn()
         .foregroundStyle(tint)
         .accessibilityHidden(true)
 

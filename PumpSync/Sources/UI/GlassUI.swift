@@ -63,6 +63,24 @@ struct GlassSection<Content: View>: View {
   }
 }
 
+private struct RowIconColumn: ViewModifier {
+  @ScaledMetric(relativeTo: .title3) private var width = 28
+
+  func body(content: Content) -> some View {
+    content
+      .font(.title3)
+      .fixedSize()
+      .frame(width: width, alignment: .center)
+      .accessibilityHidden(true)
+  }
+}
+
+extension View {
+  func rowIconColumn() -> some View {
+    modifier(RowIconColumn())
+  }
+}
+
 struct GlassStatusRow: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   let title: String
@@ -74,8 +92,7 @@ struct GlassStatusRow: View {
   var body: some View {
     HStack(spacing: 14) {
       Image(systemName: systemImage)
-        .font(.title3)
-        .fixedSize()
+        .rowIconColumn()
         .foregroundStyle(tint)
         .accessibilityHidden(true)
 
@@ -117,8 +134,7 @@ struct GlassNavigationRow: View {
   var body: some View {
     HStack(spacing: 14) {
       Image(systemName: systemImage)
-        .font(.title3)
-        .fixedSize()
+        .rowIconColumn()
         .foregroundStyle(.tint)
         .accessibilityHidden(true)
 
@@ -152,11 +168,12 @@ struct GlassNavigationRow: View {
 }
 
 struct GlassDivider: View {
-  var leadingPadding: CGFloat = 42
+  @ScaledMetric(relativeTo: .title3) private var iconWidth = 28
+  var leadingPadding: CGFloat? = nil
 
   var body: some View {
     Divider()
-      .padding(.leading, leadingPadding)
+      .padding(.leading, leadingPadding ?? iconWidth + 14)
   }
 }
 
@@ -167,8 +184,7 @@ struct GlassPrimaryLabel: View {
   var body: some View {
     HStack(spacing: 14) {
       Image(systemName: systemImage)
-        .font(.title3)
-        .fixedSize()
+        .rowIconColumn()
         .foregroundStyle(.tint)
         .accessibilityHidden(true)
 

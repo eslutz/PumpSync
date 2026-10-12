@@ -124,8 +124,7 @@ struct SyncView: View {
     } label: {
       adaptiveMenuLayout {
         Image(systemName: "calendar.badge.clock")
-          .font(.title3)
-          .fixedSize()
+          .rowIconColumn()
           .foregroundStyle(.tint)
           .accessibilityHidden(true)
 
@@ -271,8 +270,7 @@ private struct SyncButtonLabel: View {
     TimelineView(.animation(paused: !isSyncing || reduceMotion)) { context in
       HStack(spacing: 14) {
         Image(systemName: "arrow.triangle.2.circlepath")
-          .font(.title3)
-          .fixedSize()
+          .rowIconColumn()
           .foregroundStyle(.tint)
           .rotationEffect(.degrees(
             SyncButtonIconRotation.angle(
