@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum SyncTriggerReason: String, Equatable {
+enum SyncTriggerReason: String, Equatable, Codable {
   case appOpen
   case manual
   case background
@@ -99,6 +99,7 @@ final class SyncCoordinator {
   private let importedSampleLedger: any SyncSampleLedger
   private let syncMetadataStore: SyncMetadataStore
   private let diagnostics: DiagnosticsLogStore?
+  let attemptStore: SyncAttemptStore
   private var demoPreviewActive = false
   private var syncTask: Task<SyncRunOutcome, Never>?
   private var syncOperationID: UUID?
@@ -171,7 +172,8 @@ final class SyncCoordinator {
     healthKitService: SyncHealthWriting,
     importedSampleLedger: any SyncSampleLedger,
     syncMetadataStore: SyncMetadataStore,
-    diagnostics: DiagnosticsLogStore? = nil
+    diagnostics: DiagnosticsLogStore? = nil,
+    attemptStore: SyncAttemptStore? = nil
   ) {
     self.apiClient = apiClient
     self.authService = authService
@@ -180,6 +182,7 @@ final class SyncCoordinator {
     self.importedSampleLedger = importedSampleLedger
     self.syncMetadataStore = syncMetadataStore
     self.diagnostics = diagnostics
+    self.attemptStore = attemptStore ?? SyncAttemptStore(defaults: UserDefaults(suiteName: "SyncAttempts.\(UUID())")!, diagnostics: diagnostics)
     reconcileHistoryOwner()
     observeHistoryOwner()
   }
@@ -376,9 +379,11 @@ final class SyncCoordinator {
       initialContext: authService.operationImportSnapshot(credentialRevision: credentialStore.revision), lease: lease,
       recoveryPolicy: recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background)),
       reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery)
+    attemptStore.begin(operationID: operationID, trigger: reason)
     let task = Task { @MainActor [weak self] in
       guard let self else { return SyncRunOutcome.canceled }
       let result = await self.performSync(intent: intent, capturedContext: intent.initialContext)
+      self.attemptStore.finish(operationID: operationID, result: result)
       if self.syncOperationID == operationID {
         if result == .skippedFresh, case .succeeded = previousPresentation {
           self.operationState = previousPresentation
@@ -427,7 +432,10 @@ final class SyncCoordinator {
     let policyProvider: SessionRecoveryPolicyProvider = { [weak self] in
       self?.recoveryPolicy(for: intent) ?? .background
     }
-    let recovery = await authService.recoverSessionIfNeeded(policy: policyProvider(), policyProvider: policyProvider)
+    attemptStore.advance(operationID: intent.operationID, stage: .recovering)
+    let recovery = await authService.recoverSessionIfNeeded(policy: policyProvider(), policyProvider: policyProvider, backendCorrelation: { [weak self] value in
+      self?.attemptStore.correlate(operationID: intent.operationID, value: value)
+    })
     let recoveredAccessToken: String?
     if case .ready(let connection, _) = recovery { recoveredAccessToken = connection.session.accessToken }
     else { recoveredAccessToken = nil }
@@ -460,6 +468,7 @@ final class SyncCoordinator {
       }
     }
 
+    attemptStore.advance(operationID: intent.operationID, stage: .validating)
     guard credentialRevision == credentialStore.revision else {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
       return .contextReplaced
@@ -540,12 +549,14 @@ final class SyncCoordinator {
         timeZoneIdentifier: TimeZone.current.identifier
       )
       operationState = .running(SyncProgress(phase: .downloading, trigger: reason, startedAt: startedAt))
+      attemptStore.advance(operationID: intent.operationID, stage: .downloading)
       recordBackgroundStage(.downloading, startedAt: startedAt, reason: reason)
       if let stopped = stoppedOutcome(intent) {
         recordCancellation(reason: reason)
         return stopped
       }
       let response = try await apiClient.syncTandem(request, accessToken: accessToken)
+      attemptStore.correlate(operationID: intent.operationID, value: response.backendCorrelationID)
       try checkExecution(intent)
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
       let plan = try ImportPlanner.makePlan(response: response, context: context, concentration: concentration)
@@ -559,6 +570,7 @@ final class SyncCoordinator {
       // later permission grant could never backfill an already-ledgered
       // sample.
       operationState = .running(SyncProgress(phase: .updatingHealth, trigger: reason, startedAt: startedAt))
+      attemptStore.advance(operationID: intent.operationID, stage: .updatingHealth)
       recordBackgroundStage(.updatingHealth, startedAt: startedAt, reason: reason)
       try checkExecution(intent)
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
@@ -617,6 +629,7 @@ final class SyncCoordinator {
         return .contextReplaced
       }
       let apiError = error as? APIClientError
+      attemptStore.correlate(operationID: intent.operationID, value: apiError?.correlationId)
       // Same-family refresh keeps successful downloads eligible. A rejection
       // of the old request token does not invalidate the fresh token, though.
       // Its import context still matches: report the obsolete request's failure

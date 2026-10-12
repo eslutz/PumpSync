@@ -7,7 +7,7 @@ enum SessionRecoveryTransition: Equatable {
 }
 
 /// Stable, support-safe reasons; raw network/storage errors never escape here.
-enum SessionRecoveryReason: Equatable {
+enum SessionRecoveryReason: String, Codable, Equatable {
   case uncertainSubmission
   case commitPending
   case invalidationIncomplete
@@ -39,6 +39,7 @@ enum SessionRecoveryOutcome: Equatable {
 @MainActor
 final class SessionRecoveryAttempt {
   var failure: SessionRecoveryReason?
+  var backendCorrelationID: String?
 }
 
 typealias SessionRecoveryPolicyProvider = @MainActor @Sendable () -> SessionRecoveryPolicy

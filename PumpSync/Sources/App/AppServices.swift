@@ -124,7 +124,8 @@ final class AppServices {
       healthKitService: healthKitService,
       importedSampleLedger: importedSampleLedger,
       syncMetadataStore: syncMetadataStore,
-      diagnostics: diagnosticsLogStore
+      diagnostics: diagnosticsLogStore,
+      attemptStore: SyncAttemptStore(diagnostics: diagnosticsLogStore)
     )
     let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier) { error in
       Task { @MainActor in

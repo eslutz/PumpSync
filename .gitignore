@@ -13,3 +13,8 @@ coverage/
 *.xcresult
 CLAUDE.md
 docs/app-store/listing-screenshots/archive/
+
+# Generated only for the pinned cross-repository test lane.
+PumpSyncTests/SessionContractArtifacts/
+
+.session-contract-backend/

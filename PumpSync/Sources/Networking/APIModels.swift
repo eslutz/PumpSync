@@ -127,6 +127,8 @@ struct TandemCredentialValidationResponse: Decodable, Equatable {
 }
 
 struct TandemSyncResponse: Decodable {
+  // HTTP metadata only; never trusted from response JSON.
+  var backendCorrelationID: String? = nil
   let samples: [SampleDTO]
   let effectiveMinDate: Date
   let effectiveMaxDate: Date

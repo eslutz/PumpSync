@@ -3,6 +3,16 @@ import XCTest
 
 @MainActor
 final class PumpSyncAPIClientTests: XCTestCase {
+  func testSyncCorrelationComesFromHttpMetadataRatherThanUntrustedJson() async throws {
+    URLProtocolStub.requestHandler = { request in
+      let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["X-Correlation-ID": "0123456789abcdef0123456789abcdef"])!
+      return (response, Data(#"{"samples":[],"effectiveMinDate":"2026-10-11T00:00:00Z","effectiveMaxDate":"2026-10-11T01:00:00Z","dataSourceMode":"tandemSource","backendCorrelationID":"private-account-value"}"#.utf8))
+    }
+    let api = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+    let response = try await api.syncTandem(.init(tandem: .init(username: "test", password: "test", region: "us"), minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC"), accessToken: "test")
+    XCTAssertEqual(response.backendCorrelationID, "0123456789abcdef0123456789abcdef")
+  }
+
   func testDeterministicTandemRejectionIsNotTransient() {
     XCTAssertFalse(APIClientError.httpStatus(502, code: "tandem_source_request_rejected", message: "Rejected").isTransient)
     XCTAssertTrue(APIClientError.httpStatus(502, code: "tandem_source_error", message: "Unavailable").isTransient)

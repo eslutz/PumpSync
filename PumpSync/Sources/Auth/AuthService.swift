@@ -242,10 +242,10 @@ final class AuthService {
       )
     }
     createSubscriptionSession = { request in
-      try await apiClient.createSubscriptionSession(request)
+      try await apiClient.createSubscriptionSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
     }
     createSelfHostedSession = { request in
-      try await apiClient.createSelfHostedSession(request)
+      try await apiClient.createSelfHostedSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
     }
     createSessionChallenge = { request in
       try await apiClient.createSessionChallenge(request)
@@ -819,12 +819,15 @@ final class AuthService {
   }
 
   @discardableResult
-  func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground, policyProvider: SessionRecoveryPolicyProvider? = nil) async -> SessionRecoveryOutcome {
-    await SessionRecoveryContext.$policyProvider.withValue(policyProvider) {
-      await SessionRecoveryContext.$current.withValue(SessionRecoveryAttempt()) {
+  func recoverSessionIfNeeded(policy: SessionRecoveryPolicy = .foreground, policyProvider: SessionRecoveryPolicyProvider? = nil, backendCorrelation: ((String?) -> Void)? = nil) async -> SessionRecoveryOutcome {
+    let attempt = SessionRecoveryAttempt()
+    let outcome = await SessionRecoveryContext.$policyProvider.withValue(policyProvider) {
+      await SessionRecoveryContext.$current.withValue(attempt) {
         await recoverSession(policy: policy)
       }
     }
+    backendCorrelation?(attempt.backendCorrelationID)
+    return outcome
   }
 
   private func recoverSession(policy requestedPolicy: SessionRecoveryPolicy, forceHostedEnrollment: Bool = false) async -> SessionRecoveryOutcome {
@@ -1277,6 +1280,7 @@ final class AuthService {
       blockUnresolvedAuth()
       if Task.isCancelled || error is CancellationError { return false }
       let apiError = error as? APIClientError
+      SessionRecoveryContext.current?.backendCorrelationID = apiError?.correlationId
       if allowsRejectedAssertionRetry, (error as? AppAttestClientError) == .invalidKey {
         rejectedAssertionRetry = .freshAttestation
       }
@@ -1776,13 +1780,14 @@ final class AuthService {
       )
       let refreshed: BackendSessionResponse
       do {
-        refreshed = try await apiClient.refreshSession(request, mode: mode)
+        refreshed = try await apiClient.refreshSession(request, mode: mode, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
         diagnostics?.record(
           source: .auth,
           title: "Renewable session request completed",
           message: "serviceMode=\(currentSession.serviceMode) outcome=success elapsedMs=\(elapsedMilliseconds(since: requestStartedAt))"
         )
       } catch {
+        SessionRecoveryContext.current?.backendCorrelationID = (error as? APIClientError)?.correlationId
         if let apiError = error as? APIClientError, !apiError.hasAmbiguousOutcome {
           try committer.rejectDefinitively(journalID, binding: sourceConnection.identity.binding)
         }
@@ -1935,6 +1940,7 @@ final class AuthService {
         let attempt = renewableRefreshRecoveryAttempt
         let result = await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
         recoveryFailure = attempt?.failure
+        SessionRecoveryContext.current?.backendCorrelationID = attempt?.backendCorrelationID
         return result
       }
     }

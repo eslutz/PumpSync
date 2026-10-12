@@ -14,6 +14,7 @@ on:
       - "scripts/validate-version.sh"
       - "scripts/ios/validate-tests.sh"
       - "scripts/ios/validate-cloud-tests.sh"
+      - "scripts/ios/validate-session-contract.sh"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
   pull_request:
@@ -25,6 +26,7 @@ on:
       - "scripts/validate-version.sh"
       - "scripts/ios/validate-tests.sh"
       - "scripts/ios/validate-cloud-tests.sh"
+      - "scripts/ios/validate-session-contract.sh"
       - "scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
 
@@ -101,4 +103,32 @@ jobs:
         env:
           PUMPSYNC_TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
         run: |
-          bash scripts/ios/validate-tests.sh -derivedDataPath .DerivedData
+          bash scripts/ios/validate-tests.sh -jobs 1 -parallel-testing-enabled NO -derivedDataPath .DerivedData
+
+      - name: Read pinned backend contract revision
+        id: contract
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          manifest = json.load(open("PumpSyncTests/session-contract-manifest.json"))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("repository=" + manifest["repository"] + "\n")
+              output.write("revision=" + manifest["revision"] + "\n")
+          PYTHON
+
+      - name: Checkout pinned backend test contract
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.contract.outputs.repository }}
+          ref: ${{ steps.contract.outputs.revision }}
+          path: .session-contract-backend
+
+      - name: Install backend test SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: .session-contract-backend/global.json
+
+      - name: Validate actual cross-repository session contract
+        env:
+          PUMPSYNC_TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
+        run: bash scripts/ios/validate-session-contract.sh --backend-path .session-contract-backend

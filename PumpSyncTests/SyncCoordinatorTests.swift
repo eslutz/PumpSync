@@ -83,6 +83,23 @@ private final class LockIsolated<Value>: @unchecked Sendable {
 
 @MainActor
 final class SyncCoordinatorTests: XCTestCase {
+  func testEarlyBlockedOwnedRecoveryRecordsTerminalWithoutSuccessfulMetadataMutation() async throws {
+    let attempts = SyncAttemptStore(defaults: UserDefaults(suiteName: "EarlyAttempts.\(UUID())")!)
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(authService: makeSignedOutAuthService(), credentialStore: try makeValidatedCredentialStore(), syncMetadataStore: metadata, attemptStore: attempts)
+    let previous = metadata.metadata
+    let result = await coordinator.run(reason: .background, lease: grantedBackgroundLease())
+    XCTAssertFalse(result.succeeded)
+    XCTAssertNil(attempts.active)
+    let attempt = try XCTUnwrap(attempts.history.first)
+    XCTAssertEqual(attempt.trigger, .background)
+    XCTAssertEqual(attempt.stage, .recovering)
+    XCTAssertNotNil(attempt.outcome)
+    XCTAssertNotNil(attempt.reason)
+    XCTAssertNotNil(attempt.durationSeconds)
+    XCTAssertEqual(metadata.metadata, previous)
+  }
+
   func testFailedCredentialReplacementRetainsOldAccountAndBoundCursorAfterRestart() async throws {
     for changesAccount in [true, false] {
       let persistence = FailingTandemPersistence()
@@ -932,7 +949,8 @@ final class SyncCoordinatorTests: XCTestCase {
       ))
     )
     XCTAssertFalse(coordinator.isSyncing)
-    XCTAssertEqual(diagnostics.entries.first?.title, "Sync blocked")
+    XCTAssertTrue(diagnostics.entries.contains { $0.title == "Sync blocked" })
+    XCTAssertEqual(coordinator.attemptStore.history.first?.outcome, .blocked)
   }
 
   func testSelfHostedSyncWithoutConnectionStillOpensSettings() async throws {
@@ -1019,7 +1037,8 @@ final class SyncCoordinatorTests: XCTestCase {
     // the watermark (which is deliberately ~24h earlier). Reusing the
     // watermark here made every sync look immediately stale.
     XCTAssertEqual(syncMetadataStore.metadata.lastSuccessfulSyncAt?.timeIntervalSinceNow ?? -.infinity, 0, accuracy: 5)
-    XCTAssertEqual(diagnostics.entries.first?.title, "Sync completed")
+    XCTAssertTrue(diagnostics.entries.contains { $0.title == "Sync completed" })
+    XCTAssertEqual(coordinator.attemptStore.history.first?.outcome, .completed)
   }
 
   func testSyncDeduplicatesAlreadyImportedSamplesBeforeSavingToHealthKit() async throws {
@@ -2026,7 +2045,8 @@ final class SyncCoordinatorTests: XCTestCase {
     healthKitService: SyncHealthWriting = FakeHealthKitService(),
     importedSampleLedger: (any SyncSampleLedger)? = nil,
     syncMetadataStore: SyncMetadataStore? = nil,
-    diagnostics: DiagnosticsLogStore? = nil
+    diagnostics: DiagnosticsLogStore? = nil,
+    attemptStore: SyncAttemptStore? = nil
   ) -> SyncCoordinator {
     let coordinator = SyncCoordinator(
       apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0),
@@ -2038,7 +2058,8 @@ final class SyncCoordinatorTests: XCTestCase {
         defaults: UserDefaults(suiteName: "SyncCoordinatorTests-\(UUID().uuidString)")!
       ),
       syncMetadataStore: syncMetadataStore ?? makeSyncMetadataStore(),
-      diagnostics: diagnostics
+      diagnostics: diagnostics,
+      attemptStore: attemptStore
     )
     coordinator.setForegroundActive(true)
     return coordinator

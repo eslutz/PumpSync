@@ -1,0 +1,6 @@
+{
+  "repository": "eslutz/PumpSync-Backend",
+  "revision": "cb93abff50f6e2f216d91ea76446e34224499d51",
+  "exporterTest": "PumpSync.Tests.SessionContractTests",
+  "consumerTest": "PumpSyncTests/SessionContractConsumerTests"
+}

@@ -55,7 +55,7 @@ export PUMPSYNC_TEST_DESTINATION="platform=iOS Simulator,id=$device_id"
 
 # One complete run; never turn failures into success with retry-until-pass.
 PUMPSYNC_TEST_LOG="$results_dir/full.log" bash scripts/ios/validate-tests.sh \
-  -parallel-testing-enabled NO -resultBundlePath "$results_dir/full.xcresult"
+  -jobs 1 -parallel-testing-enabled NO -resultBundlePath "$results_dir/full.xcresult"
 xcrun xcresulttool get test-results summary --path "$results_dir/full.xcresult" > "$results_dir/full-summary.json"
 
 # Use actual simulator text settings, rather than a launch environment variable
@@ -63,7 +63,7 @@ xcrun xcresulttool get test-results summary --path "$results_dir/full.xcresult" 
 for text_size in large accessibility-extra-extra-extra-large; do
   xcrun simctl ui "$device_id" content_size "$text_size"
   PUMPSYNC_TEST_LOG="$results_dir/preview-$text_size.log" bash scripts/ios/validate-tests.sh \
-    -parallel-testing-enabled NO -test-iterations 5 -test-repetition-relaunch-enabled YES \
+    -jobs 1 -parallel-testing-enabled NO -test-iterations 5 -test-repetition-relaunch-enabled YES \
     -only-testing:PumpSyncUITests/PumpSyncUITests/testSamplePreviewIsSeparateAndClosesWithoutChangingConnection \
     -resultBundlePath "$results_dir/preview-$text_size.xcresult"
   xcrun xcresulttool get test-results summary --path "$results_dir/preview-$text_size.xcresult" > "$results_dir/preview-$text_size-summary.json"

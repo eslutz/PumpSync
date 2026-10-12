@@ -24,6 +24,8 @@ struct SupportBundleContext {
   let syncMetadata: SyncMetadata
   let appDiagnostics: [DiagnosticEntry]
   let nativeDiagnostics: [NativeDiagnosticEntry]
+  var syncAttempts: [SyncAttempt] = []
+  var activeSyncAttempt: SyncAttempt? = nil
   var sessionProtocolVersion: Int? = nil
   var deviceProofKind: String? = nil
   var refreshCredentialExpiresAt: Date? = nil
@@ -52,8 +54,11 @@ enum SupportBundleBuilder {
       "Last Success: \(format(context.syncMetadata.lastSuccessfulSyncAt))",
       "Last Returned Count: \(context.syncMetadata.lastSampleCount)",
       "Last Imported Count: \(context.syncMetadata.lastImportedCount)",
-      "Last Error: \(redacted(context.syncMetadata.lastErrorMessage ?? "None"))",
+      "Last Error: \(redacted(context.syncMetadata.lastErrorMessage ?? ((context.activeSyncAttempt != nil || !context.syncAttempts.isEmpty) ? "See owned attempt history" : "None")))",
       "Initial Import Range: \(context.syncMetadata.initialImportRange.rawValue)",
+      "",
+      "## Owned Sync Attempts",
+      attemptLines(context),
       "",
       "## App Event Log",
       diagnosticLines(context.appDiagnostics),
@@ -76,6 +81,8 @@ enum SupportBundleBuilder {
         syncMetadata: services.syncMetadataStore.metadata,
         appDiagnostics: Array(services.diagnosticsLogStore.entries.prefix(50)),
         nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50)),
+        syncAttempts: services.syncCoordinator.attemptStore.history,
+        activeSyncAttempt: services.syncCoordinator.attemptStore.active,
         sessionProtocolVersion: services.authService.session?.protocolVersion,
         deviceProofKind: services.authService.session?.protocolVersion == 3
           ? (services.backendConfigurationStore.mode == .hosted ? "App Attest" : "Secure Enclave P-256")
@@ -85,6 +92,12 @@ enum SupportBundleBuilder {
       ),
       generatedAt: generatedAt
     )
+  }
+
+  private static func attemptLines(_ context: SupportBundleContext) -> String {
+    let attempts = context.activeSyncAttempt.map { [$0] } ?? []
+    let entries = attempts + Array(context.syncAttempts.prefix(20))
+    return entries.isEmpty ? "No owned sync attempts recorded." : entries.map { "- " + SyncAttemptStore.description($0) }.joined(separator: "\n")
   }
 
   private static func diagnosticLines(_ entries: [DiagnosticEntry]) -> String {

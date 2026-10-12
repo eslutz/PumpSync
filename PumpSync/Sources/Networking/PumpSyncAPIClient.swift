@@ -35,17 +35,17 @@ final class PumpSyncAPIClient {
     self.baseURL = baseURL
   }
 
-  func createSubscriptionSession(_ request: SubscriptionSessionRequest) async throws -> BackendSessionResponse {
+  func createSubscriptionSession(_ request: SubscriptionSessionRequest, backendCorrelation: ((String?) -> Void)? = nil) async throws -> BackendSessionResponse {
     try await send(
       path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil,
-      allowsRetry: false, timeoutInterval: ConnectionTimeouts.hosted
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.hosted, responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
     )
   }
 
-  func createSelfHostedSession(_ request: SelfHostedSessionRequest) async throws -> BackendSessionResponse {
+  func createSelfHostedSession(_ request: SelfHostedSessionRequest, backendCorrelation: ((String?) -> Void)? = nil) async throws -> BackendSessionResponse {
     try await send(
       path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil,
-      allowsRetry: false, timeoutInterval: ConnectionTimeouts.selfHosted
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.selfHosted, responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
     )
   }
 
@@ -57,15 +57,18 @@ final class PumpSyncAPIClient {
     )
   }
 
-  func refreshSession(_ request: SessionRefreshRequest, mode: BackendAccessMode) async throws -> BackendSessionResponse {
+  func refreshSession(_ request: SessionRefreshRequest, mode: BackendAccessMode, backendCorrelation: ((String?) -> Void)? = nil) async throws -> BackendSessionResponse {
     try await send(
       path: "/v1/session/refresh", method: "POST", body: request, accessToken: nil,
-      allowsRetry: false, timeoutInterval: ConnectionTimeouts.value(for: mode)
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.value(for: mode), responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
     )
   }
 
   func syncTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
-    try await send(path: "/v1/sync/tandem", method: "POST", body: request, accessToken: accessToken)
+    var correlation: String?
+    var response: TandemSyncResponse = try await send(path: "/v1/sync/tandem", method: "POST", body: request, accessToken: accessToken, responseObserver: { correlation = $0.value(forHTTPHeaderField: "X-Correlation-ID") })
+    response.backendCorrelationID = correlation
+    return response
   }
 
   func previewTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
@@ -114,7 +117,8 @@ final class PumpSyncAPIClient {
     body: Request,
     accessToken: String?,
     allowsRetry: Bool = true,
-    timeoutInterval: TimeInterval? = nil
+    timeoutInterval: TimeInterval? = nil,
+    responseObserver: ((HTTPURLResponse) -> Void)? = nil
   ) async throws -> Response {
     var lastError: Error?
     let requestBaseURL = baseURL
@@ -123,7 +127,7 @@ final class PumpSyncAPIClient {
       do {
         return try await sendOnce(
           baseURL: requestBaseURL, path: path, method: method, body: body, accessToken: accessToken,
-          timeoutInterval: timeoutInterval
+          timeoutInterval: timeoutInterval, responseObserver: responseObserver
         )
       } catch {
         lastError = error
@@ -144,7 +148,8 @@ final class PumpSyncAPIClient {
     method: String,
     body: Request,
     accessToken: String?,
-    timeoutInterval: TimeInterval?
+    timeoutInterval: TimeInterval?,
+    responseObserver: ((HTTPURLResponse) -> Void)?
   ) async throws -> Response {
     var urlRequest = URLRequest(url: baseURL.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))))
     urlRequest.httpMethod = method
@@ -165,6 +170,7 @@ final class PumpSyncAPIClient {
       throw APIClientError.invalidResponse
     }
 
+    responseObserver?(httpResponse)
     guard (200..<300).contains(httpResponse.statusCode) else {
       let errorResponse = try? JSONCodec.decoder.decode(ErrorResponse.self, from: data)
       throw APIClientError.httpStatus(
