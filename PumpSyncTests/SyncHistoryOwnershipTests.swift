@@ -3,6 +3,36 @@ import XCTest
 
 @MainActor
 final class SyncHistoryOwnershipTests: XCTestCase {
+  func testFailedAtomicLegacyMigrationDefersOwnershipWithoutClearingBoundHistory() throws {
+    let persistence = FailingTandemPersistence()
+    defer { try? persistence.keychain.deleteAll() }
+    let credentials = TandemCredentials(username: "legacy", password: "fixture", region: "us")
+    let accountId = UUID()
+    try persistence.writeData(JSONEncoder().encode(credentials), account: "tandem-source-credentials")
+    let validation = try JSONSerialization.data(withJSONObject: ["username": credentials.username, "region": credentials.region, "validatedAt": 100, "status": "validated", "accountId": accountId.uuidString])
+    try persistence.writeData(validation, account: "tandem-source-credential-validation")
+    let suite = "FailedAtomicMigration.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let owner = TandemSyncOwner(accountId: accountId, backendIdentity: "https://real.example/api")
+    let metadata = SyncMetadataStore(defaults: defaults)
+    metadata.recordSuccess(sampleCount: 4, importedCount: 3, completedAt: Date(), watermark: Date(timeIntervalSince1970: 100), owner: owner)
+    let previous = metadata.metadata
+    persistence.failWriteAccount = "tandem-source-credentials"
+    let failed = TandemCredentialStore(keychain: persistence)
+    XCTAssertFalse(failed.ownershipAvailable)
+    XCTAssertFalse(failed.hasValidatedCredentials)
+    XCTAssertEqual(try persistence.readData(account: "tandem-source-credential-validation"), validation)
+    XCTAssertEqual(SyncMetadataStore(defaults: defaults).metadata, previous)
+    persistence.failWriteAccount = nil
+    let migrated = TandemCredentialStore(keychain: persistence)
+    XCTAssertTrue(migrated.ownershipAvailable)
+    XCTAssertTrue(migrated.hasValidatedCredentials)
+    XCTAssertEqual(migrated.accountId, accountId)
+    metadata.reconcileOwner(TandemSyncOwner(accountId: try XCTUnwrap(migrated.accountId), backendIdentity: owner.backendIdentity))
+    XCTAssertEqual(metadata.metadata, previous)
+  }
+
   func testLegacyCursorMigrationBeforeAndAfterCredentialReplacementPreservesLiveLedgerAndPreferences() throws {
     for replaceBeforeMigration in [false, true] {
       let suite = "HistoryMigration.\(UUID().uuidString)"

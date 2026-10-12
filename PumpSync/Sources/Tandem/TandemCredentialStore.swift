@@ -2,12 +2,21 @@ import Foundation
 import Observation
 
 @MainActor
+protocol TandemCredentialPersistence {
+  func readData(account: String) throws -> Data?
+  func writeData(_ data: Data, account: String) throws
+  func delete(account: String) throws
+}
+
+extension SecureKeychainStore: TandemCredentialPersistence {}
+
+@MainActor
 @Observable
 final class TandemCredentialStore {
   private static let account = "tandem-source-credentials"
   private static let validationAccount = "tandem-source-credential-validation"
 
-  private let keychain: SecureKeychainStore
+  private let keychain: any TandemCredentialPersistence
   private(set) var revision = 0
   private var observedCredentials: TandemCredentials?
   private var observedValidation: Date?
@@ -20,7 +29,7 @@ final class TandemCredentialStore {
   private(set) var validatedAt: Date?
   private(set) var redactedUsername: String?
 
-  init(keychain: SecureKeychainStore) {
+  init(keychain: any TandemCredentialPersistence) {
     self.keychain = keychain
     refreshStatus()
   }
@@ -46,29 +55,38 @@ final class TandemCredentialStore {
       return nil
     }
 
-    let credentials = try JSONDecoder().decode(TandemCredentials.self, from: data)
+    let stored = try JSONDecoder().decode(TandemStoredCredentialRecord.self, from: data)
+    let credentials = stored.credentials
     hasStoredCredentials = true
     redactedUsername = credentials.redactedUsername
-    refreshValidationStatus(for: credentials)
+    if stored.accountId != nil || stored.status != nil {
+      guard let record = stored.validationRecord else { throw KeychainStoreError.invalidData }
+      applyValidation(record)
+    } else {
+      refreshValidationStatus(for: credentials)
+    }
     observe(credentials)
     return credentials
   }
 
   func saveValidated(_ credentials: TandemCredentials, validatedAt: Date = Date()) throws {
-    // Establish unvalidated ownership first. A failed credential/final-validation
-    // write must never let an older validated record bless a changed password.
     let previousCredentials = try load()
     guard ownershipAvailable else { throw KeychainStoreError.invalidData }
     let owner = previousCredentials?.username == credentials.username
       && previousCredentials?.region == credentials.region ? accountId ?? UUID() : UUID()
-    let pending = TandemCredentialValidationRecord(username: credentials.username, region: credentials.region, accountId: owner, status: .unvalidated, validatedAt: nil)
-    defer { refreshStatus() }
-    validationInvalidatedInMemory = true
-    try keychain.writeData(try JSONEncoder().encode(pending), account: Self.validationAccount)
-    try keychain.writeData(try JSONEncoder().encode(credentials), account: Self.account)
     let validated = TandemCredentialValidationRecord(username: credentials.username, region: credentials.region, accountId: owner, status: .validated, validatedAt: validatedAt)
-    try keychain.writeData(try JSONEncoder().encode(validated), account: Self.validationAccount)
+    defer { refreshStatus() }
+    // Credentials, validation, and ownership commit in one Keychain upsert.
+    // A failure or termination before this commit preserves the previous account.
+    try persist(credentials, validation: validated)
     validationInvalidatedInMemory = false
+  }
+
+  private func persist(_ credentials: TandemCredentials, validation: TandemCredentialValidationRecord) throws {
+    try keychain.writeData(try JSONEncoder().encode(TandemStoredCredentialRecord(credentials: credentials, validation: validation)), account: Self.account)
+    // This legacy mirror supports older readers but is never authoritative for
+    // the new format. Failure cannot undo the complete atomic credential record.
+    try? keychain.writeData(try JSONEncoder().encode(validation), account: Self.validationAccount)
   }
 
   func delete() throws {
@@ -103,7 +121,7 @@ final class TandemCredentialStore {
     do {
       if let credentials = observedCredentials, let accountId {
         let record = TandemCredentialValidationRecord(username: credentials.username, region: credentials.region, accountId: accountId, status: .unvalidated, validatedAt: nil)
-        try keychain.writeData(try JSONEncoder().encode(record), account: Self.validationAccount)
+        try persist(credentials, validation: record)
       }
     } catch {
       // Keep this process blocked even if durable invalidation is unavailable.
@@ -145,21 +163,49 @@ final class TandemCredentialStore {
         validatedAt = nil
         return
       }
-      // Upgrade a readable legacy validation record durably before use. This
-      // does not establish ownership of any previously unbound history cursor.
-      if record.accountId == nil {
-        record.accountId = UUID()
-        try keychain.writeData(try JSONEncoder().encode(record), account: Self.validationAccount)
-      }
-      ownershipAvailable = true
-      accountId = record.accountId
-      hasValidatedCredentials = record.status == .validated && record.validatedAt != nil && !validationInvalidatedInMemory
-      validatedAt = hasValidatedCredentials ? record.validatedAt : nil
+      // Upgrade both legacy items into one durable record before publishing
+      // ownership. A failed migration keeps legacy proof intact and unavailable.
+      if record.accountId == nil { record.accountId = UUID() }
+      try persist(credentials, validation: record)
+      applyValidation(record)
     } catch {
       ownershipAvailable = false
       hasValidatedCredentials = false
       validatedAt = nil
     }
+  }
+
+  private func applyValidation(_ record: TandemCredentialValidationRecord) {
+    ownershipAvailable = true
+    accountId = record.accountId
+    hasValidatedCredentials = record.status == .validated && record.validatedAt != nil && !validationInvalidatedInMemory
+    validatedAt = hasValidatedCredentials ? record.validatedAt : nil
+  }
+}
+
+/// Flat additive encoding preserves the existing TandemCredentials decoder.
+/// Validation fields now share the credential item's atomic Keychain boundary.
+private struct TandemStoredCredentialRecord: Codable {
+  let username: String
+  let password: String
+  let region: String
+  let accountId: UUID?
+  let status: TandemCredentialValidationRecord.Status?
+  let validatedAt: Date?
+
+  var credentials: TandemCredentials { .init(username: username, password: password, region: region) }
+  var validationRecord: TandemCredentialValidationRecord? {
+    guard let accountId, let status else { return nil }
+    return .init(username: username, region: region, accountId: accountId, status: status, validatedAt: validatedAt)
+  }
+
+  init(credentials: TandemCredentials, validation: TandemCredentialValidationRecord) {
+    username = credentials.username
+    password = credentials.password
+    region = credentials.region
+    accountId = validation.accountId
+    status = validation.status
+    validatedAt = validation.validatedAt
   }
 }
 

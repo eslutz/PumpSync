@@ -2,7 +2,43 @@ import XCTest
 @testable import PumpSync
 
 @MainActor
+final class FailingTandemPersistence: TandemCredentialPersistence {
+  let keychain = SecureKeychainStore(service: "TandemPersistence.\(UUID().uuidString)")
+  var failWriteAccount: String?
+  func readData(account: String) throws -> Data? { try keychain.readData(account: account) }
+  func writeData(_ data: Data, account: String) throws {
+    if account == failWriteAccount { throw KeychainStoreError.invalidData }
+    try keychain.writeData(data, account: account)
+  }
+  func delete(account: String) throws { try keychain.delete(account: account) }
+}
+
+@MainActor
 final class CredentialRevisionTests: XCTestCase {
+  func testCommittedAtomicRecordSurvivesFailedLegacyMirrorAndSupportsOldCredentialDecoder() throws {
+    let persistence = FailingTandemPersistence()
+    defer { try? persistence.keychain.deleteAll() }
+    let store = TandemCredentialStore(keychain: persistence)
+    let original = TandemCredentials(username: "original", password: "fixture", region: "us")
+    try store.saveValidated(original)
+    let originalId = try XCTUnwrap(store.accountId)
+    persistence.failWriteAccount = "tandem-source-credential-validation"
+    let replacement = TandemCredentials(username: "replacement", password: "fixture", region: "eu")
+    try store.saveValidated(replacement)
+    let restarted = TandemCredentialStore(keychain: persistence)
+    let replacementId = try XCTUnwrap(restarted.accountId)
+    XCTAssertNotEqual(replacementId, originalId)
+    XCTAssertTrue(restarted.hasValidatedCredentials)
+    XCTAssertEqual(try restarted.load(), replacement)
+    let stored = try XCTUnwrap(persistence.readData(account: "tandem-source-credentials"))
+    XCTAssertEqual(try JSONDecoder().decode(TandemCredentials.self, from: stored), replacement)
+    restarted.invalidateValidation()
+    let invalidated = TandemCredentialStore(keychain: persistence)
+    XCTAssertEqual(invalidated.accountId, replacementId)
+    XCTAssertFalse(invalidated.hasValidatedCredentials)
+    XCTAssertEqual(try invalidated.load(), replacement)
+  }
+
   func testAccountOwnershipSurvivesInvalidationRestartAndPasswordRevalidation() throws {
     let keychain = SecureKeychainStore(service: "AccountOwnershipTests.\(UUID().uuidString)")
     defer { try? keychain.deleteAll() }

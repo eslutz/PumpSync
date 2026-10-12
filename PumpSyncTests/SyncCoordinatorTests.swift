@@ -83,6 +83,55 @@ private final class LockIsolated<Value>: @unchecked Sendable {
 
 @MainActor
 final class SyncCoordinatorTests: XCTestCase {
+  func testFailedCredentialReplacementRetainsOldAccountAndBoundCursorAfterRestart() async throws {
+    for changesAccount in [true, false] {
+      let persistence = FailingTandemPersistence()
+      defer { try? persistence.keychain.deleteAll() }
+      let original = TandemCredentials(username: "original@example.com", password: "original", region: "us")
+      let credentials = TandemCredentialStore(keychain: persistence)
+      try credentials.saveValidated(original)
+      let originalId = try XCTUnwrap(credentials.accountId)
+      let suite = "InterruptedCredentialCursor.\(UUID().uuidString)"
+      let defaults = UserDefaults(suiteName: suite)!
+      defer { defaults.removePersistentDomain(forName: suite) }
+      let auth = makeSignedInAuthService()
+      let metadata = SyncMetadataStore(defaults: defaults)
+      metadata.setInitialImportRange(.pastTwoDays)
+      metadata.recordSuccess(sampleCount: 4, importedCount: 3, completedAt: Date(), watermark: Date(timeIntervalSince1970: 100), owner: try historyOwner(credentials, auth: auth))
+      let previous = metadata.metadata
+      let previousCredentials = try persistence.readData(account: "tandem-source-credentials")
+      let previousValidation = try persistence.readData(account: "tandem-source-credential-validation")
+      persistence.failWriteAccount = "tandem-source-credentials"
+      let replacement = TandemCredentials(username: changesAccount ? "replacement@example.com" : original.username, password: "replacement", region: original.region)
+      XCTAssertThrowsError(try credentials.saveValidated(replacement))
+      XCTAssertEqual(try persistence.readData(account: "tandem-source-credentials"), previousCredentials)
+      XCTAssertEqual(try persistence.readData(account: "tandem-source-credential-validation"), previousValidation)
+      let restarted = TandemCredentialStore(keychain: persistence)
+      XCTAssertEqual(try restarted.load(), original)
+      XCTAssertEqual(restarted.accountId, originalId)
+      let restartedMetadata = SyncMetadataStore(defaults: defaults)
+      let coordinator = makeCoordinator(authService: auth, credentialStore: restarted, healthKitService: FakeHealthKitService(hasAnyWritePermission: false), syncMetadataStore: restartedMetadata)
+      let result = await coordinator.run(reason: .manual)
+      XCTAssertEqual(result, .blocked(.healthPermission))
+      XCTAssertEqual(restartedMetadata.metadata, previous)
+      persistence.failWriteAccount = nil
+      try restarted.saveValidated(original)
+      XCTAssertEqual(restarted.accountId, originalId)
+      XCTAssertEqual(restartedMetadata.metadata.syncWatermark, previous.syncWatermark)
+      try restarted.saveValidated(replacement)
+      for _ in 0..<10 { await Task.yield() }
+      if changesAccount {
+        XCTAssertNotEqual(restarted.accountId, originalId)
+        XCTAssertNil(restartedMetadata.metadata.syncWatermark)
+        XCTAssertEqual(restartedMetadata.metadata.cursorResetReason, .accountChanged)
+      } else {
+        XCTAssertEqual(restarted.accountId, originalId)
+        XCTAssertEqual(restartedMetadata.metadata.syncWatermark, previous.syncWatermark)
+      }
+      XCTAssertEqual(restartedMetadata.metadata.initialImportRange, .pastTwoDays)
+    }
+  }
+
   func testLegacyUnboundCursorResetsBeforeDownloadEvenWithValidatedAccount() async throws {
     let metadata = makeSyncMetadataStore()
     metadata.setInitialImportRange(.pastTwoDays)
