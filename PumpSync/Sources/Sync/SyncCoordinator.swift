@@ -110,6 +110,7 @@ final class SyncCoordinator {
   }
   private var syncWaiters: [UUID: [UUID: Waiter]] = [:]
   private var foregroundActive = false
+  private var notificationDismissalTask: Task<Void, Never>?
 
   private(set) var isNotificationDismissed = false
 
@@ -123,6 +124,7 @@ final class SyncCoordinator {
         return
       }
       isNotificationDismissed = false
+      scheduleNotificationDismissal()
     }
   }
 
@@ -290,6 +292,23 @@ final class SyncCoordinator {
 
   func dismissNotification() {
     isNotificationDismissed = true
+    notificationDismissalTask?.cancel()
+    notificationDismissalTask = nil
+  }
+
+  private func scheduleNotificationDismissal() {
+    notificationDismissalTask?.cancel()
+    notificationDismissalTask = nil
+    guard case .succeeded(let completion) = operationState else { return }
+    // Reconciliation may briefly replace and restore this result. Its original
+    // deadline belongs to the completion, not to a SwiftUI view's lifetime.
+    let remaining = max(0, completion.completedAt.addingTimeInterval(8).timeIntervalSinceNow)
+    notificationDismissalTask = Task { @MainActor [weak self] in
+      do { try await Task.sleep(for: .seconds(remaining)) }
+      catch { return }
+      guard let self, self.operationState == .succeeded(completion) else { return }
+      self.dismissNotification()
+    }
   }
 
   func dismissResult() {

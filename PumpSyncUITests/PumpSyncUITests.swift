@@ -69,6 +69,7 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5) || app.state == .runningBackgroundSuspended)
     app.activate()
     XCTAssertTrue(close.waitForNonExistence(timeout: 5), "Backgrounding must dismiss the closed sample session")
+    recordUIState(named: "sample-preview-after-background", in: app)
     XCTAssertTrue(preview.wait(for: \.isEnabled, toEqual: true, timeout: 5))
     revealPreviewControl(preview, in: app, swipingUp: false)
     preview.tap()
@@ -161,7 +162,9 @@ final class PumpSyncUITests: XCTestCase {
     let banner = app.staticTexts["Sync complete"]
 
     XCTAssertTrue(banner.waitForExistence(timeout: 5))
-    XCTAssertTrue(banner.waitForNonExistence(timeout: 10))
+    let disappeared = banner.waitForNonExistence(timeout: 10)
+    if !disappeared { recordUIState(named: "success-banner-did-not-dismiss", in: app) }
+    XCTAssertTrue(disappeared)
   }
 
   func testActionableFailureBannerDoesNotAutoDismiss() {
@@ -169,6 +172,7 @@ final class PumpSyncUITests: XCTestCase {
     let banner = app.staticTexts["Sync needs attention"]
 
     XCTAssertTrue(banner.waitForExistence(timeout: 5))
+    recordUIState(named: "actionable-failure-banner", in: app)
     XCTAssertTrue(app.buttons["Try Again"].exists)
     XCTAssertFalse(banner.waitForNonExistence(timeout: 9))
   }
@@ -440,5 +444,14 @@ final class PumpSyncUITests: XCTestCase {
     attachment.name = name
     attachment.lifetime = .keepAlways
     add(attachment)
+  }
+
+  private func recordUIState(named name: String, in app: XCUIApplication) {
+    attachScreenshot(named: name, from: app)
+    let attachment = XCTAttachment(string: app.debugDescription)
+    attachment.name = name + "-hierarchy"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    print("UISTATE \(name)\n\(app.debugDescription)")
   }
 }

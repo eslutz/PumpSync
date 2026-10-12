@@ -101,21 +101,6 @@ struct SyncStatusBanner: View {
       }
     }
     .animation(reduceMotion ? nil : .snappy, value: operationState)
-    .task(id: operationState) {
-      guard let delay = SyncStatusPresentation.make(for: operationState, now: Date())?.autoDismissAfter else {
-        return
-      }
-      let expectedState = operationState
-      do {
-        try await Task.sleep(for: .seconds(delay))
-      } catch {
-        return
-      }
-      guard operationState == expectedState else {
-        return
-      }
-      onDismiss()
-    }
   }
 
   @ViewBuilder

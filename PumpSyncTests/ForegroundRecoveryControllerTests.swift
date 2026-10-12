@@ -85,4 +85,80 @@ final class ForegroundRecoveryControllerTests: XCTestCase {
     XCTAssertTrue(predicate())
   }
 
+  func testBackgroundClosedPreviewReturnDoesNotRecoverForEitherDismissalOrder() async {
+    for dismissalBeforeActivation in [true, false] {
+      var attempts = 0
+      var previewActive = false
+      let controller = ForegroundRecoveryController(setVisible: { _ in }) {
+        guard !previewActive else { return }
+        attempts += 1
+      }
+      controller.setScenePhase(.active)
+      await waitUntil { attempts == 1 && !controller.isRecovering }
+      previewActive = true
+      controller.setPreviewActive(true)
+      controller.previewClosedInBackground()
+      controller.setScenePhase(.background)
+      if dismissalBeforeActivation {
+        previewActive = false
+        controller.setPreviewActive(false)
+      }
+      controller.setScenePhase(.active)
+      XCTAssertFalse(controller.isRecovering, "The preview return cannot acquire a new recovery owner")
+      await waitUntil { !controller.isRecovering }
+      if !dismissalBeforeActivation {
+        previewActive = false
+        controller.setPreviewActive(false)
+      }
+      for _ in 0..<10 { await Task.yield() }
+      XCTAssertEqual(attempts, 1, "Returning from a background-closed preview must not start recovery; dismissBeforeActive=\(dismissalBeforeActivation)")
+
+      controller.retryConnection()
+      await waitUntil { !controller.isRecovering }
+      XCTAssertEqual(attempts, 2, "An explicit retry remains eligible")
+      controller.reconcileRecovery()
+      await waitUntil { !controller.isRecovering }
+      XCTAssertEqual(attempts, 3, "A committed auth signal remains eligible")
+      controller.setScenePhase(.background)
+      controller.setScenePhase(.active)
+      await waitUntil { !controller.isRecovering }
+      XCTAssertEqual(attempts, 4, "The next ordinary activation still recovers")
+    }
+  }
+
+  func testConfirmedAuthReconciliationWhileBackgroundedPreviewDrainsAfterBothActivationAndDismissal() async {
+    for dismissalBeforeActivation in [true, false] {
+      var attempts = 0
+      var previewActive = false
+      let controller = ForegroundRecoveryController(setVisible: { _ in }) {
+        guard !previewActive else { return }
+        attempts += 1
+      }
+      controller.setScenePhase(.active)
+      await waitUntil { attempts == 1 && !controller.isRecovering }
+      previewActive = true
+      controller.setPreviewActive(true)
+      controller.previewClosedInBackground()
+      controller.setScenePhase(.background)
+      controller.reconcileRecovery()
+      controller.reconcileRecovery()
+      await Task.yield()
+      XCTAssertEqual(attempts, 1)
+      XCTAssertFalse(controller.isRecovering, "A background auth signal cannot acquire foreground execution")
+      if dismissalBeforeActivation {
+        previewActive = false
+        controller.setPreviewActive(false)
+      }
+      controller.setScenePhase(.active)
+      if !dismissalBeforeActivation {
+        XCTAssertFalse(controller.isRecovering, "Auth reconciliation must wait for the actual preview lease release")
+        previewActive = false
+        controller.setPreviewActive(false)
+      }
+      await waitUntil { attempts == 2 && !controller.isRecovering }
+      for _ in 0..<10 { await Task.yield() }
+      XCTAssertEqual(attempts, 2, "Repeated signals drain as one eligible foreground owner")
+    }
+  }
+
 }

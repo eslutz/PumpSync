@@ -7,10 +7,26 @@ final class ForegroundRecoveryController {
   private let recover: () async -> Void
   private var phase: ScenePhase = .background
   private var needsRecovery = true
+  private var returningFromBackgroundedPreview = false
+  private var previewActive = false
+  private var pendingReconciliation = false
   private var operationID: UUID?
   private var task: Task<Void, Never>?
 
   var isRecovering: Bool { task != nil }
+
+  func setPreviewActive(_ active: Bool) {
+    previewActive = active
+    // A confirmed auth signal waits for the real sheet owner to release its
+    // lease, regardless of whether activation or dismissal arrived first.
+    if !active, phase == .active, pendingReconciliation { startRecovery() }
+  }
+
+  /// The preview can finish dismissing before or after scene activation.
+  /// Record why it closed before either callback can release its activity lease.
+  func previewClosedInBackground() {
+    returningFromBackgroundedPreview = true
+  }
 
   init(setVisible: @escaping (Bool) -> Void, recover: @escaping () async -> Void) {
     self.setVisible = setVisible
@@ -25,9 +41,12 @@ final class ForegroundRecoveryController {
       task = nil
       operationID = nil
       needsRecovery = true
-    } else if next == .active && needsRecovery {
-      needsRecovery = false
-      startRecovery()
+    } else if next == .active {
+      if returningFromBackgroundedPreview {
+        returningFromBackgroundedPreview = false
+        needsRecovery = false
+      }
+      if pendingReconciliation || needsRecovery { startRecovery() }
     }
   }
 
@@ -49,14 +68,16 @@ final class ForegroundRecoveryController {
   /// Reconcile only in a visible scene and merge with its existing work.
   func reconcileRecovery() {
     guard task == nil else { return }
+    pendingReconciliation = true
     needsRecovery = true
     guard phase == .active else { return }
-    needsRecovery = false
     startRecovery()
   }
 
   private func startRecovery() {
-    guard task == nil else { return }
+    guard task == nil, !previewActive else { return }
+    needsRecovery = false
+    pendingReconciliation = false
     let id = UUID()
     operationID = id
     task = Task { [weak self] in

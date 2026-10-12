@@ -50,9 +50,11 @@ struct DemoPreviewConnectionView: View {
         .onDisappear { close() }
         .onChange(of: scenePhase) { _, phase in
             // Keep transient system interruptions separate from backgrounding.
-            // A closed session releases the preview activity lease, so dismiss
-            // its sheet too; reopening will acquire a fresh lease.
+            // The presenting sheet owns the preview activity lease until its
+            // dismissal finishes. Foreground recovery must still see that
+            // lease if activation arrives before the dismissal callback.
             if phase == .background {
+                services.foregroundRecovery.previewClosedInBackground()
                 close()
                 dismiss()
             }
@@ -112,6 +114,6 @@ struct DemoPreviewConnectionView: View {
         username = ""
         password = ""
         busy = false
-        services.endDemoPreview()
+        // SettingsView releases the activity lease in its sheet onDismiss.
     }
 }

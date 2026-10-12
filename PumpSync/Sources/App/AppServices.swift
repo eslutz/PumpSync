@@ -25,12 +25,14 @@ final class AppServices {
     guard !demoPreviewActive, !syncCoordinator.isSyncing else { return false }
     demoPreviewActive = true
     syncCoordinator.setDemoPreviewActive(true)
+    foregroundRecovery.setPreviewActive(true)
     return true
   }
 
   func endDemoPreview() {
     demoPreviewActive = false
     syncCoordinator.setDemoPreviewActive(false)
+    foregroundRecovery.setPreviewActive(false)
   }
 
   private init(
@@ -67,6 +69,12 @@ final class AppServices {
         syncCoordinator.setForegroundActive($0)
       }
     ) {
+#if DEBUG
+      // Screenshot sessions are synthetic presentation fixtures, with no
+      // hardware proof enrollment. Keep scene visibility, but do not replace
+      // their state by attempting real foreground authentication recovery.
+      guard !AppLaunchEnvironment.isScreenshotMode else { return }
+#endif
       guard !syncCoordinator.isDemoPreviewActive else { return }
       do {
         if try importedSampleLedger.migrateHmacKeyForBackgroundAccess() {

@@ -1634,6 +1634,25 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertFalse(coordinator.isSyncing)
   }
 
+  func testFreshReconciliationDoesNotRestartCompletionDismissalDeadline() async throws {
+    URLProtocolStub.requestHandler = { _ in XCTFail("A fresh reconciliation cannot download"); throw APIClientError.invalidResponse }
+    let metadata = makeSyncMetadataStore()
+    let auth = makeSignedInAuthService()
+    let credentials = try makeValidatedCredentialStore()
+    metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date(), owner: try historyOwner(credentials, auth: auth))
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, syncMetadataStore: metadata)
+    coordinator.applyScreenshotSuccess()
+    let completion = coordinator.operationState
+    try await Task.sleep(for: .seconds(6))
+    XCTAssertFalse(coordinator.isNotificationDismissed)
+    let outcome = await coordinator.reconcileForegroundRecovery()
+    XCTAssertEqual(outcome, .skippedFresh)
+    try await Task.sleep(for: .seconds(3))
+    XCTAssertTrue(coordinator.isNotificationDismissed, "Fresh auth reconciliation must retain the original eight-second deadline")
+    XCTAssertEqual(coordinator.operationState, completion, "Automatic dismissal changes presentation only")
+    XCTAssertFalse(coordinator.isSyncing)
+  }
+
   func testTypedPrerequisiteBlocksDoNotDownloadOrMutateSuccess() async throws {
     URLProtocolStub.requestHandler = { _ in XCTFail("Blocked prerequisites cannot download"); throw APIClientError.invalidResponse }
     let noCredentials = makeCoordinator(authService: makeSignedInAuthService(), credentialStore: makeCredentialStore())
