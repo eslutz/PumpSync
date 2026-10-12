@@ -6,6 +6,12 @@ struct AppView: View {
   @State private var isShowingSubscriptionStore = false
 
   var body: some View {
+    GeometryReader { geometry in
+      mainContent(maximumBannerHeight: geometry.size.height * 0.4)
+    }
+  }
+
+  private func mainContent(maximumBannerHeight: CGFloat) -> some View {
     // A single TabView hierarchy adapts between a tab bar (iPhone/compact) and
     // a sidebar (iPad/regular) on its own. The previous horizontalSizeClass
     // branch rebuilt the entire view hierarchy on every size-class change
@@ -27,6 +33,7 @@ struct AppView: View {
          SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: Date()) != nil {
         SyncStatusBanner(
           operationState: services.syncCoordinator.operationState,
+          maximumHeight: maximumBannerHeight,
           onRetry: { services.syncCoordinator.retry() },
           onOpenSubscription: {
             isShowingSubscriptionStore = true

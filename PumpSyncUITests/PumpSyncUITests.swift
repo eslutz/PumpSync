@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 @MainActor
 final class PumpSyncUITests: XCTestCase {
@@ -11,6 +12,7 @@ final class PumpSyncUITests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     let app = XCUIApplication()
     app.launch()
+    recordUIState(named: "sample-preview-before-settings", in: app)
     navigate(to: "Settings", in: app)
     let preview = app.buttons["Sample Preview"]
     XCTAssertTrue(preview.waitForExistence(timeout: 5))
@@ -175,6 +177,54 @@ final class PumpSyncUITests: XCTestCase {
     recordUIState(named: "actionable-failure-banner", in: app)
     XCTAssertTrue(app.buttons["Try Again"].exists)
     XCTAssertFalse(banner.waitForNonExistence(timeout: 9))
+  }
+
+  func testFailureBannerKeepsNavigationAndActionsReachable() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-failure"])
+    XCTAssertTrue(app.staticTexts["Sync needs attention"].waitForExistence(timeout: 5))
+    recordUIState(named: "failure-banner-navigation", in: app)
+    // Leave readable text width rather than squeezing the headline and
+    // recovery action into single-character columns at accessibility sizes.
+    if UIApplication.shared.preferredContentSizeCategory.isAccessibilityCategory {
+      XCTAssertGreaterThan(app.staticTexts["Sync needs attention"].frame.width, app.windows.firstMatch.frame.width / 2)
+    } else {
+      let content = app.staticTexts["Sync needs attention"].frame
+        .union(app.staticTexts["Sync could not be completed. Try again."].frame)
+        .union(app.buttons["Try Again"].frame)
+        .union(app.buttons["Dismiss notification"].frame)
+      XCTAssertLessThanOrEqual(
+        app.otherElements["Sync needs attention"].firstMatch.frame.height,
+        content.height + 40,
+        "A compact notification must not reserve empty space over the app content"
+      )
+    }
+
+    let settings = app.tabBars.buttons["Settings"]
+    XCTAssertTrue(settings.waitForExistence(timeout: 2))
+    XCTAssertTrue(app.windows.firstMatch.frame.contains(settings.frame), "Banner pushed Settings outside the viewport")
+    XCTAssertTrue(settings.isHittable)
+    let dismiss = app.buttons["Dismiss notification"]
+    XCTAssertTrue(dismiss.isHittable)
+    XCTAssertGreaterThanOrEqual(dismiss.frame.width, 44)
+    XCTAssertGreaterThanOrEqual(dismiss.frame.height, 44)
+
+    // The full message and recovery action remain available by scrolling the
+    // bounded banner at large text sizes, without scrolling the app content.
+    let retry = app.buttons["Try Again"]
+    for _ in 0..<5 {
+      if retry.isHittable { break }
+      app.scrollViews["SyncStatusBannerContent"].swipeUp()
+    }
+    XCTAssertTrue(retry.isHittable)
+    XCTAssertGreaterThan(retry.frame.width, 44)
+    recordUIState(named: "failure-banner-recovery-action", in: app)
+    settings.tap()
+    XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Sync needs attention"].exists)
+    dismiss.tap()
+    XCTAssertTrue(app.staticTexts["Sync needs attention"].waitForNonExistence(timeout: 3))
+    navigate(to: "Sync", in: app)
+    XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 5))
   }
 
   func testCoreScreensRenderInScreenshotMode() {
