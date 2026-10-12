@@ -3,7 +3,7 @@ import SwiftUI
 struct AboutPumpSyncView: View {
     var body: some View {
         PumpSyncScreen(spacing: 28) {
-            Text("Your Tandem pump history, in Apple Health.")
+            Text("Your pump history, in Apple Health.")
                 .font(.title3)
                 .fixedSize(horizontal: false, vertical: true)
 
