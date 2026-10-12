@@ -3,10 +3,11 @@ import XCTest
 
 final class SupportBundleBuilderTests: XCTestCase {
   func testAttemptHistoryExplainsEarlyFailuresEvenWhenLogTailIsEmpty() {
-    let attempt = SyncAttempt(operationID: UUID(), trigger: .background, startedAt: Date(), stage: .recovering, outcome: .blocked, reason: .recovery(.deviceProofRejected), durationSeconds: 2, backendCorrelationID: nil)
+    let attempt = SyncAttempt(operationID: UUID(), trigger: .background, startedAt: Date(timeIntervalSince1970: 0), stage: .recovering, outcome: .blocked, reason: .recovery(.deviceProofRejected), durationSeconds: 2, backendCorrelationID: nil)
     let context = SupportBundleContext(bundleInfo: AppBundleInfo(version: "1.0.0", build: "37"), systemVersion: "27", deviceModel: "iPhone", backendMode: "PumpSync", syncMetadata: SyncMetadata(lastAttemptAt: nil, lastSuccessfulSyncAt: nil, lastSampleCount: 0, lastImportedCount: 0, lastErrorMessage: nil), appDiagnostics: [], nativeDiagnostics: [], syncAttempts: [attempt])
     let bundle = SupportBundleBuilder.build(context: context)
     XCTAssertTrue(bundle.contains("## Owned Sync Attempts"))
+    XCTAssertTrue(bundle.contains("startedAt=1970-01-01T00:00:00Z"))
     XCTAssertTrue(bundle.contains("trigger=background stage=recovering outcome=blocked reason=deviceProofRejected"))
     XCTAssertTrue(bundle.contains("Last Error: See owned attempt history"))
     XCTAssertFalse(bundle.contains("Last Error: None"))

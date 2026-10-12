@@ -242,10 +242,12 @@ final class AuthService {
       )
     }
     createSubscriptionSession = { request in
-      try await apiClient.createSubscriptionSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
+      SessionRecoveryContext.current?.backendCorrelationID = nil
+      return try await apiClient.createSubscriptionSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
     }
     createSelfHostedSession = { request in
-      try await apiClient.createSelfHostedSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
+      SessionRecoveryContext.current?.backendCorrelationID = nil
+      return try await apiClient.createSelfHostedSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
     }
     createSessionChallenge = { request in
       try await apiClient.createSessionChallenge(request)
@@ -1280,7 +1282,9 @@ final class AuthService {
       blockUnresolvedAuth()
       if Task.isCancelled || error is CancellationError { return false }
       let apiError = error as? APIClientError
-      SessionRecoveryContext.current?.backendCorrelationID = apiError?.correlationId
+      if SessionRecoveryContext.current?.backendCorrelationID == nil, let correlation = apiError?.correlationId {
+        SessionRecoveryContext.current?.backendCorrelationID = correlation
+      }
       if allowsRejectedAssertionRetry, (error as? AppAttestClientError) == .invalidKey {
         rejectedAssertionRetry = .freshAttestation
       }
@@ -1780,6 +1784,7 @@ final class AuthService {
       )
       let refreshed: BackendSessionResponse
       do {
+        SessionRecoveryContext.current?.backendCorrelationID = nil
         refreshed = try await apiClient.refreshSession(request, mode: mode, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
         diagnostics?.record(
           source: .auth,
@@ -1787,7 +1792,9 @@ final class AuthService {
           message: "serviceMode=\(currentSession.serviceMode) outcome=success elapsedMs=\(elapsedMilliseconds(since: requestStartedAt))"
         )
       } catch {
-        SessionRecoveryContext.current?.backendCorrelationID = (error as? APIClientError)?.correlationId
+        if SessionRecoveryContext.current?.backendCorrelationID == nil, let correlation = (error as? APIClientError)?.correlationId {
+          SessionRecoveryContext.current?.backendCorrelationID = correlation
+        }
         if let apiError = error as? APIClientError, !apiError.hasAmbiguousOutcome {
           try committer.rejectDefinitively(journalID, binding: sourceConnection.identity.binding)
         }
@@ -2053,6 +2060,7 @@ final class AuthService {
       let attempt = subscriptionRecoveryAttempt
       await awaitSubscriptionOperation(subscriptionOperationTask, operationID: subscriptionOperationID)
       recoveryFailure = attempt?.failure
+      if let correlation = attempt?.backendCorrelationID { SessionRecoveryContext.current?.backendCorrelationID = correlation }
       return false
     }
 

@@ -122,6 +122,6 @@ final class SyncAttemptStore {
     diagnostics?.record(source: .sync, title: "Owned sync attempt", message: Self.description(attempt))
   }
   nonisolated static func description(_ attempt: SyncAttempt) -> String {
-    "operation=\(attempt.operationID) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? "pending") correlation=\(attempt.backendCorrelationID ?? "unavailable")"
+    "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? "pending") correlation=\(attempt.backendCorrelationID ?? "unavailable")"
   }
 }

@@ -83,6 +83,113 @@ private final class LockIsolated<Value>: @unchecked Sendable {
 
 @MainActor
 final class SyncCoordinatorTests: XCTestCase {
+  func testSuccessfulHostedHttpResponseCommitFailureRetainsOwnedCorrelation() async throws {
+    let persistence = AuthJournalTestPersistence()
+    let store = BackendSessionStore(keychain: persistence)
+    let api = PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+    let replacement = BackendSessionResponse(accessToken: "commit-failure", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "new-family", refreshToken: "new-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
+    let data = try JSONCodec.encoder.encode(replacement)
+    let correlation = "0123456789abcdef0123456789abcdef"
+    URLProtocolStub.requestHandler = { request in
+      XCTAssertTrue(request.url?.path.hasSuffix("/subscription/session") == true)
+      persistence.failWriteAccount = "backend.session.current"
+      return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["X-Correlation-ID": correlation])!, data)
+    }
+    let auth = AuthService(apiClient: api, configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "CommitCorrelation.\(UUID())")!), sessionStore: store,
+      currentEntitlementJWS: { "verified-fixture" },
+      createSubscriptionSession: { request in try await api.createSubscriptionSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 }) },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: RecoveringDeviceSessionProofProvider())
+    let health = FakeHealthKitService()
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let previous = metadata.metadata
+    let result = await coordinator.run(reason: .manual)
+    XCTAssertEqual(result, .deferred(.recovery(.commitPending)))
+    XCTAssertEqual(coordinator.attemptStore.history.first?.backendCorrelationID, correlation)
+    XCTAssertEqual(try store.loadAuthJournal()?.phase, .responseReceived)
+    XCTAssertNil(auth.authenticatedConnection)
+    XCTAssertEqual(metadata.metadata, previous)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+  }
+
+  func testMalformedSuccessfulRefreshRetainsHeaderCorrelationAndUncertainSubmission() async throws {
+    try await verifyMalformedHttpCorrelation(refresh: true)
+  }
+
+  func testMalformedSuccessfulSyncRetainsHeaderCorrelationWithoutPrivateJsonField() async throws {
+    try await verifyMalformedHttpCorrelation(refresh: false)
+  }
+
+  private func verifyMalformedHttpCorrelation(refresh: Bool) async throws {
+    let store = makeSessionStore()
+    let auth: AuthService
+    if refresh {
+      try store.save(BackendSessionResponse(accessToken: "expired", expiresAt: .distantPast, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "original", refreshToken: "original-refresh", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture))
+      let proof = RecoveringDeviceSessionProofProvider()
+      proof.acceptsRefresh = true
+      auth = AuthService(apiClient: PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0), configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "DecodeCorrelation.\(UUID())")!), sessionStore: store,
+        currentEntitlementJWS: { XCTFail("An uncertain response cannot silently enroll"); throw APIClientError.invalidResponse }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: proof)
+    } else { auth = makeSignedInAuthService() }
+    let correlation = "1123456789abcdef0123456789abcdef"
+    URLProtocolStub.requestHandler = { request in
+      XCTAssertTrue(request.url?.path.hasSuffix(refresh ? "/session/refresh" : "/sync/tandem") == true)
+      return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["X-Correlation-ID": correlation])!, Data(#"{"backendCorrelationID":"private-account-value","malformed":true}"#.utf8))
+    }
+    let health = FakeHealthKitService()
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let previousSuccess = metadata.metadata.lastSuccessfulSyncAt
+    let result = await coordinator.run(reason: .manual)
+    XCTAssertFalse(result.succeeded)
+    let attempt = try XCTUnwrap(coordinator.attemptStore.history.first)
+    XCTAssertEqual(attempt.backendCorrelationID, correlation)
+    XCTAssertFalse(SyncAttemptStore.description(attempt).contains("private-account-value"))
+    XCTAssertEqual(metadata.metadata.lastSuccessfulSyncAt, previousSuccess)
+    XCTAssertNil(metadata.metadata.syncWatermark)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    if refresh {
+      XCTAssertEqual(try store.loadAuthJournal()?.phase, .submitted)
+      XCTAssertNil(auth.authenticatedConnection)
+    }
+  }
+
+  func testLateHttpFailureAfterBackgroundExpirationRetainsOriginalAttemptCorrelation() async throws {
+    let started = expectation(description: "owned background HTTP request")
+    let allow = DispatchSemaphore(value: 0)
+    let correlation = "2123456789abcdef0123456789abcdef"
+    URLProtocolStub.requestHandler = { request in
+      started.fulfill()
+      allow.wait()
+      return (HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: ["X-Correlation-ID": correlation])!, Data(#"{"code":"invalid_token","message":"Rejected","correlationId":"private-account-value"}"#.utf8))
+    }
+    let auth = makeSignedInAuthService()
+    let credentials = try makeValidatedCredentialStore()
+    let health = FakeHealthKitService()
+    let metadata = makeSyncMetadataStore()
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
+    let previousSession = auth.authenticatedConnection
+    let previousCredentials = try credentials.load()
+    let previousMetadata = metadata.metadata
+    let lease = grantedBackgroundLease()
+    let task = Task { await coordinator.run(reason: .background, lease: lease) }
+    await fulfillment(of: [started], timeout: 2)
+    let operationID = try XCTUnwrap(coordinator.attemptStore.active?.operationID)
+    lease.revoke()
+    allow.signal()
+    let result = await task.value
+    XCTAssertEqual(result, .deferred(.executionLeaseExpired))
+    let attempt = try XCTUnwrap(coordinator.attemptStore.history.first)
+    XCTAssertEqual(attempt.operationID, operationID)
+    XCTAssertEqual(attempt.trigger, .background)
+    XCTAssertEqual(attempt.backendCorrelationID, correlation)
+    XCTAssertEqual(attempt.outcome, .deferred)
+    XCTAssertEqual(auth.authenticatedConnection, previousSession)
+    XCTAssertEqual(try credentials.load(), previousCredentials)
+    XCTAssertTrue(credentials.hasValidatedCredentials)
+    XCTAssertEqual(metadata.metadata, previousMetadata)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+  }
+
   func testEarlyBlockedOwnedRecoveryRecordsTerminalWithoutSuccessfulMetadataMutation() async throws {
     let attempts = SyncAttemptStore(defaults: UserDefaults(suiteName: "EarlyAttempts.\(UUID())")!)
     let metadata = makeSyncMetadataStore()
@@ -380,7 +487,10 @@ final class SyncCoordinatorTests: XCTestCase {
     URLProtocolStub.requestHandler = { request in
       started.fulfill()
       allow.wait()
-      if let failure { return try failure(request) }
+      if let failure {
+        let (response, data) = try failure(request)
+        return (HTTPURLResponse(url: request.url!, statusCode: response.statusCode, httpVersion: nil, headerFields: ["X-Correlation-ID": "3123456789abcdef0123456789abcdef"])!, data)
+      }
       throw URLError(.networkConnectionLost)
     }
     let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata)
@@ -401,6 +511,7 @@ final class SyncCoordinatorTests: XCTestCase {
     allow.signal()
     let result = await task.value
     XCTAssertEqual(result, change == "sameContextToken" ? .failed : .contextReplaced)
+    if status != nil { XCTAssertEqual(coordinator.attemptStore.history.first?.backendCorrelationID, "3123456789abcdef0123456789abcdef") }
     XCTAssertEqual(auth.session, expectedSession)
     if change == "session" || change == "sameFamilyToken" || change == "sameContextToken" { XCTAssertEqual(sessionStore.loadValidSession()?.accessToken, "replacement-token") }
     XCTAssertTrue(credentials.hasValidatedCredentials)

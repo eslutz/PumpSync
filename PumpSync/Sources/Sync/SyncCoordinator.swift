@@ -555,8 +555,9 @@ final class SyncCoordinator {
         recordCancellation(reason: reason)
         return stopped
       }
-      let response = try await apiClient.syncTandem(request, accessToken: accessToken)
-      attemptStore.correlate(operationID: intent.operationID, value: response.backendCorrelationID)
+      let response = try await apiClient.syncTandem(request, accessToken: accessToken, backendCorrelation: { [weak self] value in
+        self?.attemptStore.correlate(operationID: intent.operationID, value: value)
+      })
       try checkExecution(intent)
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
       let plan = try ImportPlanner.makePlan(response: response, context: context, concentration: concentration)
@@ -613,6 +614,8 @@ final class SyncCoordinator {
       }
       return .completed
     } catch {
+      let apiError = error as? APIClientError
+      attemptStore.correlate(operationID: intent.operationID, value: apiError?.correlationId)
       if let stopped = stoppedOutcome(intent) {
         recordCancellation(reason: reason)
         return stopped
@@ -628,8 +631,6 @@ final class SyncCoordinator {
         diagnostics?.record(source: .sync, severity: .warning, title: "Stale sync response discarded")
         return .contextReplaced
       }
-      let apiError = error as? APIClientError
-      attemptStore.correlate(operationID: intent.operationID, value: apiError?.correlationId)
       // Same-family refresh keeps successful downloads eligible. A rejection
       // of the old request token does not invalidate the fresh token, though.
       // Its import context still matches: report the obsolete request's failure

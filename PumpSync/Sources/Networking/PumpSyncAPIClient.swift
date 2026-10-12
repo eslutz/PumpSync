@@ -64,9 +64,12 @@ final class PumpSyncAPIClient {
     )
   }
 
-  func syncTandem(_ request: TandemSyncRequest, accessToken: String) async throws -> TandemSyncResponse {
+  func syncTandem(_ request: TandemSyncRequest, accessToken: String, backendCorrelation: ((String?) -> Void)? = nil) async throws -> TandemSyncResponse {
     var correlation: String?
-    var response: TandemSyncResponse = try await send(path: "/v1/sync/tandem", method: "POST", body: request, accessToken: accessToken, responseObserver: { correlation = $0.value(forHTTPHeaderField: "X-Correlation-ID") })
+    var response: TandemSyncResponse = try await send(path: "/v1/sync/tandem", method: "POST", body: request, accessToken: accessToken, responseObserver: {
+      correlation = $0.value(forHTTPHeaderField: "X-Correlation-ID")
+      backendCorrelation?(correlation)
+    })
     response.backendCorrelationID = correlation
     return response
   }
