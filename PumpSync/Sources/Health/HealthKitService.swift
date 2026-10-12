@@ -239,6 +239,10 @@ final class HealthKitService {
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
       do {
         try HealthImportPolicy.validate(batch: batch, current: currentContext())
+        // Expiration revokes a lease synchronously, while cancellation of the
+        // shared task may still be queued behind this actor's conversion work.
+        try Task.checkCancellation()
+        guard batch.executionIsValid() else { throw CancellationError() }
       } catch {
         continuation.resume(throwing: error)
         return

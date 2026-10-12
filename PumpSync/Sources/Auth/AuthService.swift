@@ -880,6 +880,7 @@ final class AuthService {
       let attempt = subscriptionRecoveryAttempt
       await awaitSubscriptionOperation(task, operationID: subscriptionOperationID)
       recoveryFailure = attempt?.failure
+      if let correlation = attempt?.backendCorrelationID { SessionRecoveryContext.current?.backendCorrelationID = correlation }
       return
     }
     if !committer.isBusy {

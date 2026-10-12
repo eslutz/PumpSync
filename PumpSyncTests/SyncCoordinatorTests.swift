@@ -1,3 +1,4 @@
+import HealthKit
 import XCTest
 @testable import PumpSync
 
@@ -48,6 +49,16 @@ private final class FakeHealthKitService: SyncHealthWriting {
   }
 }
 
+@MainActor
+private final class SubmissionRecordingHealthPersistence: HealthSamplePersisting {
+  private(set) var saved: [HKQuantitySample] = []
+  func authorizationStatus(for type: HKObjectType) -> HKAuthorizationStatus { .sharingAuthorized }
+  func save(_ samples: [HKQuantitySample], completion: @escaping @Sendable (Bool, Error?) -> Void) {
+    saved.append(contentsOf: samples)
+    completion(true, nil)
+  }
+}
+
 private final class FailingSyncSampleLedger: SyncSampleLedger {
   private(set) var commitCount = 0
   func filterUnseen(_ samples: [SampleDTO]) throws -> [SampleDTO] { samples }
@@ -83,6 +94,108 @@ private final class LockIsolated<Value>: @unchecked Sendable {
 
 @MainActor
 final class SyncCoordinatorTests: XCTestCase {
+  func testRealHealthAdapterRejectsLeaseRevokedAfterConversionBeforeSubmission() async throws {
+    try await verifyRealAdapterFinalLease(survivingOwner: false)
+  }
+
+  func testRealHealthAdapterAcceptsSurvivingCoalescedOwnerAfterInitialLeaseRevoked() async throws {
+    try await verifyRealAdapterFinalLease(survivingOwner: true)
+  }
+
+  private func verifyRealAdapterFinalLease(survivingOwner: Bool) async throws {
+    let auth = makeSignedInAuthService()
+    let credentials = try makeValidatedCredentialStore()
+    let metadata = makeSyncMetadataStore()
+    let ledger = ImportedSampleLedger(keychain: SecureKeychainStore(service: "FinalLease.\(UUID())"), defaults: UserDefaults(suiteName: "FinalLease.\(UUID())")!)
+    let initialLease = survivingOwner ? SyncExecutionLease(kind: .foreground) : grantedBackgroundLease()
+    let persistence = SubmissionRecordingHealthPersistence()
+    var contextReads = 0
+    let health = HealthKitService(currentContext: {
+      contextReads += 1
+      if contextReads == 2 {
+        // This existing adapter boundary runs after quantity conversion, with
+        // no actor hop for the scheduler's queued task cancellation to execute.
+        initialLease.revoke()
+        XCTAssertFalse(Task.isCancelled)
+      }
+      return auth.currentImportSnapshot(credentialRevision: credentials.revision)
+    }, persistence: persistence)
+    let confirmed = sample(externalId: "final-lease")
+    let started = expectation(description: "download started")
+    let allow = DispatchSemaphore(value: 0)
+    let response = syncResponseHandler(samples: [confirmed], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in
+      started.fulfill()
+      allow.wait()
+      return try response(request)
+    }
+    let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, importedSampleLedger: ledger, syncMetadataStore: metadata)
+    let task = Task { await coordinator.run(reason: survivingOwner ? .manual : .background, lease: initialLease) }
+    await fulfillment(of: [started], timeout: 2)
+    let operationID = try XCTUnwrap(coordinator.attemptStore.active?.operationID)
+    let other = survivingOwner ? Task { await coordinator.run(reason: .background, lease: grantedBackgroundLease()) } : nil
+    for _ in 0..<10 { await Task.yield() }
+    allow.signal()
+    let result = await task.value
+    let otherResult = await other?.value
+    XCTAssertEqual(contextReads, 2)
+    XCTAssertEqual(result, survivingOwner ? .canceled : .deferred(.executionLeaseExpired))
+    XCTAssertEqual(persistence.saved.count, survivingOwner ? 1 : 0)
+    XCTAssertEqual(try ledger.filterUnseen([confirmed]).isEmpty, survivingOwner)
+    XCTAssertEqual(metadata.metadata.lastSuccessfulSyncAt != nil, survivingOwner)
+    XCTAssertEqual(metadata.metadata.lastImportedCount, survivingOwner ? 1 : 0)
+    XCTAssertEqual(metadata.metadata.syncWatermark != nil, survivingOwner)
+    let attempt = try XCTUnwrap(coordinator.attemptStore.history.first)
+    XCTAssertEqual(attempt.operationID, operationID)
+    XCTAssertEqual(attempt.trigger, survivingOwner ? .manual : .background)
+    XCTAssertEqual(attempt.outcome, survivingOwner ? .completed : .deferred)
+    XCTAssertEqual(attempt.reason, survivingOwner ? .completed : .executionLeaseExpired)
+    if survivingOwner { XCTAssertEqual(otherResult, .completed) }
+  }
+
+  func testJoinedStoreKitHttpFailureRetainsOriginalSyncAttemptCorrelationWithoutDownload() async throws {
+    let started = expectation(description: "StoreKit enrollment HTTP request")
+    let allow = DispatchSemaphore(value: 0)
+    let requests = LockIsolated(0)
+    let correlation = "4123456789abcdef0123456789abcdef"
+    URLProtocolStub.requestHandler = { request in
+      requests.withValue { $0 += 1 }
+      XCTAssertTrue(request.url?.path.hasSuffix("/subscription/session") == true)
+      started.fulfill()
+      allow.wait()
+      return (HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: ["X-Correlation-ID": correlation])!, Data(#"{"code":"invalid_app_store_transaction","message":"Rejected private-account-value","correlationId":"private-account-value"}"#.utf8))
+    }
+    let api = PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+    let auth = AuthService(apiClient: api, configurationStore: BackendConfigurationStore(defaults: UserDefaults(suiteName: "JoinedCorrelation.\(UUID())")!), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { XCTFail("Joined recovery must not begin another enrollment"); throw APIClientError.invalidResponse },
+      createSubscriptionSession: { request in try await api.createSubscriptionSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 }) },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: RecoveringDeviceSessionProofProvider())
+    let metadata = makeSyncMetadataStore()
+    let health = FakeHealthKitService()
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let owner = Task { await auth.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "verified-fixture", diagnosticSummary: "fixture", finish: {}) }
+    await fulfillment(of: [started], timeout: 2)
+    let joined = Task { await coordinator.run(reason: .background, lease: grantedBackgroundLease()) }
+    for _ in 0..<10 { await Task.yield() }
+    let operationID = try XCTUnwrap(coordinator.attemptStore.active?.operationID)
+    XCTAssertEqual(coordinator.attemptStore.active?.stage, .recovering)
+    let previous = metadata.metadata
+    allow.signal()
+    let result = await joined.value
+    await owner.value
+    XCTAssertEqual(result, .blocked(.session(.backendRejected)))
+    let attempt = try XCTUnwrap(coordinator.attemptStore.history.first)
+    XCTAssertEqual(attempt.operationID, operationID)
+    XCTAssertEqual(attempt.trigger, .background)
+    XCTAssertEqual(attempt.outcome, .blocked)
+    XCTAssertEqual(attempt.reason, .recovery(.backendRejected))
+    XCTAssertEqual(attempt.backendCorrelationID, correlation)
+    XCTAssertFalse(SyncAttemptStore.description(attempt).contains("private-account-value"))
+    XCTAssertEqual(requests.value, 1)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertEqual(metadata.metadata, previous)
+  }
+
   func testSuccessfulHostedHttpResponseCommitFailureRetainsOwnedCorrelation() async throws {
     let persistence = AuthJournalTestPersistence()
     let store = BackendSessionStore(keychain: persistence)

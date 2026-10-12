@@ -122,6 +122,29 @@ extension HealthAccessTests {
     XCTAssertEqual(reads, 2)
   }
 
+  func testAdapterRechecksExecutionLeaseAfterConversionWithoutTaskCancellation() async throws {
+    let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, connectionId: UUID(), dataSourceMode: .tandemSource)
+    let sample = SampleDTO(externalId: "one", type: "insulin.bolus", value: 1.25, unit: "IU", startAt: Date(timeIntervalSince1970: 100), endAt: Date(timeIntervalSince1970: 100), metadata: [:], source: SourceDTO(deviceId: "pump", eventIds: ["one"]))
+    let plan = try ImportPlanner.makePlan(response: TandemSyncResponse(samples: [sample], effectiveMinDate: .distantPast, effectiveMaxDate: .distantFuture, dataSourceMode: .tandemSource), context: context, concentration: .u500)
+    let lease = SyncExecutionLease(kind: .background, deadline: Date().addingTimeInterval(30))
+    let batch = try HealthImportPolicy.authorize(plan: plan, current: context, executionIsValid: { lease.isValid })
+    let persistence = RecordingHealthPersistence()
+    var reads = 0
+    let service = HealthKitService(currentContext: {
+      reads += 1
+      if reads == 2 { lease.revoke() }
+      return context
+    }, persistence: persistence)
+    service.refreshAuthorizationStatus()
+    do {
+      _ = try await service.save(batch: batch)
+      XCTFail("A revoked execution must not submit new Health writes")
+    } catch { XCTAssertTrue(error is CancellationError) }
+    XCTAssertFalse(Task.isCancelled)
+    XCTAssertEqual(reads, 2)
+    XCTAssertTrue(persistence.saved.isEmpty)
+  }
+
   func testAdapterPersistsCapturedConvertedValueExactlyOnceAndReturnsConfirmedOriginal() async throws {
     let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource)
     let sample = SampleDTO(externalId: "one", type: "insulin.bolus", value: 1.25, unit: "IU", startAt: Date(timeIntervalSince1970: 100), endAt: Date(timeIntervalSince1970: 100), metadata: [:], source: SourceDTO(deviceId: "pump", eventIds: ["one"]))

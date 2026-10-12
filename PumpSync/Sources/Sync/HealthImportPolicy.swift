@@ -2,14 +2,19 @@ import Foundation
 
 struct HealthImportBatch {
     let plan: ImportPlan
-    fileprivate init(plan: ImportPlan) { self.plan = plan }
+    /// The current shared execution owners are reevaluated at Health submission.
+    let executionIsValid: @MainActor () -> Bool
+    fileprivate init(plan: ImportPlan, executionIsValid: @escaping @MainActor () -> Bool) {
+        self.plan = plan
+        self.executionIsValid = executionIsValid
+    }
 }
 
 enum HealthImportPolicy {
-    static func authorize(plan: ImportPlan, current: ImportSessionSnapshot) throws -> HealthImportBatch {
+    static func authorize(plan: ImportPlan, current: ImportSessionSnapshot, executionIsValid: @escaping @MainActor () -> Bool = { true }) throws -> HealthImportBatch {
         guard plan.context.dataSourceMode == .tandemSource else { throw HealthImportError.previewOnly }
         guard plan.context == current else { throw HealthImportError.staleContext }
-        return HealthImportBatch(plan: plan)
+        return HealthImportBatch(plan: plan, executionIsValid: executionIsValid)
     }
 
     static func validate(batch: HealthImportBatch, current: ImportSessionSnapshot?) throws {

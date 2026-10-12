@@ -594,7 +594,9 @@ final class SyncCoordinator {
       recordBackgroundStage(.updatingHealth, startedAt: startedAt, reason: reason)
       try checkExecution(intent)
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
-      let batch = try HealthImportPolicy.authorize(plan: plan.selectingSamples(unseenSamples), current: current)
+      let batch = try HealthImportPolicy.authorize(plan: plan.selectingSamples(unseenSamples), current: current, executionIsValid: { [weak self] in
+        self?.syncOperationID == intent.operationID && self?.hasExecutionLease(intent.operationID) == true
+      })
       let writtenSamples = try await healthKitService.save(batch: batch)
       try importedSampleLedger.recordImported(writtenSamples, importedAt: Date())
       // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
