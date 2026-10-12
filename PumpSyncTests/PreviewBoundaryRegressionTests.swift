@@ -45,9 +45,16 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
             let body = request.url!.path.hasSuffix("capabilities") ? #"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"# : #"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"tandemSource"}"#
             return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(body.utf8))
         }
-        let preview = RealImportPreviewSession(apiClient: api, authService: auth, credentialStore: credentials, metadataStore: .init(defaults: defaults), concentrationStore: .init(defaults: defaults))
+        let concentration = InsulinConcentrationStore(defaults: defaults)
+        let preview = RealImportPreviewSession(apiClient: api, authService: auth, credentialStore: credentials, metadataStore: .init(defaults: defaults), concentrationStore: concentration)
         await preview.load()
         XCTAssertEqual(paths.value.count, 2)
+        concentration.concentration = .u500
+        preview.controller.suspend()
+        await preview.loadIfNeeded()
+        XCTAssertEqual(paths.value.count, 2, "Returning to the loaded screen must not fetch a new window")
+        guard case .ready(let retained) = preview.controller.state else { return XCTFail("Expected the loaded snapshot") }
+        XCTAssertEqual(retained.concentration, .u100, "The displayed conversion setting belongs to the retained snapshot")
         credentials.invalidateValidation()
         await preview.load()
         XCTAssertEqual(paths.value.count, 2, "Revalidation is required before another preview download")
@@ -163,6 +170,84 @@ final class PreviewBoundaryRegressionTests: XCTestCase {
         guard case .ready(let plan) = controller.state else { return XCTFail("Replacement must remain ready") }
         XCTAssertEqual(plan.concentration, .u100)
         XCTAssertEqual(previewCount.value, 2)
+    }
+
+    func testRetainedInspectionSurvivesRenewalButRejectsChangedOwnership() async throws {
+        let (auth, api) = makeAuth(expired: false)
+        await auth.connectSelfHosted()
+        let original = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 0))
+        var current: ImportSessionSnapshot? = original
+        let paths = BoundaryLocked<[String]>([])
+        URLProtocolStub.requestHandler = { request in
+            paths.append(request.url!.path)
+            return request.url!.path.hasSuffix("capabilities") ? Self.capabilities(request) : Self.emptyResponse(request)
+        }
+        let controller = ImportPreviewController(apiClient: api, authService: auth, currentContext: { current })
+        await controller.load(request: previewRequest(), context: original, concentration: .u200)
+        current = .init(backendIdentity: original.backendIdentity, configurationRevision: original.configurationRevision, credentialRevision: 0, connectionId: UUID(), dataSourceMode: .tandemSource)
+        controller.suspend()
+        controller.validateSnapshot()
+        guard case .ready(let retained) = controller.state else { return XCTFail("Same-account renewal must retain inspection") }
+        XCTAssertEqual(retained.context, original)
+        XCTAssertEqual(paths.value, ["/api/v1/capabilities", "/api/v1/preview/tandem"], "Restoring loaded inspection makes no request")
+
+        current = .init(backendIdentity: original.backendIdentity, configurationRevision: original.configurationRevision, credentialRevision: 1, connectionId: UUID(), dataSourceMode: .tandemSource)
+        controller.validateSnapshot()
+        guard case .failed = controller.state else { return XCTFail("Changed pump credentials must invalidate cached records") }
+        XCTAssertTrue(controller.recordsNewestFirst.isEmpty)
+        XCTAssertNil(controller.loadedAt)
+    }
+
+    func testRetainedInspectionClearsWhenConnectionIsRemoved() async throws {
+        let (auth, api) = makeAuth(expired: false)
+        await auth.connectSelfHosted()
+        let original = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 0))
+        var current: ImportSessionSnapshot? = original
+        URLProtocolStub.requestHandler = { request in
+            request.url!.path.hasSuffix("capabilities") ? Self.capabilities(request) : Self.emptyResponse(request)
+        }
+        let controller = ImportPreviewController(apiClient: api, authService: auth, currentContext: { current })
+        await controller.load(request: previewRequest(), context: original, concentration: .u100)
+        current = nil
+        controller.validateSnapshot()
+        guard case .failed = controller.state else { return XCTFail("A disconnected inspection must clear its snapshot") }
+    }
+
+    func testSuspendingRefreshKeepsSnapshotAndRejectsLateResponse() async throws {
+        let (auth, api) = makeAuth(expired: false)
+        await auth.connectSelfHosted()
+        let context = try XCTUnwrap(auth.operationImportSnapshot(credentialRevision: 0))
+        URLProtocolStub.requestHandler = { request in
+            request.url!.path.hasSuffix("capabilities") ? Self.capabilities(request) : Self.emptyResponse(request)
+        }
+        let controller = ImportPreviewController(apiClient: api, authService: auth, currentContext: { context })
+        await controller.load(request: previewRequest(), context: context, concentration: .u200)
+        let loadedAt = try XCTUnwrap(controller.loadedAt)
+        let started = BoundaryLocked(false)
+        let delivered = BoundaryLocked(false)
+        let gate = DispatchSemaphore(value: 0)
+        defer { gate.signal() }
+        URLProtocolStub.requestHandler = { request in
+            if request.url!.path.hasSuffix("capabilities") { return Self.capabilities(request) }
+            started.update { $0 = true }
+            _ = gate.wait(timeout: .now() + 5)
+            delivered.update { $0 = true }
+            return Self.emptyResponse(request)
+        }
+        let refresh = Task { await controller.load(request: previewRequest(), context: context, concentration: .u500) }
+        await waitUntil { started.value }
+        XCTAssertTrue(controller.isRefreshing)
+        guard case .ready(let visible) = controller.state else { return XCTFail("Refresh must keep records visible") }
+        XCTAssertEqual(visible.concentration, .u200)
+        controller.suspend()
+        XCTAssertFalse(controller.isRefreshing)
+        gate.signal()
+        await refresh.value
+        await waitUntil { delivered.value }
+        guard case .ready(let retained) = controller.state else { return XCTFail("Suspending refresh must retain the original snapshot") }
+        XCTAssertEqual(retained.concentration, .u200)
+        XCTAssertEqual(controller.loadedAt, loadedAt)
+        XCTAssertNil(controller.refreshError)
     }
 
 

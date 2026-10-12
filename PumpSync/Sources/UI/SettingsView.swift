@@ -332,29 +332,6 @@ struct SettingsView: View {
 
 }
 
-private struct AboutPumpSyncView: View {
-  var body: some View {
-    PumpSyncScreen {
-      GlassSection("About PumpSync") {
-        Text("PumpSync imports available Tandem pump history into Apple Health. A secure connection lets PumpSync retrieve data; it does not mean a data sync has completed.")
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      GlassSection("How Syncing Works") {
-        Text("Start a sync using Sync Now. PumpSync also checks for new data when you open the app and during background updates when iOS grants time.")
-          .frame(maxWidth: .infinity, alignment: .leading)
-        GlassDivider(leadingPadding: 0)
-        Text("PumpSync aims to keep Apple Health less than four hours behind. Background updates are scheduled, but iOS decides when they run and may delay them.")
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      GlassSection("While Syncing") {
-        Text("Keep PumpSync open while a sync is running. You can move around within PumpSync. Last Successful Sync shows when a sync last completed successfully; a failed attempt does not change that time.")
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-    }
-    .navigationTitle("About PumpSync")
-  }
-}
-
 private struct InsulinConcentrationView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(AppServices.self) private var services

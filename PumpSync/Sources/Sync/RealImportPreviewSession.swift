@@ -19,6 +19,16 @@ final class RealImportPreviewSession {
         })
     }
 
+    var currentContext: ImportSessionSnapshot? {
+        guard credentialStore.hasValidatedCredentials else { return nil }
+        return authService.operationImportSnapshot(credentialRevision: credentialStore.revision)
+    }
+
+    func loadIfNeeded() async {
+        controller.validateSnapshot()
+        if case .idle = controller.state { await load() }
+    }
+
     func load() async {
         guard let credentials = try? credentialStore.load(), credentialStore.hasValidatedCredentials,
               let context = authService.operationImportSnapshot(credentialRevision: credentialStore.revision) else {

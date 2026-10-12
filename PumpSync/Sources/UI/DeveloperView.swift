@@ -47,7 +47,7 @@ struct DeveloperView: View {
           NavigationLink {
             RealImportPreviewView(services: services)
           } label: {
-            GlassNavigationRow("Inspect source data", subtitle: "Read-only download; nothing is saved to Apple Health", systemImage: "doc.text.magnifyingglass")
+            GlassNavigationRow("Inspect source data", subtitle: "View Tandem records without changing Apple Health", systemImage: "doc.text.magnifyingglass")
           }
           .buttonStyle(.plain)
           .disabled(!services.authService.isSignedIn || !services.credentialStore.hasValidatedCredentials || services.syncCoordinator.isSyncing)

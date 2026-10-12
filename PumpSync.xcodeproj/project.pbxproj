@@ -66,6 +66,7 @@
 		9B8BC934049A6BF24F3EA908 /* TandemCredentialFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CDDFA052939D9BC5DA23274 /* TandemCredentialFormTests.swift */; };
 		9BE7D0D81201CDBFAAF57B76 /* ImportPreviewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6424534EBF4A898DA5915A27 /* ImportPreviewController.swift */; };
 		9BF01BEE78EAFD6A5B10BE0F /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 084C445F20B31BFF76216CD2 /* SyncCoordinatorTests.swift */; };
+		A2C5A636C70A9FC77AC6ACA5 /* AboutPumpSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED78C247407CC5D572C1C31 /* AboutPumpSyncView.swift */; };
 		ACD785D0C4B6F769575C5128 /* PumpSyncAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F29882A2FE266DE552731A /* PumpSyncAPIClient.swift */; };
 		AE379769E7346E02086C3A63 /* HealthAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */; };
 		AFE1EEA207C7E7440827049F /* NativeDiagnosticsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E117802C7DE65061DABF6727 /* NativeDiagnosticsStore.swift */; };
@@ -162,6 +163,7 @@
 		6E7808A26B64FF7BCF28E96F /* ForegroundRecoveryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundRecoveryController.swift; sourceTree = "<group>"; };
 		70FE73639657DDBFA6AD6163 /* BackendSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendSessionStore.swift; sourceTree = "<group>"; };
 		7BD584B88E13A677DF615346 /* DeviceSessionProofProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionProofProvider.swift; sourceTree = "<group>"; };
+		7ED78C247407CC5D572C1C31 /* AboutPumpSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutPumpSyncView.swift; sourceTree = "<group>"; };
 		88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncScheduler.swift; sourceTree = "<group>"; };
 		8C5F5542FD54980CBAE61EE5 /* hosted.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = hosted.json; sourceTree = "<group>"; };
 		9032138D0ACC3C04F76D0203 /* SyncHistoryOwnershipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncHistoryOwnershipTests.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 		DEB95B48B91FCB6507BD1843 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				7ED78C247407CC5D572C1C31 /* AboutPumpSyncView.swift */,
 				5F3A6A77F4F6DCA618C40B84 /* DeveloperView.swift */,
 				C572BC95D8A1228661865AC4 /* GlassUI.swift */,
 				52C16DE64E6B038A84DC7E9F /* HealthAccessView.swift */,
@@ -561,6 +564,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F96749147D5EC671A85BAF8A /* APIModels.swift in Sources */,
+				A2C5A636C70A9FC77AC6ACA5 /* AboutPumpSyncView.swift in Sources */,
 				9B39CFF910647ED539489752 /* AppConstants.swift in Sources */,
 				0ED99E75A53490C4E83A40F0 /* AppLaunchEnvironment.swift in Sources */,
 				2E581DC0577F1D384651346A /* AppServices.swift in Sources */,

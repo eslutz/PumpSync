@@ -18,7 +18,7 @@ final class PumpSyncUITests: XCTestCase {
     if !inspect.isHittable { app.swipeUp() }
     XCTAssertTrue(inspect.waitForExistence(timeout: 5))
     inspect.tap()
-    XCTAssertTrue(app.staticTexts["Read-only — nothing is saved to Apple Health"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["PreviewSafetyNotice"].waitForExistence(timeout: 5))
   }
 
   func testConnectionRecoveryOpensSettingsTab() {
@@ -49,10 +49,29 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertFalse(app.staticTexts["How Syncing Runs"].exists)
     navigate(to: "Settings", in: app)
     let about = app.buttons["AboutPumpSyncLink"]
-    if !about.isHittable { app.swipeUp() }
+    for _ in 0..<10 {
+      if about.isHittable { break }
+      app.swipeUp()
+    }
     XCTAssertTrue(about.waitForExistence(timeout: 5))
+    XCTAssertTrue(about.isHittable)
     about.tap()
-    XCTAssertTrue(app.staticTexts["How Syncing Works"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Insulin and carbohydrates"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "about-quick-guide", from: app)
+    let whileSyncing = app.staticTexts["While syncing"]
+    for _ in 0..<10 {
+      if whileSyncing.isHittable { break }
+      app.swipeUp()
+    }
+    XCTAssertTrue(whileSyncing.isHittable)
+    attachScreenshot(named: "about-quick-guide-lower", from: app)
+    let completion = app.staticTexts["Last Successful Sync shows the last completed sync, even if there were no new records."]
+    for _ in 0..<10 {
+      if completion.isHittable { break }
+      app.swipeUp()
+    }
+    XCTAssertTrue(completion.isHittable)
+    attachScreenshot(named: "about-quick-guide-completion", from: app)
   }
 
   func testPreviewSyncFixtureShowsDisabledSyncAction() {

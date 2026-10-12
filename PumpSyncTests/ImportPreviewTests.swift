@@ -124,6 +124,60 @@ final class ImportPreviewTests: XCTestCase {
         catch { XCTAssertTrue(error is DecodingError) }
     }
 
+    func testLoadedRecordsSurviveSceneBackgroundAndResume() async throws {
+        let date = Date(timeIntervalSince1970: 1_791_158_400)
+        let sample = SampleDTO(externalId: "retained", type: "insulin.bolus", value: 1.2, unit: "IU", startAt: date, endAt: date, metadata: [:], source: .init(deviceId: "Test pump", eventIds: ["retained"]))
+        let controller = try await rendererController(samples: [sample], date: date)
+        let root = { (phase: ScenePhase) in
+            ImportPreviewView(controller: controller, retry: {})
+                .environment(\.scenePhase, phase)
+        }
+        let host = UIHostingController(rootView: root(.active))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.first as? UIWindowScene)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        try await Task.sleep(for: .milliseconds(150))
+        for phase in [ScenePhase.inactive, .background, .active] {
+            host.rootView = root(phase)
+            try await Task.sleep(for: .milliseconds(150))
+            guard case .ready(let plan) = controller.state else {
+                return XCTFail("Loaded records disappeared after scene phase \(phase)")
+            }
+            XCTAssertEqual(plan.samples.map(\.original.externalId), ["retained"])
+            XCTAssertEqual(plan.concentration, .u200)
+        }
+    }
+
+    func testInspectionOrdersNewestFirstWithoutChangingImportOrder() async throws {
+        let date = Date(timeIntervalSince1970: 1_791_158_400)
+        let samples = [("old", 0.0), ("latest", 120.0), ("middle-a", 60.0), ("middle-z", 60.0)].map { id, offset in
+            SampleDTO(externalId: id, type: "insulin.bolus", value: 1, unit: "IU", startAt: date.addingTimeInterval(offset), endAt: date.addingTimeInterval(offset), metadata: [:], source: .init(deviceId: "Test pump", eventIds: [id]))
+        }
+        let controller = try await rendererController(samples: samples, date: date)
+        XCTAssertEqual(controller.recordsNewestFirst.map(\.original.externalId), ["latest", "middle-z", "middle-a", "old"])
+        guard case .ready(let plan) = controller.state else { return XCTFail("Expected records") }
+        XCTAssertEqual(plan.samples.map(\.original.externalId), ["old", "middle-a", "middle-z", "latest"])
+        XCTAssertEqual(controller.recordsNewestFirst.first?.original.value, 1)
+        XCTAssertEqual(controller.recordsNewestFirst.first?.convertedValue, 2)
+    }
+
+    func testFailedRefreshRetainsSnapshotConcentrationAndTimestamp() async throws {
+        let date = Date(timeIntervalSince1970: 1_791_158_400)
+        let controller = try await rendererController(samples: [], date: date)
+        guard case .ready(let original) = controller.state else { return XCTFail("Expected initial snapshot") }
+        let loadedAt = try XCTUnwrap(controller.loadedAt)
+        URLProtocolStub.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
+        await controller.load(request: request(), context: original.context, concentration: .u500)
+        guard case .ready(let retained) = controller.state else { return XCTFail("Refresh failure must keep the loaded snapshot") }
+        XCTAssertEqual(retained, original)
+        XCTAssertEqual(retained.concentration, .u200)
+        XCTAssertEqual(controller.loadedAt, loadedAt)
+        XCTAssertNotNil(controller.refreshError)
+        XCTAssertFalse(controller.isRefreshing)
+    }
+
     func testCaptureTestTargetPreviewRendererEvidence() async throws {
         let date = Date(timeIntervalSince1970: 1_791_158_400)
         let samples = [
