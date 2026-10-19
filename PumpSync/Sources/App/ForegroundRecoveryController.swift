@@ -40,7 +40,7 @@ final class ForegroundRecoveryController {
     authService.setSessionEstablishedHandler { [weak self, weak syncCoordinator] in
       // An owned sync consumes its own recovery transition and replacement
       // budget. The signal must not create another retry behind that owner.
-      guard syncCoordinator?.isSyncing == false else { return }
+      guard syncCoordinator?.hasActiveSyncExecution == false else { return }
       self?.reconcileRecovery()
     }
   }

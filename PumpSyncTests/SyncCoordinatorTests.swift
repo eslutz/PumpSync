@@ -1654,7 +1654,30 @@ final class SyncCoordinatorTests: XCTestCase {
     try await verifyForegroundBootstrapFreshness(forcedOverlap: true)
   }
 
-  private func verifyForegroundBootstrapFreshness(forcedOverlap: Bool) async throws {
+  func testManualButtonJoinsFreshBootstrapAndStartsVisibleProgress() async throws {
+    try await verifyForegroundBootstrapFreshness(forcedOverlap: true, manualButton: true)
+  }
+
+  func testStaleForegroundBootstrapWaitsForRecoveryBeforeShowingProgress() async throws {
+    try await verifyForegroundBootstrapFreshness(forcedOverlap: false, successAge: 14_401)
+  }
+
+  func testInitialForegroundBootstrapWaitsForRecoveryBeforeShowingProgress() async throws {
+    try await verifyForegroundBootstrapFreshness(forcedOverlap: false, successAge: nil)
+  }
+
+  func testForegroundBootstrapCancellationDuringSilentRecoveryDoesNotDownload() async throws {
+    try await verifyForegroundBootstrapFreshness(forcedOverlap: false, cancelDuringRecovery: true)
+  }
+
+  func testFreshForegroundBootstrapPreservesCompletionThroughoutRecovery() async throws {
+    try await verifyForegroundBootstrapFreshness(forcedOverlap: false, preserveCompletion: true)
+  }
+
+  private func verifyForegroundBootstrapFreshness(
+    forcedOverlap: Bool, manualButton: Bool = false, successAge: TimeInterval? = 0,
+    cancelDuringRecovery: Bool = false, preserveCompletion: Bool = false
+  ) async throws {
     let store = makeSessionStore()
     let expired = BackendSessionResponse(accessToken: "expired-bootstrap", expiresAt: .distantPast, serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "bootstrap-family", refreshToken: "refresh-bootstrap", refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture)
     try store.save(expired)
@@ -1667,49 +1690,94 @@ final class SyncCoordinatorTests: XCTestCase {
       currentEntitlementJWS: { XCTFail("Ordinary renewal must not enroll"); throw APIClientError.invalidResponse },
       createSubscriptionSession: { _ in throw APIClientError.invalidResponse }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: proof)
     let paths = LockIsolated<[String]>([])
-    let entered = forcedOverlap ? expectation(description: "refresh entered") : nil
+    let entered = expectation(description: "refresh entered")
+    let shouldDownload = !cancelDuringRecovery && (forcedOverlap || successAge == nil || (successAge ?? 0) >= 14_400)
+    let downloadEntered = shouldDownload ? expectation(description: "download entered") : nil
+    let downloadGate = DispatchSemaphore(value: 0)
     let gate = DispatchSemaphore(value: 0)
     let syncResponse = syncResponseHandler(samples: [], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
     let data = try JSONCodec.encoder.encode(restored)
     URLProtocolStub.requestHandler = { request in
       paths.withValue { $0.append(request.url!.path) }
       if request.url!.path.hasSuffix("/session/refresh") {
-        if forcedOverlap { entered?.fulfill(); _ = gate.wait(timeout: .now() + 5) }
+        entered.fulfill(); _ = gate.wait(timeout: .now() + 10)
         return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
       }
+      downloadEntered?.fulfill()
+      _ = downloadGate.wait(timeout: .now() + 10)
       return try syncResponse(request)
     }
     let metadata = makeSyncMetadataStore()
     let credentials = try makeValidatedCredentialStore()
-    metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date().addingTimeInterval(-60), owner: try historyOwner(credentials, auth: auth))
+    if let successAge {
+      metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date().addingTimeInterval(-successAge), watermark: Date().addingTimeInterval(-60), owner: try historyOwner(credentials, auth: auth))
+    }
     let prior = metadata.metadata
     let health = FakeHealthKitService()
     let diagnostics = makeDiagnostics()
     let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, healthKitService: health, syncMetadataStore: metadata, diagnostics: diagnostics)
-    let outcome: SyncRunOutcome
+    var recoverySignals = 0
+    let foreground = ForegroundRecoveryController(setVisible: { _ in }) { recoverySignals += 1 }
+    foreground.observeSessionRecovery(auth, syncCoordinator: coordinator)
+    foreground.setScenePhase(.active)
+    await waitUntil { !foreground.isRecovering }
+    if preserveCompletion {
+      coordinator.applyScreenshotSuccess()
+      coordinator.dismissNotification()
+    }
+    let priorPresentation = coordinator.operationState
+    let bootstrap = Task { await coordinator.reconcileForegroundRecovery() }
+    await fulfillment(of: [entered], timeout: 2)
+    XCTAssertTrue(coordinator.hasActiveSyncExecution)
+    XCTAssertFalse(coordinator.isSyncing, "Automatic freshness evaluation must not look like syncing")
+    XCTAssertEqual(coordinator.operationState, priorPresentation)
+    XCTAssertEqual(SyncView.syncButtonTitle(isSyncing: coordinator.isSyncing, isConnecting: auth.isConnecting,
+      hasCompletedInitialSync: successAge != nil, initialImportRange: .pastTwoWeeks),
+      successAge == nil ? InitialImportRange.pastTwoWeeks.initialSyncButtonTitle : "Sync Now")
+    var manual: Task<SyncRunOutcome, Never>?
+    var background: Task<SyncRunOutcome, Never>?
     if forcedOverlap {
-      let bootstrap = Task { await coordinator.reconcileForegroundRecovery() }
-      await fulfillment(of: [try XCTUnwrap(entered)], timeout: 2)
-      let manual = Task { await coordinator.run(reason: .manual) }
-      let background = Task { await coordinator.run(reason: .background, lease: grantedBackgroundLease()) }
-      for _ in 0..<10 { await Task.yield() }
-      gate.signal()
-      outcome = await bootstrap.value
-      let manualResult = await manual.value
-      let backgroundResult = await background.value
-      XCTAssertEqual(manualResult, .completed)
-      XCTAssertEqual(backgroundResult, .completed)
+      if manualButton {
+        coordinator.startManualSync()
+        XCTAssertTrue(coordinator.isSyncing, "A manual tap must immediately show progress")
+      } else {
+        manual = Task { await coordinator.run(reason: .manual) }
+        background = Task { await coordinator.run(reason: .background, lease: grantedBackgroundLease()) }
+        for _ in 0..<10 { await Task.yield() }
+      }
+    }
+    if cancelDuringRecovery { coordinator.setForegroundActive(false) }
+    gate.signal()
+    if shouldDownload {
+      await fulfillment(of: [try XCTUnwrap(downloadEntered)], timeout: 2)
+      XCTAssertTrue(coordinator.isSyncing)
+      guard case .running(let progress) = coordinator.operationState else {
+        downloadGate.signal()
+        _ = await bootstrap.value
+        return XCTFail("An eligible sync must show progress")
+      }
+      XCTAssertEqual(progress.trigger, .appOpen)
+      downloadGate.signal()
+    }
+    let outcome = await bootstrap.value
+    if let manual { let result = await manual.value; XCTAssertEqual(result, .completed) }
+    if let background { let result = await background.value; XCTAssertEqual(result, .completed) }
+    if shouldDownload {
       XCTAssertEqual(paths.value, ["/api/v1/session/refresh", "/api/v1/sync/tandem"])
       XCTAssertEqual(diagnostics.entries.filter { $0.title == "Sync started" }.map(\.message), ["Reason: appOpen"])
     } else {
-      outcome = await coordinator.reconcileForegroundRecovery()
       XCTAssertEqual(paths.value, ["/api/v1/session/refresh"])
       XCTAssertEqual(metadata.metadata, prior)
+      if !cancelDuringRecovery { XCTAssertEqual(coordinator.operationState, priorPresentation) }
     }
-    XCTAssertEqual(outcome, forcedOverlap ? .completed : .skippedFresh)
-    XCTAssertEqual(auth.accessToken, "fresh-bootstrap")
+    XCTAssertEqual(outcome, cancelDuringRecovery ? .canceled : (shouldDownload ? .completed : .skippedFresh))
+    if !cancelDuringRecovery { XCTAssertEqual(auth.accessToken, "fresh-bootstrap") }
     XCTAssertTrue(health.savedSamples.isEmpty)
     XCTAssertFalse(coordinator.isSyncing)
+    XCTAssertFalse(coordinator.hasActiveSyncExecution)
+    await waitUntil { !foreground.isRecovering }
+    XCTAssertEqual(recoverySignals, 1, "Owned recovery must consume its auth signal without scheduling another reconciliation")
+    if preserveCompletion { XCTAssertTrue(coordinator.isNotificationDismissed) }
   }
 
   func testFreshReconciliationPreservesDismissedCompletionPresentation() async throws {

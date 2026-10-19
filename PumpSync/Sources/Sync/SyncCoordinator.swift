@@ -102,6 +102,7 @@ final class SyncCoordinator {
   let attemptStore: SyncAttemptStore
   private var syncTask: Task<SyncRunOutcome, Never>?
   private var syncOperationID: UUID?
+  private var syncPreparation: SyncProgress?
   private struct Waiter {
     let lease: SyncExecutionLease
     let trigger: SyncTriggerReason
@@ -126,6 +127,9 @@ final class SyncCoordinator {
       scheduleNotificationDismissal()
     }
   }
+
+  /// Includes foreground recovery and freshness evaluation before visible syncing.
+  var hasActiveSyncExecution: Bool { syncTask != nil }
 
   var isSyncing: Bool {
     if case .running = operationState {
@@ -257,12 +261,20 @@ final class SyncCoordinator {
   }
 
   func startManualSync() {
+    guard foregroundActive else { return }
     let lease = SyncExecutionLease(kind: .foreground)
-    guard syncTask == nil, foregroundActive,
-          let task = makeSyncTask(reason: .manual, lease: lease),
-          let operationID = syncOperationID else { return }
+    let task: Task<SyncRunOutcome, Never>
+    if let existing = syncTask {
+      guard !existing.isCancelled, !isSyncing else { return }
+      task = existing
+    } else {
+      guard let created = makeSyncTask(reason: .manual, lease: lease) else { return }
+      task = created
+    }
+    guard let operationID = syncOperationID else { return }
     let waiterID = UUID()
     syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: .manual, recoveryPolicy: .foreground)
+    showSyncProgress()
     Task { _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID, lease: lease, trigger: .manual, recoveryPolicy: .foreground) }
   }
 
@@ -292,8 +304,8 @@ final class SyncCoordinator {
     notificationDismissalTask?.cancel()
     notificationDismissalTask = nil
     guard case .succeeded(let completion) = operationState else { return }
-    // Reconciliation may briefly replace and restore this result. Its original
-    // deadline belongs to the completion, not to a SwiftUI view's lifetime.
+    // The original deadline belongs to the completion, not to foreground
+    // reconciliation or a SwiftUI view's lifetime.
     let remaining = max(0, completion.completedAt.addingTimeInterval(8).timeIntervalSinceNow)
     notificationDismissalTask = Task { @MainActor [weak self] in
       do { try await Task.sleep(for: .seconds(remaining)) }
@@ -340,6 +352,7 @@ final class SyncCoordinator {
   ) async -> SyncRunOutcome {
     guard let operationID = operationID ?? syncOperationID else { return .contextReplaced }
     syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: trigger, recoveryPolicy: recoveryPolicy)
+    if trigger == .manual { showSyncProgress() }
     defer { removeSyncWaiter(waiterID, operationID: operationID) }
     return await withTaskCancellationHandler(operation: {
       let result = await task.value
@@ -379,9 +392,9 @@ final class SyncCoordinator {
   }
 
   private func makeSyncTask(reason: SyncTriggerReason, lease: SyncExecutionLease, recoveryPolicy: SessionRecoveryPolicy? = nil, reevaluatesFreshnessAfterRecovery: Bool = false) -> Task<SyncRunOutcome, Never>? {
-    let previousPresentation = operationState
-    let previousNotificationDismissed = isNotificationDismissed
-    guard beginSync(reason: reason) else { return nil }
+    guard syncTask == nil, !isSyncing else { return nil }
+    syncPreparation = SyncProgress(phase: .preparing, trigger: reason, startedAt: Date())
+    if !reevaluatesFreshnessAfterRecovery { showSyncProgress() }
     let operationID = UUID()
     let intent = SyncIntent(operationID: operationID, trigger: reason,
       configuration: authService.importConfigurationSnapshot, credentialRevision: credentialStore.revision,
@@ -402,12 +415,9 @@ final class SyncCoordinator {
       }
       self.attemptStore.finish(operationID: operationID, result: result)
       if self.syncOperationID == operationID {
-        if result == .skippedFresh, case .succeeded = previousPresentation {
-          self.operationState = previousPresentation
-          self.isNotificationDismissed = previousNotificationDismissed
-        }
         self.syncTask = nil
         self.syncOperationID = nil
+        self.syncPreparation = nil
       }
       return result
     }
@@ -416,12 +426,9 @@ final class SyncCoordinator {
     return task
   }
 
-  private func beginSync(reason: SyncTriggerReason) -> Bool {
-    guard !isSyncing else {
-      return false
-    }
-    operationState = .running(SyncProgress(phase: .preparing, trigger: reason, startedAt: Date()))
-    return true
+  private func showSyncProgress() {
+    guard !isSyncing, let syncPreparation else { return }
+    operationState = .running(syncPreparation)
   }
 
   private func performSync(
@@ -433,12 +440,7 @@ final class SyncCoordinator {
     let configuration = intent.configuration
     let credentialRevision = intent.credentialRevision
     let concentration = intent.concentration
-    let startedAt: Date
-    if case .running(let progress) = operationState {
-      startedAt = progress.startedAt
-    } else {
-      return .failed
-    }
+    guard let startedAt = syncPreparation?.startedAt else { return .failed }
 
     if let stopped = stoppedOutcome(intent) { recordCancellation(reason: reason); return stopped }
 
@@ -491,9 +493,9 @@ final class SyncCoordinator {
       return .contextReplaced
     }
     if intent.reevaluatesFreshnessAfterRecovery, !hasForcedSyncWaiter(intent.operationID), !shouldRefresh(reason: reason) {
-      operationState = .idle
       return .skippedFresh
     }
+    showSyncProgress()
 
     reconcileHistoryOwner()
     guard credentialStore.hasValidatedCredentials else {
@@ -739,7 +741,7 @@ final class SyncCoordinator {
   }
 
   private func recordCancellation(reason: SyncTriggerReason) {
-    operationState = .idle
+    if isSyncing { operationState = .idle }
     diagnostics?.record(
       source: .sync,
       title: "Sync cancelled",
