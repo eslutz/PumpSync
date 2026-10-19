@@ -54,6 +54,7 @@ struct DeveloperView: View {
           .disabled(!services.authService.isSignedIn || !services.credentialStore.hasValidatedCredentials || services.syncCoordinator.isSyncing)
           .accessibilityHint("Inspects records from your connected pump account without importing them")
           GlassDivider()
+            .padding(.vertical, 8)
 
           ShareLink(item: supportBundleText) {
             GlassPrimaryLabel(title: "Share Support Bundle", systemImage: "square.and.arrow.up")
@@ -182,14 +183,19 @@ struct DeveloperView: View {
   }
 
   private func logHeading(_ destination: DiagnosticsLogDestination) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
+    HStack(alignment: .top, spacing: 12) {
       diagnosticsSubheading(destination.title)
-      Button("Open Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") {
+        .padding(.top, 12)
+      Button {
         expandedLog = destination
+      } label: {
+        Image(systemName: "arrow.up.left.and.arrow.down.right")
+          .frame(width: 48, height: 48)
+          .contentShape(Rectangle())
       }
+      .buttonStyle(.borderless)
       .accessibilityLabel("Open \(destination.title) Full Screen")
       .accessibilityIdentifier(destination.rawValue + "FullScreen")
-      .frame(minHeight: 44)
     }
   }
 
@@ -228,6 +234,7 @@ struct DeveloperView: View {
         Label(clearTitle, systemImage: "trash")
       }
       .buttonStyle(.plain)
+      .foregroundStyle(.red)
     }
     .padding(.top, 6)
     .padding(.bottom, 2)

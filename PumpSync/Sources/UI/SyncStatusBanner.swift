@@ -116,7 +116,7 @@ struct SyncStatusBanner: View {
           // Long or localized messages can also overflow at standard sizes.
           // Preserve the compact row only while its full height fits.
           ViewThatFits(in: .vertical) {
-            horizontalContents(presentation)
+            compactContents(presentation)
             scrollableContents(presentation)
           }
         }
@@ -135,19 +135,32 @@ struct SyncStatusBanner: View {
     }
   }
 
-  private func horizontalContents(_ presentation: SyncStatusPresentation) -> some View {
-    HStack(alignment: .center, spacing: 12) {
-      statusIcon(presentation)
-      message(presentation)
-
-      if let actionTitle = presentation.actionTitle, let action = presentation.action {
-        Button(actionTitle) {
-          perform(action)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+  private func compactContents(_ presentation: SyncStatusPresentation) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(alignment: .center, spacing: 12) {
+        statusIcon(presentation)
+        message(presentation)
+        dismissButton
       }
-      dismissButton
+
+      recoveryButton(presentation)
+        .padding(.leading, 32)
+    }
+  }
+
+  @ViewBuilder
+  private func recoveryButton(_ presentation: SyncStatusPresentation) -> some View {
+    if let actionTitle = presentation.actionTitle, let action = presentation.action {
+      Button {
+        perform(action)
+      } label: {
+        Text(actionTitle)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(.vertical, 4)
+          .frame(minHeight: 32)
+      }
+      .buttonStyle(.bordered)
+      .controlSize(.regular)
     }
   }
 
@@ -161,16 +174,7 @@ struct SyncStatusBanner: View {
       ScrollView(.vertical) {
         VStack(alignment: .leading, spacing: 12) {
           message(presentation)
-          if let actionTitle = presentation.actionTitle, let action = presentation.action {
-            Button {
-              perform(action)
-            } label: {
-              Text(actionTitle)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            }
-            .buttonStyle(.bordered)
-          }
+          recoveryButton(presentation)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }
