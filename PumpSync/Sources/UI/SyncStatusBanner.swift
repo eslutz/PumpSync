@@ -209,7 +209,8 @@ struct SyncStatusBanner: View {
   private var dismissButton: some View {
     Button(action: onDismiss) {
       Image(systemName: "xmark")
-        .frame(width: 44, height: 44)
+        // Leave room for pixel-aligned accessibility bounds to remain at least 44 points.
+        .frame(width: 48, height: 48)
         .contentShape(Rectangle())
     }
     .buttonStyle(.borderless)
