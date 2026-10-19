@@ -832,6 +832,43 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertNil(sessionStore.loadRecoverableSession())
   }
 
+  func testOwnedWaitersRetainRequestsFromRecoveryStartedOutsideSync() async {
+    let api = makeAPIClient()
+    let diagnostics = makeDiagnostics()
+    let started = expectation(description: "first shared request finished")
+    let gate = AsyncGate()
+    let sent = SharedRecoveryBox<[String]>([])
+    URLProtocolStub.requestHandler = { request in
+      XCTAssertNil(request.value(forHTTPHeaderField: "X-Client-Operation-ID"), "Do not relabel requests created outside an owned sync")
+      sent.modify { $0.append(request.value(forHTTPHeaderField: "X-Correlation-ID")!) }
+      return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["X-Trace-ID": "0123456789abcdef0123456789abcdef"])!, Data())
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let service = AuthService(apiClient: api, configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "signed-transaction" }, createSubscriptionSession: { _ in
+        try await api.warmup()
+        started.fulfill()
+        await gate.wait()
+        try await api.warmup()
+        return BackendSessionResponse(accessToken: "token", expiresAt: Date(timeIntervalSince1970: 1_800), serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, diagnostics: diagnostics, proofProvider: AcceptingProofProvider())
+    let first = Task { await service.recoverSessionIfNeeded() }
+    await fulfillment(of: [started], timeout: 2)
+    let linksOne = SharedRecoveryBox<[SyncRequestLink]>([])
+    let linksTwo = SharedRecoveryBox<[SyncRequestLink]>([])
+    let contextOne = SyncDiagnosticContext(operationID: UUID(), trigger: .background, record: { link in linksOne.modify { $0.append(link) } })
+    let contextTwo = SyncDiagnosticContext(operationID: UUID(), trigger: .manual, record: { link in linksTwo.modify { $0.append(link) } })
+    let second = Task { await SyncDiagnosticContext.$current.withValue(contextOne) { await service.recoverSessionIfNeeded() } }
+    let third = Task { await SyncDiagnosticContext.$current.withValue(contextTwo) { await service.recoverSessionIfNeeded() } }
+    await waitUntil { diagnostics.entries.filter { $0.title == "Subscription operation coalesced" }.count == 2 }
+    await gate.open()
+    _ = await (first.value, second.value, third.value)
+    XCTAssertEqual(sent.value.count, 2)
+    XCTAssertEqual(Set(linksOne.value.map(\.requestID)), Set(sent.value))
+    XCTAssertEqual(Set(linksTwo.value.map(\.requestID)), Set(sent.value))
+    XCTAssertTrue(linksOne.value.allSatisfy { $0.traceID == "0123456789abcdef0123456789abcdef" })
+  }
+
   func testConcurrentSubscriptionRecoveryCoalescesStoreKitAndBackendWork() async {
     var entitlementCalls = 0
     var backendCalls = 0
@@ -4732,4 +4769,20 @@ private final class ConcurrentAuthURLProtocol: URLProtocol, @unchecked Sendable 
     }
   }
   override func stopLoading() {}
+}
+
+private final class SharedRecoveryBox<Value>: @unchecked Sendable {
+  private let lock = NSLock()
+  private var stored: Value
+  init(_ value: Value) { stored = value }
+  func modify(_ body: (inout Value) -> Void) {
+    lock.lock()
+    defer { lock.unlock() }
+    body(&stored)
+  }
+  var value: Value {
+    lock.lock()
+    defer { lock.unlock() }
+    return stored
+  }
 }

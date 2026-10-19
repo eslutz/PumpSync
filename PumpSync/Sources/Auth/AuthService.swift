@@ -877,8 +877,10 @@ final class AuthService {
   private func performSessionRecovery(policy requestedPolicy: SessionRecoveryPolicy) async {
     var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     if let task = subscriptionOperationTask {
+      diagnostics?.record(source: .auth, title: "Subscription operation coalesced", message: "coalesced=true")
       let attempt = subscriptionRecoveryAttempt
       await awaitSubscriptionOperation(task, operationID: subscriptionOperationID)
+      attempt?.replayRequestLinks()
       recoveryFailure = attempt?.failure
       if let correlation = attempt?.backendCorrelationID { SessionRecoveryContext.current?.backendCorrelationID = correlation }
       return
@@ -1202,7 +1204,9 @@ final class AuthService {
       // App Attest permits only one hosted proof operation at a time. A cold-start
       // subscription recovery must let an already-running session refresh finish.
       if let renewableRefreshTask {
+        let sharedAttempt = renewableRefreshRecoveryAttempt
         _ = await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+        sharedAttempt?.replayRequestLinks()
         try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       }
 
@@ -1947,6 +1951,7 @@ final class AuthService {
         )
         let attempt = renewableRefreshRecoveryAttempt
         let result = await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+        attempt?.replayRequestLinks()
         recoveryFailure = attempt?.failure
         SessionRecoveryContext.current?.backendCorrelationID = attempt?.backendCorrelationID
         return result
@@ -1956,11 +1961,14 @@ final class AuthService {
     let operationID = UUID()
     let attempt = SessionRecoveryContext.current ?? SessionRecoveryAttempt()
     renewableRefreshRecoveryAttempt = attempt
+    let diagnosticContext = SyncDiagnosticContext.current
     let task = Task { @MainActor [weak self] in
       guard let self else {
         return false
       }
-      let result = await SessionRecoveryContext.$current.withValue(attempt) { await self.refreshRenewableSession(source) }
+      let result = await SyncDiagnosticContext.$current.withValue(diagnosticContext) {
+        await SessionRecoveryContext.$current.withValue(attempt) { await self.refreshRenewableSession(source) }
+      }
       if self.renewableRefreshOperationID == operationID {
         self.renewableRefreshTask = nil
         self.renewableRefreshOperationID = nil
@@ -2060,6 +2068,7 @@ final class AuthService {
       diagnostics?.record(source: .auth, title: "Subscription operation coalesced", message: "coalesced=true")
       let attempt = subscriptionRecoveryAttempt
       await awaitSubscriptionOperation(subscriptionOperationTask, operationID: subscriptionOperationID)
+      attempt?.replayRequestLinks()
       recoveryFailure = attempt?.failure
       if let correlation = attempt?.backendCorrelationID { SessionRecoveryContext.current?.backendCorrelationID = correlation }
       return false
@@ -2068,8 +2077,11 @@ final class AuthService {
     let operationID = UUID()
     let attempt = SessionRecoveryContext.current ?? SessionRecoveryAttempt()
     subscriptionRecoveryAttempt = attempt
+    let diagnosticContext = SyncDiagnosticContext.current
     let task = Task { @MainActor [weak self] in
-      await SessionRecoveryContext.$current.withValue(attempt) { await operation() }
+      await SyncDiagnosticContext.$current.withValue(diagnosticContext) {
+        await SessionRecoveryContext.$current.withValue(attempt) { await operation() }
+      }
       guard self?.subscriptionOperationID == operationID else {
         return
       }

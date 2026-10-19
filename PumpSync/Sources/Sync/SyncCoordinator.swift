@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum SyncTriggerReason: String, Equatable, Codable {
+enum SyncTriggerReason: String, Equatable, Codable, Sendable {
   case appOpen
   case manual
   case background
@@ -390,9 +390,16 @@ final class SyncCoordinator {
       recoveryPolicy: recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background)),
       reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery)
     attemptStore.begin(operationID: operationID, trigger: reason)
+    let diagnosticContext = SyncDiagnosticContext(operationID: operationID, trigger: reason, record: { [weak self] link in
+      self?.attemptStore.recordRequestLink(operationID: operationID, link: link)
+    }, recordDropped: { [weak self] count in
+      self?.attemptStore.recordDroppedRequestLinks(operationID: operationID, count: count)
+    })
     let task = Task { @MainActor [weak self] in
       guard let self else { return SyncRunOutcome.canceled }
-      let result = await self.performSync(intent: intent, capturedContext: intent.initialContext)
+      let result = await SyncDiagnosticContext.$current.withValue(diagnosticContext) {
+        await self.performSync(intent: intent, capturedContext: intent.initialContext)
+      }
       self.attemptStore.finish(operationID: operationID, result: result)
       if self.syncOperationID == operationID {
         if result == .skippedFresh, case .succeeded = previousPresentation {

@@ -41,6 +41,7 @@
 		64F8658EBAE60271076F2524 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F320DEB00E61B6A6E1DA31C /* SyncCoordinator.swift */; };
 		6517DB87F327140BFE7341A6 /* SessionRecoveryOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68C92A1D3BE0882635957517 /* SessionRecoveryOutcome.swift */; };
 		66714B017B0839A88FD59778 /* BackendSessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD435C541AB9259458F31EF /* BackendSessionStoreTests.swift */; };
+		6755364AFD3F30F0B57DAB0A /* SyncDiagnosticContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = EECAFDF2AB209FBE7E83B329 /* SyncDiagnosticContext.swift */; };
 		69089005239FD6F1593C7267 /* ImportPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2174C19E918FBCCB77404C9 /* ImportPreviewTests.swift */; };
 		6ED107DF74FEB8E5ED6CD3A4 /* NativeDiagnosticsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94CE75F06E77B7E64182EFBE /* NativeDiagnosticsStoreTests.swift */; };
 		6F4EEF9FC56DD8621F9830F3 /* SupportBundleBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3256EF7EB4927D3CF3BD72A0 /* SupportBundleBuilderTests.swift */; };
@@ -196,6 +197,7 @@
 		E2174C19E918FBCCB77404C9 /* ImportPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPreviewTests.swift; sourceTree = "<group>"; };
 		E86C5E3A2FF717124BE9EE65 /* PolicyURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PolicyURLTests.swift; sourceTree = "<group>"; };
 		E9BE8DF10D82A15535948164 /* PrivacyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyView.swift; sourceTree = "<group>"; };
+		EECAFDF2AB209FBE7E83B329 /* SyncDiagnosticContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDiagnosticContext.swift; sourceTree = "<group>"; };
 		F57320D50B3E96C71BB07264 /* SyncViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncViewTests.swift; sourceTree = "<group>"; };
 		F6C01E4C3210E91618ED2FE4 /* ImportPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPreviewView.swift; sourceTree = "<group>"; };
 		FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitDiagnosticsCollector.swift; sourceTree = "<group>"; };
@@ -302,6 +304,7 @@
 			children = (
 				228837A73B88DB4E80B7A957 /* APIModels.swift */,
 				23F29882A2FE266DE552731A /* PumpSyncAPIClient.swift */,
+				EECAFDF2AB209FBE7E83B329 /* SyncDiagnosticContext.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -605,6 +608,7 @@
 				CED29C776F51918B0EE77A47 /* SupportBundleBuilder.swift in Sources */,
 				2145F793BBE19A1CD44EA655 /* SyncAttemptStore.swift in Sources */,
 				64F8658EBAE60271076F2524 /* SyncCoordinator.swift in Sources */,
+				6755364AFD3F30F0B57DAB0A /* SyncDiagnosticContext.swift in Sources */,
 				77968C5AE7D5D9A2FC5760E1 /* SyncIntent.swift in Sources */,
 				38066580B34C59B3DC982E75 /* SyncMetadataStore.swift in Sources */,
 				26448D39917E7A13F46266A7 /* SyncStatusBanner.swift in Sources */,

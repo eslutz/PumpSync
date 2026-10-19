@@ -37,6 +37,28 @@ struct SyncAttempt: Codable, Equatable {
   var reason: SyncAttemptReason?
   var durationSeconds: TimeInterval?
   var backendCorrelationID: String?
+  var requestLinks: [SyncRequestLink] = []
+  var droppedRequestLinkCount = 0
+}
+
+extension SyncAttempt {
+  private enum CodingKeys: String, CodingKey {
+    case operationID, trigger, startedAt, stage, outcome, reason, durationSeconds, backendCorrelationID, requestLinks, droppedRequestLinkCount
+  }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    operationID = try values.decode(UUID.self, forKey: .operationID)
+    trigger = try values.decode(SyncTriggerReason.self, forKey: .trigger)
+    startedAt = try values.decode(Date.self, forKey: .startedAt)
+    stage = try values.decode(SyncAttemptStage.self, forKey: .stage)
+    outcome = try values.decodeIfPresent(SyncAttemptOutcome.self, forKey: .outcome)
+    reason = try values.decodeIfPresent(SyncAttemptReason.self, forKey: .reason)
+    durationSeconds = try values.decodeIfPresent(TimeInterval.self, forKey: .durationSeconds)
+    backendCorrelationID = try values.decodeIfPresent(String.self, forKey: .backendCorrelationID)
+    requestLinks = Array((try values.decodeIfPresent([SyncRequestLink].self, forKey: .requestLinks) ?? []).prefix(32))
+    droppedRequestLinkCount = max(0, try values.decodeIfPresent(Int.self, forKey: .droppedRequestLinkCount) ?? 0)
+  }
 }
 
 @MainActor
@@ -73,9 +95,29 @@ final class SyncAttemptStore {
   }
 
   func correlate(operationID: UUID, value: String?) {
-    guard active?.operationID == operationID, let value,
-          value.range(of: #"^(?:[0-9A-Z]{13}:[0-9A-F]{8}|[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"#, options: .regularExpression) != nil else { return }
-    active?.backendCorrelationID = value.lowercased()
+    guard active?.operationID == operationID, let reference = SyncRequestLink.safeReference(value) else { return }
+    active?.backendCorrelationID = reference
+    persist()
+  }
+
+  func recordRequestLink(operationID: UUID, link: SyncRequestLink) {
+    guard active?.operationID == operationID, UUID(uuidString: link.requestID) != nil else { return }
+    var safe = link
+    safe.backendCorrelationID = SyncRequestLink.safeReference(link.backendCorrelationID)
+    safe.traceID = SyncRequestLink.safeTrace(link.traceID)
+    if let index = active?.requestLinks.firstIndex(where: { $0.requestID == link.requestID }) {
+      active?.requestLinks[index] = safe
+    } else if (active?.requestLinks.count ?? 0) < 32 {
+      active?.requestLinks.append(safe)
+    } else if !link.responseReceived {
+      active?.droppedRequestLinkCount += 1
+    }
+    persist()
+  }
+
+  func recordDroppedRequestLinks(operationID: UUID, count: Int) {
+    guard active?.operationID == operationID, count > 0 else { return }
+    active?.droppedRequestLinkCount += count
     persist()
   }
 
@@ -121,6 +163,9 @@ final class SyncAttemptStore {
     diagnostics?.record(source: .sync, title: "Owned sync attempt", message: Self.description(attempt))
   }
   nonisolated static func description(_ attempt: SyncAttempt) -> String {
-    "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? "pending") correlation=\(attempt.backendCorrelationID ?? "unavailable")"
+    let links = attempt.requestLinks.map {
+      "request=\($0.requestID),endpoint=\($0.endpoint.rawValue),backend=\($0.backendCorrelationID ?? "unavailable"),trace=\($0.traceID ?? "unavailable")"
+    }.joined(separator: ";")
+    return "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? "pending") correlation=\(attempt.backendCorrelationID ?? "unavailable") requestLinks=[\(links)] droppedRequestLinks=\(attempt.droppedRequestLinkCount)"
   }
 }

@@ -3,6 +3,48 @@ import XCTest
 
 @MainActor
 final class PumpSyncAPIClientTests: XCTestCase {
+  func testRetriesLinkOneOperationWithDistinctRequestIdsAndTrace() async throws {
+    let requests = LockIsolated<[URLRequest]>([])
+    let links = LockIsolated<[SyncRequestLink]>([])
+    URLProtocolStub.requestHandler = { request in
+      requests.modify { $0.append(request) }
+      let status = requests.value.count == 1 ? 503 : 200
+      let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: [
+        "X-Correlation-ID": request.value(forHTTPHeaderField: "X-Correlation-ID")!,
+        "X-Trace-ID": "0123456789abcdef0123456789abcdef"
+      ])!
+      return (response, status == 200 ? Data(#"{"samples":[],"effectiveMinDate":"2026-10-11T00:00:00Z","effectiveMaxDate":"2026-10-11T01:00:00Z","dataSourceMode":"tandemSource"}"#.utf8) : Data())
+    }
+    let operation = UUID()
+    let context = SyncDiagnosticContext(operationID: operation, trigger: .background, record: { link in links.modify { $0.append(link) } })
+    let api = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 1)
+    _ = try await SyncDiagnosticContext.$current.withValue(context) {
+      try await api.syncTandem(.init(tandem: .init(username: "test", password: "test", region: "us"), minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC"), accessToken: "test")
+    }
+    XCTAssertEqual(requests.value.count, 2)
+    let ids = requests.value.compactMap { $0.value(forHTTPHeaderField: "X-Correlation-ID") }
+    XCTAssertEqual(Set(ids).count, 2)
+    XCTAssertTrue(ids.allSatisfy { UUID(uuidString: $0) != nil })
+    XCTAssertTrue(requests.value.allSatisfy { $0.value(forHTTPHeaderField: "X-Client-Operation-ID") == operation.uuidString.lowercased() })
+    XCTAssertTrue(requests.value.allSatisfy { $0.value(forHTTPHeaderField: "X-Client-Sync-Trigger") == "background" })
+    XCTAssertEqual(links.value.filter { $0.traceID != nil }.count, 2)
+    XCTAssertTrue(links.value.allSatisfy { $0.endpoint == .sync })
+  }
+
+  func testNetworkFailureRecordsRequestBeforeResponse() async {
+    let links = LockIsolated<[SyncRequestLink]>([])
+    URLProtocolStub.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
+    let context = SyncDiagnosticContext(operationID: UUID(), trigger: .manual, record: { link in links.modify { $0.append(link) } })
+    let api = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+    do {
+      _ = try await SyncDiagnosticContext.$current.withValue(context) { try await api.capabilities() }
+      XCTFail("Expected network error")
+    } catch { }
+    XCTAssertEqual(links.value.count, 1)
+    XCTAssertNotNil(links.value.first?.requestID)
+    XCTAssertNil(links.value.first?.traceID)
+  }
+
   func testSyncCorrelationComesFromHttpMetadataRatherThanUntrustedJson() async throws {
     URLProtocolStub.requestHandler = { request in
       let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["X-Correlation-ID": "0123456789abcdef0123456789abcdef"])!

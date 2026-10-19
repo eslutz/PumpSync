@@ -40,6 +40,24 @@ enum SessionRecoveryOutcome: Equatable {
 final class SessionRecoveryAttempt {
   var failure: SessionRecoveryReason?
   var backendCorrelationID: String?
+  private var requestLinks: [SyncRequestLink] = []
+  private var droppedRequestLinkCount = 0
+
+  func recordRequestLink(_ link: SyncRequestLink) {
+    if let index = requestLinks.firstIndex(where: { $0.requestID == link.requestID }) {
+      requestLinks[index] = link
+    } else if requestLinks.count < 32 {
+      requestLinks.append(link)
+    } else if !link.responseReceived {
+      droppedRequestLinkCount += 1
+    }
+  }
+
+  func replayRequestLinks() {
+    guard let context = SyncDiagnosticContext.current else { return }
+    for link in requestLinks { context.record(link) }
+    context.recordDropped(droppedRequestLinkCount)
+  }
 }
 
 typealias SessionRecoveryPolicyProvider = @MainActor @Sendable () -> SessionRecoveryPolicy

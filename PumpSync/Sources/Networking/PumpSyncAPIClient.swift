@@ -96,11 +96,13 @@ final class PumpSyncAPIClient {
     request.setValue("application/json", forHTTPHeaderField: "Accept")
 
     for attempt in 0...1 {
+      let link = SyncDiagnosticContext.prepare(&request, path: "/v1/capabilities")
       do {
         let (_, response) = try await urlSession.data(for: request)
         guard let response = response as? HTTPURLResponse else {
           throw APIClientError.invalidResponse
         }
+        SyncDiagnosticContext.received(response, link: link)
         guard (200..<300).contains(response.statusCode) else {
           throw APIClientError.httpStatus(response.statusCode, code: nil, message: nil)
         }
@@ -168,11 +170,13 @@ final class PumpSyncAPIClient {
     }
 
     urlRequest.timeoutInterval = timeoutInterval ?? self.timeoutInterval(for: path)
+    let link = SyncDiagnosticContext.prepare(&urlRequest, path: path)
     let (data, response) = try await urlSession.data(for: urlRequest, delegate: SensitiveRequestRedirectGuard())
     guard let httpResponse = response as? HTTPURLResponse else {
       throw APIClientError.invalidResponse
     }
 
+    SyncDiagnosticContext.received(httpResponse, link: link)
     responseObserver?(httpResponse)
     guard (200..<300).contains(httpResponse.statusCode) else {
       let errorResponse = try? JSONCodec.decoder.decode(ErrorResponse.self, from: data)
