@@ -16,6 +16,7 @@ Hosted production/nonprod backend images are private GitHub Container Registry i
 ## Repository Layout
 
 - `PumpSync/`: SwiftUI app sources, resources, entitlements, and app configuration.
+- [`Design/`](Design/README.md): editable OpenPencil designs, screen coverage, reference records, and the interactive review preview.
 - `PumpSyncTests/`: unit tests.
 - `PumpSyncUITests/`: UI tests and screenshot automation entry points.
 - `project.yml`: XcodeGen source of truth for schemes, configurations, build settings, entitlements, and generated project files.

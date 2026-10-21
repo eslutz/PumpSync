@@ -1,0 +1,31 @@
+{
+  "screens": 284,
+  "links": 1072,
+  "scrollRegions": 216,
+  "missingAssets": [],
+  "missingTargets": [],
+  "browserChecks": [
+    {
+      "check": "Final screen selector includes 284 designs",
+      "passed": true
+    },
+    {
+      "check": "Restore Failed offers only OK; dismisses to Settings Hosted Light",
+      "passed": true
+    },
+    {
+      "check": "Password visibility: 278 -> 274 -> 278",
+      "passed": true
+    },
+    {
+      "check": "iPad Dark inspection failure retries to loading in same variant",
+      "passed": true
+    },
+    {
+      "check": "Expanded inspection scrolls to 296px; Settings navigation and Back restore 296px",
+      "passed": true
+    }
+  ],
+  "preview": "http://127.0.0.1:8769/Preview.html",
+  "note": "Synthetic design navigation, not live application services."
+}

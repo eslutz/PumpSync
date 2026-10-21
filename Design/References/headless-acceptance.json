@@ -1,0 +1,127 @@
+{
+  "verifiedAt": "2026-10-20T21:51:17.681Z",
+  "mode": "headless file mode; no desktop RPC or MCP",
+  "runs": [
+    {
+      "name": "fresh-read-1",
+      "elapsedMs": 4352,
+      "exitCode": 0
+    },
+    {
+      "name": "fresh-read-2",
+      "elapsedMs": 4197,
+      "exitCode": 0
+    },
+    {
+      "name": "fresh-read-3",
+      "elapsedMs": 3975,
+      "exitCode": 0
+    },
+    {
+      "name": "fonts",
+      "elapsedMs": 1967,
+      "exitCode": 0
+    },
+    {
+      "name": "render-iPhone-Light",
+      "elapsedMs": 2316,
+      "exitCode": 0
+    },
+    {
+      "name": "render-iPhone-Dark",
+      "elapsedMs": 2416,
+      "exitCode": 0
+    },
+    {
+      "name": "render-iPad-Light",
+      "elapsedMs": 2854,
+      "exitCode": 0
+    },
+    {
+      "name": "render-iPad-Dark",
+      "elapsedMs": 2670,
+      "exitCode": 0
+    },
+    {
+      "name": "roundtrip-export",
+      "elapsedMs": 3907,
+      "exitCode": 0
+    }
+  ],
+  "repeatedReadsIdentical": true,
+  "fontFaithful": true,
+  "pages": 10,
+  "allGraphNodes": 21563,
+  "variables": 113,
+  "variablesUnchanged": true,
+  "collectionsUnchanged": true,
+  "roundtripDifferences": [],
+  "controls": [
+    {
+      "name": "PumpSync main tabs · iPad · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPad · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPad · Dark",
+      "kind": "collapsible",
+      "missing": []
+    },
+    {
+      "name": "PumpSync main tabs · iPad · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPad · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPad · Light",
+      "kind": "collapsible",
+      "missing": []
+    },
+    {
+      "name": "PumpSync main tabs · iPhone · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPhone · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPhone · Dark",
+      "kind": "collapsible",
+      "missing": []
+    },
+    {
+      "name": "PumpSync main tabs · iPhone · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPhone · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPhone · Light",
+      "kind": "collapsible",
+      "missing": []
+    }
+  ],
+  "inputUnchanged": true,
+  "roundtripPromoted": false,
+  "limitations": [
+    "Static CLI exports do not repeat native click acceptance.",
+    "Installed SF Pro Text faces are explicitly registered; this is not a pixel-equivalence claim against the desktop font resolver."
+  ]
+}

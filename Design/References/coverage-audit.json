@@ -1,0 +1,2154 @@
+{
+  "source": "e922b0e",
+  "screens": 284,
+  "families": 71,
+  "added": 113,
+  "pages": [
+    "01 · App Screens",
+    "04 · Additional App States",
+    "05 · Native Interactive Controls",
+    "06 · Native Preview · iPhone Light",
+    "07 · Native Preview · iPhone Dark",
+    "08 · Native Preview · iPad Light",
+    "09 · Native Preview · iPad Dark",
+    "10 · Complete Screen Coverage",
+    "02 · Guide & Coverage",
+    "03 · Components"
+  ],
+  "changedOriginals": [],
+  "changedNativeMasters": [],
+  "missingVariants": [],
+  "invalidText": [],
+  "nonfinite": [],
+  "brokenComponentReferences": [],
+  "horizontalOverflow": [],
+  "alertVerticalOverflow": [],
+  "nativeControls": [
+    {
+      "name": "PumpSync main tabs · iPad · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPad · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPad · Dark",
+      "kind": "collapsible",
+      "missing": []
+    },
+    {
+      "name": "PumpSync main tabs · iPad · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPad · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPad · Light",
+      "kind": "collapsible",
+      "missing": []
+    },
+    {
+      "name": "PumpSync main tabs · iPhone · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPhone · Dark",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPhone · Dark",
+      "kind": "collapsible",
+      "missing": []
+    },
+    {
+      "name": "PumpSync main tabs · iPhone · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Connection selector · iPhone · Light",
+      "kind": "tabs",
+      "missing": []
+    },
+    {
+      "name": "Inspection record · iPhone · Light",
+      "kind": "collapsible",
+      "missing": []
+    }
+  ],
+  "matrix": [
+    {
+      "screen": "Sync · Ready",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Ready · Light",
+          "nodeId": "0:15"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Ready · Dark",
+          "nodeId": "0:795"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Ready · iPad · Light",
+          "nodeId": "0:1799"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Ready · iPad · Dark",
+          "nodeId": "0:2553"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Initial import",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Initial import · Light",
+          "nodeId": "0:57"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Initial import · Dark",
+          "nodeId": "0:851"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Initial import · iPad · Light",
+          "nodeId": "0:1839"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Initial import · iPad · Dark",
+          "nodeId": "0:2607"
+        }
+      ]
+    },
+    {
+      "screen": "Settings · Hosted",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Settings · Hosted · Light",
+          "nodeId": "0:116"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Settings · Hosted · Dark",
+          "nodeId": "0:924"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Settings · Hosted · iPad · Light",
+          "nodeId": "0:1896"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Settings · Hosted · iPad · Dark",
+          "nodeId": "0:2678"
+        }
+      ]
+    },
+    {
+      "screen": "Settings · Self-hosted",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Settings · Self-hosted · Light",
+          "nodeId": "0:197"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Settings · Self-hosted · Dark",
+          "nodeId": "0:1019"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Settings · Self-hosted · iPad · Light",
+          "nodeId": "0:1975"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Settings · Self-hosted · iPad · Dark",
+          "nodeId": "0:2771"
+        }
+      ]
+    },
+    {
+      "screen": "Tandem · Empty",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Tandem · Empty · Light",
+          "nodeId": "0:279"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Tandem · Empty · Dark",
+          "nodeId": "0:1115"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Tandem · Empty · iPad · Light",
+          "nodeId": "0:2055"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Tandem · Empty · iPad · Dark",
+          "nodeId": "0:2865"
+        }
+      ]
+    },
+    {
+      "screen": "Tandem · Saved",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Tandem · Saved · Light",
+          "nodeId": "0:320"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Tandem · Saved · Dark",
+          "nodeId": "0:1170"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Tandem · Saved · iPad · Light",
+          "nodeId": "0:2094"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Tandem · Saved · iPad · Dark",
+          "nodeId": "0:2918"
+        }
+      ]
+    },
+    {
+      "screen": "Apple Health · Not set",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Apple Health · Not set · Light",
+          "nodeId": "0:362"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Apple Health · Not set · Dark",
+          "nodeId": "0:1226"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Apple Health · Not set · iPad · Light",
+          "nodeId": "0:2134"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Apple Health · Not set · iPad · Dark",
+          "nodeId": "0:2972"
+        }
+      ]
+    },
+    {
+      "screen": "Apple Health · Allowed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Apple Health · Allowed · Light",
+          "nodeId": "0:410"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Apple Health · Allowed · Dark",
+          "nodeId": "0:1288"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Apple Health · Allowed · iPad · Light",
+          "nodeId": "0:2180"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Apple Health · Allowed · iPad · Dark",
+          "nodeId": "0:3032"
+        }
+      ]
+    },
+    {
+      "screen": "Insulin Concentration",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Insulin Concentration · Light",
+          "nodeId": "0:456"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Insulin Concentration · Dark",
+          "nodeId": "0:1348"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Insulin Concentration · iPad · Light",
+          "nodeId": "0:2224"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Insulin Concentration · iPad · Dark",
+          "nodeId": "0:3090"
+        }
+      ]
+    },
+    {
+      "screen": "Data Handling",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Data Handling · Light",
+          "nodeId": "0:509"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Data Handling · Dark",
+          "nodeId": "0:1415"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Data Handling · iPad · Light",
+          "nodeId": "0:2275"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Data Handling · iPad · Dark",
+          "nodeId": "0:3155"
+        }
+      ]
+    },
+    {
+      "screen": "About PumpSync",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "About PumpSync · Light",
+          "nodeId": "0:578"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "About PumpSync · Dark",
+          "nodeId": "0:1498"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "About PumpSync · iPad · Light",
+          "nodeId": "0:2342"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "About PumpSync · iPad · Dark",
+          "nodeId": "0:3236"
+        }
+      ]
+    },
+    {
+      "screen": "Developer",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Developer · Light",
+          "nodeId": "0:613"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Developer · Dark",
+          "nodeId": "0:1547"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Developer · iPad · Light",
+          "nodeId": "0:2375"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Developer · iPad · Dark",
+          "nodeId": "0:3283"
+        }
+      ]
+    },
+    {
+      "screen": "Inspect Source Data · Ready",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Inspect Source Data · Ready · Light",
+          "nodeId": "0:701"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Ready · Dark",
+          "nodeId": "0:1649"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Inspect Source Data · Ready · iPad · Light",
+          "nodeId": "0:2461"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Ready · iPad · Dark",
+          "nodeId": "0:3383"
+        }
+      ]
+    },
+    {
+      "screen": "Subscription",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Subscription · Light",
+          "nodeId": "0:747"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Subscription · Dark",
+          "nodeId": "0:1709"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Subscription · iPad · Light",
+          "nodeId": "0:2505"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Subscription · iPad · Dark",
+          "nodeId": "0:3441"
+        }
+      ]
+    },
+    {
+      "screen": "App Event Log",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "App Event Log · Light",
+          "nodeId": "0:778"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "App Event Log · Dark",
+          "nodeId": "0:1754"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "App Event Log · iPad · Light",
+          "nodeId": "0:2536"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "App Event Log · iPad · Dark",
+          "nodeId": "0:3486"
+        }
+      ]
+    },
+    {
+      "screen": "Device Performance",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Device Performance · Light",
+          "nodeId": "0:786"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Device Performance · Dark",
+          "nodeId": "0:1776"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Device Performance · iPad · Light",
+          "nodeId": "0:2544"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Device Performance · iPad · Dark",
+          "nodeId": "0:3508"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Preparing",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Preparing · Light",
+          "nodeId": "0:3531"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Preparing · iPhone · Dark",
+          "nodeId": "0:13091"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Preparing · iPad · Light",
+          "nodeId": "0:13164"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Preparing · iPad · Dark",
+          "nodeId": "0:13235"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Waiting for service",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Waiting for service · Light",
+          "nodeId": "0:3579"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Waiting for service · iPhone · Dark",
+          "nodeId": "0:13306"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Waiting for service · iPad · Light",
+          "nodeId": "0:13379"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Waiting for service · iPad · Dark",
+          "nodeId": "0:13450"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Running",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Running · Light",
+          "nodeId": "0:3627"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Running · iPhone · Dark",
+          "nodeId": "0:13521"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Running · iPad · Light",
+          "nodeId": "0:13594"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Running · iPad · Dark",
+          "nodeId": "0:13665"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Updating Health",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Updating Health · Light",
+          "nodeId": "0:3675"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Updating Health · iPhone · Dark",
+          "nodeId": "0:13736"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Updating Health · iPad · Light",
+          "nodeId": "0:13809"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Updating Health · iPad · Dark",
+          "nodeId": "0:13880"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Success",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Success · Light",
+          "nodeId": "0:3723"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Success · iPhone · Dark",
+          "nodeId": "0:13951"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Success · iPad · Light",
+          "nodeId": "0:14014"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Success · iPad · Dark",
+          "nodeId": "0:14075"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Failure",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Failure · Light",
+          "nodeId": "0:3772"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Failure · iPhone · Dark",
+          "nodeId": "0:14136"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Failure · iPad · Light",
+          "nodeId": "0:14200"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Failure · iPad · Dark",
+          "nodeId": "0:14262"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Subscription required",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Subscription required · Light",
+          "nodeId": "0:3822"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Subscription required · iPhone · Dark",
+          "nodeId": "0:14324"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Subscription required · iPad · Light",
+          "nodeId": "0:14388"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Subscription required · iPad · Dark",
+          "nodeId": "0:14450"
+        }
+      ]
+    },
+    {
+      "screen": "Inspect Source Data · Idle",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Inspect Source Data · Idle · Light",
+          "nodeId": "0:3873"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Idle · iPhone · Dark",
+          "nodeId": "0:14512"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Inspect Source Data · Idle · iPad · Light",
+          "nodeId": "0:14542"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Idle · iPad · Dark",
+          "nodeId": "0:14570"
+        }
+      ]
+    },
+    {
+      "screen": "Inspect Source Data · Loading",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Inspect Source Data · Loading · Light",
+          "nodeId": "0:3889"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Loading · iPhone · Dark",
+          "nodeId": "0:14598"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Inspect Source Data · Loading · iPad · Light",
+          "nodeId": "0:14628"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Loading · iPad · Dark",
+          "nodeId": "0:14656"
+        }
+      ]
+    },
+    {
+      "screen": "Inspect Source Data · Failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Inspect Source Data · Failed · Light",
+          "nodeId": "0:3905"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Failed · iPhone · Dark",
+          "nodeId": "0:14684"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Inspect Source Data · Failed · iPad · Light",
+          "nodeId": "0:14714"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Failed · iPad · Dark",
+          "nodeId": "0:14742"
+        }
+      ]
+    },
+    {
+      "screen": "Inspect Source Data · Empty",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Inspect Source Data · Empty · Light",
+          "nodeId": "0:3921"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Empty · iPhone · Dark",
+          "nodeId": "0:14770"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Inspect Source Data · Empty · iPad · Light",
+          "nodeId": "0:14810"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Empty · iPad · Dark",
+          "nodeId": "0:14848"
+        }
+      ]
+    },
+    {
+      "screen": "Inspect Source Data · Expanded",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Inspect Source Data · Expanded · Light",
+          "nodeId": "0:3947"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Expanded · iPhone · Dark",
+          "nodeId": "0:14886"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Inspect Source Data · Expanded · iPad · Light",
+          "nodeId": "0:14953"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Inspect Source Data · Expanded · iPad · Dark",
+          "nodeId": "0:15018"
+        }
+      ]
+    },
+    {
+      "screen": "History range menu",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "History range menu · Light",
+          "nodeId": "0:4001"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "History range menu · iPhone · Dark",
+          "nodeId": "0:15083"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "History range menu · iPad · Light",
+          "nodeId": "0:15275"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "History range menu · iPad · Dark",
+          "nodeId": "0:15465"
+        }
+      ]
+    },
+    {
+      "screen": "Concentration menu",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Concentration menu · Light",
+          "nodeId": "0:4060"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Concentration menu · iPhone · Dark",
+          "nodeId": "0:15655"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Concentration menu · iPad · Light",
+          "nodeId": "0:15839"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Concentration menu · iPad · Dark",
+          "nodeId": "0:16021"
+        }
+      ]
+    },
+    {
+      "screen": "Region menu",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Region menu · Light",
+          "nodeId": "0:4113"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Region menu · iPhone · Dark",
+          "nodeId": "0:16203"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Region menu · iPad · Light",
+          "nodeId": "0:16373"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Region menu · iPad · Dark",
+          "nodeId": "0:16541"
+        }
+      ]
+    },
+    {
+      "screen": "Remove credentials",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Remove credentials · Light",
+          "nodeId": "0:4154"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Remove credentials · iPhone · Dark",
+          "nodeId": "0:16709"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Remove credentials · iPad · Light",
+          "nodeId": "0:16785"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Remove credentials · iPad · Dark",
+          "nodeId": "0:16859"
+        }
+      ]
+    },
+    {
+      "screen": "Credentials Saved",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Credentials Saved · Light",
+          "nodeId": "0:4199"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Credentials Saved · iPhone · Dark",
+          "nodeId": "0:16933"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Credentials Saved · iPad · Light",
+          "nodeId": "0:17018"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Credentials Saved · iPad · Dark",
+          "nodeId": "0:17101"
+        }
+      ]
+    },
+    {
+      "screen": "Credentials Removed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Credentials Removed · Light",
+          "nodeId": "0:4242"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Credentials Removed · iPhone · Dark",
+          "nodeId": "0:17184"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Credentials Removed · iPad · Light",
+          "nodeId": "0:17269"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Credentials Removed · iPad · Dark",
+          "nodeId": "0:17352"
+        }
+      ]
+    },
+    {
+      "screen": "Save Failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Save Failed · Light",
+          "nodeId": "0:4285"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Save Failed · iPhone · Dark",
+          "nodeId": "0:17435"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Save Failed · iPad · Light",
+          "nodeId": "0:17520"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Save Failed · iPad · Dark",
+          "nodeId": "0:17603"
+        }
+      ]
+    },
+    {
+      "screen": "Connection Needed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Connection Needed · Light",
+          "nodeId": "0:4328"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Connection Needed · iPhone · Dark",
+          "nodeId": "0:17686"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Connection Needed · iPad · Light",
+          "nodeId": "0:17771"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Connection Needed · iPad · Dark",
+          "nodeId": "0:17854"
+        }
+      ]
+    },
+    {
+      "screen": "Subscription restored",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Subscription restored · Light",
+          "nodeId": "0:4371"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Subscription restored · iPhone · Dark",
+          "nodeId": "0:17937"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Subscription restored · iPad · Light",
+          "nodeId": "0:18061"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Subscription restored · iPad · Dark",
+          "nodeId": "0:18183"
+        }
+      ]
+    },
+    {
+      "screen": "Connecting",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Connecting · Light",
+          "nodeId": "0:4453"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Connecting · iPhone · Dark",
+          "nodeId": "0:18305"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Connecting · iPad · Light",
+          "nodeId": "0:18401"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Connecting · iPad · Dark",
+          "nodeId": "0:18495"
+        }
+      ]
+    },
+    {
+      "screen": "Invalid server URL",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Invalid server URL · Light",
+          "nodeId": "0:4535"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Invalid server URL · iPhone · Dark",
+          "nodeId": "0:18589"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Invalid server URL · iPad · Light",
+          "nodeId": "0:18685"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Invalid server URL · iPad · Dark",
+          "nodeId": "0:18779"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Disconnected",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Disconnected · iPhone · Light",
+          "nodeId": "0:6275"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Disconnected · iPhone · Dark",
+          "nodeId": "0:6348"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Disconnected · iPad · Light",
+          "nodeId": "0:6421"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Disconnected · iPad · Dark",
+          "nodeId": "0:6492"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Stale Health data",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Stale Health data · iPhone · Light",
+          "nodeId": "0:6563"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Stale Health data · iPhone · Dark",
+          "nodeId": "0:6620"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Stale Health data · iPad · Light",
+          "nodeId": "0:6677"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Stale Health data · iPad · Dark",
+          "nodeId": "0:6732"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Pump credentials required",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Pump credentials required · iPhone · Light",
+          "nodeId": "0:6787"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Pump credentials required · iPhone · Dark",
+          "nodeId": "0:6845"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Pump credentials required · iPad · Light",
+          "nodeId": "0:6903"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Pump credentials required · iPad · Dark",
+          "nodeId": "0:6959"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Health permission required",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Health permission required · iPhone · Light",
+          "nodeId": "0:7015"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Health permission required · iPhone · Dark",
+          "nodeId": "0:7073"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Health permission required · iPad · Light",
+          "nodeId": "0:7131"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Health permission required · iPad · Dark",
+          "nodeId": "0:7187"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Restoring connection",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Restoring connection · iPhone · Light",
+          "nodeId": "0:7243"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Restoring connection · iPhone · Dark",
+          "nodeId": "0:7303"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Restoring connection · iPad · Light",
+          "nodeId": "0:7363"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Restoring connection · iPad · Dark",
+          "nodeId": "0:7421"
+        }
+      ]
+    },
+    {
+      "screen": "Health · Partial access",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Health · Partial access · iPhone · Light",
+          "nodeId": "0:7479"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Health · Partial access · iPhone · Dark",
+          "nodeId": "0:7539"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Health · Partial access · iPad · Light",
+          "nodeId": "0:7599"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Health · Partial access · iPad · Dark",
+          "nodeId": "0:7657"
+        }
+      ]
+    },
+    {
+      "screen": "Health · Access denied",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Health · Access denied · iPhone · Light",
+          "nodeId": "0:7715"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Health · Access denied · iPhone · Dark",
+          "nodeId": "0:7777"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Health · Access denied · iPad · Light",
+          "nodeId": "0:7839"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Health · Access denied · iPad · Dark",
+          "nodeId": "0:7899"
+        }
+      ]
+    },
+    {
+      "screen": "Health · Access update failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Health · Access update failed · iPhone · Light",
+          "nodeId": "0:7959"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Health · Access update failed · iPhone · Dark",
+          "nodeId": "0:8023"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Health · Access update failed · iPad · Light",
+          "nodeId": "0:8087"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Health · Access update failed · iPad · Dark",
+          "nodeId": "0:8149"
+        }
+      ]
+    },
+    {
+      "screen": "Health · Requesting access",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Health · Requesting access · iPhone · Light",
+          "nodeId": "0:8211"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Health · Requesting access · iPhone · Dark",
+          "nodeId": "0:8274"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Health · Requesting access · iPad · Light",
+          "nodeId": "0:8337"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Health · Requesting access · iPad · Dark",
+          "nodeId": "0:8398"
+        }
+      ]
+    },
+    {
+      "screen": "Source data · Refreshing",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Source data · Refreshing · iPhone · Light",
+          "nodeId": "0:8459"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Source data · Refreshing · iPhone · Dark",
+          "nodeId": "0:8520"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Source data · Refreshing · iPad · Light",
+          "nodeId": "0:8581"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Source data · Refreshing · iPad · Dark",
+          "nodeId": "0:8640"
+        }
+      ]
+    },
+    {
+      "screen": "Source data · Refresh failed with retained records",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Source data · Refresh failed with retained records · iPhone · Light",
+          "nodeId": "0:8699"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Source data · Refresh failed with retained records · iPhone · Dark",
+          "nodeId": "0:8760"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Source data · Refresh failed with retained records · iPad · Light",
+          "nodeId": "0:8821"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Source data · Refresh failed with retained records · iPad · Dark",
+          "nodeId": "0:8880"
+        }
+      ]
+    },
+    {
+      "screen": "Tandem · Saving",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Tandem · Saving · iPhone · Light",
+          "nodeId": "0:8939"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Tandem · Saving · iPhone · Dark",
+          "nodeId": "0:8994"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Tandem · Saving · iPad · Light",
+          "nodeId": "0:9049"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Tandem · Saving · iPad · Dark",
+          "nodeId": "0:9102"
+        }
+      ]
+    },
+    {
+      "screen": "Tandem · Changed account requires password",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Tandem · Changed account requires password · iPhone · Light",
+          "nodeId": "0:9155"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Tandem · Changed account requires password · iPhone · Dark",
+          "nodeId": "0:9212"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Tandem · Changed account requires password · iPad · Light",
+          "nodeId": "0:9269"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Tandem · Changed account requires password · iPad · Dark",
+          "nodeId": "0:9324"
+        }
+      ]
+    },
+    {
+      "screen": "App Event Log · Populated",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "App Event Log · Populated · iPhone · Light",
+          "nodeId": "0:9379"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "App Event Log · Populated · iPhone · Dark",
+          "nodeId": "0:9432"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "App Event Log · Populated · iPad · Light",
+          "nodeId": "0:9485"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "App Event Log · Populated · iPad · Dark",
+          "nodeId": "0:9538"
+        }
+      ]
+    },
+    {
+      "screen": "Device Performance · Populated",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Device Performance · Populated · iPhone · Light",
+          "nodeId": "0:9591"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Device Performance · Populated · iPhone · Dark",
+          "nodeId": "0:9630"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Device Performance · Populated · iPad · Light",
+          "nodeId": "0:9669"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Device Performance · Populated · iPad · Dark",
+          "nodeId": "0:9708"
+        }
+      ]
+    },
+    {
+      "screen": "Developer · Populated metadata",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Developer · Populated metadata · iPhone · Light",
+          "nodeId": "0:9747"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Developer · Populated metadata · iPhone · Dark",
+          "nodeId": "0:9849"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Developer · Populated metadata · iPad · Light",
+          "nodeId": "0:9951"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Developer · Populated metadata · iPad · Dark",
+          "nodeId": "0:10051"
+        }
+      ]
+    },
+    {
+      "screen": "Developer · Diagnostics scrolled",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Developer · Diagnostics scrolled · iPhone · Light",
+          "nodeId": "0:10151"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Developer · Diagnostics scrolled · iPhone · Dark",
+          "nodeId": "0:10249"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Developer · Diagnostics scrolled · iPad · Light",
+          "nodeId": "0:10347"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Developer · Diagnostics scrolled · iPad · Dark",
+          "nodeId": "0:10443"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Open Settings recovery",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Open Settings recovery · iPhone · Light",
+          "nodeId": "0:10539"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Open Settings recovery · iPhone · Dark",
+          "nodeId": "0:10603"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Open Settings recovery · iPad · Light",
+          "nodeId": "0:10667"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Open Settings recovery · iPad · Dark",
+          "nodeId": "0:10729"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Wait and retry recovery",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Wait and retry recovery · iPhone · Light",
+          "nodeId": "0:10791"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Wait and retry recovery · iPhone · Dark",
+          "nodeId": "0:10854"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Wait and retry recovery · iPad · Light",
+          "nodeId": "0:10917"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Wait and retry recovery · iPad · Dark",
+          "nodeId": "0:10978"
+        }
+      ]
+    },
+    {
+      "screen": "Settings · Sync in progress",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Settings · Sync in progress · iPhone · Light",
+          "nodeId": "0:11039"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Settings · Sync in progress · iPhone · Dark",
+          "nodeId": "0:11143"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Settings · Sync in progress · iPad · Light",
+          "nodeId": "0:11247"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Settings · Sync in progress · iPad · Dark",
+          "nodeId": "0:11349"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · No new samples",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · No new samples · iPhone · Light",
+          "nodeId": "0:11451"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · No new samples · iPhone · Dark",
+          "nodeId": "0:11514"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · No new samples · iPad · Light",
+          "nodeId": "0:11577"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · No new samples · iPad · Dark",
+          "nodeId": "0:11638"
+        }
+      ]
+    },
+    {
+      "screen": "Restore Failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Restore Failed · iPhone · Light",
+          "nodeId": "0:18873"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Restore Failed · iPhone · Dark",
+          "nodeId": "0:18976"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Restore Failed · iPad · Light",
+          "nodeId": "0:19079"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Restore Failed · iPad · Dark",
+          "nodeId": "0:19180"
+        }
+      ]
+    },
+    {
+      "screen": "Remove Failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Remove Failed · iPhone · Light",
+          "nodeId": "0:19281"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Remove Failed · iPhone · Dark",
+          "nodeId": "0:19345"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Remove Failed · iPad · Light",
+          "nodeId": "0:19409"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Remove Failed · iPad · Dark",
+          "nodeId": "0:19471"
+        }
+      ]
+    },
+    {
+      "screen": "Subscription Inactive",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Subscription Inactive · iPhone · Light",
+          "nodeId": "0:19533"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Subscription Inactive · iPhone · Dark",
+          "nodeId": "0:19589"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Subscription Inactive · iPad · Light",
+          "nodeId": "0:19645"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Subscription Inactive · iPad · Dark",
+          "nodeId": "0:19701"
+        }
+      ]
+    },
+    {
+      "screen": "Subscription Verification Failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Subscription Verification Failed · iPhone · Light",
+          "nodeId": "0:19757"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Subscription Verification Failed · iPhone · Dark",
+          "nodeId": "0:19810"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Subscription Verification Failed · iPad · Light",
+          "nodeId": "0:19863"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Subscription Verification Failed · iPad · Dark",
+          "nodeId": "0:19916"
+        }
+      ]
+    },
+    {
+      "screen": "Subscription Pending",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Subscription Pending · iPhone · Light",
+          "nodeId": "0:19969"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Subscription Pending · iPhone · Dark",
+          "nodeId": "0:20022"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Subscription Pending · iPad · Light",
+          "nodeId": "0:20075"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Subscription Pending · iPad · Dark",
+          "nodeId": "0:20128"
+        }
+      ]
+    },
+    {
+      "screen": "Subscription Failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Subscription Failed · iPhone · Light",
+          "nodeId": "0:20181"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Subscription Failed · iPhone · Dark",
+          "nodeId": "0:20234"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Subscription Failed · iPad · Light",
+          "nodeId": "0:20287"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Subscription Failed · iPad · Dark",
+          "nodeId": "0:20340"
+        }
+      ]
+    },
+    {
+      "screen": "Manage Subscription Unavailable",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Manage Subscription Unavailable · iPhone · Light",
+          "nodeId": "0:20393"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Manage Subscription Unavailable · iPhone · Dark",
+          "nodeId": "0:20446"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Manage Subscription Unavailable · iPad · Light",
+          "nodeId": "0:20499"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Manage Subscription Unavailable · iPad · Dark",
+          "nodeId": "0:20552"
+        }
+      ]
+    },
+    {
+      "screen": "Manage Subscription Failed",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Manage Subscription Failed · iPhone · Light",
+          "nodeId": "0:20605"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Manage Subscription Failed · iPhone · Dark",
+          "nodeId": "0:20658"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Manage Subscription Failed · iPad · Light",
+          "nodeId": "0:20711"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Manage Subscription Failed · iPad · Dark",
+          "nodeId": "0:20764"
+        }
+      ]
+    },
+    {
+      "screen": "Tandem · Credentials entered",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Tandem · Credentials entered · iPhone · Light",
+          "nodeId": "0:20817"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Tandem · Credentials entered · iPhone · Dark",
+          "nodeId": "0:20872"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Tandem · Credentials entered · iPad · Light",
+          "nodeId": "0:20927"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Tandem · Credentials entered · iPad · Dark",
+          "nodeId": "0:20980"
+        }
+      ]
+    },
+    {
+      "screen": "Tandem · Password visible",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Tandem · Password visible · iPhone · Light",
+          "nodeId": "0:21033"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Tandem · Password visible · iPhone · Dark",
+          "nodeId": "0:21088"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Tandem · Password visible · iPad · Light",
+          "nodeId": "0:21143"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Tandem · Password visible · iPad · Dark",
+          "nodeId": "0:21196"
+        }
+      ]
+    },
+    {
+      "screen": "Sync · Saved credentials need validation",
+      "variants": [
+        {
+          "device": "iPhone",
+          "theme": "Light",
+          "name": "Sync · Saved credentials need validation · iPhone · Light",
+          "nodeId": "0:21249"
+        },
+        {
+          "device": "iPhone",
+          "theme": "Dark",
+          "name": "Sync · Saved credentials need validation · iPhone · Dark",
+          "nodeId": "0:21307"
+        },
+        {
+          "device": "iPad",
+          "theme": "Light",
+          "name": "Sync · Saved credentials need validation · iPad · Light",
+          "nodeId": "0:21365"
+        },
+        {
+          "device": "iPad",
+          "theme": "Dark",
+          "name": "Sync · Saved credentials need validation · iPad · Dark",
+          "nodeId": "0:21421"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    "All app-owned routes and inventoried visual states across the four design variants.",
+    "System StoreKit product/purchase, Health authorization, share and Mail interfaces require runtime-owned captures.",
+    "Dynamic Type, keyboards, rotation and assistive behavior remain runtime acceptance boundaries."
+  ]
+}
