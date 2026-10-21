@@ -20,6 +20,7 @@ on:
       - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "Scripts/tests/validate-version-tests.sh"
+      - "Scripts/tests/validate-ci-workflow-tests.rb"
       - ".github/workflows/ios-ci.yml"
   pull_request:
     paths:
@@ -36,6 +37,7 @@ on:
       - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "Scripts/tests/validate-version-tests.sh"
+      - "Scripts/tests/validate-ci-workflow-tests.rb"
       - ".github/workflows/ios-ci.yml"
 
 permissions:
@@ -48,6 +50,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate workflow shell syntax
+        run: ruby Scripts/tests/validate-ci-workflow-tests.rb
 
       - name: Validate release version
         run: |
@@ -92,7 +97,7 @@ jobs:
           import json, sys
           device_types = json.load(sys.stdin)["devicetypes"]
           by_identifier = {device_type["identifier"]: device_type for device_type in device_types}
-          # Keep the project's small-screen coverage.
+          # Keep small-screen coverage for this project.
           preferred = [
               "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
               "com.apple.CoreSimulator.SimDeviceType.iPhone-16",
