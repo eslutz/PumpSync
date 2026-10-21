@@ -1,6 +1,6 @@
 #!/bin/bash
-# Match the Internal Beta test action observed in Xcode Cloud Build 38.
-# Update these values only after checking the workflow's actual test results.
+# Xcode 27.1 project preflight. Hosted Cloud acceptance is verified separately.
+# Keep the exact toolchain and simulator runtime explicit.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -9,7 +9,7 @@ if (( $# != 0 )); then
   exit 2
 fi
 
-expected_xcode_build="27A266a"
+expected_xcode_build="27A9275"
 runtime="com.apple.CoreSimulator.SimRuntime.iOS-27-0"
 device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation"
 device_name="PumpSync iOS 27 SE Validation"

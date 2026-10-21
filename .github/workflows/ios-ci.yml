@@ -44,7 +44,7 @@ permissions:
 jobs:
   ios:
     name: Generate, build, and test iOS
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +56,13 @@ jobs:
 
       - name: Validate committed contract snapshots
         run: bash Scripts/tests/validate-session-contract-snapshots-tests.sh
+
+      - name: Select Xcode 27.1
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_27.1.app/Contents/Developer
+          xcodebuild -version
+          xcodebuild -version | grep -qx 'Xcode 27.1'
+          xcodebuild -version | grep -qx 'Build version 27A9275'
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -74,10 +81,10 @@ jobs:
           import json, re, sys
           runtimes = [
               runtime for runtime in json.load(sys.stdin)["runtimes"]
-              if runtime.get("isAvailable") and runtime.get("identifier", "").startswith("com.apple.CoreSimulator.SimRuntime.iOS-")
+              if runtime.get("isAvailable") and runtime.get("identifier") == "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
           ]
           if not runtimes:
-              raise SystemExit("No available iOS simulator runtimes found")
+              raise SystemExit("Required iOS 27.0 simulator runtime is unavailable")
           runtimes.sort(key=lambda runtime: [int(part) for part in re.findall(r"\d+", runtime.get("version", ""))])
           print(runtimes[-1]["identifier"])
           ')"
@@ -85,7 +92,7 @@ jobs:
           import json, sys
           device_types = json.load(sys.stdin)["devicetypes"]
           by_identifier = {device_type["identifier"]: device_type for device_type in device_types}
-          # Keep the small-screen coverage used by the Xcode Cloud test action.
+          # Keep the project's small-screen coverage.
           preferred = [
               "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
               "com.apple.CoreSimulator.SimDeviceType.iPhone-16",

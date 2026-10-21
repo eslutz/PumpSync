@@ -1,6 +1,7 @@
 name: PumpSync
 options:
   minimumXcodeGenVersion: 2.40.0
+  xcodeVersion: "27.1"
   defaultConfig: Debug
   deploymentTarget:
     iOS: "26.0"
