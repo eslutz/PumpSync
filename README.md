@@ -20,9 +20,9 @@ Hosted production/nonprod backend images are private GitHub Container Registry i
 - `PumpSyncTests/`: unit tests.
 - `PumpSyncUITests/`: UI tests and screenshot automation entry points.
 - `project.yml`: XcodeGen source of truth for schemes, configurations, build settings, entitlements, and generated project files.
-- `docs/app-store/`: App Store metadata, screenshots, accessibility notes, and review assets.
-- `docs/legal/`: pointers to the website's Privacy Policy, Terms of Use, and Account/Data Deletion pages, plus repo-local App Store privacy notes.
-- `scripts/ios/`: iOS screenshot capture scripts.
+- `Documentation/app-store/`: App Store metadata, screenshots, accessibility notes, and review assets.
+- `Documentation/legal/`: pointers to the website's Privacy Policy, Terms of Use, and Account/Data Deletion pages, plus repo-local App Store privacy notes.
+- `Scripts/ios/`: iOS screenshot capture scripts.
 
 ## Access Model
 
@@ -76,7 +76,7 @@ xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync -destination 'platf
 Before pushing a candidate or starting Xcode Cloud, run:
 
 ```sh
-bash scripts/ios/validate-cloud-tests.sh
+bash Scripts/ios/validate-cloud-tests.sh
 ```
 
 The Cloud preflight pins Xcode build `27A266a`, iOS 27.0, and iPhone SE (3rd generation), matching Internal Beta Build 38's test action. It creates a dedicated simulator if needed, runs all unit and UI tests, then runs the connection recovery flow once each at standard and maximum accessibility text sizes using actual simulator text settings. It restores the previous text size on exit. Any failure or build-tool warning fails validation. Raw logs, `.xcresult` bundles, summaries, and the tested environment/commit are saved under ignored `TestResults/`. Update the pin when the Cloud workflow changes; a pass on another device or OS does not satisfy this gate. Additional minimum-supported-OS, iPad, and physical-device checks remain necessary for release acceptance.
@@ -95,4 +95,4 @@ TestFlight and development-signed purchases use Apple's sandbox and do not charg
 
 PumpSync source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md). Noncommercial use — including running your own self-hosted backend for personal use — is permitted. Commercial use is reserved by the copyright holder.
 
-Automated local, GitHub CI and Xcode Cloud tests consume committed test-only snapshots in `PumpSyncTests/SessionContractSnapshots/`. Their backend revision and SHA-256 checksums are recorded in `session-contract-manifest.json`; preparation validates the snapshots without backend access or a .NET SDK. Missing resources fail the tests. Backend CI regenerates deterministic exports and rejects drift against its own committed copies. After a reviewed backend contract change is committed, use `bash scripts/ios/update-session-contract-snapshots.sh --backend-path <clean checkout>` to update frontend snapshots and provenance. A pass proves compatibility with that recorded revision, not an arbitrary later deployed backend.
+Automated local, GitHub CI and Xcode Cloud tests consume committed test-only snapshots in `PumpSyncTests/SessionContractSnapshots/`. Their backend revision and SHA-256 checksums are recorded in `session-contract-manifest.json`; preparation validates the snapshots without backend access or a .NET SDK. Missing resources fail the tests. Backend CI regenerates deterministic exports and rejects drift against its own committed copies. After a reviewed backend contract change is committed, use `bash Scripts/ios/update-session-contract-snapshots.sh --backend-path <clean checkout>` to update frontend snapshots and provenance. A pass proves compatibility with that recorded revision, not an arbitrary later deployed backend.

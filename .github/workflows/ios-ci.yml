@@ -11,15 +11,15 @@ on:
       - "PumpSyncTests/**"
       - "PumpSyncUITests/**"
       - "project.yml"
-      - "scripts/validate-version.sh"
-      - "scripts/ios/validate-tests.sh"
-      - "scripts/ios/validate-cloud-tests.sh"
-      - "scripts/ios/validate-session-contract.sh"
-      - "scripts/ios/prepare-session-contract.sh"
-      - "scripts/ios/update-session-contract-snapshots.sh"
-      - "scripts/tests/validate-session-contract-snapshots-tests.sh"
+      - "Scripts/validate-version.sh"
+      - "Scripts/ios/validate-tests.sh"
+      - "Scripts/ios/validate-cloud-tests.sh"
+      - "Scripts/ios/validate-session-contract.sh"
+      - "Scripts/ios/prepare-session-contract.sh"
+      - "Scripts/ios/update-session-contract-snapshots.sh"
+      - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
-      - "scripts/tests/validate-version-tests.sh"
+      - "Scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
   pull_request:
     paths:
@@ -27,15 +27,15 @@ on:
       - "PumpSyncTests/**"
       - "PumpSyncUITests/**"
       - "project.yml"
-      - "scripts/validate-version.sh"
-      - "scripts/ios/validate-tests.sh"
-      - "scripts/ios/validate-cloud-tests.sh"
-      - "scripts/ios/validate-session-contract.sh"
-      - "scripts/ios/prepare-session-contract.sh"
-      - "scripts/ios/update-session-contract-snapshots.sh"
-      - "scripts/tests/validate-session-contract-snapshots-tests.sh"
+      - "Scripts/validate-version.sh"
+      - "Scripts/ios/validate-tests.sh"
+      - "Scripts/ios/validate-cloud-tests.sh"
+      - "Scripts/ios/validate-session-contract.sh"
+      - "Scripts/ios/prepare-session-contract.sh"
+      - "Scripts/ios/update-session-contract-snapshots.sh"
+      - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
-      - "scripts/tests/validate-version-tests.sh"
+      - "Scripts/tests/validate-version-tests.sh"
       - ".github/workflows/ios-ci.yml"
 
 permissions:
@@ -51,11 +51,11 @@ jobs:
 
       - name: Validate release version
         run: |
-          scripts/tests/validate-version-tests.sh
-          scripts/validate-version.sh
+          Scripts/tests/validate-version-tests.sh
+          Scripts/validate-version.sh
 
       - name: Validate committed contract snapshots
-        run: bash scripts/tests/validate-session-contract-snapshots-tests.sh
+        run: bash Scripts/tests/validate-session-contract-snapshots-tests.sh
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -114,4 +114,4 @@ jobs:
         env:
           PUMPSYNC_TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
         run: |
-          bash scripts/ios/validate-tests.sh -jobs 1 -parallel-testing-enabled NO -derivedDataPath .DerivedData
+          bash Scripts/ios/validate-tests.sh -jobs 1 -parallel-testing-enabled NO -derivedDataPath .DerivedData
