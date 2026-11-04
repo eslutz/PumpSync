@@ -152,12 +152,20 @@ final class AppServices {
     let defaults = UserDefaults(suiteName: defaultsSuiteName) ?? .standard
     defaults.removePersistentDomain(forName: defaultsSuiteName)
 
-    let apiClient = PumpSyncAPIClient.live()
-    apiClient.maxRetryCount = 0
+    let apiClient: PumpSyncAPIClient
+    if AppLaunchEnvironment.screenshotPreviewState != nil {
+      let configuration = URLSessionConfiguration.ephemeral
+      configuration.protocolClasses = [ScreenshotPreviewURLProtocol.self]
+      apiClient = PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLSession(configuration: configuration), maxRetryCount: 0)
+    } else {
+      apiClient = PumpSyncAPIClient.live()
+      apiClient.maxRetryCount = 0
+    }
     let backendConfigurationStore = BackendConfigurationStore(defaults: defaults)
     let diagnosticsLogStore = DiagnosticsLogStore(defaults: defaults)
     let nativeDiagnosticsStore = NativeDiagnosticsStore(defaults: defaults)
-    let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync.screenshots")
+    let keychain = SecureKeychainStore(service: AppLaunchEnvironment.screenshotPreviewState == nil
+      ? "dev.ericslutz.PumpSync.screenshots" : "dev.ericslutz.PumpSync.screenshots.preview")
     let sessionStore = BackendSessionStore(keychain: keychain)
     let credentialStore = TandemCredentialStore(keychain: keychain)
     let insulinConcentrationStore = InsulinConcentrationStore(defaults: defaults)
@@ -207,11 +215,25 @@ final class AppServices {
 
     backendConfigurationStore.mode = .hosted
     backendConfigurationStore.selfHostedBaseURLString = ""
-    authService.applyScreenshotSession(serviceMode: "hosted")
+    if AppLaunchEnvironment.screenshotPreviewState != nil {
+      backendConfigurationStore.selfHostedBaseURLString = "https://example.com/api"
+      backendConfigurationStore.mode = .selfHosted
+      _ = backendConfigurationStore.apply(to: apiClient)
+      authService.applyScreenshotSession(serviceMode: "selfHosted")
+    } else {
+      authService.applyScreenshotSession(serviceMode: "hosted")
+    }
     credentialStore.applyScreenshotStatus(
       redactedUsername: "demo@pumpsync.app",
       validatedAt: Date().addingTimeInterval(-60 * 60)
     )
+    if AppLaunchEnvironment.screenshotPreviewState != nil {
+      do {
+        try credentialStore.saveValidated(.init(username: "demo@pumpsync.app", password: "synthetic-only", region: "us"))
+      } catch {
+        assertionFailure("Could not prepare synthetic preview credentials")
+      }
+    }
     healthKitService.applyScreenshotAuthorization()
     let screenshotMetadata = if AppLaunchEnvironment.isScreenshotInitialSync {
       SyncMetadata(

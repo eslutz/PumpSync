@@ -4,7 +4,8 @@ import UniformTypeIdentifiers
 
 struct DeveloperView: View {
   @Environment(AppServices.self) private var services
-  @State private var expandedLog: DiagnosticsLogDestination?
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @State private var logToClear: DiagnosticsLogDestination?
   @State private var copiedItem: CopiedDiagnosticsItem?
 
   var body: some View {
@@ -64,29 +65,13 @@ struct DeveloperView: View {
         }
 
         GlassSection {
-          VStack(alignment: .leading, spacing: 18) {
-            logHeading(.appEvents)
-            appEventLogContent()
-          }
-        }
-
-        GlassSection {
-          VStack(alignment: .leading, spacing: 18) {
-            logHeading(.devicePerformance)
-            devicePerformanceDiagnosticsContent()
-          }
+          logLink(.appEvents)
+          GlassDivider()
+          logLink(.devicePerformance)
         }
       }
     }
     .navigationTitle("Developer")
-    .fullScreenCover(item: $expandedLog) { destination in
-      DiagnosticsLogFullScreen(title: destination.title) {
-        switch destination {
-        case .appEvents: appEventLogContent(expanded: true)
-        case .devicePerformance: devicePerformanceDiagnosticsContent(expanded: true)
-        }
-      }
-    }
   }
 
   private var appVersion: String {
@@ -130,114 +115,97 @@ struct DeveloperView: View {
     SupportBundleBuilder.build(services: services)
   }
 
-  @ViewBuilder
-  private func appEventLogContent(expanded: Bool = false) -> some View {
-    if services.diagnosticsLogStore.entries.isEmpty {
-      Text("No app events recorded.")
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
-    } else {
-      logViewport(expanded: expanded, identifier: "AppEventLogScroll") {
-        ForEach(services.diagnosticsLogStore.entries) { entry in
-          diagnosticRow(entry)
-        }
-      }
-
-      GlassDivider()
-
-      diagnosticsActions(
-        copyTitle: "Copy App Event Log",
-        clearTitle: "Clear App Event Log",
-        copiedItem: .appEventLog,
-        copy: { diagnosticsText },
-        clear: { services.diagnosticsLogStore.clear() }
+  private func logLink(_ destination: DiagnosticsLogDestination) -> some View {
+    NavigationLink {
+      diagnosticsLog(destination)
+    } label: {
+      GlassNavigationRow(
+        destination.title,
+        subtitle: logSummary(destination),
+        systemImage: destination == .appEvents ? "list.bullet.rectangle" : "waveform.path.ecg"
       )
     }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier(destination.rawValue + "LogLink")
   }
 
-  @ViewBuilder
-  private func devicePerformanceDiagnosticsContent(expanded: Bool = false) -> some View {
-    if services.nativeDiagnosticsStore.entries.isEmpty {
-      Text("No device performance diagnostics recorded.")
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
-    } else {
-      logViewport(expanded: expanded, identifier: "DevicePerformanceLogScroll") {
-        ForEach(services.nativeDiagnosticsStore.entries) { entry in
-          nativeDiagnosticRow(entry)
+  private func logSummary(_ destination: DiagnosticsLogDestination) -> String {
+    let count = destination == .appEvents
+      ? services.diagnosticsLogStore.entries.count : services.nativeDiagnosticsStore.entries.count
+    let latest = destination == .appEvents
+      ? services.diagnosticsLogStore.entries.map(\.timestamp).max()
+      : services.nativeDiagnosticsStore.entries.map(\.timestamp).max()
+    guard let latest else { return "No entries recorded" }
+    let countLabel = count == 1 ? "1 entry" : "\(count) entries"
+    return "\(countLabel) · Latest \(formattedDate(latest))"
+  }
+
+  private func hasEntries(_ destination: DiagnosticsLogDestination) -> Bool {
+    destination == .appEvents
+      ? !services.diagnosticsLogStore.entries.isEmpty : !services.nativeDiagnosticsStore.entries.isEmpty
+  }
+
+  private func diagnosticsLog(_ destination: DiagnosticsLogDestination) -> some View {
+    List {
+      Section {
+        if !hasEntries(destination) {
+          Text(destination == .appEvents ? "No app events recorded." : "No device performance diagnostics recorded.")
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("EmptyDiagnosticsLog")
+        } else if destination == .appEvents {
+          ForEach(services.diagnosticsLogStore.entries) { entry in
+            diagnosticRow(entry)
+          }
+        } else {
+          ForEach(services.nativeDiagnosticsStore.entries) { entry in
+            nativeDiagnosticRow(entry)
+          }
         }
       }
-
-      GlassDivider()
-
-      diagnosticsActions(
-        copyTitle: "Copy Device Performance Diagnostics",
-        clearTitle: "Clear Device Performance Diagnostics",
-        copiedItem: .devicePerformanceDiagnostics,
-        copy: { nativeDiagnosticsText },
-        clear: { services.nativeDiagnosticsStore.clear() }
-      )
     }
-  }
+    .listStyle(.insetGrouped)
+    .navigationTitle(destination == .appEvents ? "App Event Log" : "Performance")
+    .navigationBarTitleDisplayMode(.inline)
+    .accessibilityIdentifier(destination.rawValue + "LogScreen")
+    .toolbar {
+      ToolbarItemGroup(placement: .topBarTrailing) {
+        Button {
+          copyToClipboard(destination == .appEvents ? diagnosticsText : nativeDiagnosticsText)
+          showCopiedFeedback(for: destination == .appEvents ? .appEventLog : .devicePerformanceDiagnostics)
+          UIAccessibility.post(notification: .announcement, argument: "Logs copied")
+        } label: {
+          Label(copiedItem == (destination == .appEvents ? .appEventLog : .devicePerformanceDiagnostics)
+                ? "Copied" : "Copy Logs", systemImage: "doc.on.doc")
+        }
+        .accessibilityLabel("Copy \(destination.title)")
+        .accessibilityIdentifier("CopyDiagnosticsLog")
+        .disabled(!hasEntries(destination))
 
-  private func logHeading(_ destination: DiagnosticsLogDestination) -> some View {
-    HStack(alignment: .top, spacing: 12) {
-      diagnosticsSubheading(destination.title)
-        .padding(.top, 12)
-      Button {
-        expandedLog = destination
-      } label: {
-        Image(systemName: "arrow.up.left.and.arrow.down.right")
-          .frame(width: 48, height: 48)
-          .contentShape(Rectangle())
+        Menu("Log Actions", systemImage: "ellipsis") {
+          Button("Clear Logs", systemImage: "trash", role: .destructive) {
+            logToClear = destination
+          }
+          .disabled(!hasEntries(destination))
+        }
+        .accessibilityIdentifier("DiagnosticsLogActions")
       }
-      .buttonStyle(.borderless)
-      .accessibilityLabel("Open \(destination.title) Full Screen")
-      .accessibilityIdentifier(destination.rawValue + "FullScreen")
     }
-  }
-
-  private func logViewport<Content: View>(expanded: Bool, identifier: String, @ViewBuilder content: () -> Content) -> some View {
-    ScrollView {
-      LazyVStack(alignment: .leading, spacing: 12, content: content)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .scrollIndicators(.visible)
-    .frame(height: expanded ? nil : 280)
-    .frame(maxHeight: expanded ? .infinity : nil)
-    .accessibilityIdentifier(identifier)
-  }
-
-  private func diagnosticsActions(
-    copyTitle: String,
-    clearTitle: String,
-    copiedItem item: CopiedDiagnosticsItem,
-    copy: @escaping () -> String,
-    clear: @escaping () -> Void
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Button {
-        copyToClipboard(copy())
-        showCopiedFeedback(for: item)
-      } label: {
-        Label(copiedItem == item ? "Copied" : copyTitle, systemImage: copiedItem == item ? "checkmark.circle" : "doc.on.doc")
+    .alert("Clear Logs?", isPresented: Binding(
+      get: { logToClear == destination },
+      set: { if !$0 { logToClear = nil } }
+    )) {
+      Button("Clear Logs", role: .destructive) {
+        if destination == .appEvents {
+          services.diagnosticsLogStore.clear()
+        } else {
+          services.nativeDiagnosticsStore.clear()
+        }
+        logToClear = nil
       }
-      .buttonStyle(.plain)
-      .foregroundStyle(.tint)
-      .accessibilityHint("Copies diagnostics to the clipboard")
-
-      Button(role: .destructive) {
-        clear()
-      } label: {
-        Label(clearTitle, systemImage: "trash")
-      }
-      .buttonStyle(.plain)
-      .foregroundStyle(.red)
+      Button("Cancel", role: .cancel) { logToClear = nil }
+    } message: {
+      Text("Clear all entries in \(destination.title)?")
     }
-    .padding(.top, 6)
-    .padding(.bottom, 2)
   }
 
   /// Diagnostics and the installation ID are only meant for a one-off paste
@@ -268,23 +236,17 @@ struct DeveloperView: View {
     }
   }
 
-  private func diagnosticsSubheading(_ title: String) -> some View {
-    Text(title)
-      .font(.subheadline.weight(.semibold))
-      .foregroundStyle(.primary)
-      .frame(maxWidth: .infinity, alignment: .leading)
-  }
-
   private func diagnosticsSectionHeading(_ title: String) -> some View {
     Text(title)
       .font(.headline)
+      .accessibilityAddTraits(.isHeader)
       .foregroundStyle(.secondary)
       .padding(.horizontal, 4)
   }
 
   private func diagnosticRow(_ entry: DiagnosticEntry) -> some View {
     VStack(alignment: .leading, spacing: 4) {
-      HStack(spacing: 8) {
+      diagnosticsMetadataLayout {
         Text(entry.source.rawValue)
           .font(.caption.weight(.semibold))
           .foregroundStyle(.secondary)
@@ -293,7 +255,9 @@ struct DeveloperView: View {
           .font(.caption)
           .foregroundStyle(severityColor(entry.severity))
 
-        Spacer(minLength: 0)
+        if !dynamicTypeSize.isAccessibilitySize {
+          Spacer(minLength: 0)
+        }
 
         Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
           .font(.caption)
@@ -316,13 +280,14 @@ struct DeveloperView: View {
     .accessibilityValue([
       entry.source.rawValue,
       entry.severity.rawValue,
+      entry.timestamp.formatted(date: .abbreviated, time: .standard),
       entry.message ?? ""
     ].filter { !$0.isEmpty }.joined(separator: ", "))
   }
 
   private func nativeDiagnosticRow(_ entry: NativeDiagnosticEntry) -> some View {
     VStack(alignment: .leading, spacing: 4) {
-      HStack(spacing: 8) {
+      diagnosticsMetadataLayout {
         Text(entry.kind.rawValue)
           .font(.caption.weight(.semibold))
           .foregroundStyle(.secondary)
@@ -331,7 +296,9 @@ struct DeveloperView: View {
           .font(.caption)
           .foregroundStyle(.tertiary)
 
-        Spacer(minLength: 0)
+        if !dynamicTypeSize.isAccessibilitySize {
+          Spacer(minLength: 0)
+        }
 
         Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
           .font(.caption)
@@ -352,8 +319,15 @@ struct DeveloperView: View {
     .accessibilityValue([
       entry.kind.rawValue,
       "App \(entry.appVersion) build \(entry.buildNumber)",
+      entry.timestamp.formatted(date: .abbreviated, time: .standard),
       entry.summary
     ].joined(separator: ", "))
+  }
+
+  private var diagnosticsMetadataLayout: AnyLayout {
+    dynamicTypeSize.isAccessibilitySize
+      ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+      : AnyLayout(HStackLayout(spacing: 8))
   }
 
   private func formattedDate(_ date: Date?) -> String {
@@ -389,31 +363,6 @@ private enum DiagnosticsLogDestination: String, Identifiable {
     switch self {
     case .appEvents: "App Event Log"
     case .devicePerformance: "Device Performance Diagnostics"
-    }
-  }
-}
-
-private struct DiagnosticsLogFullScreen<Content: View>: View {
-  @Environment(\.dismiss) private var dismiss
-  let title: String
-  @ViewBuilder let content: () -> Content
-
-  var body: some View {
-    NavigationStack {
-      VStack(alignment: .leading, spacing: 18) {
-        content()
-      }
-      .padding(20)
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-      .background(Color(.systemGroupedBackground))
-      .navigationTitle(title)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Close", systemImage: "xmark") { dismiss() }
-            .accessibilityIdentifier("CloseDiagnosticsLog")
-        }
-      }
     }
   }
 }

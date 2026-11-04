@@ -72,27 +72,16 @@ struct TandemCredentialForm: View {
         layout {
           Text("Region")
             .foregroundStyle(.primary)
+            .accessibilityHidden(true)
 
           if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
 
-          Menu {
+          NativeMenuPicker("Tandem region", selection: $region) {
             ForEach(TandemRegion.allCases) { choice in
-              Button { region = choice } label: {
-                if choice == region {
-                  Label(choice.title, systemImage: "checkmark")
-                } else {
-                  Text(choice.title)
-                }
-              }
+              Text(dynamicTypeSize.isAccessibilitySize && choice == .us ? "US" : choice.title).tag(choice)
             }
-          } label: {
-            Text(region.title)
-              .fixedSize(horizontal: false, vertical: true)
-              .frame(minHeight: 44, alignment: .leading)
           }
           .accessibilityIdentifier("TandemRegionPicker")
-          .accessibilityLabel("Tandem region")
-          .accessibilityValue(region.title)
         }
         .frame(minHeight: 44)
         .accessibilityElement(children: .contain)

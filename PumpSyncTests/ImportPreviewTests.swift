@@ -197,6 +197,22 @@ final class ImportPreviewTests: XCTestCase {
         }
         let largeController = try await rendererController(samples: large, date: date)
         try await capture(largeController, name: "test-target-large-1000", size: CGSize(width: 393, height: 852), text: .large, color: .light)
+        try await capture(try await rendererController(samples: samples, date: date), name: "test-target-ready-AX5-light", size: CGSize(width: 402, height: 874), text: .accessibility5, color: .light)
+        ready.fail("Your connection or pump credentials changed. Reconnect and validate your pump account in Settings.")
+        try await capture(ready, name: "test-target-failure-light", size: CGSize(width: 402, height: 874), text: .large, color: .light, requiresReady: false)
+        let (client, auth) = makeContext()
+        let context = snapshot()
+        let loading = ImportPreviewController(apiClient: client, authService: auth, currentContext: { context })
+        URLProtocolStub.requestHandler = { request in
+            Thread.sleep(forTimeInterval: 2)
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8))
+        }
+        let loadingTask = Task { await loading.load(request: request(), context: context, concentration: .u100) }
+        await Task.yield()
+        guard case .loading = loading.state else { return XCTFail("Expected loading fixture") }
+        try await capture(loading, name: "test-target-loading-light", size: CGSize(width: 402, height: 874), text: .large, color: .light, requiresReady: false)
+        loading.cancel()
+        await loadingTask.value
     }
 
     private func rendererController(samples: [SampleDTO], date: Date) async throws -> ImportPreviewController {
@@ -225,7 +241,7 @@ final class ImportPreviewTests: XCTestCase {
         return controller
     }
 
-    private func capture(_ controller: ImportPreviewController, name: String, size: CGSize, text: DynamicTypeSize, color: ColorScheme, scrollOffset: CGFloat = 0) async throws {
+    private func capture(_ controller: ImportPreviewController, name: String, size: CGSize, text: DynamicTypeSize, color: ColorScheme, scrollOffset: CGFloat = 0, requiresReady: Bool = true) async throws {
         let host = UIHostingController(rootView: NavigationStack {
             ImportPreviewView(controller: controller, retry: {})
         }.environment(\.dynamicTypeSize, text).environment(\.colorScheme, color))
@@ -243,7 +259,9 @@ final class ImportPreviewTests: XCTestCase {
             scroll.setContentOffset(CGPoint(x: 0, y: min(scrollOffset, maximum)), animated: false)
             try await Task.sleep(for: .milliseconds(350))
         }
-        guard case .ready = controller.state else { return XCTFail("Renderer lost ready data before capture") }
+        if requiresReady {
+            guard case .ready = controller.state else { return XCTFail("Renderer lost ready data before capture") }
+        }
         let image = UIGraphicsImageRenderer(size: size).image { _ in
             host.view.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }

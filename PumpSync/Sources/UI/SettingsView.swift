@@ -88,7 +88,7 @@ struct SettingsView: View {
           Text(services.authService.errorMessage ?? (
             services.authService.isSignedIn
               ? services.authService.statusMessage
-              : "Enter your backend’s base API URL, then tap Connect."
+              : "Enter the API URL, then tap Connect."
           ))
             .font(.footnote)
             .foregroundStyle(services.authService.errorMessage == nil ? Color.secondary : Color.primary)
@@ -378,53 +378,18 @@ private struct InsulinConcentrationView: View {
     .navigationTitle("Insulin Concentration")
   }
 
-  private var adaptiveMenuLayout: AnyLayout {
-    dynamicTypeSize.isAccessibilitySize
-      ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-      : AnyLayout(HStackLayout(spacing: 14))
-  }
-
   private var concentrationMenu: some View {
-    Menu {
-      Picker("Insulin Concentration", selection: Binding(
-        get: { services.insulinConcentrationStore.concentration },
-        set: { services.insulinConcentrationStore.concentration = $0 }
-      )) {
-        ForEach(InsulinConcentration.allCases) { concentration in
-          Text(concentration.title).tag(concentration)
+    LabeledMenuPickerRow(title: "Insulin Concentration", systemImage: "drop.fill") {
+        NativeMenuPicker("Insulin Concentration", selection: Binding(
+          get: { services.insulinConcentrationStore.concentration },
+          set: { services.insulinConcentrationStore.concentration = $0 }
+        )) {
+          ForEach(InsulinConcentration.allCases) { concentration in
+            Text(concentration.title).tag(concentration)
+          }
         }
-      }
-    } label: {
-      adaptiveMenuLayout {
-        Image(systemName: "drop.fill")
-          .rowIconColumn()
-          .foregroundStyle(.tint)
-          .accessibilityHidden(true)
-
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Insulin Concentration")
-            .foregroundStyle(.primary)
-
-          Text(services.insulinConcentrationStore.concentration.title)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-        .layoutPriority(1)
-
-        if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
-
-        Text("Change")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.tint)
-      }
-      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-      .contentShape(Rectangle())
+        .accessibilityIdentifier("InsulinConcentrationPicker")
     }
-    .buttonStyle(.plain)
-    .accessibilityIdentifier("InsulinConcentrationPicker")
-    .accessibilityLabel("Insulin Concentration")
-    .accessibilityValue(services.insulinConcentrationStore.concentration.title)
-    .accessibilityHint("Opens a menu to choose the insulin concentration")
   }
 
 }

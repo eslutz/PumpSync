@@ -23,6 +23,16 @@ enum InitialImportRange: String, CaseIterable, Codable, Identifiable {
     }
   }
 
+  // Short values keep the native menu control readable at accessibility text sizes.
+  var compactTitle: String {
+    switch self {
+    case .startFromNow: return "Now"
+    case .pastTwoDays: return "2 days"
+    case .pastWeek: return "7 days"
+    case .pastTwoWeeks: return "14 days"
+    }
+  }
+
   var initialSyncButtonTitle: String {
     switch self {
     case .startFromNow:

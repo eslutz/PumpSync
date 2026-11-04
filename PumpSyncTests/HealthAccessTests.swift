@@ -47,15 +47,15 @@ final class HealthAccessTests: XCTestCase {
     XCTAssertEqual(permissions.map(\.statusDescription), ["Allowed", "Not allowed"])
     XCTAssertEqual(
       HealthAccessCopy.healthAppInstructions,
-      "Open Settings. Tap Privacy & Security, then Health. Select PumpSync. Turn Insulin Delivery and Carbohydrates on or off."
+      "Open Health and tap Summary. Tap your profile picture or initials. Under Privacy, tap Apps, then PumpSync. Turn Insulin Delivery and Carbohydrates on or off."
     )
   }
 
   func testHealthAccessInstructionsAreReadableSteps() {
     XCTAssertEqual(HealthAccessCopy.healthAppInstructionSteps, [
-      "Open Settings.",
-      "Tap Privacy & Security, then Health.",
-      "Select PumpSync.",
+      "Open Health and tap Summary.",
+      "Tap your profile picture or initials.",
+      "Under Privacy, tap Apps, then PumpSync.",
       "Turn Insulin Delivery and Carbohydrates on or off."
     ])
   }
@@ -82,8 +82,9 @@ final class HealthAccessTests: XCTestCase {
 @MainActor
 private final class RecordingHealthPersistence: HealthSamplePersisting {
   var saved: [HKQuantitySample] = []
+  var permitsInsulin = true
   func authorizationStatus(for type: HKObjectType) -> HKAuthorizationStatus {
-    type.identifier == HKQuantityTypeIdentifier.insulinDelivery.rawValue ? .sharingAuthorized : .sharingDenied
+    permitsInsulin && type.identifier == HKQuantityTypeIdentifier.insulinDelivery.rawValue ? .sharingAuthorized : .sharingDenied
   }
   func save(_ samples: [HKQuantitySample], completion: @escaping @Sendable (Bool, Error?) -> Void) {
     saved.append(contentsOf: samples)
@@ -92,6 +93,28 @@ private final class RecordingHealthPersistence: HealthSamplePersisting {
 }
 
 extension HealthAccessTests {
+  func testForegroundReturnRefreshesChangedWritePermissionsWithoutSaving() async {
+    let persistence = RecordingHealthPersistence()
+    let service = HealthKitService(persistence: persistence)
+    var refreshes = 0
+    let recovery = ForegroundRecoveryController(setVisible: { _ in }) {
+      service.refreshAuthorizationStatus()
+      refreshes += 1
+    }
+    recovery.setScenePhase(.active)
+    let firstDeadline = Date().addingTimeInterval(2)
+    while refreshes < 1, Date() < firstDeadline { await Task.yield() }
+    XCTAssertTrue(service.hasAnyWritePermission)
+    recovery.setScenePhase(.background)
+    persistence.permitsInsulin = false
+    recovery.setScenePhase(.active)
+    let secondDeadline = Date().addingTimeInterval(2)
+    while refreshes < 2, Date() < secondDeadline { await Task.yield() }
+    XCTAssertEqual(refreshes, 2)
+    XCTAssertFalse(service.hasAnyWritePermission)
+    XCTAssertTrue(persistence.saved.isEmpty)
+  }
+
   func testAdapterOmitsDeniedTypeAndOnlyReturnsConfirmedAuthorizedSamples() async throws {
     let context = ImportSessionSnapshot(backendIdentity: "https://example.com/api", configurationRevision: 1, credentialRevision: 1, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource)
     let insulin = SampleDTO(externalId: "insulin", type: "insulin.bolus", value: 1, unit: "IU", startAt: Date(timeIntervalSince1970: 100), endAt: Date(timeIntervalSince1970: 100), metadata: [:], source: SourceDTO(deviceId: "pump", eventIds: ["insulin"]))

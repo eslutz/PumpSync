@@ -7,26 +7,32 @@ struct AboutPumpSyncView: View {
                 .font(.title3)
                 .fixedSize(horizontal: false, vertical: true)
 
-            AboutGuideRow(
+            GlassSection {
+              AboutGuideRow(
                 title: "Insulin and carbohydrates",
                 detail: "Imports available basal insulin, bolus insulin, and carbohydrate records with your Apple Health permissions.",
                 systemImage: "heart"
             )
-            AboutGuideRow(
+              GlassDivider().padding(.vertical, 12)
+              AboutGuideRow(
                 title: "Sync when you need to",
                 detail: "Tap Sync Now. Opening the app also attempts a sync if none has succeeded yet or the last success was at least four hours ago.",
                 systemImage: "arrow.triangle.2.circlepath"
             )
-            AboutGuideRow(
+              GlassDivider().padding(.vertical, 12)
+              AboutGuideRow(
                 title: "Updates in the background",
                 detail: "PumpSync requests background updates. iOS decides when they run, so timing isn’t guaranteed.",
                 systemImage: "clock"
             )
-            AboutGuideRow(
+              GlassDivider().padding(.vertical, 12)
+              AboutGuideRow(
                 title: "While syncing",
                 detail: "Keep PumpSync open until a foreground sync finishes. You can move between screens.",
                 systemImage: "iphone"
             )
+
+            }
 
             Text("Last Successful Sync shows the last completed sync, even if there were no new records.")
                 .font(.subheadline)

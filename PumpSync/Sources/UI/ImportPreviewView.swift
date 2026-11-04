@@ -7,23 +7,36 @@ struct ImportPreviewView: View {
     @State private var expandedRecords: Set<String> = []
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
+        List {
+            Section {
                 Text("Viewing or refreshing these records doesn’t change Apple Health.")
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("PreviewSafetyNotice")
-                switch controller.state {
+            }
+            switch controller.state {
                 case .idle:
+                  Section {
                     Text("Load records from your connected Tandem account to inspect them here.")
                     Button("Load Records") { Task { await retry() } }
+                        .frame(minHeight: 44)
+                  }
                 case .loading:
+                  Section {
                     ProgressView("Loading records from Tandem…")
                     Button("Cancel") { controller.cancel() }
+                        .frame(minHeight: 44)
+                  }
                 case .failed(let message):
+                  Section {
                     Text(message).foregroundStyle(.secondary)
                     Button("Try Again") { Task { await retry() } }
+                        .frame(minHeight: 44)
+                  }
                 case .ready(let plan):
+                  Section {
                     summary(plan)
+                  }
+                  Section("Records") {
                     if plan.samples.isEmpty {
                         Text("No records in this time range")
                     }
@@ -39,15 +52,12 @@ struct ImportPreviewView: View {
                                 }
                             )
                         )
-                        Divider()
                     }
+                  }
                 }
-            }
-            .padding(20)
-            .padding(.bottom, 120)
-            .frame(maxWidth: 760, alignment: .leading)
-            .frame(maxWidth: .infinity)
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Inspect Source Data")
         .onDisappear { controller.suspend() }
@@ -78,15 +88,22 @@ struct ImportPreviewView: View {
 
             if controller.isRefreshing {
                 ProgressView("Refreshing records…")
-                Button("Cancel Refresh") { controller.suspend() }
+                Button { controller.suspend() } label: {
+                    Text("Cancel Refresh")
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
             } else {
                 if let error = controller.refreshError {
                     Text("\(error) Showing the records loaded earlier.")
                         .foregroundStyle(.secondary)
                 }
-                Button("Refresh Records") { Task { await retry() } }
+                Button { Task { await retry() } } label: {
+                    Text("Refresh Records")
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
             }
-            Divider()
         }
     }
 }

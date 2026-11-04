@@ -55,9 +55,9 @@ struct HealthWritePermission: Identifiable, Equatable {
 
 enum HealthAccessCopy {
   static let healthAppInstructionSteps = [
-    "Open Settings.",
-    "Tap Privacy & Security, then Health.",
-    "Select PumpSync.",
+    "Open Health and tap Summary.",
+    "Tap your profile picture or initials.",
+    "Under Privacy, tap Apps, then PumpSync.",
     "Turn Insulin Delivery and Carbohydrates on or off."
   ]
 

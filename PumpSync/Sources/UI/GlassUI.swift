@@ -12,7 +12,7 @@ struct PumpSyncScreen<Content: View>: View {
   }
 
   var body: some View {
-    ScrollView(.vertical, showsIndicators: false) {
+    ScrollView(.vertical) {
       VStack(alignment: .leading, spacing: spacing) {
         content
       }
@@ -20,7 +20,7 @@ struct PumpSyncScreen<Content: View>: View {
       .frame(maxWidth: .infinity, alignment: .top)
       .padding(.horizontal, 20)
       .padding(.top, 12)
-      .padding(.bottom, 120)
+      .padding(.bottom, 24)
     }
     .background(Color(.systemGroupedBackground))
     .transaction { transaction in
@@ -45,6 +45,7 @@ struct GlassSection<Content: View>: View {
       if let title {
         Text(title)
           .font(.headline)
+          .accessibilityAddTraits(.isHeader)
           .foregroundStyle(.secondary)
           .padding(.horizontal, 4)
       }
@@ -82,6 +83,7 @@ extension View {
 }
 
 struct GlassStatusRow: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   let title: String
   let value: String
@@ -90,7 +92,10 @@ struct GlassStatusRow: View {
   var showsProgress = false
 
   var body: some View {
-    HStack(spacing: 14) {
+    let layout = dynamicTypeSize.isAccessibilitySize
+      ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+      : AnyLayout(HStackLayout(spacing: 14))
+    layout {
       Image(systemName: systemImage)
         .rowIconColumn()
         .foregroundStyle(tint)
@@ -106,7 +111,7 @@ struct GlassStatusRow: View {
       }
       .layoutPriority(1)
 
-      Spacer(minLength: 0)
+      if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
 
       if showsProgress && !reduceMotion {
         ProgressView()
@@ -158,6 +163,7 @@ struct GlassNavigationRow: View {
         .foregroundStyle(.tertiary)
         .accessibilityHidden(true)
     }
+    .frame(minHeight: 44)
     .contentShape(Rectangle())
     .padding(.vertical, 6)
     .accessibilityElement(children: .ignore)
@@ -195,7 +201,8 @@ struct GlassPrimaryLabel: View {
 
       Spacer(minLength: 0)
     }
-      .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+      .contentShape(Rectangle())
       .accessibilityElement(children: .ignore)
       .accessibilityLabel(title)
   }
@@ -227,6 +234,7 @@ struct GroupedRowActionButtonStyle: ButtonStyle {
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
+      .frame(minHeight: 44)
       .padding(.vertical, 6)
       .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : disabledOpacity)
   }
@@ -249,5 +257,73 @@ struct GroupedInlineButtonStyle: ButtonStyle {
 
   private var disabledOpacity: Double {
     colorSchemeContrast == .increased ? 0.7 : 0.55
+  }
+}
+
+struct LabeledMenuPickerRow<Content: View>: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  let title: String
+  let systemImage: String
+  @ViewBuilder let content: () -> Content
+
+  var body: some View {
+    if dynamicTypeSize.isAccessibilitySize {
+      stacked
+    } else {
+      HStack(spacing: 0) {
+        icon.padding(.trailing, 14)
+        Text(title).fixedSize(horizontal: false, vertical: true)
+          .accessibilityHidden(true)
+        Spacer(minLength: 8)
+        content()
+      }
+    }
+  }
+
+  private var stacked: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      icon
+      Text(title).accessibilityHidden(true)
+      content()
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var icon: some View {
+    Image(systemName: systemImage)
+      .rowIconColumn()
+      .foregroundStyle(.tint)
+  }
+}
+
+// The system picker supplies its indicator and selected-item checkmarks.
+struct NativeMenuPicker<Selection: Hashable, Options: View>: View {
+  let title: String
+  @Binding var selection: Selection
+  private let options: Options
+
+  init(_ title: String, selection: Binding<Selection>, @ViewBuilder options: () -> Options) {
+    self.title = title
+    _selection = selection
+    self.options = options()
+  }
+
+  var body: some View {
+    Picker(title, selection: $selection) { options }
+      .pickerStyle(.menu)
+      .buttonStyle(NativeMenuPickerButtonStyle())
+      .labelsHidden()
+      .font(.subheadline)
+      .fixedSize(horizontal: true, vertical: true)
+      .frame(minHeight: 44, alignment: .leading)
+      .contentShape(Rectangle())
+  }
+}
+
+private struct NativeMenuPickerButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .frame(minHeight: 44, alignment: .leading)
+      .contentShape(Rectangle())
   }
 }

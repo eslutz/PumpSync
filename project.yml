@@ -28,6 +28,8 @@ schemes:
     test:
       config: Debug
       debugEnabled: false
+      environmentVariables:
+        PUMPSYNC_SCREENSHOT_MODE: "1"
       targets:
         - PumpSyncTests
         - PumpSyncUITests
