@@ -23,19 +23,31 @@ enum BackgroundExecutionDeadline {
         let completed = Mutex(false)
         let timeoutTaskBox = Mutex<Task<Void, Never>?>(nil)
         let finish: @Sendable (BackgroundExecutionOutcome) -> Void = { outcome in
-          lease?.revoke()
           let shouldFinish = completed.withLock { completed in
             guard !completed else { return false }
             completed = true
             return true
           }
           guard shouldFinish else { return }
-          timeoutTaskBox.withLock { task in
-            task?.cancel()
+          // Claim the ending reason before revoking the lease or cancelling
+          // work: either can make the operation return false immediately.
+          lease?.revoke()
+          let timeoutTask = timeoutTaskBox.withLock { task in
+            let pending = task
             task = nil
+            return pending
           }
-          workTaskBox.withLock { $0 = nil }
+          let work = workTaskBox.withLock { task in
+            let pending = task
+            task = nil
+            return pending
+          }
           finishBox.withLock { $0 = nil }
+          timeoutTask?.cancel()
+          switch outcome {
+          case .completed: break
+          case .cancelled, .timedOut: work?.cancel()
+          }
           continuation.resume(returning: outcome)
         }
 
@@ -55,7 +67,9 @@ enum BackgroundExecutionDeadline {
         // continuation, do not leave a newly created operation running.
         let shouldCancelWork = completed.withLock { $0 }
         if shouldCancelWork {
+          workTaskBox.withLock { $0 = nil }
           work.cancel()
+          return
         }
 
         let timeoutTask = Task {
@@ -64,22 +78,19 @@ enum BackgroundExecutionDeadline {
           } catch {
             return
           }
-          lease?.revoke()
-          work.cancel()
           finish(.timedOut)
         }
-        let shouldStoreTimeout = completed.withLock { !$0 }
-        if shouldStoreTimeout {
-          timeoutTaskBox.withLock { $0 = timeoutTask }
-        } else {
+        timeoutTaskBox.withLock { $0 = timeoutTask }
+        if completed.withLock({ $0 }) {
+          timeoutTaskBox.withLock { $0 = nil }
           timeoutTask.cancel()
         }
       }
     } onCancel: {
-      lease?.revoke()
-      workTaskBox.withLock { $0?.cancel() }
       let finish = finishBox.withLock { $0 }
       finish?(.cancelled)
+      // Cancellation can arrive before the continuation installs finish.
+      lease?.revoke()
     }
   }
 }
