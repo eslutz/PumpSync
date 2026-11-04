@@ -1,0 +1,144 @@
+[
+  {
+    "attributes": {
+      "actions": [
+        {
+          "actionType": "TEST",
+          "buildDistributionAudience": null,
+          "destination": null,
+          "isRequiredToPass": true,
+          "name": "Test - iOS",
+          "platform": "IOS",
+          "scheme": "PumpSync",
+          "testConfiguration": {
+            "kind": "USE_SCHEME_SETTINGS",
+            "testDestinations": [
+              {
+                "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+                "deviceTypeName": "iPhone SE (3rd generation)",
+                "kind": "SIMULATOR",
+                "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+                "runtimeName": "iOS 27.0"
+              }
+            ],
+            "testPlanName": ""
+          }
+        }
+      ],
+      "branchStartCondition": null,
+      "clean": false,
+      "containerFilePath": "PumpSync.xcodeproj",
+      "description": "Manual routine validation. Full unit and UI suite on one iPhone SE (3rd generation), iOS 27.0. Cached build data; no archive or TestFlight distribution.",
+      "isEnabled": true,
+      "isLockedForEditing": false,
+      "lastModifiedDate": "2026-10-22T20:38:37.486Z",
+      "manualBranchStartCondition": {
+        "source": {
+          "isAllMatch": true,
+          "patterns": []
+        }
+      },
+      "manualPullRequestStartCondition": null,
+      "manualTagStartCondition": null,
+      "name": "PumpSync Validation",
+      "pullRequestStartCondition": null,
+      "scheduledStartCondition": null,
+      "tagStartCondition": null
+    },
+    "id": "3fdf7a99-a43d-4523-b738-29db6b8df9b6",
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6"
+    },
+    "relationships": {
+      "buildRuns": {
+        "links": {
+          "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/buildRuns",
+          "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/relationships/buildRuns"
+        }
+      },
+      "repository": {
+        "links": {
+          "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/repository",
+          "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/relationships/repository"
+        }
+      }
+    },
+    "type": "ciWorkflows"
+  },
+  {
+    "attributes": {
+      "actions": [
+        {
+          "actionType": "TEST",
+          "buildDistributionAudience": null,
+          "destination": null,
+          "isRequiredToPass": true,
+          "name": "Test - iOS",
+          "platform": "IOS",
+          "scheme": "PumpSync",
+          "testConfiguration": {
+            "kind": "USE_SCHEME_SETTINGS",
+            "testDestinations": [
+              {
+                "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+                "deviceTypeName": "iPhone SE (3rd generation)",
+                "kind": "SIMULATOR",
+                "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+                "runtimeName": "iOS 27.0"
+              }
+            ],
+            "testPlanName": ""
+          }
+        },
+        {
+          "actionType": "ARCHIVE",
+          "buildDistributionAudience": "INTERNAL_ONLY",
+          "destination": null,
+          "isRequiredToPass": true,
+          "name": "Archive - iOS",
+          "platform": "IOS",
+          "scheme": "PumpSync Beta",
+          "testConfiguration": null
+        }
+      ],
+      "branchStartCondition": null,
+      "clean": false,
+      "containerFilePath": "PumpSync.xcodeproj",
+      "description": "Manual internal TestFlight release. Required full unit and UI suite on iPhone SE (3rd generation), iOS 27.0, plus PumpSync Beta archive. Cached builds enabled. Use PumpSync Validation for routine checks.",
+      "isEnabled": true,
+      "isLockedForEditing": false,
+      "lastModifiedDate": "2026-10-22T20:37:30.769Z",
+      "manualBranchStartCondition": {
+        "source": {
+          "isAllMatch": true,
+          "patterns": []
+        }
+      },
+      "manualPullRequestStartCondition": null,
+      "manualTagStartCondition": null,
+      "name": "PumpSync Internal Beta",
+      "pullRequestStartCondition": null,
+      "scheduledStartCondition": null,
+      "tagStartCondition": null
+    },
+    "id": "0549B95A-6802-4DE6-8A2E-0D79DF62DD1A",
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A"
+    },
+    "relationships": {
+      "buildRuns": {
+        "links": {
+          "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/buildRuns",
+          "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/relationships/buildRuns"
+        }
+      },
+      "repository": {
+        "links": {
+          "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/repository",
+          "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/relationships/repository"
+        }
+      }
+    },
+    "type": "ciWorkflows"
+  }
+]

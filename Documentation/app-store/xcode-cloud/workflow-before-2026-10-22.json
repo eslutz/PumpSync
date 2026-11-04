@@ -1,0 +1,98 @@
+{
+  "type": "ciWorkflows",
+  "id": "0549B95A-6802-4DE6-8A2E-0D79DF62DD1A",
+  "attributes": {
+    "manualTagStartCondition": null,
+    "isLockedForEditing": false,
+    "tagStartCondition": null,
+    "lastModifiedDate": "2026-10-21T01:18:29.646Z",
+    "manualPullRequestStartCondition": null,
+    "description": "",
+    "clean": true,
+    "branchStartCondition": null,
+    "containerFilePath": "PumpSync.xcodeproj",
+    "pullRequestStartCondition": null,
+    "scheduledStartCondition": null,
+    "isEnabled": true,
+    "name": "PumpSync Internal Beta",
+    "manualBranchStartCondition": {
+      "source": {
+        "isAllMatch": true,
+        "patterns": []
+      }
+    },
+    "actions": [
+      {
+        "name": "Test - iOS",
+        "actionType": "TEST",
+        "destination": null,
+        "buildDistributionAudience": null,
+        "testConfiguration": {
+          "kind": "USE_SCHEME_SETTINGS",
+          "testPlanName": "",
+          "testDestinations": [
+            {
+              "deviceTypeName": "Recommended iPhones",
+              "deviceTypeIdentifier": "recommended_iphones",
+              "runtimeName": "Latest from Selected Xcode (iOS 26.5)",
+              "runtimeIdentifier": "default",
+              "kind": "SIMULATOR"
+            }
+          ]
+        },
+        "scheme": "PumpSync",
+        "platform": "IOS",
+        "isRequiredToPass": true
+      },
+      {
+        "name": "Archive - iOS",
+        "actionType": "ARCHIVE",
+        "destination": null,
+        "buildDistributionAudience": "INTERNAL_ONLY",
+        "testConfiguration": null,
+        "scheme": "PumpSync Beta",
+        "platform": "IOS",
+        "isRequiredToPass": true
+      }
+    ]
+  },
+  "relationships": {
+    "macOsVersion": {
+      "data": {
+        "type": "ciMacOsVersions",
+        "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f"
+      }
+    },
+    "product": {
+      "data": {
+        "type": "ciProducts",
+        "id": "2E9036C0-9B68-4B35-9F7C-1867AB66EAC1"
+      }
+    },
+    "buildRuns": {
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/relationships/buildRuns",
+        "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/buildRuns"
+      }
+    },
+    "repository": {
+      "data": {
+        "type": "scmRepositories",
+        "id": "9adb1a47-3bd9-45a9-bd3e-42bfb70e96b3"
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/relationships/repository",
+        "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/repository"
+      }
+    },
+    "xcodeVersion": {
+      "data": {
+        "type": "ciXcodeVersions",
+        "id": "c6252c7c-1b08-421a-921a-3c744e454fba"
+      }
+    }
+  },
+  "links": {
+    "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A"
+  }
+}
