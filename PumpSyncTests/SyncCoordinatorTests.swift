@@ -1059,7 +1059,7 @@ final class SyncCoordinatorTests: XCTestCase {
     )
   }
 
-  func testDismissingProgressDoesNotStopSyncOrReappearBetweenPhases() async throws {
+  func testProgressTransitionsPreserveSyncAndCompletion() async throws {
     let requestStarted = expectation(description: "download started")
     let saveStarted = expectation(description: "save started")
     let allowResponse = DispatchSemaphore(value: 0)
@@ -1067,7 +1067,7 @@ final class SyncCoordinatorTests: XCTestCase {
     health.suspendsSave = true
     health.saveStarted = { saveStarted.fulfill() }
     let responseHandler = syncResponseHandler(
-      samples: [sample(externalId: "dismissed-notification")],
+      samples: [sample(externalId: "inline-progress")],
       effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
       effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
     )
@@ -1085,27 +1085,18 @@ final class SyncCoordinatorTests: XCTestCase {
     )
     coordinator.startManualSync()
     await fulfillment(of: [requestStarted], timeout: 2)
-    coordinator.dismissNotification()
-    XCTAssertTrue(coordinator.isNotificationDismissed)
     XCTAssertTrue(coordinator.isSyncing)
     XCTAssertEqual(coordinator.syncPhase, .downloading)
     allowResponse.signal()
     await fulfillment(of: [saveStarted], timeout: 2)
-    XCTAssertTrue(coordinator.isNotificationDismissed)
     XCTAssertTrue(coordinator.isSyncing)
     XCTAssertEqual(coordinator.syncPhase, .updatingHealth)
     health.resumeSave()
     await waitUntil { !coordinator.isSyncing }
     guard case .succeeded = coordinator.operationState else {
-      return XCTFail("dismissed sync must still complete")
+      return XCTFail("sync must complete")
     }
     XCTAssertNotNil(metadata.metadata.lastSuccessfulSyncAt)
-    XCTAssertFalse(coordinator.isNotificationDismissed)
-    coordinator.dismissNotification()
-    guard case .succeeded = coordinator.operationState else {
-      return XCTFail("dismissing a result must preserve the operation result")
-    }
-    XCTAssertTrue(coordinator.isNotificationDismissed)
   }
 
   func testDismissResultReturnsToIdleButCannotDismissRunningOperation() async throws {
@@ -1723,7 +1714,6 @@ final class SyncCoordinatorTests: XCTestCase {
     await waitUntil { !foreground.isRecovering }
     if preserveCompletion {
       coordinator.applyScreenshotSuccess()
-      coordinator.dismissNotification()
     }
     let priorPresentation = coordinator.operationState
     let bootstrap = Task { await coordinator.reconcileForegroundRecovery() }
@@ -1777,10 +1767,9 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertFalse(coordinator.hasActiveSyncExecution)
     await waitUntil { !foreground.isRecovering }
     XCTAssertEqual(recoverySignals, 1, "Owned recovery must consume its auth signal without scheduling another reconciliation")
-    if preserveCompletion { XCTAssertTrue(coordinator.isNotificationDismissed) }
   }
 
-  func testFreshReconciliationPreservesDismissedCompletionPresentation() async throws {
+  func testFreshReconciliationPreservesCompletionPresentation() async throws {
     URLProtocolStub.requestHandler = { _ in XCTFail("A fresh reconciliation cannot download"); throw APIClientError.invalidResponse }
     let metadata = makeSyncMetadataStore()
     let auth = makeSignedInAuthService()
@@ -1788,16 +1777,14 @@ final class SyncCoordinatorTests: XCTestCase {
     metadata.recordSuccess(sampleCount: 1, importedCount: 1, completedAt: Date(), watermark: Date(), owner: try historyOwner(credentials, auth: auth))
     let coordinator = makeCoordinator(authService: auth, credentialStore: credentials, syncMetadataStore: metadata)
     coordinator.applyScreenshotSuccess()
-    coordinator.dismissNotification()
     let prior = coordinator.operationState
     let result = await coordinator.reconcileForegroundRecovery()
     XCTAssertEqual(result, .skippedFresh)
     XCTAssertEqual(coordinator.operationState, prior)
-    XCTAssertTrue(coordinator.isNotificationDismissed)
     XCTAssertFalse(coordinator.isSyncing)
   }
 
-  func testFreshReconciliationDoesNotRestartCompletionDismissalDeadline() async throws {
+  func testFreshReconciliationKeepsCompletionAvailableAfterEightSeconds() async throws {
     URLProtocolStub.requestHandler = { _ in XCTFail("A fresh reconciliation cannot download"); throw APIClientError.invalidResponse }
     let metadata = makeSyncMetadataStore()
     let auth = makeSignedInAuthService()
@@ -1807,11 +1794,9 @@ final class SyncCoordinatorTests: XCTestCase {
     coordinator.applyScreenshotSuccess()
     let completion = coordinator.operationState
     try await Task.sleep(for: .seconds(6))
-    XCTAssertFalse(coordinator.isNotificationDismissed)
     let outcome = await coordinator.reconcileForegroundRecovery()
     XCTAssertEqual(outcome, .skippedFresh)
     try await Task.sleep(for: .seconds(3))
-    XCTAssertTrue(coordinator.isNotificationDismissed, "Fresh auth reconciliation must retain the original eight-second deadline")
     XCTAssertEqual(coordinator.operationState, completion, "Automatic dismissal changes presentation only")
     XCTAssertFalse(coordinator.isSyncing)
   }

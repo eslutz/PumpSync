@@ -70,7 +70,7 @@ final class SyncViewTests: XCTestCase {
     XCTAssertNil(SyncStatusPresentation.make(for: .idle, now: now))
   }
 
-  func testSuccessPresentationAutoDismissesAfterEightSeconds() throws {
+  func testSuccessPresentationHasNoTransientDismissal() throws {
     let state = SyncOperationState.succeeded(
       SyncCompletion(message: "Imported 4 new samples.", completedAt: Date(timeIntervalSince1970: 100))
     )
@@ -81,7 +81,6 @@ final class SyncViewTests: XCTestCase {
     XCTAssertEqual(presentation.detail, "Imported 4 new samples.")
     XCTAssertEqual(presentation.systemImage, "checkmark.circle.fill")
     XCTAssertNil(presentation.action)
-    XCTAssertEqual(presentation.autoDismissAfter, 8)
   }
 
   func testFailurePresentationMapsEveryRecoveryAction() throws {
@@ -112,16 +111,16 @@ final class SyncViewTests: XCTestCase {
 
     XCTAssertEqual(retry.actionTitle, "Try Again")
     XCTAssertEqual(retry.action, .retry)
-    XCTAssertEqual(settings.actionTitle, "Open Settings")
+    XCTAssertEqual(settings.actionTitle, "Connection Settings")
     XCTAssertEqual(settings.action, .openSettings)
     XCTAssertEqual(subscription.title, "Subscription required")
     XCTAssertEqual(subscription.detail, "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.")
     XCTAssertEqual(subscription.actionTitle, "View Subscription")
     XCTAssertEqual(subscription.action, .openSubscription)
-    XCTAssertNil(wait.actionTitle)
-    XCTAssertNil(wait.action)
-    XCTAssertNil(dismiss.actionTitle)
-    XCTAssertNil(dismiss.action)
+    XCTAssertEqual(wait.actionTitle, "Try Again Later")
+    XCTAssertEqual(wait.action, .retry)
+    XCTAssertEqual(dismiss.actionTitle, "Try Again")
+    XCTAssertEqual(dismiss.action, .retry)
   }
 
   func testSyncPhaseMessagesExplainLongRunningActivation() {

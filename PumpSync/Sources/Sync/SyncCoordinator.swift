@@ -110,23 +110,8 @@ final class SyncCoordinator {
   }
   private var syncWaiters: [UUID: [UUID: Waiter]] = [:]
   private var foregroundActive = false
-  private var notificationDismissalTask: Task<Void, Never>?
-
-  private(set) var isNotificationDismissed = false
-
-  private(set) var operationState: SyncOperationState = .idle {
-    didSet {
-      // Progress phases belong to one notification. Its result and the next
-      // operation are new notifications, even if progress was dismissed.
-      if case .running(let previous) = oldValue,
-         case .running(let current) = operationState,
-         previous.startedAt == current.startedAt {
-        return
-      }
-      isNotificationDismissed = false
-      scheduleNotificationDismissal()
-    }
-  }
+  // Results remain available in the Sync screen until another operation or explicit recovery.
+  private(set) var operationState: SyncOperationState = .idle
 
   /// Includes foreground recovery and freshness evaluation before visible syncing.
   var hasActiveSyncExecution: Bool { syncTask != nil }
@@ -292,27 +277,6 @@ final class SyncCoordinator {
       return
     }
     startManualSync()
-  }
-
-  func dismissNotification() {
-    isNotificationDismissed = true
-    notificationDismissalTask?.cancel()
-    notificationDismissalTask = nil
-  }
-
-  private func scheduleNotificationDismissal() {
-    notificationDismissalTask?.cancel()
-    notificationDismissalTask = nil
-    guard case .succeeded(let completion) = operationState else { return }
-    // The original deadline belongs to the completion, not to foreground
-    // reconciliation or a SwiftUI view's lifetime.
-    let remaining = max(0, completion.completedAt.addingTimeInterval(8).timeIntervalSinceNow)
-    notificationDismissalTask = Task { @MainActor [weak self] in
-      do { try await Task.sleep(for: .seconds(remaining)) }
-      catch { return }
-      guard let self, self.operationState == .succeeded(completion) else { return }
-      self.dismissNotification()
-    }
   }
 
   func dismissResult() {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SyncView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -17,7 +18,7 @@ struct SyncView: View {
           showsProgress: services.authService.isConnecting
         )
 
-        if !services.authService.isSignedIn && !services.authService.isConnecting {
+        if !services.authService.isSignedIn && !services.authService.isConnecting && syncFailure == nil {
           Text(services.authService.errorMessage ?? "Connect before syncing pump data to Apple Health.")
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -66,17 +67,49 @@ struct SyncView: View {
         }
       }
 
-      Button {
-        if canSync {
-          services.syncCoordinator.startManualSync()
+      if let failure = syncFailure {
+        GlassSection {
+          Label(failure.recovery == .openSubscription ? "Subscription required" : "Sync needs attention",
+                systemImage: "exclamationmark.triangle.fill")
+            .font(.headline)
+            .accessibilityAddTraits(.isHeader)
+            .fixedSize(horizontal: false, vertical: true)
+          Text(failure.message)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 8)
+          Button(action: recoverSync) {
+            GlassPrimaryLabel(title: recoveryTitle, systemImage: recoveryIcon)
+          }
+          .buttonStyle(GroupedRowActionButtonStyle())
+          .disabled(services.syncCoordinator.isSyncing)
         }
-      } label: {
-        SyncButtonLabel(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing)
+      } else {
+        Button {
+          if canSync { services.syncCoordinator.startManualSync() }
+        } label: {
+          SyncButtonLabel(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing)
+        }
+        .buttonStyle(GroupedActionButtonStyle())
+        .disabled(!canSync)
       }
-      .buttonStyle(GroupedActionButtonStyle())
-      .disabled(!canSync)
 
-      if services.authService.isSignedIn,
+      if services.syncCoordinator.isSyncing {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+          if let presentation = SyncStatusPresentation.make(
+            for: services.syncCoordinator.operationState, now: context.date
+          ) {
+            Text(presentation.detail)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .accessibilityIdentifier("SyncProgressDetail")
+          }
+        }
+      }
+
+      if syncFailure == nil, services.authService.isSignedIn,
          let message = Self.readinessMessage(
            isBackendConnected: true,
            isConnecting: services.authService.isConnecting,
@@ -99,6 +132,14 @@ struct SyncView: View {
               tint: .green
             )
           }
+          if case .succeeded(let completion) = services.syncCoordinator.operationState {
+            Text(completion.message)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+              .padding(.horizontal, 16)
+              .accessibilityIdentifier("SyncCompletionSummary")
+          }
           if Date().timeIntervalSince(lastSuccessfulSyncAt) >= AppConstants.staleSyncInterval {
             Label("Apple Health may be out of date.", systemImage: "clock.badge.exclamationmark")
               .font(.footnote)
@@ -110,62 +151,72 @@ struct SyncView: View {
       }
     }
     .navigationTitle("Sync")
-    .sheet(isPresented: $showsSubscription) {
+    .sheet(isPresented: $showsSubscription, onDismiss: {
+      if syncFailure?.recovery == .openSubscription,
+         !services.authService.requiresSubscriptionAction, canSync {
+        services.syncCoordinator.dismissResult()
+      }
+    }) {
       PumpSyncSubscriptionStoreView(isPresented: $showsSubscription)
+    }
+    .onChange(of: services.syncCoordinator.operationState) { _, state in
+      switch state {
+      case .succeeded(let completion):
+        UIAccessibility.post(notification: .announcement, argument: "Sync complete. \(completion.message)")
+      case .failed(let failure):
+        UIAccessibility.post(notification: .announcement, argument: failure.message)
+      case .running(let progress):
+        if progress.trigger == .background { break }
+        UIAccessibility.post(notification: .announcement, argument: progress.phase.message)
+      case .idle: break
+      }
     }
     .onAppear {
       services.healthKitService.refreshAuthorizationStatus()
+      if canSync, syncFailure?.recovery == .openSettings {
+        services.syncCoordinator.dismissResult()
+      }
     }
   }
 
-  private var adaptiveMenuLayout: AnyLayout {
-    dynamicTypeSize.isAccessibilitySize
-      ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-      : AnyLayout(HStackLayout(spacing: 14))
+  private var syncFailure: SyncFailure? {
+    if case .failed(let failure) = services.syncCoordinator.operationState { return failure }
+    return nil
+  }
+
+  private var recoveryTitle: String {
+    SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: Date())?.actionTitle ?? "Try Again"
+  }
+
+  private var recoveryIcon: String {
+    switch syncFailure?.recovery {
+    case .openSubscription: return "creditcard"
+    case .openSettings: return "gearshape"
+    default: return "arrow.clockwise"
+    }
+  }
+
+  private func recoverSync() {
+    switch syncFailure?.recovery {
+    case .openSubscription: showsSubscription = true
+    case .openSettings: openConnectionSettings()
+    default: services.syncCoordinator.startManualSync()
+    }
   }
 
   private var initialImportMenu: some View {
-    Menu {
-      ForEach(InitialImportRange.allCases) { range in
-        Button {
-          services.syncMetadataStore.setInitialImportRange(range)
-        } label: {
-          if range == services.syncMetadataStore.metadata.initialImportRange {
-            Label(range.title, systemImage: "checkmark")
-          } else {
-            Text(range.title)
+    LabeledMenuPickerRow(title: "History range", systemImage: "calendar.badge.clock") {
+        NativeMenuPicker("History range", selection: Binding(
+          get: { services.syncMetadataStore.metadata.initialImportRange },
+          set: { services.syncMetadataStore.setInitialImportRange($0) }
+        )) {
+          ForEach(InitialImportRange.allCases) { range in
+            Text(dynamicTypeSize.isAccessibilitySize ? range.compactTitle : range.title).tag(range)
           }
         }
-      }
-    } label: {
-      adaptiveMenuLayout {
-        Image(systemName: "calendar.badge.clock")
-          .rowIconColumn()
-          .foregroundStyle(.tint)
-          .accessibilityHidden(true)
-
-        VStack(alignment: .leading, spacing: 3) {
-          Text("History range")
-            .foregroundStyle(.primary)
-
-          Text(services.syncMetadataStore.metadata.initialImportRange.title)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-
-        if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
-
-        Text("Change")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.tint)
-      }
-      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-      .contentShape(Rectangle())
+        .accessibilityIdentifier("HistoryRangePicker")
+        .accessibilityHint("Changes how much pump history to import during the first sync")
     }
-    .buttonStyle(.plain)
-    .accessibilityLabel("History range")
-    .accessibilityValue(services.syncMetadataStore.metadata.initialImportRange.title)
-    .accessibilityHint("Changes how much pump history to import during the first sync")
   }
 
   private var canSync: Bool {
@@ -302,9 +353,9 @@ private struct SyncButtonLabel: View {
           .fixedSize(horizontal: false, vertical: true)
           .layoutPriority(1)
 
-        Spacer(minLength: 0)
       }
-      .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+      .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+      .contentShape(Rectangle())
       .accessibilityElement(children: .ignore)
       .accessibilityLabel(title)
     }

@@ -3,17 +3,10 @@ import SwiftUI
 struct AppView: View {
   @Environment(AppServices.self) private var services
   @State private var selectedTab: AppTab = .sync
-  @State private var isShowingSubscriptionStore = false
   @State private var settingsNavigationID = UUID()
   @State private var syncNavigationID = UUID()
 
   var body: some View {
-    GeometryReader { geometry in
-      mainContent(maximumBannerHeight: geometry.size.height * 0.4)
-    }
-  }
-
-  private func mainContent(maximumBannerHeight: CGFloat) -> some View {
     // A single TabView hierarchy adapts between a tab bar (iPhone/compact) and
     // a sidebar (iPad/regular) on its own. The previous horizontalSizeClass
     // branch rebuilt the entire view hierarchy on every size-class change
@@ -35,39 +28,7 @@ struct AppView: View {
       selectedTab = .settings
     })
     .tabViewStyle(.sidebarAdaptable)
-    .safeAreaInset(edge: .top, spacing: 0) {
-      if !services.syncCoordinator.isNotificationDismissed,
-         SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: Date()) != nil {
-        SyncStatusBanner(
-          operationState: services.syncCoordinator.operationState,
-          maximumHeight: maximumBannerHeight,
-          onRetry: { services.syncCoordinator.retry() },
-          onOpenSubscription: {
-            isShowingSubscriptionStore = true
-            services.syncCoordinator.dismissResult()
-          },
-          onOpenSettings: {
-            selectedTab = .settings
-            services.syncCoordinator.dismissResult()
-          },
-          onDismiss: { services.syncCoordinator.dismissNotification() }
-        )
-        .frame(maxWidth: 760)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-      }
-    }
-    .sheet(isPresented: $isShowingSubscriptionStore) {
-#if DEBUG
-      if AppLaunchEnvironment.isScreenshotMode {
-        SubscriptionScreenshotView()
-      } else {
-        PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
-      }
-#else
-      PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
-#endif
-    }
+
   }
 }
 
