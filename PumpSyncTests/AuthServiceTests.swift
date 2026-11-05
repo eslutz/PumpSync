@@ -4570,6 +4570,77 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertNil(service.accessToken)
   }
 
+  func testBackgroundReenrollmentCannotSwitchToDifferentPurchaseEnvironment() async throws {
+    let configuration = makeConfigurationStore()
+    configuration.selectHostedEnvironment(.production)
+    let store = makeSessionStore()
+    try store.markHostedReenrollmentPending()
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Use the verified entitlement"); return "unused" },
+      createSubscriptionSession: { _ in XCTFail("Background recovery cannot enroll on a different route"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider(),
+      verifiedEntitlement: { .fixture("sandbox", environment: .sandbox) }, requiresVerifiedHostedRoute: true)
+
+    let outcome = await service.recoverSessionIfNeeded(policy: .backgroundWithReenrollment)
+
+    guard case .ready = outcome else {
+      XCTAssertEqual(configuration.hostedEnvironment, .production)
+      XCTAssertTrue(store.isHostedReenrollmentPending())
+      XCTAssertNil(service.accessToken)
+      return
+    }
+    XCTFail("Background recovery must not establish a session on a different route")
+  }
+
+  func testEnvironmentSwitchWaitsForSuspendedRefreshAndReplacesItsConnection() async throws {
+    let configuration = makeConfigurationStore()
+    configuration.selectHostedEnvironment(.production)
+    let store = makeSessionStore(now: { Date(timeIntervalSince1970: 2_000) })
+    try store.save(Self.expiredRenewableSession())
+    let refreshed = BackendSessionResponse(accessToken: "refreshed-old-route", expiresAt: Date(timeIntervalSince1970: 3_000),
+      serviceMode: "hosted", dataSourceMode: "tandemSource", protocolVersion: 3, sessionFamilyId: "family-2",
+      refreshToken: "refresh-token-2", refreshTokenExpiresAt: Date(timeIntervalSince1970: 3_500),
+      refreshTokenAbsoluteExpiresAt: Date(timeIntervalSince1970: 4_000))
+    let response = try JSONCodec.encoder.encode(refreshed)
+    URLProtocolStub.requestHandler = { request in
+      (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, response)
+    }
+    defer { URLProtocolStub.requestHandler = nil }
+    let gate = AsyncGate()
+    let proofStarted = expectation(description: "refresh proof started")
+    var proofFinished = false
+    var enrollmentStarted = false
+    let provider = AcceptingProofProvider(refreshRequestHandler: { session, installationId, _ in
+      proofStarted.fulfill()
+      await gate.wait()
+      proofFinished = true
+      return SessionRefreshRequest(installationId: installationId, refreshToken: session.refreshToken,
+        requestId: "refresh-request", issuedAt: Date(timeIntervalSince1970: 2_000), proof: "proof")
+    })
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in
+        enrollmentStarted = true
+        XCTAssertTrue(proofFinished)
+        XCTAssertEqual(configuration.hostedEnvironment, .sandbox)
+        return BackendSessionResponse(accessToken: "new-route", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: provider, requiresVerifiedHostedRoute: true)
+    let oldBinding = service.connectionBinding
+    let refresh = Task { await service.recoverSessionIfNeeded(policy: .foreground) }
+    await fulfillment(of: [proofStarted], timeout: 1)
+    let switchRoute = Task { await service.activateSubscription(entitlement: .fixture("sandbox", environment: .sandbox)) }
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertFalse(enrollmentStarted)
+    XCTAssertEqual(configuration.hostedEnvironment, .production)
+    await gate.open()
+    _ = await refresh.value
+    await switchRoute.value
+
+    XCTAssertTrue(enrollmentStarted)
+    XCTAssertEqual(service.accessToken, "new-route")
+    XCTAssertNotEqual(service.connectionBinding, oldBinding)
+    XCTAssertEqual(service.authenticatedConnection?.identity.binding, service.connectionBinding)
+  }
+
   func testPersistedSandboxBindingRecoversAfterRelaunchWithoutStoreKit() async throws {
     let defaults = UserDefaults(suiteName: "RouteRelaunch-\(UUID().uuidString)")!
     let configuration = BackendConfigurationStore(defaults: defaults)
