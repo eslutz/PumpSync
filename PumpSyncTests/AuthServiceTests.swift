@@ -4592,6 +4592,29 @@ final class AuthServiceTests: XCTestCase {
     XCTFail("Background recovery must not establish a session on a different route")
   }
 
+  func testPolicyDowngradeWhileWaitingForMutationLeasePreventsRouteMigration() async throws {
+    let configuration = makeConfigurationStore()
+    let store = makeSessionStore()
+    let committer = AuthSessionCommitter(store: store)
+    let heldLease = try await committer.acquireLease()
+    let policy = SharedRecoveryBox(SessionRecoveryPolicy.foreground)
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { "unused" },
+      createSubscriptionSession: { _ in XCTFail("Downgraded recovery must not enroll"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider(),
+      verifiedEntitlement: { .fixture("sandbox", environment: .sandbox) }, requiresVerifiedHostedRoute: true,
+      testCommitter: committer)
+    let recovery = Task { await service.recoverSessionIfNeeded(policy: .foreground, policyProvider: { policy.value }) }
+    await waitUntil { committer.testWaitingLeaseCount == 1 }
+    policy.modify { $0 = .background }
+    committer.releaseLease(heldLease)
+    let outcome = await recovery.value
+
+    if case .ready = outcome { XCTFail("A background owner cannot migrate the hosted route") }
+    XCTAssertFalse(configuration.hasStoredHostedEnvironment)
+    XCTAssertNil(service.accessToken)
+  }
+
   func testEnvironmentSwitchWaitsForSuspendedRefreshAndReplacesItsConnection() async throws {
     let configuration = makeConfigurationStore()
     configuration.selectHostedEnvironment(.production)

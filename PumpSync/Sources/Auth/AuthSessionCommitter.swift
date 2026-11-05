@@ -58,6 +58,10 @@ final class AuthSessionCommitter {
 
   var isBusy: Bool { lease != nil }
 
+  #if DEBUG
+  var testWaitingLeaseCount: Int { leaseWaiters.count }
+  #endif
+
   func enrollmentSource(binding: AuthConnectionBinding, memory: AuthenticatedConnection?) throws -> AuthenticatedConnection? {
     guard !(try state()).invalidated else { return nil }
     return try store?.loadConnection(binding: binding) ?? memory

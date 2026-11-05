@@ -293,12 +293,13 @@ final class AuthService {
     proofProvider: DeviceSessionProofProviding,
     createSessionChallenge: (@MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse)? = nil,
     verifiedEntitlement: (@MainActor () async throws -> VerifiedSubscriptionEntitlement)? = nil,
-    requiresVerifiedHostedRoute: Bool = false
+    requiresVerifiedHostedRoute: Bool = false,
+    testCommitter: AuthSessionCommitter? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
-    self.committer = AuthSessionCommitter(store: sessionStore)
+    self.committer = testCommitter ?? AuthSessionCommitter(store: sessionStore)
     self.purpose = purpose
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
