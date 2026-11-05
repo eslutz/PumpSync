@@ -626,7 +626,7 @@ struct PumpSyncSubscriptionStoreView: View {
           message: transaction.diagnosticSummary(active: true)
         )
         await transaction.finish()
-        await services.authService.activateSubscription(signedTransactionInfo: verificationResult.jwsRepresentation)
+        await services.authService.activateSubscription(entitlement: try VerifiedSubscriptionEntitlement.verified(verificationResult))
         if services.authService.isSignedIn {
           isPresented = false
         } else {

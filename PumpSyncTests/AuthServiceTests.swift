@@ -4529,6 +4529,124 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertEqual(StoreKitSubscriptionError.noActiveSubscription.errorDescription, expected)
   }
 
+  func testVerifiedEnvironmentSwitchEnrollsOnlyAtFixedDestinationAndInvalidatesOldSession() async throws {
+    for environment in [HostedSubscriptionEnvironment.sandbox, .production] {
+      let configuration = makeConfigurationStore()
+      configuration.selectHostedEnvironment(environment == .sandbox ? .production : .sandbox)
+      let api = makeAPIClient()
+      let store = makeSessionStore()
+      var calls = 0
+      let service = AuthService(apiClient: api, configurationStore: configuration, sessionStore: store,
+        currentEntitlementJWS: { XCTFail("Purchase must use its verified entitlement"); return "unused" },
+        createSubscriptionSession: { request in
+          calls += 1
+          XCTAssertEqual(api.baseURL, AppConstants.hostedAPIBaseURL(for: environment))
+          XCTAssertEqual(request.signedTransactionInfo, "verified-purchase")
+          XCTAssertNil(store.loadValidSession(), "Old credentials must be cleared before enrollment")
+          return BackendSessionResponse(accessToken: "new-token", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+        }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+        proofProvider: AcceptingProofProvider(), requiresVerifiedHostedRoute: true)
+      try service.installSession(BackendSessionResponse(accessToken: "old-token", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"), installation: .enrollment)
+      let previousBinding = service.connectionBinding
+      await service.activateSubscription(entitlement: .fixture("verified-purchase", environment: environment))
+      XCTAssertEqual(calls, 1)
+      XCTAssertEqual(service.accessToken, "new-token")
+      XCTAssertNotEqual(service.connectionBinding, previousBinding)
+      XCTAssertEqual(service.authenticatedConnection?.identity.binding, service.connectionBinding)
+      XCTAssertTrue(configuration.hasStoredHostedEnvironment)
+    }
+  }
+
+  func testMissingVerifiedRouteRequiresForegroundWithoutStoreKitOrNetwork() async {
+    let configuration = makeConfigurationStore()
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { XCTFail("Background must not query StoreKit"); return "unused" },
+      createSubscriptionSession: { _ in XCTFail("Background must not enroll without a binding"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse },
+      proofProvider: AcceptingProofProvider(), requiresVerifiedHostedRoute: true)
+    let outcome = await service.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(outcome, .requiresUserAction(.configurationInvalid))
+    XCTAssertFalse(configuration.hasStoredHostedEnvironment)
+    XCTAssertNil(service.accessToken)
+  }
+
+  func testPersistedSandboxBindingRecoversAfterRelaunchWithoutStoreKit() async throws {
+    let defaults = UserDefaults(suiteName: "RouteRelaunch-\(UUID().uuidString)")!
+    let configuration = BackendConfigurationStore(defaults: defaults)
+    configuration.selectHostedEnvironment(.sandbox)
+    let store = makeSessionStore()
+    let first = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider(), requiresVerifiedHostedRoute: true)
+    try first.installSession(BackendSessionResponse(accessToken: "sandbox-token", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"), installation: .enrollment)
+    let restartedConfiguration = BackendConfigurationStore(defaults: defaults)
+    let restarted = AuthService(apiClient: makeAPIClient(), configurationStore: restartedConfiguration, sessionStore: store,
+      currentEntitlementJWS: { XCTFail("Cached background recovery cannot query StoreKit"); return "unused" },
+      createSubscriptionSession: { _ in XCTFail("Cached recovery cannot enroll"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider(), requiresVerifiedHostedRoute: true)
+    _ = await restarted.recoverSessionIfNeeded(policy: .background)
+    XCTAssertEqual(restarted.accessToken, "sandbox-token")
+    XCTAssertEqual(restarted.authenticatedConnection?.identity.binding, first.connectionBinding)
+    XCTAssertEqual(restartedConfiguration.selectedBaseURL, AppConstants.hostedAPIBaseURL(for: .sandbox))
+  }
+
+  func testConcurrentForegroundMigrationSharesSuccessfulRoutingTransition() async {
+    let configuration = makeConfigurationStore()
+    configuration.selectHostedEnvironment(.production)
+    let gate = AsyncGate()
+    var entitlementCalls = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "unused" },
+      createSubscriptionSession: { _ in BackendSessionResponse(accessToken: "sandbox", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource") },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider(),
+      verifiedEntitlement: {
+        entitlementCalls += 1
+        await gate.wait()
+        return .fixture("sandbox", environment: .sandbox)
+      }, requiresVerifiedHostedRoute: true)
+    let first = Task { await service.recoverSessionIfNeeded(policy: .foreground) }
+    await waitUntil { entitlementCalls == 1 }
+    let second = Task { await service.recoverSessionIfNeeded(policy: .foreground) }
+    for _ in 0..<20 { await Task.yield() }
+    await gate.open()
+    let outcomes = await [first.value, second.value]
+    for outcome in outcomes {
+      guard case .ready = outcome else { XCTFail("Expected ready after shared migration: \(outcome)"); continue }
+    }
+    XCTAssertEqual(entitlementCalls, 1)
+    XCTAssertEqual(configuration.hostedEnvironment, .sandbox)
+  }
+
+  func testOtherEnvironmentRevocationCannotInvalidateBoundSession() async throws {
+    let configuration = makeConfigurationStore()
+    configuration.selectHostedEnvironment(.production)
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "unused" }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider())
+    try service.installSession(BackendSessionResponse(accessToken: "production", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"), installation: .enrollment)
+    service.recordSubscriptionRevokedOrExpired(environment: .sandbox, diagnosticSummary: "old-sandbox")
+    XCTAssertEqual(service.accessToken, "production")
+    service.recordSubscriptionRevokedOrExpired(environment: .production, diagnosticSummary: "production-expired")
+    XCTAssertNil(service.accessToken)
+  }
+
+  func testFailedInvalidationPreventsCrossEnvironmentEnrollment() async throws {
+    let configuration = makeConfigurationStore()
+    configuration.selectHostedEnvironment(.production)
+    let persistence = AuthJournalTestPersistence()
+    let store = BackendSessionStore(keychain: persistence)
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { "unused" },
+      createSubscriptionSession: { _ in XCTFail("Cannot enroll after incomplete invalidation"); throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider(), requiresVerifiedHostedRoute: true)
+    try service.installSession(BackendSessionResponse(accessToken: "old", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"), installation: .enrollment)
+    persistence.failDeleteAccount = "backend.session.current"
+    await service.activateSubscription(entitlement: .fixture("sandbox", environment: .sandbox))
+    XCTAssertEqual(configuration.hostedEnvironment, .production)
+    XCTAssertNil(service.accessToken)
+    XCTAssertNil(service.authenticatedConnection)
+  }
+
   private func makeAPIClient() -> PumpSyncAPIClient {
     PumpSyncAPIClient(
       baseURL: URL(string: "https://example.com/api")!,

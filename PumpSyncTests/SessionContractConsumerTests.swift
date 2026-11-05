@@ -27,6 +27,7 @@ final class SessionContractConsumerTests: XCTestCase {
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
     defer { defaults.removePersistentDomain(forName: suite); URLProtocolStub.requestHandler = nil }
     let config = BackendConfigurationStore(defaults: defaults)
+    if mode == "hosted" { config.selectHostedEnvironment(.sandbox) }
     if mode == "selfHosted" { config.mode = .selfHosted; config.selfHostedBaseURLString = "https://contract.example/api" }
     let api = PumpSyncAPIClient(baseURL: try XCTUnwrap(config.selectedBaseURL), urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
     let clock = Mutex(before.expiresAt.addingTimeInterval(-299))
