@@ -4640,8 +4640,10 @@ final class AuthServiceTests: XCTestCase {
       createSubscriptionSession: { _ in XCTFail("Cannot enroll after incomplete invalidation"); throw APIClientError.invalidResponse },
       createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: AcceptingProofProvider(), requiresVerifiedHostedRoute: true)
     try service.installSession(BackendSessionResponse(accessToken: "old", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"), installation: .enrollment)
-    persistence.failDeleteAccount = "backend.session.current"
+    persistence.failAllWrites = true
     await service.activateSubscription(entitlement: .fixture("sandbox", environment: .sandbox))
+    XCTAssertGreaterThan(persistence.writeCounts["backend.auth.invalidation.v1", default: 0], 0)
+    XCTAssertGreaterThan(persistence.writeCounts["backend.auth.invalidation-fallback.v1", default: 0], 0)
     XCTAssertEqual(configuration.hostedEnvironment, .production)
     XCTAssertNil(service.accessToken)
     XCTAssertNil(service.authenticatedConnection)
