@@ -1,6 +1,6 @@
 # Reviewer-access inquiry
 
-Prepared November 5, 2026; submitted November 6 with Eric's authorization. **Apple confirmed case 30000007388462. No approval has been received.**
+Prepared November 5, 2026; submitted November 6. **Apple confirmed case 30000007388462. No approval has been received.**
 
 Canonical process: [App Review access plan](https://github.com/eslutz/PumpSync/wiki/App-Review-Access-Plan).
 
@@ -32,3 +32,5 @@ Please confirm whether the proposed arrangement is acceptable under 2.1(a), what
 ## Contact preparation
 
 The initial November 5 form was a draft only. On November 6, the contact service first redirected to maintenance. After sign-in was restored, Apple's supported contact route was App Review → Other App Review questions → Email. The app name, Apple ID, iOS platform, and message above were submitted; Apple displayed “Thanks for contacting us” and case 30000007388462. Wait for the written reply and its conditions before implementing or submitting the proposed arrangement.
+
+Further Apple correspondence requires Eric's review and explicit approval before sending.
