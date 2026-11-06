@@ -2,12 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEVICE_NAME="${DEVICE_NAME:-iPhone 17 Pro Max}"
+DEVICE_NAME="${DEVICE_NAME:-iPhone 18 Pro Max}"
 RESULT_BUNDLE="${RESULT_BUNDLE:-/tmp/PumpSync-iPhone-App-Store-Screenshots.xcresult}"
 ATTACHMENTS_DIR="${ATTACHMENTS_DIR:-/tmp/PumpSync-iPhone-App-Store-Screenshots-Attachments}"
 OUTPUT_DIR="${OUTPUT_DIR:-${ROOT_DIR}/Documentation/app-store/listing-screenshots}"
-TARGET_WIDTH="${TARGET_WIDTH:-1284}"
-TARGET_HEIGHT="${TARGET_HEIGHT:-2778}"
 
 SCREENSHOTS=(
   "iphone-6-7-app-store-listing-01-status-overview.png"
@@ -64,39 +62,6 @@ xcrun xcresulttool export attachments \
   --path "${RESULT_BUNDLE}" \
   --output-path "${ATTACHMENTS_DIR}"
 
-normalize_screenshot() {
-  local source_file="$1"
-  local output_file="$2"
-  local cropped_file
-  cropped_file="$(mktemp -t pumpsync-iphone-screenshot-crop).png"
-
-  local source_width source_height crop_height
-  source_width="$(sips -g pixelWidth "${source_file}" | awk '/pixelWidth/ {print $2}')"
-  source_height="$(sips -g pixelHeight "${source_file}" | awk '/pixelHeight/ {print $2}')"
-
-  crop_height="$(
-    ruby -e 'puts ((ARGV[0].to_f * ARGV[2].to_f) / ARGV[1].to_f).floor' \
-      "${source_width}" "${TARGET_WIDTH}" "${TARGET_HEIGHT}"
-  )"
-
-  if (( crop_height > source_height )); then
-    crop_height="${source_height}"
-  fi
-
-  sips -c "${crop_height}" "${source_width}" "${source_file}" --out "${cropped_file}" >/dev/null
-  sips -z "${TARGET_HEIGHT}" "${TARGET_WIDTH}" "${cropped_file}" --out "${output_file}" >/dev/null
-  rm -f "${cropped_file}"
-
-  local final_width final_height
-  final_width="$(sips -g pixelWidth "${output_file}" | awk '/pixelWidth/ {print $2}')"
-  final_height="$(sips -g pixelHeight "${output_file}" | awk '/pixelHeight/ {print $2}')"
-
-  if [[ "${final_width}" != "${TARGET_WIDTH}" || "${final_height}" != "${TARGET_HEIGHT}" ]]; then
-    echo "Wrong output dimensions for ${output_file}: ${final_width}x${final_height}" >&2
-    exit 1
-  fi
-}
-
 for screenshot in "${SCREENSHOTS[@]}"; do
   source_path="$(
     ruby -rjson -e '
@@ -116,7 +81,8 @@ for screenshot in "${SCREENSHOTS[@]}"; do
     exit 1
   fi
 
-  normalize_screenshot "${ATTACHMENTS_DIR}/${source_path}" "${OUTPUT_DIR}/${screenshot}"
+  # Preserve the simulator's native geometry; never crop or stretch app UI.
+  cp "${ATTACHMENTS_DIR}/${source_path}" "${OUTPUT_DIR}/${screenshot}"
   sips -g pixelWidth -g pixelHeight "${OUTPUT_DIR}/${screenshot}"
 done
 

@@ -73,18 +73,24 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
       configs:
         Debug:
+          HOSTED_ENVIRONMENT: sandbox
           API_BASE_URL: https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api
           APP_ATTEST_ENVIRONMENT: development
         Beta:
+          HOSTED_ENVIRONMENT: sandbox
           API_BASE_URL: https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api
           APP_ATTEST_ENVIRONMENT: production
         Release:
+          HOSTED_ENVIRONMENT: production
           API_BASE_URL: https://api.pumpsync.ericslutz.dev/api
           APP_ATTEST_ENVIRONMENT: production
     info:
       path: PumpSync/Resources/Info.plist
       properties:
         API_BASE_URL: "$(API_BASE_URL)"
+        HOSTED_ENVIRONMENT: "$(HOSTED_ENVIRONMENT)"
+        SANDBOX_API_BASE_URL: https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api
+        PRODUCTION_API_BASE_URL: https://api.pumpsync.ericslutz.dev/api
         SUBSCRIPTION_GROUP_ID: "22168040"
         SUBSCRIPTION_PRODUCT_ID: dev.ericslutz.PumpSync.subscription.monthly
         ITSAppUsesNonExemptEncryption: false

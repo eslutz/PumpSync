@@ -42,6 +42,16 @@ final class BackendConfigurationStore {
 
   let installationId: String
   private(set) var revision = 0
+  private(set) var hostedEnvironment: HostedSubscriptionEnvironment
+  private(set) var hasStoredHostedEnvironment: Bool
+  private static let hostedEnvironmentKey = "backend.hostedEnvironment"
+
+  func selectHostedEnvironment(_ environment: HostedSubscriptionEnvironment) {
+    if environment != hostedEnvironment { revision &+= 1 }
+    hostedEnvironment = environment
+    hasStoredHostedEnvironment = true
+    defaults?.set(environment.rawValue, forKey: Self.hostedEnvironmentKey)
+  }
 
   private let defaults: UserDefaults?
   private static let modeKey = "backend.mode"
@@ -50,6 +60,9 @@ final class BackendConfigurationStore {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
+    let storedEnvironment = defaults.string(forKey: Self.hostedEnvironmentKey).flatMap(HostedSubscriptionEnvironment.init(rawValue:))
+    hostedEnvironment = storedEnvironment ?? AppConstants.defaultHostedEnvironment
+    hasStoredHostedEnvironment = storedEnvironment != nil
 
     let modeValue = defaults.string(forKey: Self.modeKey) ?? BackendAccessMode.hosted.rawValue
     mode = BackendAccessMode(rawValue: modeValue) ?? .hosted
@@ -66,6 +79,8 @@ final class BackendConfigurationStore {
 
   private init(selfHostedBaseURL: URL, installationId: String) {
     defaults = nil
+    hostedEnvironment = AppConstants.defaultHostedEnvironment
+    hasStoredHostedEnvironment = false
     mode = .selfHosted
     selfHostedBaseURLString = selfHostedBaseURL.absoluteString
     self.installationId = installationId
@@ -78,7 +93,7 @@ final class BackendConfigurationStore {
   var selectedBaseURL: URL? {
     switch mode {
     case .hosted:
-      return AppConstants.defaultAPIBaseURL
+      return AppConstants.hostedAPIBaseURL(for: hostedEnvironment)
     case .selfHosted:
       return Self.validatedSelfHostedURL(from: selfHostedBaseURLString)
     }
@@ -164,8 +179,9 @@ final class AuthService {
   private var authOwnershipGeneration = UUID()
   private let proofProvider: DeviceSessionProofProviding
   private let diagnostics: DiagnosticsLogStore?
-  private let currentEntitlementJWS: @MainActor () async throws -> String
-  private let syncedCurrentEntitlementJWS: @MainActor () async throws -> String
+  private let currentEntitlementJWS: @MainActor () async throws -> VerifiedSubscriptionEntitlement
+  private let requiresVerifiedHostedRoute: Bool
+  private let syncedCurrentEntitlementJWS: @MainActor () async throws -> VerifiedSubscriptionEntitlement
   private let createSubscriptionSession: @MainActor (SubscriptionSessionRequest) async throws -> BackendSessionResponse
   private let createSelfHostedSession: @MainActor (SelfHostedSessionRequest) async throws -> BackendSessionResponse
   private let createSessionChallenge: @MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse
@@ -228,6 +244,7 @@ final class AuthService {
     self.purpose = purpose
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
+    requiresVerifiedHostedRoute = true
     subscriptionSessionTimeout = ConnectionTimeouts.hosted
     currentEntitlementJWS = {
       try await StoreKitSubscriptionProvider.currentEntitlementJWS(
@@ -255,7 +272,9 @@ final class AuthService {
     warmupHostedService = {
       try await apiClient.warmup()
     }
-    restoreStoredConnection()
+    if configurationStore.mode != .hosted || configurationStore.hasStoredHostedEnvironment {
+      restoreStoredConnection()
+    }
   }
 
   #if DEBUG
@@ -272,18 +291,23 @@ final class AuthService {
     subscriptionSessionTimeout: TimeInterval = ConnectionTimeouts.hosted,
     warmupHostedService: @escaping @MainActor () async throws -> Void = {},
     proofProvider: DeviceSessionProofProviding,
-    createSessionChallenge: (@MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse)? = nil
+    createSessionChallenge: (@MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse)? = nil,
+    verifiedEntitlement: (@MainActor () async throws -> VerifiedSubscriptionEntitlement)? = nil,
+    requiresVerifiedHostedRoute: Bool = false,
+    testCommitter: AuthSessionCommitter? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
     self.sessionStore = sessionStore
-    self.committer = AuthSessionCommitter(store: sessionStore)
+    self.committer = testCommitter ?? AuthSessionCommitter(store: sessionStore)
     self.purpose = purpose
     self.proofProvider = proofProvider
     self.diagnostics = diagnostics
     self.subscriptionSessionTimeout = subscriptionSessionTimeout
-    self.currentEntitlementJWS = currentEntitlementJWS
-    self.syncedCurrentEntitlementJWS = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
+    self.requiresVerifiedHostedRoute = requiresVerifiedHostedRoute
+    self.currentEntitlementJWS = verifiedEntitlement ?? { .fixture(try await currentEntitlementJWS()) }
+    let synced = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
+    self.syncedCurrentEntitlementJWS = verifiedEntitlement ?? { .fixture(try await synced()) }
     self.createSubscriptionSession = createSubscriptionSession
     self.createSelfHostedSession = createSelfHostedSession
     self.warmupHostedService = warmupHostedService
@@ -295,7 +319,9 @@ final class AuthService {
         expiresAt: .distantFuture
       )
     }
-    restoreStoredConnection()
+    if !requiresVerifiedHostedRoute || configurationStore.mode != .hosted || configurationStore.hasStoredHostedEnvironment {
+      restoreStoredConnection()
+    }
   }
   #endif
 
@@ -545,10 +571,10 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Subscription restore started")
 
     do {
-      let signedTransactionInfo = try await syncedCurrentEntitlementJWS()
+      let entitlement = try await syncedCurrentEntitlementJWS()
       try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       _ = await establishSubscriptionSession(
-        signedTransactionInfo: signedTransactionInfo,
+        entitlement: entitlement,
         activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription restored",
         publishesErrors: true,
@@ -583,16 +609,26 @@ final class AuthService {
     }
   }
 
-  func activateSubscription(signedTransactionInfo: String) async {
+  func activateSubscription(entitlement: VerifiedSubscriptionEntitlement) async {
     await runQueuedExplicitSubscriptionOperation {
       _ = await self.establishSubscriptionSession(
-        signedTransactionInfo: signedTransactionInfo,
+        entitlement: entitlement,
         activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription purchased",
         publishesErrors: true
       )
     }
   }
+
+#if DEBUG
+  func activateSubscription(signedTransactionInfo: String) async {
+    await activateSubscription(entitlement: .fixture(signedTransactionInfo))
+  }
+
+  func handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: String, diagnosticSummary: String, finish: @MainActor () async -> Void) async {
+    await handleActiveSubscriptionTransactionUpdate(entitlement: .fixture(signedTransactionInfo), diagnosticSummary: diagnosticSummary, finish: finish)
+  }
+#endif
 
   /// Starts listening for StoreKit transaction updates that arrive outside the
   /// purchase sheet: Ask-to-Buy approvals, renewals after a billing retry, and
@@ -639,8 +675,13 @@ final class AuthService {
     }
 
     if transaction.isActiveSubscriptionEntitlement {
+      guard let entitlement = try? VerifiedSubscriptionEntitlement.verified(result) else {
+        diagnostics?.record(source: .auth, severity: .warning, title: "Unsupported subscription environment ignored")
+        await transaction.finish()
+        return
+      }
       await handleActiveSubscriptionTransactionUpdate(
-        signedTransactionInfo: result.jwsRepresentation,
+        entitlement: entitlement,
         diagnosticSummary: transaction.diagnosticSummary(active: true),
         finish: { await transaction.finish() }
       )
@@ -656,7 +697,9 @@ final class AuthService {
       // diagnostics log and briefly leaving the app looking disconnected
       // mid-replay. Only the transition from "had a session" to "don't
       // anymore" is actually informative.
-      recordSubscriptionRevokedOrExpired(diagnosticSummary: transaction.diagnosticSummary(active: false))
+      if let environment = HostedSubscriptionEnvironment(storeKitEnvironment: transaction.environment) {
+        recordSubscriptionRevokedOrExpired(environment: environment, diagnosticSummary: transaction.diagnosticSummary(active: false))
+      }
     }
 
     if !transaction.isActiveSubscriptionEntitlement {
@@ -664,7 +707,18 @@ final class AuthService {
     }
   }
 
+  func recordSubscriptionRevokedOrExpired(environment: HostedSubscriptionEnvironment, diagnosticSummary: String) {
+    guard environment == configurationStore.hostedEnvironment else { return }
+    clearRevokedSubscription(diagnosticSummary: diagnosticSummary)
+  }
+
+  #if DEBUG
   func recordSubscriptionRevokedOrExpired(diagnosticSummary: String) {
+    clearRevokedSubscription(diagnosticSummary: diagnosticSummary)
+  }
+  #endif
+
+  private func clearRevokedSubscription(diagnosticSummary: String) {
     guard configurationStore.mode == .hosted, session != nil else { return }
     session = nil
     _ = invalidateDurableAuth(replacesOwnership: true)
@@ -676,7 +730,7 @@ final class AuthService {
   /// Handles only verified, active updates from `Transaction.updates` after
   /// product and connection-mode validation.
   func handleActiveSubscriptionTransactionUpdate(
-    signedTransactionInfo: String,
+    entitlement: VerifiedSubscriptionEntitlement,
     diagnosticSummary: String,
     finish: @MainActor () async -> Void
   ) async {
@@ -685,7 +739,7 @@ final class AuthService {
     defer { endConnectionProgressLease(progressLeaseID) }
     await finish()
 
-    let transactionHash = Self.subscriptionJWSHash(signedTransactionInfo)
+    let transactionHash = Self.subscriptionJWSHash(entitlement.signedTransactionInfo)
     guard !attemptedSubscriptionSessionJWSHashes.contains(transactionHash) else {
       diagnostics?.record(
         source: .auth,
@@ -716,7 +770,7 @@ final class AuthService {
         }
 
         configurationChanged = await self.establishSubscriptionSession(
-          signedTransactionInfo: signedTransactionInfo,
+          entitlement: entitlement,
           activityMessage: "Connecting to PumpSync…",
           title: "PumpSync subscription purchased",
           publishesErrors: true,
@@ -835,6 +889,10 @@ final class AuthService {
   private func recoverSession(policy requestedPolicy: SessionRecoveryPolicy, forceHostedEnrollment: Bool = false) async -> SessionRecoveryOutcome {
     var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     guard !Task.isCancelled else { return .canceled }
+    if requiresVerifiedHostedRoute, configurationStore.mode == .hosted,
+       !configurationStore.hasStoredHostedEnvironment, !policy.allowsInteractiveRecovery {
+      return .requiresUserAction(.configurationInvalid)
+    }
     let ownership = authOwnershipGeneration
     let configurationRevision = configurationStore.revision
     let binding = connectionBinding
@@ -850,8 +908,13 @@ final class AuthService {
       await performSessionRecovery(policy: policy)
     }
     guard !Task.isCancelled else { return .canceled }
-    guard ownership == authOwnershipGeneration, configurationRevision == configurationStore.revision,
-          binding == connectionBinding else { return .rejected(.connectionReplaced) }
+    let routedByThisAttempt = SessionRecoveryContext.current?.hostedRoutingTransition?.matches(
+      sourceRevision: configurationRevision, sourceBinding: binding,
+      destinationRevision: configurationStore.revision, destinationBinding: connectionBinding) == true
+    guard ownership == authOwnershipGeneration,
+          (configurationRevision == configurationStore.revision && binding == connectionBinding) || routedByThisAttempt else {
+      return .rejected(.connectionReplaced)
+    }
     if incompleteInvalidation { return .deferred(.invalidationIncomplete) }
     do {
       if let pending = try committer.unresolvedRecoveryError() { return .deferred(Self.recoveryReason(for: pending)) }
@@ -876,12 +939,19 @@ final class AuthService {
 
   private func performSessionRecovery(policy requestedPolicy: SessionRecoveryPolicy) async {
     var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
+    if requiresVerifiedHostedRoute, configurationStore.mode == .hosted,
+       !configurationStore.hasStoredHostedEnvironment {
+      guard policy.allowsInteractiveRecovery else { recoveryFailure = .configurationInvalid; return }
+      await runCoalescedSubscriptionOperation { await self.recoverSubscriptionSession(policy: policy) }
+      return
+    }
     if let task = subscriptionOperationTask {
       diagnostics?.record(source: .auth, title: "Subscription operation coalesced", message: "coalesced=true")
       let attempt = subscriptionRecoveryAttempt
       await awaitSubscriptionOperation(task, operationID: subscriptionOperationID)
       attempt?.replayRequestLinks()
       recoveryFailure = attempt?.failure
+      SessionRecoveryContext.current?.hostedRoutingTransition = attempt?.hostedRoutingTransition
       if let correlation = attempt?.backendCorrelationID { SessionRecoveryContext.current?.backendCorrelationID = correlation }
       return
     }
@@ -1144,22 +1214,60 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Subscription access restored", message: "source=protectedRequest")
   }
 
+  /// Runs in the serialized subscription owner, before warmup, challenge, or enrollment.
+  /// The mutation lease drains any previous refresh; invalidation fences its callbacks
+  /// and all import snapshots before the fixed backend destination changes.
+  private func selectHostedEnvironment(
+    for entitlement: VerifiedSubscriptionEntitlement,
+    expectedRevision: Int,
+    ownershipGeneration: UUID,
+    allowsChange: Bool
+  ) async throws {
+    let environmentChanged = entitlement.environment != configurationStore.hostedEnvironment
+    let requiresMigration = requiresVerifiedHostedRoute && !configurationStore.hasStoredHostedEnvironment
+    guard environmentChanged || requiresMigration else {
+      configurationStore.selectHostedEnvironment(entitlement.environment)
+      return
+    }
+    guard allowsChange else { throw SubscriptionConfigurationChangedError() }
+    if let renewableRefreshTask {
+      _ = await awaitRenewableRefresh(renewableRefreshTask, operationID: renewableRefreshOperationID)
+    }
+    let lease = try await committer.acquireLease()
+    defer { committer.releaseLease(lease) }
+    try prepareHostedRequest(configurationRevision: expectedRevision, ownershipGeneration: ownershipGeneration)
+    guard SessionRecoveryContext.policyProvider?().allowsInteractiveRecovery != false else { throw SubscriptionConfigurationChangedError() }
+    let sourceBinding = connectionBinding
+    guard invalidateDurableAuth() else { throw AuthCommitError.invalidationIncomplete }
+    configurationStore.selectHostedEnvironment(entitlement.environment)
+    guard configurationStore.apply(to: apiClient) else { throw SubscriptionConfigurationChangedError() }
+    SessionRecoveryContext.current?.hostedRoutingTransition = .init(
+      sourceRevision: expectedRevision, sourceBinding: sourceBinding,
+      destinationRevision: configurationStore.revision, destinationBinding: connectionBinding)
+    diagnostics?.record(source: .auth, title: "Hosted purchase environment selected",
+      message: "environment=\(entitlement.environment.rawValue)")
+  }
+
   @discardableResult
   private func establishSubscriptionSession(
-    signedTransactionInfo: String,
+    entitlement: VerifiedSubscriptionEntitlement,
     activityMessage: String,
     title: String,
     publishesErrors: Bool,
     expectedConfigurationRevision: Int? = nil,
-    allowsRejectedAssertionRetry: Bool = true
+    allowsRejectedAssertionRetry: Bool = true,
+    allowsEnvironmentChange: Bool = true
   ) async -> Bool {
     let progressLeaseID = beginConnectionProgressLease()
     defer { endConnectionProgressLease(progressLeaseID) }
     let ownershipGeneration = authOwnershipGeneration
-    let configurationRevision = expectedConfigurationRevision ?? configurationStore.revision
-    attemptedSubscriptionSessionJWSHashes.insert(Self.subscriptionJWSHash(signedTransactionInfo))
+    var configurationRevision = expectedConfigurationRevision ?? configurationStore.revision
+    attemptedSubscriptionSessionJWSHashes.insert(Self.subscriptionJWSHash(entitlement.signedTransactionInfo))
     do {
       try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
+      try await selectHostedEnvironment(for: entitlement, expectedRevision: configurationRevision,
+        ownershipGeneration: ownershipGeneration, allowsChange: allowsEnvironmentChange)
+      configurationRevision = configurationStore.revision
     } catch {
       recordSubscriptionConfigurationChange()
       return true
@@ -1214,7 +1322,7 @@ final class AuthService {
       defer { committer.releaseLease(mutationLease) }
       try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       let request = try await makeSubscriptionSessionRequest(
-        signedTransactionInfo: signedTransactionInfo,
+        signedTransactionInfo: entitlement.signedTransactionInfo,
         configurationRevision: configurationRevision,
         ownershipGeneration: ownershipGeneration
       )
@@ -1405,12 +1513,13 @@ final class AuthService {
           message: "backendMs=\(backendMs) protocolVersion=3 retry=\(rejectedAssertionRetry.rawValue)"
         )
         return await establishSubscriptionSession(
-          signedTransactionInfo: signedTransactionInfo,
+          entitlement: entitlement,
           activityMessage: activityMessage,
           title: title,
           publishesErrors: publishesErrors,
           expectedConfigurationRevision: configurationRevision,
-          allowsRejectedAssertionRetry: false
+          allowsRejectedAssertionRetry: false,
+          allowsEnvironmentChange: allowsEnvironmentChange
         )
       }
 
@@ -1474,15 +1583,16 @@ final class AuthService {
 
     do {
       let entitlementStartedAt = Date()
-      let signedTransactionInfo = try await subscriptionEntitlementJWS(for: policy)
+      let entitlement = try await subscriptionEntitlementJWS(for: policy)
       try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       let entitlementMs = Int(Date().timeIntervalSince(entitlementStartedAt) * 1_000)
       let configurationChanged = await establishSubscriptionSession(
-        signedTransactionInfo: signedTransactionInfo,
+        entitlement: entitlement,
         activityMessage: "Connecting to PumpSync…",
         title: "PumpSync subscription recovered",
         publishesErrors: false,
-        expectedConfigurationRevision: configurationRevision
+        expectedConfigurationRevision: configurationRevision,
+        allowsEnvironmentChange: policy.allowsInteractiveRecovery
       )
       if configurationChanged {
         return
@@ -1568,7 +1678,7 @@ final class AuthService {
     }
   }
 
-  private func subscriptionEntitlementJWS(for requestedPolicy: SessionRecoveryPolicy) async throws -> String {
+  private func subscriptionEntitlementJWS(for requestedPolicy: SessionRecoveryPolicy) async throws -> VerifiedSubscriptionEntitlement {
     var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     do {
       return try await currentEntitlementJWS()
@@ -2070,6 +2180,7 @@ final class AuthService {
       await awaitSubscriptionOperation(subscriptionOperationTask, operationID: subscriptionOperationID)
       attempt?.replayRequestLinks()
       recoveryFailure = attempt?.failure
+      SessionRecoveryContext.current?.hostedRoutingTransition = attempt?.hostedRoutingTransition
       if let correlation = attempt?.backendCorrelationID { SessionRecoveryContext.current?.backendCorrelationID = correlation }
       return false
     }
@@ -2487,7 +2598,7 @@ enum StoreKitSubscriptionError: LocalizedError {
 }
 
 private enum StoreKitSubscriptionProvider {
-  static func currentEntitlementJWS(productId: String, syncWithAppStore: Bool) async throws -> String {
+  static func currentEntitlementJWS(productId: String, syncWithAppStore: Bool) async throws -> VerifiedSubscriptionEntitlement {
     if syncWithAppStore {
       try? await AppStore.sync()
     }
@@ -2504,7 +2615,7 @@ private enum StoreKitSubscriptionProvider {
       }
 
       await transaction.finish()
-      return result.jwsRepresentation
+      return try VerifiedSubscriptionEntitlement.verified(result)
     }
 
     throw StoreKitSubscriptionError.noActiveSubscription

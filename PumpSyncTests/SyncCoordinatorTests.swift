@@ -779,6 +779,34 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertNil(metadata.metadata.lastErrorMessage)
   }
 
+  func testPurchaseEnvironmentSwitchDuringDownloadRejectsOldBatch() async throws {
+    let started = expectation(description: "old environment download suspended")
+    let allow = DispatchSemaphore(value: 0)
+    let health = FakeHealthKitService()
+    let config = BackendConfigurationStore(defaults: UserDefaults(suiteName: "StalePurchaseRoute-\(UUID().uuidString)")!)
+    config.selectHostedEnvironment(.sandbox)
+    let auth = makeReplacingAuthService(configuration: config, newFamily: "sandbox-family")
+    auth.applyScreenshotSession(serviceMode: "hosted")
+    let metadata = makeSyncMetadataStore()
+    let response = syncResponseHandler(samples: [sample(externalId: "old-route")], effectiveMinDate: Date(timeIntervalSince1970: 1_000_000), effectiveMaxDate: Date())
+    URLProtocolStub.requestHandler = { request in
+      started.fulfill()
+      allow.wait()
+      return try response(request)
+    }
+    let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    let task = Task { await coordinator.run(reason: .manual) }
+    await fulfillment(of: [started], timeout: 2)
+    await auth.activateSubscription(entitlement: .fixture("production", environment: .production))
+    XCTAssertEqual(config.hostedEnvironment, .production)
+    allow.signal()
+
+    let result = await task.value
+    XCTAssertEqual(result, .contextReplaced)
+    XCTAssertTrue(health.savedConcentrations.isEmpty)
+    XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
+  }
+
   func testCredentialChangeDuringDownloadRejectsBatchWithoutLedgeringOrSuccess() async throws {
     let started = expectation(description: "download suspended")
     let allow = DispatchSemaphore(value: 0)

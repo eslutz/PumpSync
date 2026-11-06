@@ -1,5 +1,20 @@
 # Xcode Cloud workflow configuration
 
+## November 5 release preparation
+
+Two additional manual workflows were created and read back in App Store Connect:
+
+| Workflow | ID | Tests | Archive | Distribution |
+| --- | --- | --- | --- | --- |
+| PumpSync External Beta | `62e8529f-3823-4866-ba93-0f7a82d14eac` | Required full suite, `PumpSync` | `PumpSync Beta` / Beta | App Store Connect; no distribution post-action |
+| PumpSync App Store Release | `752ce628-544a-43dc-b9f0-08b041e2ae9e` | Required full suite, `PumpSync` | `PumpSync` / Release | App Store Connect; no distribution post-action |
+
+Both inherit Xcode 27.1 (27A9275), the existing single test destination, cached builds, and manual branch starts. No branch/PR/tag/schedule automation was added. Neither workflow has run, and their saved configuration is not proof of hosted build or distribution acceptance. The internal and validation workflows were preserved. The external testing group exists separately and has no candidate or public link yet.
+
+The October JSON files below remain historical evidence and do not contain these new workflows. See [release preparation status](../release-status-2026-11-05.md) and its screenshot evidence for the current verification limits and blockers.
+
+## October 22 baseline
+
 Saved and independently read back on October 22, 2026.
 
 | Workflow | Start | Actions | Destination | Clean |

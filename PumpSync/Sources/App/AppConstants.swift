@@ -34,4 +34,22 @@ enum AppConstants {
 
     return url
   }()
+
+  static let defaultHostedEnvironment: HostedSubscriptionEnvironment = {
+    guard let raw = Bundle.main.object(forInfoDictionaryKey: "HOSTED_ENVIRONMENT") as? String,
+          let environment = HostedSubscriptionEnvironment(rawValue: raw) else {
+      fatalError("HOSTED_ENVIRONMENT is missing or invalid — regenerate the project.")
+    }
+    return environment
+  }()
+
+  static func hostedAPIBaseURL(for environment: HostedSubscriptionEnvironment) -> URL {
+    let key = environment == .sandbox ? "SANDBOX_API_BASE_URL" : "PRODUCTION_API_BASE_URL"
+    guard let raw = Bundle.main.object(forInfoDictionaryKey: key) as? String,
+          let url = URL(string: raw), url.scheme == "https", url.host != nil else {
+      fatalError("Hosted backend URL is missing or invalid — regenerate the project.")
+    }
+    return url
+  }
+
 }

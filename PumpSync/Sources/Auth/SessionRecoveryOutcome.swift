@@ -40,6 +40,19 @@ enum SessionRecoveryOutcome: Equatable {
 final class SessionRecoveryAttempt {
   var failure: SessionRecoveryReason?
   var backendCorrelationID: String?
+  var hostedRoutingTransition: HostedRoutingTransition?
+
+  struct HostedRoutingTransition {
+    let sourceRevision: Int
+    let sourceBinding: AuthConnectionBinding?
+    let destinationRevision: Int
+    let destinationBinding: AuthConnectionBinding?
+
+    func matches(sourceRevision: Int, sourceBinding: AuthConnectionBinding?, destinationRevision: Int, destinationBinding: AuthConnectionBinding?) -> Bool {
+      self.sourceRevision == sourceRevision && self.sourceBinding == sourceBinding
+        && self.destinationRevision == destinationRevision && self.destinationBinding == destinationBinding
+    }
+  }
   private var requestLinks: [SyncRequestLink] = []
   private var droppedRequestLinkCount = 0
 

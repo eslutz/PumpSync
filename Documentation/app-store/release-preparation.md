@@ -2,6 +2,8 @@
 
 Use this document as the release gate for PumpSync 1.0.0. Complete the sections in order. If a release-blocking fix changes the app, backend, subscription configuration, or data-handling behavior, repeat every affected check before advancing.
 
+See [November 5 preparation status](release-status-2026-11-05.md) for verified live changes and unresolved gates. A prepared workflow or refreshed screenshot does not establish release-candidate acceptance.
+
 ## Release Record
 
 - [ ] Record the intended iOS release commit: `________________________`
@@ -143,7 +145,7 @@ Use this document as the release gate for PumpSync 1.0.0. Complete the sections 
 An Xcode Cloud build labeled **Internal** cannot be submitted for external testing.
 
 - [ ] Keep **PumpSync Internal Beta** for internal-only development builds.
-- [ ] Create a separate manual **PumpSync External Beta** Xcode Cloud workflow.
+- [x] Create a separate manual **PumpSync External Beta** Xcode Cloud workflow.
 - [ ] Use the `PumpSync Beta` scheme and `Beta` archive configuration.
 - [ ] Keep the complete test action and archive action.
 - [ ] Upload a normal App Store Connect/TestFlight build; do not select TestFlight Internal Only.
@@ -155,17 +157,17 @@ An Xcode Cloud build labeled **Internal** cannot be submitted for external testi
 
 ### Verify Test Information
 
-- [ ] Beta description is current.
+- [x] Beta description is current.
 - [ ] Feedback email is `support@ericslutz.dev`.
 - [ ] Marketing URL is `https://pumpsync.ericslutz.dev/`.
 - [ ] Privacy Policy URL is `https://pumpsync.ericslutz.dev/privacy/`.
 - [ ] Review contact information is current.
 - [ ] Demo credentials and review notes are current.
-- [ ] Review notes explain read-only synthetic preview, legitimate import evidence, normal subscription access, and that PumpSync is not a medical device.
+- [ ] Final review notes explain the agreed reviewer-access arrangement, legitimate import evidence, normal sandbox subscription access, and that PumpSync is not a medical device. Preparation notes currently withdraw the old synthetic Health-write walkthrough; no replacement preview is approved or implemented.
 
 ### Create External Testing Group
 
-- [ ] Create an External Testing group named **PumpSync External Beta**.
+- [x] Create an External Testing group named **PumpSync External Beta**.
 - [ ] Add the external-capable build.
 - [ ] Add What to Test notes covering connection setup, purchase and restore, self-hosting, credentials, Health permissions, history range, syncing, duplicate prevention, relaunch recovery, diagnostics, and deletion.
 - [ ] Decide whether testers should be notified automatically after approval.
@@ -215,6 +217,8 @@ An Xcode Cloud build labeled **Internal** cannot be submitted for external testi
 
 Do not configure production to accept sandbox transactions. Run full sandbox subscription and sync testing against nonproduction; reserve production for configuration, health, negative-security, and post-release canary checks.
 
+- [ ] Implement and verify the release app's App Review sandbox purchase route to an isolated sandbox backend. Apple reviews In-App Purchases in sandbox even for the release binary. Cover purchase, restore, transaction updates, session binding, relaunch, expiration/renewal, and background recovery without granting sandbox entitlements in production. The current compile-time Release URL alone does not satisfy this gate.
+
 ### Observability and Recovery
 
 - [ ] Confirm request, error, dependency, and latency telemetry is available.
@@ -238,7 +242,7 @@ Do not configure production to accept sandbox transactions. Run full sandbox sub
 
 ## Gate 4: Production App Build
 
-- [ ] Create a manual **PumpSync App Store Release** Xcode Cloud workflow.
+- [x] Create a manual **PumpSync App Store Release** Xcode Cloud workflow.
 - [ ] Use the `PumpSync` scheme and `Release` archive configuration.
 - [ ] Run the complete automated test suite before archiving.
 - [ ] Confirm Release points to `https://api.pumpsync.ericslutz.dev/api`.
@@ -259,7 +263,7 @@ Do not configure production to accept sandbox transactions. Run full sandbox sub
 - [ ] Select the production build for version 1.0.0.
 - [ ] Verify app name, subtitle, promotional text, description, keywords, version, and copyright.
 - [ ] Verify marketing and support URLs.
-- [ ] Verify the iPhone App Preview, screenshots, ordering, processing status, and poster frame.
+- [ ] Verify final screenshot currency and processing. The November 5 refresh replaced all nine iPhone and nine iPad images. The old iPhone App Preview was removed from the version rather than retaining obsolete UI; a new preview is optional and must be verified separately if added.
 - [ ] Verify the app icon in App Store Connect and the StoreKit purchase sheet.
 - [ ] Complete and verify primary and secondary categories.
 - [ ] Complete the age-rating questionnaire; the app must not remain Unrated.
@@ -299,7 +303,7 @@ The first auto-renewable subscription must be reviewed with version 1.0.0.
 
 ### Submit for Review
 
-- [ ] Select **Manually release this version** instead of automatic release.
+- [x] Select **Manually release this version** instead of automatic release.
 - [ ] Save all version metadata.
 - [ ] Add version 1.0.0 and the subscription items for review.
 - [ ] Review the complete submission one final time.
