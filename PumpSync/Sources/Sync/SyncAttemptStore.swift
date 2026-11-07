@@ -1,7 +1,12 @@
 import Foundation
 import Observation
+import UIKit
 
 enum SyncAttemptStage: String, Codable { case recovering, validating, downloading, updatingHealth, terminal }
+enum SyncImportCheckpoint: String, Codable {
+  case healthSaveStarted, healthSaveCompleted, ledgerCommitStarted, ledgerCommitCompleted, metadataCommitted
+}
+
 enum SyncAttemptOutcome: String, Codable { case completed, skipped, blocked, deferred, canceled, contextReplaced, failed, interrupted }
 enum SyncAttemptReason: Codable, Equatable {
   case completed, fresh, credentials, healthPermission, unverifiedSource, executionLeaseExpired
@@ -44,15 +49,23 @@ struct SyncAttempt: Codable, Equatable {
   var returnedCount: Int? = nil
   var importedCount: Int? = nil
   var permissionSkippedCount: Int? = nil
+  var importCheckpoint: SyncImportCheckpoint? = nil
+  var lastObservedAt: Date? = nil
+  var interruptionDetectedAt: Date? = nil
+  var protectedDataAvailable: Bool? = nil
 }
 
 extension SyncAttempt {
   private enum CodingKeys: String, CodingKey {
-    case operationID, trigger, startedAt, stage, outcome, reason, durationSeconds, backendCorrelationID, requestLinks, droppedRequestLinkCount, historyScopeID, completedAt, returnedCount, importedCount, permissionSkippedCount
+    case operationID, trigger, startedAt, stage, outcome, reason, durationSeconds, backendCorrelationID, requestLinks, droppedRequestLinkCount, historyScopeID, completedAt, returnedCount, importedCount, permissionSkippedCount, importCheckpoint, lastObservedAt, interruptionDetectedAt, protectedDataAvailable
   }
 
   init(from decoder: Decoder) throws {
     let values = try decoder.container(keyedBy: CodingKeys.self)
+    protectedDataAvailable = try values.decodeIfPresent(Bool.self, forKey: .protectedDataAvailable)
+    importCheckpoint = try values.decodeIfPresent(SyncImportCheckpoint.self, forKey: .importCheckpoint)
+    lastObservedAt = try values.decodeIfPresent(Date.self, forKey: .lastObservedAt)
+    interruptionDetectedAt = try values.decodeIfPresent(Date.self, forKey: .interruptionDetectedAt)
     historyScopeID = try values.decodeIfPresent(UUID.self, forKey: .historyScopeID)
     completedAt = try values.decodeIfPresent(Date.self, forKey: .completedAt)
     returnedCount = try values.decodeIfPresent(Int.self, forKey: .returnedCount)
@@ -95,13 +108,23 @@ final class SyncAttemptStore {
   func begin(operationID: UUID, trigger: SyncTriggerReason, at: Date = Date(), historyScopeID: UUID? = nil) {
     guard active == nil else { return }
     active = SyncAttempt(operationID: operationID, trigger: trigger, startedAt: at, stage: .recovering)
+    active?.lastObservedAt = at
     active?.historyScopeID = historyScopeID
     persistAndLog()
   }
 
-  func advance(operationID: UUID, stage: SyncAttemptStage) {
+  func advance(operationID: UUID, stage: SyncAttemptStage, at: Date = Date()) {
     guard active?.operationID == operationID else { return }
     active?.stage = stage
+    active?.lastObservedAt = at
+    persistAndLog()
+  }
+
+  func checkpoint(operationID: UUID, checkpoint: SyncImportCheckpoint, at: Date = Date()) {
+    guard active?.operationID == operationID else { return }
+    active?.protectedDataAvailable = UIApplication.shared.isProtectedDataAvailable
+    active?.importCheckpoint = checkpoint
+    active?.lastObservedAt = at
     persistAndLog()
   }
 
@@ -142,10 +165,18 @@ final class SyncAttemptStore {
 
   func finish(operationID: UUID, outcome: SyncAttemptOutcome, reason: SyncAttemptReason, at: Date = Date()) {
     guard var attempt = active, attempt.operationID == operationID else { return }
-    attempt.completedAt = at
+    // Restart detection is not an observed end time. Preserve the last durable
+    // checkpoint and keep execution duration unknown rather than including downtime.
+    if outcome == .interrupted {
+      attempt.interruptionDetectedAt = at
+      attempt.completedAt = nil
+      attempt.durationSeconds = nil
+    } else {
+      attempt.completedAt = at
+      attempt.durationSeconds = max(0, at.timeIntervalSince(attempt.startedAt))
+    }
     attempt.outcome = outcome
     attempt.reason = reason
-    attempt.durationSeconds = max(0, at.timeIntervalSince(attempt.startedAt))
     history.insert(attempt, at: 0)
     history = Array(history.prefix(20))
     active = nil
@@ -186,6 +217,6 @@ final class SyncAttemptStore {
     let links = attempt.requestLinks.map {
       "request=\($0.requestID),endpoint=\($0.endpoint.rawValue),backend=\($0.backendCorrelationID ?? "unavailable"),trace=\($0.traceID ?? "unavailable")"
     }.joined(separator: ";")
-    return "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? "pending") correlation=\(attempt.backendCorrelationID ?? "unavailable") requestLinks=[\(links)] droppedRequestLinks=\(attempt.droppedRequestLinkCount) completedAt=\(attempt.completedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") scope=\(attempt.historyScopeID?.uuidString ?? "unrecorded") returned=\(attempt.returnedCount.map(String.init) ?? "unavailable") imported=\(attempt.importedCount.map(String.init) ?? "unavailable") permissionSkipped=\(attempt.permissionSkippedCount.map(String.init) ?? "unavailable")"
+    return "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? (attempt.outcome == .interrupted ? "unknown" : "pending")) protectedDataAvailable=\(attempt.protectedDataAvailable.map(String.init) ?? "unavailable") checkpoint=\(attempt.importCheckpoint?.rawValue ?? "unavailable") lastObservedAt=\(attempt.lastObservedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") interruptionDetectedAt=\(attempt.interruptionDetectedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") correlation=\(attempt.backendCorrelationID ?? "unavailable") requestLinks=[\(links)] droppedRequestLinks=\(attempt.droppedRequestLinkCount) completedAt=\(attempt.completedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") scope=\(attempt.historyScopeID?.uuidString ?? "unrecorded") returned=\(attempt.returnedCount.map(String.init) ?? "unavailable") imported=\(attempt.importedCount.map(String.init) ?? "unavailable") permissionSkipped=\(attempt.permissionSkippedCount.map(String.init) ?? "unavailable")"
   }
 }

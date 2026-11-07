@@ -570,11 +570,15 @@ final class SyncCoordinator {
       let batch = try HealthImportPolicy.authorize(plan: plan.selectingSamples(unseenSamples), current: current, executionIsValid: { [weak self] in
         self?.syncOperationID == intent.operationID && self?.hasExecutionLease(intent.operationID) == true
       })
+      attemptStore.checkpoint(operationID: intent.operationID, checkpoint: .healthSaveStarted)
       let writtenSamples = try await healthKitService.save(batch: batch)
+      attemptStore.recordCounts(operationID: intent.operationID, returned: response.samples.count, imported: writtenSamples.count, permissionSkipped: unseenSamples.count - writtenSamples.count)
+      attemptStore.checkpoint(operationID: intent.operationID, checkpoint: .healthSaveCompleted)
+      attemptStore.checkpoint(operationID: intent.operationID, checkpoint: .ledgerCommitStarted)
       try importedSampleLedger.recordImported(writtenSamples, importedAt: Date())
+      attemptStore.checkpoint(operationID: intent.operationID, checkpoint: .ledgerCommitCompleted)
       let importedCount = writtenSamples.count
       let permissionSkippedCount = unseenSamples.count - writtenSamples.count
-      attemptStore.recordCounts(operationID: intent.operationID, returned: response.samples.count, imported: importedCount, permissionSkipped: permissionSkippedCount)
       // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
       // writes for deduplication, but never publish success for abandoned work.
       try checkExecution(intent)
@@ -583,6 +587,7 @@ final class SyncCoordinator {
         ? min(syncMetadataStore.metadata.syncWatermark ?? response.effectiveMinDate, response.effectiveMinDate)
         : response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
       syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark, owner: historyOwner, permissionSkippedCount: permissionSkippedCount)
+      attemptStore.checkpoint(operationID: intent.operationID, checkpoint: .metadataCommitted)
       var completionMessage = permissionSkippedCount > 0
         ? "Imported \(importedCount) new samples. \(permissionSkippedCount) not saved because Health write access is limited. Enable the missing permission and sync again while the records are available from Tandem."
         : message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)

@@ -504,9 +504,17 @@ final class SyncCoordinatorTests: XCTestCase {
     health.resumeSave()
     let result = await task.value
     XCTAssertEqual(result, .canceled)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importCheckpoint, .ledgerCommitCompleted)
     XCTAssertTrue(try ledger.filterUnseen([confirmed]).isEmpty)
     XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
     XCTAssertNil(metadata.metadata.syncWatermark)
+    health.suspendsSave = false
+    health.saveStarted = nil
+    let retry = await coordinator.run(reason: .manual)
+    XCTAssertEqual(retry, .completed)
+    XCTAssertTrue(health.savedSamples.isEmpty, "Confirmed writes must be filtered on replay")
+    XCTAssertNotNil(metadata.metadata.syncWatermark)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importCheckpoint, .metadataCommitted)
   }
 
   func testLedgerCommitFailureAfterHealthSaveDoesNotPublishSuccess() async throws {
@@ -519,6 +527,8 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(result, .failed)
     XCTAssertEqual(health.savedSamples.count, 1)
     XCTAssertEqual(ledger.commitCount, 1)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importCheckpoint, .ledgerCommitStarted)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importedCount, 1)
     XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
     XCTAssertNil(metadata.metadata.syncWatermark)
     XCTAssertNotNil(metadata.metadata.lastErrorMessage)
