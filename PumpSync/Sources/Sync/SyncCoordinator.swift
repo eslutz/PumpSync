@@ -41,6 +41,13 @@ struct SyncProgress: Equatable {
 struct SyncCompletion: Equatable {
   let message: String
   let completedAt: Date
+  let notice: String?
+
+  init(message: String, completedAt: Date, notice: String? = nil) {
+    self.message = message
+    self.completedAt = completedAt
+    self.notice = notice
+  }
 }
 
 struct SyncFailure: Equatable {
@@ -146,12 +153,12 @@ final class SyncCoordinator {
     operationState = .running(SyncProgress(phase: .preparing, trigger: .manual, startedAt: Date()))
   }
 
-  func applyScreenshotSuccess() {
-    operationState = .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: Date()))
+  func applyScreenshotSuccess(completedAt: Date = Date()) {
+    operationState = .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: completedAt))
   }
 
-  func applyScreenshotFailure() {
-    operationState = .failed(SyncFailure(message: "Sync could not be completed. Try again.", recovery: .retry))
+  func applyScreenshotFailure(recovery: SyncRecovery = .retry) {
+    operationState = .failed(SyncFailure(message: recovery == .openSettings ? "Check your connection settings before syncing again." : "Sync could not be completed. Try again.", recovery: recovery))
   }
 #endif
 
@@ -356,7 +363,8 @@ final class SyncCoordinator {
   }
 
   private func makeSyncTask(reason: SyncTriggerReason, lease: SyncExecutionLease, recoveryPolicy: SessionRecoveryPolicy? = nil, reevaluatesFreshnessAfterRecovery: Bool = false) -> Task<SyncRunOutcome, Never>? {
-    guard syncTask == nil, !isSyncing else { return nil }
+    guard syncTask == nil, !isSyncing, !authService.isReplacingConnection else { return nil }
+    reconcileHistoryOwner()
     syncPreparation = SyncProgress(phase: .preparing, trigger: reason, startedAt: Date())
     if !reevaluatesFreshnessAfterRecovery { showSyncProgress() }
     let operationID = UUID()
@@ -366,7 +374,7 @@ final class SyncCoordinator {
       initialContext: authService.operationImportSnapshot(credentialRevision: credentialStore.revision), lease: lease,
       recoveryPolicy: recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background)),
       reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery)
-    attemptStore.begin(operationID: operationID, trigger: reason)
+    attemptStore.begin(operationID: operationID, trigger: reason, historyScopeID: syncMetadataStore.metadata.historyScopeID)
     let diagnosticContext = SyncDiagnosticContext(operationID: operationID, trigger: reason, record: { [weak self] link in
       self?.attemptStore.recordRequestLink(operationID: operationID, link: link)
     }, recordDropped: { [weak self] count in
@@ -547,7 +555,8 @@ final class SyncCoordinator {
       _ = try HealthImportPolicy.authorize(plan: plan, current: current)
       syncMetadataStore.recordAttempt()
       authService.markHostedSubscriptionAccessRestored()
-      let unseenSamples = try importedSampleLedger.filterUnseen(response.samples)
+      let unseenSamples = try importedSampleLedger.filterUnseen(plan.samples.map(\.original))
+      attemptStore.recordCounts(operationID: intent.operationID, returned: response.samples.count, imported: nil, permissionSkipped: nil)
       // Record only what Apple Health confirmed: save() drops samples whose
       // per-type permission is missing, and marking those imported would
       // permanently lose them — the backend retains nothing to replay, so a
@@ -563,14 +572,24 @@ final class SyncCoordinator {
       })
       let writtenSamples = try await healthKitService.save(batch: batch)
       try importedSampleLedger.recordImported(writtenSamples, importedAt: Date())
+      let importedCount = writtenSamples.count
+      let permissionSkippedCount = unseenSamples.count - writtenSamples.count
+      attemptStore.recordCounts(operationID: intent.operationID, returned: response.samples.count, imported: importedCount, permissionSkipped: permissionSkippedCount)
       // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
       // writes for deduplication, but never publish success for abandoned work.
       try checkExecution(intent)
       try HealthImportPolicy.validate(batch: batch, current: authService.currentImportSnapshot(credentialRevision: credentialStore.revision))
-      let importedCount = writtenSamples.count
-      let watermark = response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
-      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark, owner: historyOwner)
-      var completionMessage = message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
+      let watermark = permissionSkippedCount > 0
+        ? min(syncMetadataStore.metadata.syncWatermark ?? response.effectiveMinDate, response.effectiveMinDate)
+        : response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
+      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark, owner: historyOwner, permissionSkippedCount: permissionSkippedCount)
+      var completionMessage = permissionSkippedCount > 0
+        ? "Imported \(importedCount) new samples. \(permissionSkippedCount) not saved because Health write access is limited. Enable the missing permission and sync again while the records are available from Tandem."
+        : message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
+
+      var completionNotice: String? = permissionSkippedCount > 0
+        ? "Enable the missing Health write access and sync again while the records remain available from Tandem."
+        : nil
 
       // Tandem Source only retains ~14 days of history. If the requested
       // window start was clamped forward, data between the watermark and the
@@ -578,7 +597,9 @@ final class SyncCoordinator {
       // an unqualified success.
       if response.effectiveMinDate.timeIntervalSince(requestMinDate) > Self.lookbackGapTolerance {
         let gapEnd = response.effectiveMinDate.formatted(date: .abbreviated, time: .omitted)
-        completionMessage += " Pump data before \(gapEnd) is no longer available from Tandem Source and could not be imported."
+        let gapNotice = "Pump data before \(gapEnd) is no longer available from Tandem Source and could not be imported."
+        completionMessage += " " + gapNotice
+        completionNotice = [completionNotice, gapNotice].compactMap { $0 }.joined(separator: " ")
         diagnostics?.record(
           source: .sync,
           severity: .warning,
@@ -595,7 +616,7 @@ final class SyncCoordinator {
       if reason == .background {
         operationState = .idle
       } else {
-        operationState = .succeeded(SyncCompletion(message: completionMessage, completedAt: Date()))
+        operationState = .succeeded(SyncCompletion(message: completionMessage, completedAt: Date(), notice: completionNotice))
       }
       return .completed
     } catch {

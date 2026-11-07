@@ -39,15 +39,25 @@ struct SyncAttempt: Codable, Equatable {
   var backendCorrelationID: String?
   var requestLinks: [SyncRequestLink] = []
   var droppedRequestLinkCount = 0
+  var historyScopeID: UUID? = nil
+  var completedAt: Date? = nil
+  var returnedCount: Int? = nil
+  var importedCount: Int? = nil
+  var permissionSkippedCount: Int? = nil
 }
 
 extension SyncAttempt {
   private enum CodingKeys: String, CodingKey {
-    case operationID, trigger, startedAt, stage, outcome, reason, durationSeconds, backendCorrelationID, requestLinks, droppedRequestLinkCount
+    case operationID, trigger, startedAt, stage, outcome, reason, durationSeconds, backendCorrelationID, requestLinks, droppedRequestLinkCount, historyScopeID, completedAt, returnedCount, importedCount, permissionSkippedCount
   }
 
   init(from decoder: Decoder) throws {
     let values = try decoder.container(keyedBy: CodingKeys.self)
+    historyScopeID = try values.decodeIfPresent(UUID.self, forKey: .historyScopeID)
+    completedAt = try values.decodeIfPresent(Date.self, forKey: .completedAt)
+    returnedCount = try values.decodeIfPresent(Int.self, forKey: .returnedCount)
+    importedCount = try values.decodeIfPresent(Int.self, forKey: .importedCount)
+    permissionSkippedCount = try values.decodeIfPresent(Int.self, forKey: .permissionSkippedCount)
     operationID = try values.decode(UUID.self, forKey: .operationID)
     trigger = try values.decode(SyncTriggerReason.self, forKey: .trigger)
     startedAt = try values.decode(Date.self, forKey: .startedAt)
@@ -82,9 +92,10 @@ final class SyncAttemptStore {
     }
   }
 
-  func begin(operationID: UUID, trigger: SyncTriggerReason, at: Date = Date()) {
+  func begin(operationID: UUID, trigger: SyncTriggerReason, at: Date = Date(), historyScopeID: UUID? = nil) {
     guard active == nil else { return }
     active = SyncAttempt(operationID: operationID, trigger: trigger, startedAt: at, stage: .recovering)
+    active?.historyScopeID = historyScopeID
     persistAndLog()
   }
 
@@ -92,6 +103,14 @@ final class SyncAttemptStore {
     guard active?.operationID == operationID else { return }
     active?.stage = stage
     persistAndLog()
+  }
+
+  func recordCounts(operationID: UUID, returned: Int, imported: Int?, permissionSkipped: Int?) {
+    guard active?.operationID == operationID else { return }
+    active?.returnedCount = returned
+    active?.importedCount = imported
+    active?.permissionSkippedCount = permissionSkipped
+    persist()
   }
 
   func correlate(operationID: UUID, value: String?) {
@@ -123,6 +142,7 @@ final class SyncAttemptStore {
 
   func finish(operationID: UUID, outcome: SyncAttemptOutcome, reason: SyncAttemptReason, at: Date = Date()) {
     guard var attempt = active, attempt.operationID == operationID else { return }
+    attempt.completedAt = at
     attempt.outcome = outcome
     attempt.reason = reason
     attempt.durationSeconds = max(0, at.timeIntervalSince(attempt.startedAt))
@@ -160,12 +180,12 @@ final class SyncAttemptStore {
     if let data = try? JSONEncoder().encode(State(history: history, active: active)) { defaults.set(data, forKey: Self.key) }
   }
   private func log(_ attempt: SyncAttempt) {
-    diagnostics?.record(source: .sync, title: "Owned sync attempt", message: Self.description(attempt))
+    diagnostics?.record(source: .sync, title: "Owned sync attempt", message: Self.description(attempt), syncAttempt: attempt)
   }
   nonisolated static func description(_ attempt: SyncAttempt) -> String {
     let links = attempt.requestLinks.map {
       "request=\($0.requestID),endpoint=\($0.endpoint.rawValue),backend=\($0.backendCorrelationID ?? "unavailable"),trace=\($0.traceID ?? "unavailable")"
     }.joined(separator: ";")
-    return "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? "pending") correlation=\(attempt.backendCorrelationID ?? "unavailable") requestLinks=[\(links)] droppedRequestLinks=\(attempt.droppedRequestLinkCount)"
+    return "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? "pending") correlation=\(attempt.backendCorrelationID ?? "unavailable") requestLinks=[\(links)] droppedRequestLinks=\(attempt.droppedRequestLinkCount) completedAt=\(attempt.completedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") scope=\(attempt.historyScopeID?.uuidString ?? "unrecorded") returned=\(attempt.returnedCount.map(String.init) ?? "unavailable") imported=\(attempt.importedCount.map(String.init) ?? "unavailable") permissionSkipped=\(attempt.permissionSkippedCount.map(String.init) ?? "unavailable")"
   }
 }

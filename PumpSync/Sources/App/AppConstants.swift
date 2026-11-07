@@ -18,6 +18,7 @@ enum AppConstants {
   // app links out rather than carrying a copy (see AGENTS.md).
   static let termsOfUseURL = URL(string: "https://pumpsync.ericslutz.dev/terms/")!
   static let privacyPolicyURL = URL(string: "https://pumpsync.ericslutz.dev/privacy/")!
+  static let dataDeletionURL = URL(string: "https://pumpsync.ericslutz.dev/privacy/data-deletion/")!
   // Fail fast rather than fall back: a silent default here could point a
   // misconfigured Release build at the wrong backend environment. The key is
   // injected per configuration from project.yml, so any build missing it is

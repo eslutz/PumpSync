@@ -62,12 +62,25 @@ jobs:
       - name: Validate committed contract snapshots
         run: bash Scripts/tests/validate-session-contract-snapshots-tests.sh
 
-      - name: Select Xcode 27.1
+      - name: Select latest stable Xcode
         run: |
-          sudo xcode-select --switch /Applications/Xcode_27.1.app/Contents/Developer
+          developer_dir="$(python3 - <<'PYCODE'
+          import glob, plistlib, re
+          candidates = []
+          for app in glob.glob("/Applications/Xcode*.app"):
+              if re.search(r"beta|RC", app, re.I):
+                  continue
+              with open(app + "/Contents/Info.plist", "rb") as stream:
+                  version = plistlib.load(stream)["CFBundleShortVersionString"]
+              parts = tuple(map(int, version.split(".")))
+              candidates.append((parts, app + "/Contents/Developer"))
+          if not candidates or max(candidates)[0] < (27, 2):
+              raise SystemExit("Latest stable Xcode 27.2 or newer is required on this runner")
+          print(max(candidates)[1])
+          PYCODE
+          )"
+          sudo xcode-select --switch "$developer_dir"
           xcodebuild -version
-          xcodebuild -version | grep -qx 'Xcode 27.1'
-          xcodebuild -version | grep -qx 'Build version 27A9275'
 
       - name: Install XcodeGen
         run: brew install xcodegen

@@ -4,6 +4,9 @@ import Observation
 enum NativeDiagnosticKind: String, Codable {
   case crash = "Crash"
   case performance = "Performance"
+  case hang = "Hang"
+  case cpuException = "CPU Exception"
+  case diagnostic = "Diagnostic"
 }
 
 struct NativeDiagnosticEntry: Identifiable, Codable, Equatable {
@@ -14,6 +17,7 @@ struct NativeDiagnosticEntry: Identifiable, Codable, Equatable {
   let summary: String
   let appVersion: String
   let buildNumber: String
+  var report: NativeDiagnosticReport? = nil
 
   init(
     id: UUID = UUID(),
@@ -22,15 +26,17 @@ struct NativeDiagnosticEntry: Identifiable, Codable, Equatable {
     title: String,
     summary: String,
     appVersion: String,
-    buildNumber: String
+    buildNumber: String,
+    report: NativeDiagnosticReport? = nil
   ) {
     self.id = id
     self.timestamp = timestamp
     self.kind = kind
-    self.title = title
+    self.title = DiagnosticsLogStore.redacted(title)
     self.summary = DiagnosticsLogStore.redacted(summary)
-    self.appVersion = appVersion
-    self.buildNumber = buildNumber
+    self.appVersion = DiagnosticsLogStore.redacted(appVersion)
+    self.buildNumber = DiagnosticsLogStore.redacted(buildNumber)
+    self.report = report
   }
 }
 
@@ -41,15 +47,57 @@ final class NativeDiagnosticsStore {
   private static let maxEntries = 50
 
   private let defaults: UserDefaults
+  private let directory: URL?
+  private(set) var storageMessage: String?
   private(set) var entries: [NativeDiagnosticEntry]
 
-  init(defaults: UserDefaults = .standard) {
+  init(defaults: UserDefaults = .standard, directory: URL? = nil) {
     self.defaults = defaults
-    self.entries = Self.load(defaults: defaults)
+    self.directory = directory ?? (defaults === UserDefaults.standard
+      ? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("NativeDiagnostics", isDirectory: true) : nil)
+    entries = []
+    if let directory = self.directory, FileManager.default.fileExists(atPath: directory.appendingPathComponent("reports.json").path) {
+      do {
+        let data = try Data(contentsOf: directory.appendingPathComponent("reports.json"))
+        entries = try JSONDecoder().decode([NativeDiagnosticEntry].self, from: data).prefix(Self.maxEntries).map(Self.sanitized)
+      } catch {
+        storageMessage = "Performance diagnostics are temporarily unavailable. Existing reports have been preserved."
+        return
+      }
+    } else {
+      entries = Self.load(defaults: defaults).map(Self.sanitized)
+    }
+    save()
+  }
+
+  private static func sanitized(_ entry: NativeDiagnosticEntry) -> NativeDiagnosticEntry {
+    let report = entry.report.flatMap { report in
+      (try? JSONSerialization.jsonObject(with: Data(report.json.utf8))).map { NativeDiagnosticReport.make(from: $0) }
+    }
+    return NativeDiagnosticEntry(id: entry.id, timestamp: entry.timestamp, kind: entry.kind,
+      title: entry.title, summary: entry.summary, appVersion: entry.appVersion, buildNumber: entry.buildNumber, report: report)
+  }
+
+  func reloadIfUnavailable() {
+    guard storageMessage != nil, let directory else { return }
+    if !FileManager.default.fileExists(atPath: directory.appendingPathComponent("reports.json").path) {
+      // Initial migration failed before creating a file. The in-memory/legacy
+      // entries are still authoritative and must be retried, not discarded.
+      storageMessage = nil
+      _ = save()
+      return
+    }
+    do {
+      let data = try Data(contentsOf: directory.appendingPathComponent("reports.json"))
+      let loaded = try JSONDecoder().decode([NativeDiagnosticEntry].self, from: data)
+      entries = loaded.prefix(Self.maxEntries).map(Self.sanitized)
+      storageMessage = nil
+    } catch { /* Preserve inaccessible or malformed reports for a later recovery. */ }
   }
 
   func record(_ entry: NativeDiagnosticEntry) {
-    entries.insert(entry, at: 0)
+    guard storageMessage == nil else { return }
+    entries.insert(Self.sanitized(entry), at: 0)
     if entries.count > Self.maxEntries {
       entries.removeLast(entries.count - Self.maxEntries)
     }
@@ -57,13 +105,31 @@ final class NativeDiagnosticsStore {
   }
 
   func clear() {
+    guard storageMessage == nil else { return }
+    let previous = entries
     entries.removeAll()
-    defaults.removeObject(forKey: Self.defaultsKey)
+    if !save() { entries = previous }
   }
 
-  private func save() {
-    if let data = try? JSONEncoder().encode(entries) {
-      defaults.set(data, forKey: Self.defaultsKey)
+  @discardableResult
+  private func save() -> Bool {
+    guard storageMessage == nil else { return false }
+    do {
+      let data = try JSONEncoder().encode(entries)
+      if var directory {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try directory.setResourceValues(values)
+        try data.write(to: directory.appendingPathComponent("reports.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        defaults.removeObject(forKey: Self.defaultsKey)
+      } else {
+        defaults.set(data, forKey: Self.defaultsKey)
+      }
+      return true
+    } catch {
+      storageMessage = "Performance diagnostics could not be saved. Existing reports have been preserved."
+      return false
     }
   }
 

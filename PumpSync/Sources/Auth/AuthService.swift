@@ -90,6 +90,12 @@ final class BackendConfigurationStore {
     BackendConfigurationStore(selfHostedBaseURL: selfHostedBaseURL, installationId: installationId)
   }
 
+  static func candidate(_ draft: BackendConnectionDraft, installationId: String) -> BackendConfigurationStore {
+    let configuration = BackendConfigurationStore(selfHostedBaseURL: URL(string: "https://candidate.invalid/api")!, installationId: installationId)
+    draft.apply(to: configuration)
+    return configuration
+  }
+
   var selectedBaseURL: URL? {
     switch mode {
     case .hosted:
@@ -106,16 +112,25 @@ final class BackendConfigurationStore {
   /// same machine.
   private static let loopbackHosts: Set<String> = ["localhost", "127.0.0.1", "::1"]
 
-  private static func validatedSelfHostedURL(from rawValue: String) -> URL? {
+  static func validatedSelfHostedURL(from rawValue: String) -> URL? {
     guard
-      let url = URL(string: rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),
+      var url = URL(string: rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),
       let scheme = url.scheme?.lowercased(),
       let host = url.host,
-      !host.isEmpty
+      !host.isEmpty, url.user == nil, url.password == nil,
+      url.query == nil, url.fragment == nil,
+      url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).hasSuffix("api")
     else {
       return nil
     }
 
+    if url.absoluteString.hasSuffix("/") {
+      var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+      while components?.path.hasSuffix("/") == true { components?.path.removeLast() }
+      guard let normalized = components?.url else { return nil }
+      url = normalized
+    }
+    guard url.path == "/api" || url.path.hasSuffix("/api") else { return nil }
     if scheme == "https" {
       return url
     }
@@ -170,7 +185,7 @@ final class AuthService {
   private let purpose: AuthPurpose
   private let configurationStore: BackendConfigurationStore
   private let sessionStore: BackendSessionStore?
-  private let committer: AuthSessionCommitter
+  private var committer: AuthSessionCommitter
   private var authCommitBlocked = false
   private var recoveryFailure: SessionRecoveryReason? {
     get { SessionRecoveryContext.current?.failure }
@@ -206,6 +221,7 @@ final class AuthService {
     set { storedErrorMessage = newValue }
   }
   private var recoveryRequiresActiveSubscription = false
+  private(set) var isReplacingConnection = false
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
   private var subscriptionOperationID: UUID?
@@ -224,6 +240,7 @@ final class AuthService {
   private var renewableRefreshOperationKey: RenewableRefreshOperationKey?
   private var renewableRefreshWaiters: [UUID: Set<UUID>] = [:]
   private var selfHostedOperationID: UUID?
+  var configurationDidCommit: (@MainActor () throws -> Void)?
   private var sessionEstablished: (@MainActor () -> Void)?
   // Process-local by design: explicit purchase/restore actions may retry the
   // same JWS, while StoreKit's automatic update stream must not replay it.
@@ -373,6 +390,13 @@ final class AuthService {
   }
 
   private func publishCommitted(_ connection: AuthenticatedConnection) {
+    do { try configurationDidCommit?() }
+    catch {
+      authCommitBlocked = true
+      session = nil
+      errorMessage = "Connection configuration could not be saved. Try again after unlocking your device."
+      return
+    }
     if incompleteInvalidation {
       incompleteInvalidation = false
       storedErrorMessage = nil
@@ -552,6 +576,7 @@ final class AuthService {
   }
 
   func connectUsingCurrentSubscription() async {
+    guard !isReplacingConnection else { return }
     await runQueuedExplicitSubscriptionOperation {
       await self.restoreCurrentSubscription()
     }
@@ -647,6 +672,7 @@ final class AuthService {
   }
 
   func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
+    guard !isReplacingConnection else { return }
     guard case .verified(let transaction) = result else {
       diagnostics?.record(source: .auth, severity: .warning, title: "Unverified subscription transaction update ignored")
       return
@@ -812,6 +838,7 @@ final class AuthService {
   }
 
   func connectSelfHosted() async {
+    guard !isReplacingConnection else { return }
     let configurationRevision = configurationStore.revision
     guard isCurrentConfiguration(configurationRevision, mode: .selfHosted),
           configurationStore.apply(to: apiClient) else {
@@ -887,6 +914,7 @@ final class AuthService {
   }
 
   private func recoverSession(policy requestedPolicy: SessionRecoveryPolicy, forceHostedEnrollment: Bool = false) async -> SessionRecoveryOutcome {
+    guard !isReplacingConnection else { return .deferred(.configurationInvalid) }
     var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
     guard !Task.isCancelled else { return .canceled }
     if requiresVerifiedHostedRoute, configurationStore.mode == .hosted,
@@ -1155,6 +1183,30 @@ final class AuthService {
     _ handler: @escaping @MainActor () -> Void
   ) {
     sessionEstablished = handler
+  }
+
+  func beginConnectionReplacement() -> Bool {
+    guard !isReplacingConnection, !isConnecting, !committer.isBusy,
+          subscriptionOperationTask == nil, renewableRefreshTask == nil else { return false }
+    isReplacingConnection = true
+    return true
+  }
+
+  func endConnectionReplacement(activated: Bool) {
+    if activated {
+      // Failure fences belong to the previous namespace, not the newly
+      // authenticated candidate. Its persisted journal remains authoritative.
+      committer = AuthSessionCommitter(store: sessionStore)
+      authOwnershipGeneration = UUID()
+      connectionIdentity = nil
+      session = nil
+      authCommitBlocked = false
+      incompleteInvalidation = false
+      restoreStoredConnection()
+      errorMessage = nil
+      statusMessage = session.map(Self.connectedStatusMessage(for:)) ?? "Connection needs attention."
+    }
+    isReplacingConnection = false
   }
 
   func clearSessionForConnectionChange() {

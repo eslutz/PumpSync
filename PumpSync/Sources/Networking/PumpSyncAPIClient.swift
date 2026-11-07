@@ -28,7 +28,12 @@ final class PumpSyncAPIClient {
 
   static func live() -> PumpSyncAPIClient {
     let baseURL = AppConstants.defaultAPIBaseURL
-    return PumpSyncAPIClient(baseURL: baseURL, urlSession: .shared)
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.urlCache = nil
+    configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+    configuration.httpCookieStorage = nil
+    configuration.httpShouldSetCookies = false
+    return PumpSyncAPIClient(baseURL: baseURL, urlSession: URLSession(configuration: configuration))
   }
 
   func updateBaseURL(_ baseURL: URL) {

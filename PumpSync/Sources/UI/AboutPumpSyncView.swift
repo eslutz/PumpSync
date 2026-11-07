@@ -7,15 +7,16 @@ struct AboutPumpSyncView: View {
                 .font(.title3)
                 .fixedSize(horizontal: false, vertical: true)
 
-            GlassSection {
+            GlassSection("Imports") {
               AboutGuideRow(
                 title: "Insulin and carbohydrates",
                 detail: "Imports available basal insulin, bolus insulin, and carbohydrate records with your Apple Health permissions.",
                 systemImage: "heart"
             )
-              GlassDivider().padding(.vertical, 12)
+            }
+            GlassSection("How Sync Works") {
               AboutGuideRow(
-                title: "Sync when you need to",
+                title: "Manual sync",
                 detail: "Tap Sync Now. Opening the app also attempts a sync if none has succeeded yet or the last success was at least four hours ago.",
                 systemImage: "arrow.triangle.2.circlepath"
             )
@@ -36,7 +37,7 @@ struct AboutPumpSyncView: View {
 
             Text("Last Successful Sync shows the last completed sync, even if there were no new records.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.pumpSyncSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .navigationTitle("About PumpSync")
@@ -58,7 +59,7 @@ private struct AboutGuideRow: View {
                     .font(.headline)
                     .accessibilityAddTraits(.isHeader)
                 Text(detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.pumpSyncSecondaryText)
             }
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)

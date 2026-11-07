@@ -417,7 +417,7 @@ extension HealthKitService {
     )
     isAuthorized = true
     errorMessage = nil
-    managementMessage = HealthAccessCopy.healthAppInstructions
+    managementMessage = nil
   }
 }
 #endif

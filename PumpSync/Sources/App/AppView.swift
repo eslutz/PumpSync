@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AppView: View {
   @Environment(AppServices.self) private var services
@@ -13,13 +14,19 @@ struct AppView: View {
     // (e.g. iPad Split View resize, Stage Manager), discarding any in-progress
     // navigation or form state; this keeps one NavigationStack per tab across
     // size-class transitions.
-    TabView(selection: $selectedTab) {
-      ForEach(AppTab.allCases) { tab in
-        Tab(tab.title, systemImage: tab.systemImage, value: tab) {
-          NavigationStack {
-            tab.content
+    VStack(spacing: 0) {
+      // Give the entire native navigation hierarchy real layout space below
+      // status. An inset on NavigationStack leaves iPad top tabs/back buttons
+      // at their original position and can cover them at large text sizes.
+      GlobalSyncStatusView()
+      TabView(selection: $selectedTab) {
+        ForEach(AppTab.allCases) { tab in
+          Tab(tab.title, systemImage: tab.systemImage, value: tab) {
+            NavigationStack {
+              tab.content
+            }
+            .id(tab == .settings ? settingsNavigationID : syncNavigationID)
           }
-          .id(tab == .settings ? settingsNavigationID : syncNavigationID)
         }
       }
     }
@@ -28,6 +35,16 @@ struct AppView: View {
       selectedTab = .settings
     })
     .tabViewStyle(.sidebarAdaptable)
+    .onChange(of: services.syncCoordinator.operationState) { _, state in
+      let announcement: String?
+      switch state {
+      case .succeeded(let completion): announcement = "Sync complete. \(completion.message)"
+      case .failed(let failure): announcement = failure.message
+      case .running(let progress): announcement = progress.trigger == .background ? nil : progress.phase.message
+      case .idle: announcement = nil
+      }
+      if let announcement { UIAccessibility.post(notification: .announcement, argument: announcement) }
+    }
 
   }
 }

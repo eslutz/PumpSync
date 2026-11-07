@@ -3504,13 +3504,13 @@ final class AuthServiceTests: XCTestCase {
     let configuration = makeConfigurationStore()
     configuration.mode = .selfHosted
 
-    configuration.selfHostedBaseURLString = "http://192.168.1.50:8080"
+    configuration.selfHostedBaseURLString = "http://192.168.1.50:8080/api"
     XCTAssertNil(configuration.selectedBaseURL, "a plain-HTTP IP-literal self-host URL must be rejected")
 
-    configuration.selfHostedBaseURLString = "http://backend.example.com"
+    configuration.selfHostedBaseURLString = "http://backend.example.com/api"
     XCTAssertNil(configuration.selectedBaseURL, "a plain-HTTP hostname self-host URL must be rejected")
 
-    configuration.selfHostedBaseURLString = "https://192.168.1.50:8080"
+    configuration.selfHostedBaseURLString = "https://192.168.1.50:8080/api"
     XCTAssertNotNil(configuration.selectedBaseURL, "an HTTPS self-host URL must be accepted")
   }
 
@@ -3518,10 +3518,10 @@ final class AuthServiceTests: XCTestCase {
     let configuration = makeConfigurationStore()
     configuration.mode = .selfHosted
 
-    configuration.selfHostedBaseURLString = "http://localhost:8080"
+    configuration.selfHostedBaseURLString = "http://localhost:8080/api"
     XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to localhost must be allowed for local development")
 
-    configuration.selfHostedBaseURLString = "http://127.0.0.1:8080"
+    configuration.selfHostedBaseURLString = "http://127.0.0.1:8080/api"
     XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to 127.0.0.1 must be allowed for local development")
   }
 

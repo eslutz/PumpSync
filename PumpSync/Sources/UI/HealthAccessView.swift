@@ -7,10 +7,14 @@ struct HealthAccessView: View {
   var body: some View {
     PumpSyncScreen {
       Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color.pumpSyncSecondaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
 
+      if services.healthKitService.hasAnyWritePermission && !services.healthKitService.isAuthorized {
+        Text("Sync imports only the allowed types. Records missing write access are skipped and retried after access is enabled, while they remain available from Tandem.")
+          .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("PartialHealthAccessNotice")
+      }
       GlassSection("Write Permissions") {
         ForEach(Array(services.healthKitService.writePermissions.enumerated()), id: \.element.id) { index, permission in
           GlassStatusRow(
@@ -45,6 +49,7 @@ struct HealthAccessView: View {
           }
         }
         .buttonStyle(.borderedProminent)
+        .font(.title3.weight(.semibold))
         .buttonBorderShape(.roundedRectangle(radius: 24))
         .controlSize(.large)
         .frame(maxWidth: .infinity)
@@ -54,7 +59,7 @@ struct HealthAccessView: View {
       if let message = services.healthKitService.errorMessage {
         GlassSection {
           Text(message)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.pumpSyncSecondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
@@ -66,17 +71,18 @@ struct HealthAccessView: View {
               HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text("\(index + 1)")
                   .font(.subheadline.weight(.semibold))
-                  .foregroundStyle(.tint)
-                  .frame(width: 20)
+                  .foregroundStyle(.primary)
+                  .monospacedDigit()
+                  .frame(minWidth: 20)
                 Text(step)
-                  .foregroundStyle(.secondary)
+                  .foregroundStyle(Color.pumpSyncSecondaryText)
               }
             }
           }
           .frame(maxWidth: .infinity, alignment: .leading)
         } else {
           Text(services.healthKitService.managementMessage ?? "")
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.pumpSyncSecondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
       }

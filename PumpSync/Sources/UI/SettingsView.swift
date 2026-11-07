@@ -6,118 +6,64 @@ struct SettingsView: View {
   @Environment(AppServices.self) private var services
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var isShowingSubscriptionStore = false
   @State private var connectionAlert: ConnectionAlert?
-  @State private var selfHostedURLDraft = ""
-  @State private var hasLoadedSelfHostedURLDraft = false
+  @State private var purchaseRequest: SubscriptionConnectionRequest?
+  @State private var connectionTask: Task<Void, Never>?
+  @FocusState private var isServerURLFocused: Bool
 
   var body: some View {
     PumpSyncScreen(spacing: 10) {
       GlassSection("Connection") {
-        connectionModeSelector
-
-        switch services.backendConfigurationStore.mode {
+        connectionModeSelector.disabled(services.connectionSettings.isConnecting)
+        if services.authService.isSignedIn {
+          GlassStatusRow(title: "Active service", value: services.backendConfigurationStore.mode.title, systemImage: "checkmark.circle")
+        }
+        switch services.connectionSettings.mode {
         case .hosted:
-          Text("Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Pump account details are sent when validating your account, syncing or previewing real pump data.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-
-          Button {
-            isShowingSubscriptionStore = true
-          } label: {
-            GlassPrimaryLabel(
-              title: "Subscribe",
-              systemImage: "creditcard"
-            )
+          if !hasActiveHostedConnection {
+            Text("Connect through PumpSync without managing a server.")
+              .foregroundStyle(Color.pumpSyncSecondaryText).padding(.vertical, 8)
           }
-          .buttonStyle(GroupedRowActionButtonStyle())
-          .disabled(subscriptionActionsDisabled)
-          .accessibilityHint("Opens the PumpSync subscription options")
-
-          Button {
-            Task {
-              await services.authService.connectUsingCurrentSubscription()
-              connectionAlert = restoreConnectionAlert
-            }
-          } label: {
-            GlassPrimaryLabel(
-              title: "Restore Subscription",
-              systemImage: "arrow.clockwise"
-            )
-          }
-          .buttonStyle(GroupedInlineButtonStyle())
-          .disabled(subscriptionActionsDisabled)
-          .accessibilityHint("Checks your current App Store subscription and reconnects to PumpSync")
-
+          subscriptionAction
+          Button("Restore Subscription", systemImage: "arrow.clockwise") { connectDraft() }
+            .buttonStyle(.bordered).tint(.primary).controlSize(.large).disabled(subscriptionActionsDisabled)
         case .selfHosted:
-          Text("Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-
-          TextField("Server URL", text: $selfHostedURLDraft)
-            .textInputAutocapitalization(.never)
-            .keyboardType(.URL)
-            .autocorrectionDisabled()
-            .frame(minHeight: 44)
-            .accessibilityLabel("Server URL")
-            .accessibilityHint("Enter the base API URL for your self-hosted PumpSync server")
-            .onSubmit {
-              commitSelfHostedURL()
-            }
-
-          Button {
-            commitSelfHostedURL()
-            Task {
-              await services.authService.connectSelfHosted()
-              UIAccessibility.post(notification: .announcement, argument: services.authService.errorMessage ?? services.authService.statusMessage)
-            }
-          } label: {
-            GlassPrimaryLabel(
-              title: services.authService.isConnecting ? "Connecting" : "Connect",
-              systemImage: "link"
-            )
+          Text("You manage hosting, security, and maintenance.").foregroundStyle(Color.pumpSyncSecondaryText).padding(.vertical, 8)
+          Text("Server URL").font(.subheadline.weight(.semibold)).accessibilityHidden(true)
+          TextField("https://your-server.example/api", text: Binding(
+            get: { services.connectionSettings.serverURL }, set: { services.connectionSettings.serverURL = $0 }))
+            .textInputAutocapitalization(.never).keyboardType(.URL).autocorrectionDisabled()
+            .frame(minHeight: 44).accessibilityLabel("Server URL").accessibilityIdentifier("ServerURLField")
+            .disabled(services.connectionSettings.isConnecting)
+            .focused($isServerURLFocused)
+            .submitLabel(.done)
+            .onSubmit { isServerURLFocused = false }
+          Text("Use the base API URL ending in /api.").font(.subheadline).foregroundStyle(.primary)
+          Button { connectDraft() } label: {
+            Label(services.connectionSettings.isConnecting ? "Connecting" : "Connect", systemImage: "link")
+              .frame(maxWidth: .infinity).fixedSize(horizontal: false, vertical: true)
           }
-          .buttonStyle(GroupedRowActionButtonStyle())
-          .disabled(services.authService.isConnecting)
-          .accessibilityHint("Connects to the self-hosted server URL")
+          .buttonStyle(.borderedProminent).controlSize(.large).font(.title3.weight(.semibold)).disabled(!services.connectionSettings.canConnect)
         }
-
-        if services.backendConfigurationStore.mode == .selfHosted && !services.authService.isConnecting {
-          Text(services.authService.errorMessage ?? (
-            services.authService.isSignedIn
-              ? services.authService.statusMessage
-              : "Enter the API URL, then tap Connect."
-          ))
-            .font(.footnote)
-            .foregroundStyle(services.authService.errorMessage == nil ? Color.secondary : Color.primary)
-            .fixedSize(horizontal: false, vertical: true)
+        Text("Pump account details are sent to the selected service when validating, syncing, or inspecting source data.")
+          .font(.subheadline).foregroundStyle(.primary).padding(.vertical, 8)
+        if services.connectionSettings.isConnecting {
+          HStack {
+            if reduceMotion { Image(systemName: "hourglass").accessibilityHidden(true) }
+            else { ProgressView().accessibilityHidden(true) }
+            Text(services.connectionSettings.connectionDescription).fixedSize(horizontal: false, vertical: true)
+          }.accessibilityElement(children: .combine)
+        } else {
+          Text(services.connectionSettings.connectionDescription)
+            .font(.subheadline).fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("SelfHostedConnectionFeedback")
-            .accessibilityAddTraits(.updatesFrequently)
-          Text(verbatim: "Use the base API URL, including /api (for example, https://your-server.example/api).")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
         }
-
-        if services.authService.isConnecting {
-          HStack(spacing: 14) {
-            if reduceMotion {
-              Image(systemName: "hourglass")
-                .font(.title3)
-                .fixedSize()
-                .accessibilityHidden(true)
-            } else {
-              ProgressView()
-                .fixedSize()
-                .accessibilityHidden(true)
-            }
-            Text(services.authService.statusMessage)
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          }
-          .padding(.vertical, 6)
-          .accessibilityElement(children: .combine)
+        if services.connectionSettings.hasChanges || services.connectionSettings.isConnecting {
+          Button("Cancel Changes", role: .cancel) {
+            isServerURLFocused = false
+            connectionTask?.cancel()
+            services.connectionSettings.cancel()
+          }.tint(.primary).frame(minHeight: 44)
         }
       }
 
@@ -190,28 +136,16 @@ struct SettingsView: View {
       }
     }
     .navigationTitle("Settings")
-    .onAppear {
-      // Seed the draft only once: onAppear fires again when popping back
-      // from any pushed child screen, and re-seeding there would wipe a URL
-      // the user typed but had not yet committed via Connect/submit.
-      guard !hasLoadedSelfHostedURLDraft else {
-        return
-      }
-
-      hasLoadedSelfHostedURLDraft = true
-      selfHostedURLDraft = services.backendConfigurationStore.selfHostedBaseURLString
-    }
-
-    .sheet(isPresented: $isShowingSubscriptionStore) {
+    .sheet(item: $purchaseRequest) { request in
+      Group {
 #if DEBUG
-      if AppLaunchEnvironment.isScreenshotMode {
-        SubscriptionScreenshotView()
-      } else {
-        PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
-      }
+        if AppLaunchEnvironment.isScreenshotMode { SubscriptionScreenshotView() }
+        else { subscriptionStore(request) }
 #else
-      PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
+        subscriptionStore(request)
 #endif
+      }
+      .onDisappear { services.connectionSettings.finishSubscription(request, verified: false) }
     }
     .alert(
       connectionAlert?.title ?? "",
@@ -231,16 +165,40 @@ struct SettingsView: View {
     }
   }
 
+  private var hasActiveHostedConnection: Bool {
+    services.authService.isSignedIn && services.backendConfigurationStore.mode == .hosted
+  }
+
+  @ViewBuilder private var subscriptionAction: some View {
+    let action = Button {
+      purchaseRequest = services.connectionSettings.prepareSubscription()
+    } label: {
+      Label(hasActiveHostedConnection ? "Subscription Options" : "Subscribe", systemImage: "creditcard")
+        .frame(maxWidth: .infinity).fixedSize(horizontal: false, vertical: true)
+    }
+    .controlSize(.large).font(.title3.weight(.semibold))
+    .disabled(subscriptionActionsDisabled)
+    if hasActiveHostedConnection { action.buttonStyle(.bordered).tint(.primary) }
+    else { action.buttonStyle(.borderedProminent) }
+  }
+
+  private func subscriptionStore(_ request: SubscriptionConnectionRequest) -> some View {
+    PumpSyncSubscriptionStoreView(isPresented: Binding(get: { purchaseRequest?.id == request.id }, set: { if !$0 && purchaseRequest?.id == request.id { purchaseRequest = nil } }),
+      authServiceOverride: request.auth,
+      onConnectionVerified: { services.connectionSettings.finishSubscription(request, verified: true) },
+      onConnectionAttemptFinished: { services.connectionSettings.subscriptionAttemptFinished(request) })
+  }
+
   @ViewBuilder
   private var connectionModeSelector: some View {
     if dynamicTypeSize.isAccessibilitySize {
       VStack(alignment: .leading, spacing: 8) {
         Text("Connection mode")
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.secondary)
+          .foregroundStyle(Color.pumpSyncSecondaryText)
 
         ForEach(BackendAccessMode.allCases) { mode in
-          let isSelected = services.backendConfigurationStore.mode == mode
+          let isSelected = services.connectionSettings.mode == mode
 
           Button {
             backendModeBinding.wrappedValue = mode
@@ -263,33 +221,20 @@ struct SettingsView: View {
       .pickerStyle(.segmented)
       .frame(minHeight: 44)
       .accessibilityLabel("Connection mode")
-      .accessibilityValue(services.backendConfigurationStore.mode.title)
+      .accessibilityValue(services.connectionSettings.mode.title)
     }
   }
 
   private var backendModeBinding: Binding<BackendAccessMode> {
-    Binding(
-      get: {
-        services.backendConfigurationStore.mode
-      },
-      set: { mode in
-        services.backendConfigurationStore.mode = mode
-        services.authService.clearSessionForConnectionChange()
-        _ = services.backendConfigurationStore.apply(to: services.apiClient)
-      }
-    )
+    Binding(get: { services.connectionSettings.mode }, set: {
+      isServerURLFocused = false
+      services.connectionSettings.mode = $0
+    })
   }
 
-  private func commitSelfHostedURL() {
-    guard services.backendConfigurationStore.selfHostedBaseURLString != selfHostedURLDraft else {
-      return
-    }
-
-    services.backendConfigurationStore.selfHostedBaseURLString = selfHostedURLDraft
-    if services.backendConfigurationStore.mode == .selfHosted {
-      services.authService.clearSessionForConnectionChange()
-      _ = services.backendConfigurationStore.apply(to: services.apiClient)
-    }
+  private func connectDraft() {
+    guard services.connectionSettings.canConnect else { return }
+    connectionTask = Task { await services.connectionSettings.connect() }
   }
 
   private var restoreConnectionAlert: ConnectionAlert {
@@ -307,7 +252,7 @@ struct SettingsView: View {
   }
 
   private var subscriptionActionsDisabled: Bool {
-    services.authService.isConnecting
+    !services.connectionSettings.canConnect
   }
 
   private var tandemCredentialStatus: String {
@@ -342,6 +287,12 @@ private struct InsulinConcentrationView: View {
         concentrationMenu
       }
 
+      Text("Applies to the next sync. A running sync keeps its starting setting. Changes the insulin amounts saved to Apple Health; it does not change pump settings or previously imported records.")
+        .fixedSize(horizontal: false, vertical: true)
+      Label("Confirm the setting against your insulin prescription, pump configuration, or care team before changing it.", systemImage: "exclamationmark.triangle")
+        .font(.subheadline).fixedSize(horizontal: false, vertical: true)
+      NavigationLink {
+        PumpSyncScreen {
       GlassSection("Details") {
         InsulinConcentrationDetailRow(
           title: "Match your insulin",
@@ -374,6 +325,13 @@ private struct InsulinConcentrationView: View {
           tint: .orange
         )
       }
+        }.navigationTitle("Insulin Conversion").navigationBarTitleDisplayMode(.inline)
+      } label: {
+        GlassNavigationRow("How Insulin Conversion Works", systemImage: "info.circle")
+      }
+      .buttonStyle(.plain)
+      .frame(minHeight: 44)
+
     }
     .navigationTitle("Insulin Concentration")
   }
@@ -413,7 +371,7 @@ private struct InsulinConcentrationDetailRow: View {
 
         Text(detail)
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(Color.pumpSyncSecondaryText)
           .fixedSize(horizontal: false, vertical: true)
       }
       .layoutPriority(1)
@@ -481,7 +439,7 @@ struct SubscriptionScreenshotView: View {
 
         Text("Securely sync pump data to Apple Health without managing your own server.")
           .font(.title3)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(Color.pumpSyncSecondaryText)
           .fixedSize(horizontal: false, vertical: true)
       }
 
@@ -523,6 +481,10 @@ struct SubscriptionScreenshotView: View {
 struct PumpSyncSubscriptionStoreView: View {
   @Environment(AppServices.self) private var services
   @Binding var isPresented: Bool
+  var authServiceOverride: AuthService? = nil
+  var onConnectionVerified: (() -> Void)? = nil
+  var onConnectionAttemptFinished: (() -> Void)? = nil
+  private var connectionAuth: AuthService { authServiceOverride ?? services.authService }
   @State private var purchaseAlert: ConnectionAlert?
 
   var body: some View {
@@ -535,7 +497,7 @@ struct PumpSyncSubscriptionStoreView: View {
 
           Text("Subscribe to securely sync pump data to Apple Health without managing your own server.")
             .font(.title3)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.pumpSyncSecondaryText)
             .fixedSize(horizontal: false, vertical: true)
         }
 
@@ -600,6 +562,7 @@ struct PumpSyncSubscriptionStoreView: View {
   }
 
   private func handlePurchaseCompletion(_ result: Result<Product.PurchaseResult, Error>) async {
+    defer { onConnectionAttemptFinished?() }
     switch result {
     case .success(.success(let verificationResult)):
       do {
@@ -626,41 +589,42 @@ struct PumpSyncSubscriptionStoreView: View {
           message: transaction.diagnosticSummary(active: true)
         )
         await transaction.finish()
-        await services.authService.activateSubscription(entitlement: try VerifiedSubscriptionEntitlement.verified(verificationResult))
-        if services.authService.isSignedIn {
+        await connectionAuth.activateSubscription(entitlement: try VerifiedSubscriptionEntitlement.verified(verificationResult))
+        if connectionAuth.isSignedIn {
+          onConnectionVerified?()
           isPresented = false
         } else {
           purchaseAlert = ConnectionAlert(
             title: "Subscription Verification Failed",
-            message: services.authService.connectionRequiredMessage
+            message: connectionAuth.connectionRequiredMessage
           )
         }
       } catch {
-        services.authService.recordSubscriptionPurchaseFailed(error)
+        connectionAuth.recordSubscriptionPurchaseFailed(error)
         purchaseAlert = ConnectionAlert(
           title: "Subscription Verification Failed",
-          message: services.authService.connectionRequiredMessage
+          message: connectionAuth.connectionRequiredMessage
         )
       }
     case .success(.userCancelled):
-      services.authService.recordSubscriptionPurchaseCancelled()
+      connectionAuth.recordSubscriptionPurchaseCancelled()
     case .success(.pending):
-      services.authService.recordSubscriptionPurchasePending()
+      connectionAuth.recordSubscriptionPurchasePending()
       purchaseAlert = ConnectionAlert(
         title: "Subscription Pending",
-        message: services.authService.statusMessage
+        message: connectionAuth.statusMessage
       )
     case .failure(let error):
-      services.authService.recordSubscriptionPurchaseFailed(error)
+      connectionAuth.recordSubscriptionPurchaseFailed(error)
       purchaseAlert = ConnectionAlert(
         title: "Subscription Failed",
-        message: services.authService.connectionRequiredMessage
+        message: connectionAuth.connectionRequiredMessage
       )
     @unknown default:
-      services.authService.recordSubscriptionPurchaseFailed(StoreKitSubscriptionError.unverifiedTransaction)
+      connectionAuth.recordSubscriptionPurchaseFailed(StoreKitSubscriptionError.unverifiedTransaction)
       purchaseAlert = ConnectionAlert(
         title: "Subscription Failed",
-        message: services.authService.connectionRequiredMessage
+        message: connectionAuth.connectionRequiredMessage
       )
     }
   }
@@ -675,6 +639,7 @@ struct PumpSyncSubscriptionStoreView: View {
   }
 
   private func presentManageSubscriptions() async {
+    defer { onConnectionAttemptFinished?() }
     guard let scene = UIApplication.shared.foregroundWindowScene else {
       let error = StoreKitSubscriptionError.subscriptionManagementUnavailable
       services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
@@ -687,8 +652,9 @@ struct PumpSyncSubscriptionStoreView: View {
 
     do {
       try await AppStore.showManageSubscriptions(in: scene, subscriptionGroupID: AppConstants.subscriptionGroupId)
-      await services.authService.recoverSessionIfNeeded()
-      if SubscriptionPresentation.shouldDismissAfterManageSubscriptions(isSignedIn: services.authService.isSignedIn) {
+      await connectionAuth.recoverSessionIfNeeded()
+      if SubscriptionPresentation.shouldDismissAfterManageSubscriptions(isSignedIn: connectionAuth.isSignedIn) {
+        onConnectionVerified?()
         isPresented = false
       }
     } catch {
@@ -721,7 +687,7 @@ private struct SubscriptionBenefitRow: View {
 
         Text(detail)
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(Color.pumpSyncSecondaryText)
           .fixedSize(horizontal: false, vertical: true)
       }
     }
