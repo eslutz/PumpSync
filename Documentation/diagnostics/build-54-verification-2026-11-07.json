@@ -1,0 +1,32 @@
+{
+  "runID": "592ce8aa-cf88-41ad-b1d5-02049de3a9b0",
+  "runNumber": 54,
+  "completionStatus": "SUCCEEDED",
+  "sourceCommit": "cb989f7cec49a6f9f75f26a32747296150e89fbf",
+  "designCommitIncluded": "8e3ebf17b1fcb16ea940b4a21841d7f128127875",
+  "buildID": "3a65680a-116b-4bc5-be26-28253b6efa10",
+  "buildNumber": "54",
+  "processingState": "VALID",
+  "internalGroupID": "93121b60-16ee-439c-a441-df3ca9ae27ae",
+  "internalGroupMembershipVerified": true,
+  "betaState": {
+    "autoNotifyEnabled": true,
+    "internalBuildState": "IN_BETA_TESTING",
+    "externalBuildState": "READY_FOR_BETA_SUBMISSION"
+  },
+  "hostedTests": {
+    "total": 468,
+    "outcomes": {
+      "SUCCESS": 468
+    },
+    "destinations": [
+      [
+        "iPhone SE (3rd generation)",
+        "27.2"
+      ]
+    ]
+  },
+  "publishedPolicyURL": "https://pumpsync.ericslutz.dev/privacy/",
+  "publishedPolicySHA256": "6b4d811b9d0d4d8b25fcb973206db393d196c6a98372b66beffff298e5440187",
+  "localPreflight": "TestResults/cloud-20261107T212011Z/"
+}

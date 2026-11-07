@@ -71,7 +71,7 @@ earliest start. Keep scheduling gaps separate from attempts that launched and fa
   during shutdown of the broader run. It ran no tests; the final focused run above
   was sequential after shutdown. Its log is retained at
   `/private/tmp/pumpsync-sync-diagnostics-final.log`.
-- `git diff --check` passed. No TestFlight upload or device installation performed.
+- `git diff --check` passed. No TestFlight upload or device installation was performed during the initial development validation. See the subsequent release below.
 
 ## Published policy and release verification
 
@@ -99,3 +99,15 @@ The script restored the original text size and verified source hashes. No
 build-tool warnings were reported. Evidence remains in ignored
 `TestResults/cloud-20261107T212011Z/` (full/recovery result bundles and summaries).
 This is separate from the earlier iPhone 17 / iOS 27.2 accessibility failure.
+
+### Internal TestFlight deployment
+
+Committed and pushed diagnostic implementation `cb989f7cec49a6f9f75f26a32747296150e89fbf`
+on `codex/beta-continuation-2026-11-06`, including the existing design remediation.
+Cloud run 54 (`592ce8aa-cf88-41ad-b1d5-02049de3a9b0`) used that exact source.
+Required hosted tests and Beta archive succeeded; 468/468 tests passed on iPhone SE
+(3rd generation) / iOS 27.2. Build 54 processed as VALID and was added to Internal
+Testers. API readback verified group membership and `IN_BETA_TESTING`. No external
+TestFlight or App Store release was performed. Physical-device observation remains
+pending. Compact verification evidence is retained alongside this note in
+`build-54-verification-2026-11-07.json`.
