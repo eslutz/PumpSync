@@ -16,6 +16,7 @@ final class AppServices {
   let syncMetadataStore: SyncMetadataStore
   let syncCoordinator: SyncCoordinator
   let backgroundSyncScheduler: BackgroundSyncScheduler
+  let connectionSettings: ConnectionSettingsController
   let foregroundRecovery: ForegroundRecoveryController
   private let metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector
 
@@ -32,7 +33,8 @@ final class AppServices {
     syncMetadataStore: SyncMetadataStore,
     syncCoordinator: SyncCoordinator,
     backgroundSyncScheduler: BackgroundSyncScheduler,
-    metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector
+    metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector,
+    connectionStorage: ConnectionActivationStorage? = nil
   ) {
     self.apiClient = apiClient
     self.backendConfigurationStore = backendConfigurationStore
@@ -47,6 +49,8 @@ final class AppServices {
     self.syncCoordinator = syncCoordinator
     self.backgroundSyncScheduler = backgroundSyncScheduler
     self.metricKitDiagnosticsCollector = metricKitDiagnosticsCollector
+    connectionSettings = ConnectionSettingsController(configuration: backendConfigurationStore, auth: authService, api: apiClient,
+      sync: syncCoordinator, storage: connectionStorage ?? ConnectionActivationStorage(root: SecureKeychainStore(service: "dev.ericslutz.PumpSync.screenshots.connections")), diagnostics: diagnosticsLogStore)
     foregroundRecovery = ForegroundRecoveryController(
       setVisible: {
         authService.setConnectionProgressVisible($0)
@@ -67,6 +71,11 @@ final class AppServices {
         diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync ledger migration deferred")
       }
       backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
+      if let connectionStorage, !authService.isReplacingConnection {
+        do { try connectionStorage.restoreConfiguration(backendConfigurationStore, apiClient: apiClient) }
+        catch { return }
+      }
+      nativeDiagnosticsStore.reloadIfUnavailable()
       healthKitService.refreshAuthorizationStatus()
       await syncCoordinator.reconcileForegroundRecovery()
     }
@@ -84,12 +93,17 @@ final class AppServices {
       assertionFailure("Fresh-install Keychain cleanup failed: \(error.localizedDescription)")
     }
     let backendConfigurationStore = BackendConfigurationStore()
+    let connectionStorage = ConnectionActivationStorage(root: keychain)
+    // The Keychain activation pointer is authoritative after a crash; replay
+    // preferences before constructing services that capture configuration.
+    do { try connectionStorage.restoreConfiguration(backendConfigurationStore, apiClient: apiClient) }
+    catch { /* Router reads fail closed until the Keychain becomes available. */ }
     _ = backendConfigurationStore.apply(to: apiClient)
     let diagnosticsLogStore = DiagnosticsLogStore()
     let nativeDiagnosticsStore = NativeDiagnosticsStore()
-    let sessionStore = BackendSessionStore(keychain: keychain)
+    let sessionStore = BackendSessionStore(keychain: connectionStorage)
     let proofProvider = DeviceSessionProofProvider(
-      keychain: keychain,
+      keychain: connectionStorage,
       diagnostics: diagnosticsLogStore
     )
     let credentialStore = TandemCredentialStore(keychain: keychain)
@@ -100,6 +114,7 @@ final class AppServices {
       proofProvider: proofProvider,
       diagnostics: diagnosticsLogStore
     )
+    authService.configurationDidCommit = { try connectionStorage.updateConfiguration(backendConfigurationStore) }
     let insulinConcentrationStore = InsulinConcentrationStore()
     let healthKitService = HealthKitService(
       insulinConcentrationStore: insulinConcentrationStore,
@@ -142,7 +157,8 @@ final class AppServices {
       syncMetadataStore: syncMetadataStore,
       syncCoordinator: syncCoordinator,
       backgroundSyncScheduler: backgroundSyncScheduler,
-      metricKitDiagnosticsCollector: metricKitDiagnosticsCollector
+      metricKitDiagnosticsCollector: metricKitDiagnosticsCollector,
+      connectionStorage: connectionStorage
     )
   }
 
@@ -152,15 +168,9 @@ final class AppServices {
     let defaults = UserDefaults(suiteName: defaultsSuiteName) ?? .standard
     defaults.removePersistentDomain(forName: defaultsSuiteName)
 
-    let apiClient: PumpSyncAPIClient
-    if AppLaunchEnvironment.screenshotPreviewState != nil {
-      let configuration = URLSessionConfiguration.ephemeral
-      configuration.protocolClasses = [ScreenshotPreviewURLProtocol.self]
-      apiClient = PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLSession(configuration: configuration), maxRetryCount: 0)
-    } else {
-      apiClient = PumpSyncAPIClient.live()
-      apiClient.maxRetryCount = 0
-    }
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [ScreenshotPreviewURLProtocol.self]
+    let apiClient = PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLSession(configuration: configuration), maxRetryCount: 0)
     let backendConfigurationStore = BackendConfigurationStore(defaults: defaults)
     let diagnosticsLogStore = DiagnosticsLogStore(defaults: defaults)
     let nativeDiagnosticsStore = NativeDiagnosticsStore(defaults: defaults)
@@ -227,15 +237,13 @@ final class AppServices {
       redactedUsername: "demo@pumpsync.app",
       validatedAt: Date().addingTimeInterval(-60 * 60)
     )
-    if AppLaunchEnvironment.screenshotPreviewState != nil {
-      do {
-        try credentialStore.saveValidated(.init(username: "demo@pumpsync.app", password: "synthetic-only", region: "us"))
-      } catch {
-        assertionFailure("Could not prepare synthetic preview credentials")
-      }
+    do {
+      try credentialStore.saveValidated(.init(username: "demo@pumpsync.app", password: "synthetic-only", region: "us"))
+    } catch {
+      assertionFailure("Could not prepare synthetic screenshot credentials")
     }
     healthKitService.applyScreenshotAuthorization()
-    let screenshotMetadata = if AppLaunchEnvironment.isScreenshotInitialSync {
+    var screenshotMetadata = if AppLaunchEnvironment.isScreenshotInitialSync {
       SyncMetadata(
         lastAttemptAt: nil,
         lastSuccessfulSyncAt: nil,
@@ -254,13 +262,28 @@ final class AppServices {
         initialImportRange: .pastWeek
       )
     }
+    screenshotMetadata.owner = credentialStore.accountId.flatMap { accountId in
+      backendConfigurationStore.selectedBaseURL.map { TandemSyncOwner(accountId: accountId, backendIdentity: ImportSessionSnapshot.canonicalBackendIdentity($0)) }
+    }
+    let screenshotCompletionDate = Date()
+    if AppLaunchEnvironment.isScreenshotSyncSuccess {
+      screenshotMetadata.lastAttemptAt = screenshotCompletionDate.addingTimeInterval(-5)
+      screenshotMetadata.lastSuccessfulSyncAt = screenshotCompletionDate
+      screenshotMetadata.lastSampleCount = 48
+      screenshotMetadata.lastImportedCount = 4
+      screenshotMetadata.lastPermissionSkippedCount = 0
+      screenshotMetadata.lastErrorMessage = nil
+    }
     syncMetadataStore.applyScreenshotMetadata(screenshotMetadata)
     if AppLaunchEnvironment.isScreenshotSyncing {
       syncCoordinator.applyScreenshotSyncing()
     } else if AppLaunchEnvironment.isScreenshotSyncSuccess {
-      syncCoordinator.applyScreenshotSuccess()
+      syncCoordinator.applyScreenshotSuccess(completedAt: screenshotCompletionDate)
     } else if AppLaunchEnvironment.isScreenshotSyncFailure {
       syncCoordinator.applyScreenshotFailure()
+    } else if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-connection-failure") {
+      authService.clearSessionForConnectionChange()
+      syncCoordinator.applyScreenshotFailure(recovery: .openSettings)
     }
     diagnosticsLogStore.record(source: .auth, title: "PumpSync subscription active")
     diagnosticsLogStore.record(source: .sync, title: "Sync completed", message: "Returned 48, imported 48.")

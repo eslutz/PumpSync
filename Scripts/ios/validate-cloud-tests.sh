@@ -1,6 +1,6 @@
 #!/bin/bash
-# Xcode 27.1 project preflight. Hosted Cloud acceptance is verified separately.
-# Keep the exact toolchain and simulator runtime explicit.
+# Latest stable Xcode preflight (minimum 27.2). Hosted Cloud acceptance is verified separately.
+# Record the selected toolchain and preserve compact-device runtime coverage.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -9,7 +9,7 @@ if (( $# != 0 )); then
   exit 2
 fi
 
-expected_xcode_build="27A9275"
+minimum_xcode_version="27.2"
 runtime="com.apple.CoreSimulator.SimRuntime.iOS-27-0"
 device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation"
 device_name="PumpSync iOS 27 SE Validation"
@@ -18,10 +18,13 @@ mkdir -p "$results_dir"
 results_dir="$(cd "$results_dir" && pwd)"
 
 xcodebuild -version | tee "$results_dir/environment.txt"
-if ! grep -qx "Build version $expected_xcode_build" "$results_dir/environment.txt"; then
-  echo "Cloud preflight requires Xcode build $expected_xcode_build. Select the matching Xcode before running." >&2
-  exit 1
-fi
+python3 - "$minimum_xcode_version" "$results_dir/environment.txt" <<'PYCODE'
+import re, sys
+minimum = tuple(map(int, sys.argv[1].split('.')))
+actual = re.search(r'^Xcode ([0-9.]+)$', open(sys.argv[2]).read(), re.M)
+if not actual or tuple(map(int, actual[1].split('.'))) < minimum:
+    raise SystemExit(f"Select the latest stable Xcode, version {sys.argv[1]} or newer.")
+PYCODE
 
 xcrun simctl list runtimes available --json | python3 -c '
 import json, sys
@@ -54,7 +57,7 @@ xcrun simctl ui "$device_id" content_size large
   echo "Commit: $(git rev-parse HEAD)"
   git status --short
 } | tee -a "$results_dir/environment.txt"
-git ls-files -z -- PumpSync PumpSyncTests PumpSyncUITests project.yml PumpSync.xcodeproj \
+git ls-files -z --cached --others --exclude-standard -- PumpSync PumpSyncTests PumpSyncUITests project.yml PumpSync.xcodeproj \
   | xargs -0 shasum -a 256 > "$results_dir/source-hashes.txt"
 export PUMPSYNC_TEST_DESTINATION="platform=iOS Simulator,id=$device_id"
 

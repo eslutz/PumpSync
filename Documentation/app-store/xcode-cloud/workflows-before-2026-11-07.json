@@ -1,0 +1,536 @@
+[
+  {
+    "data": {
+      "type": "ciWorkflows",
+      "id": "3fdf7a99-a43d-4523-b738-29db6b8df9b6",
+      "attributes": {
+        "manualTagStartCondition": null,
+        "isLockedForEditing": false,
+        "tagStartCondition": null,
+        "lastModifiedDate": "2026-10-22T20:38:37.486Z",
+        "manualPullRequestStartCondition": null,
+        "description": "Manual routine validation. Full unit and UI suite on one iPhone SE (3rd generation), iOS 27.0. Cached build data; no archive or TestFlight distribution.",
+        "clean": false,
+        "branchStartCondition": null,
+        "containerFilePath": "PumpSync.xcodeproj",
+        "pullRequestStartCondition": null,
+        "scheduledStartCondition": null,
+        "isEnabled": true,
+        "name": "PumpSync Validation",
+        "manualBranchStartCondition": {
+          "source": {
+            "isAllMatch": true,
+            "patterns": []
+          }
+        },
+        "actions": [
+          {
+            "name": "Test - iOS",
+            "actionType": "TEST",
+            "destination": null,
+            "buildDistributionAudience": null,
+            "testConfiguration": {
+              "kind": "USE_SCHEME_SETTINGS",
+              "testPlanName": "",
+              "testDestinations": [
+                {
+                  "deviceTypeName": "iPhone SE (3rd generation)",
+                  "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+                  "kind": "SIMULATOR"
+                }
+              ]
+            },
+            "scheme": "PumpSync",
+            "platform": "IOS",
+            "isRequiredToPass": true
+          }
+        ]
+      },
+      "relationships": {
+        "macOsVersion": {
+          "data": {
+            "type": "ciMacOsVersions",
+            "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f"
+          }
+        },
+        "buildRuns": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/relationships/buildRuns",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/buildRuns"
+          }
+        },
+        "repository": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/relationships/repository",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6/repository"
+          }
+        },
+        "xcodeVersion": {
+          "data": {
+            "type": "ciXcodeVersions",
+            "id": "c6252c7c-1b08-421a-921a-3c744e454fba"
+          }
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6"
+      }
+    },
+    "included": [
+      {
+        "type": "ciMacOsVersions",
+        "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f",
+        "attributes": {
+          "name": "Latest Release",
+          "version": "26B123"
+        }
+      },
+      {
+        "type": "ciXcodeVersions",
+        "id": "c6252c7c-1b08-421a-921a-3c744e454fba",
+        "attributes": {
+          "name": "Xcode 27.1",
+          "version": "27A9275",
+          "testDestinations": [
+            {
+              "deviceTypeName": "iPhone SE (3rd generation)",
+              "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+              "availableRuntimes": [
+                {
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+                },
+                {
+                  "runtimeName": "iOS 27.1",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-1"
+                },
+                {
+                  "runtimeName": "iOS 16.4",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-16-4"
+                },
+                {
+                  "runtimeName": "iOS 17.5",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-17-5"
+                }
+              ],
+              "kind": "SIMULATOR"
+            }
+          ]
+        }
+      }
+    ],
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/3fdf7a99-a43d-4523-b738-29db6b8df9b6?include=macOsVersion%2CxcodeVersion"
+    }
+  },
+  {
+    "data": {
+      "type": "ciWorkflows",
+      "id": "0549B95A-6802-4DE6-8A2E-0D79DF62DD1A",
+      "attributes": {
+        "manualTagStartCondition": null,
+        "isLockedForEditing": false,
+        "tagStartCondition": null,
+        "lastModifiedDate": "2026-10-22T20:37:30.769Z",
+        "manualPullRequestStartCondition": null,
+        "description": "Manual internal TestFlight release. Required full unit and UI suite on iPhone SE (3rd generation), iOS 27.0, plus PumpSync Beta archive. Cached builds enabled. Use PumpSync Validation for routine checks.",
+        "clean": false,
+        "branchStartCondition": null,
+        "containerFilePath": "PumpSync.xcodeproj",
+        "pullRequestStartCondition": null,
+        "scheduledStartCondition": null,
+        "isEnabled": true,
+        "name": "PumpSync Internal Beta",
+        "manualBranchStartCondition": {
+          "source": {
+            "isAllMatch": true,
+            "patterns": []
+          }
+        },
+        "actions": [
+          {
+            "name": "Test - iOS",
+            "actionType": "TEST",
+            "destination": null,
+            "buildDistributionAudience": null,
+            "testConfiguration": {
+              "kind": "USE_SCHEME_SETTINGS",
+              "testPlanName": "",
+              "testDestinations": [
+                {
+                  "deviceTypeName": "iPhone SE (3rd generation)",
+                  "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+                  "kind": "SIMULATOR"
+                }
+              ]
+            },
+            "scheme": "PumpSync",
+            "platform": "IOS",
+            "isRequiredToPass": true
+          },
+          {
+            "name": "Archive - iOS",
+            "actionType": "ARCHIVE",
+            "destination": null,
+            "buildDistributionAudience": "INTERNAL_ONLY",
+            "testConfiguration": null,
+            "scheme": "PumpSync Beta",
+            "platform": "IOS",
+            "isRequiredToPass": true
+          }
+        ]
+      },
+      "relationships": {
+        "macOsVersion": {
+          "data": {
+            "type": "ciMacOsVersions",
+            "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f"
+          }
+        },
+        "buildRuns": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/relationships/buildRuns",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/buildRuns"
+          }
+        },
+        "repository": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/relationships/repository",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A/repository"
+          }
+        },
+        "xcodeVersion": {
+          "data": {
+            "type": "ciXcodeVersions",
+            "id": "c6252c7c-1b08-421a-921a-3c744e454fba"
+          }
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A"
+      }
+    },
+    "included": [
+      {
+        "type": "ciXcodeVersions",
+        "id": "c6252c7c-1b08-421a-921a-3c744e454fba",
+        "attributes": {
+          "name": "Xcode 27.1",
+          "version": "27A9275",
+          "testDestinations": [
+            {
+              "deviceTypeName": "iPhone SE (3rd generation)",
+              "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+              "availableRuntimes": [
+                {
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+                },
+                {
+                  "runtimeName": "iOS 27.1",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-1"
+                },
+                {
+                  "runtimeName": "iOS 16.4",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-16-4"
+                },
+                {
+                  "runtimeName": "iOS 17.5",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-17-5"
+                }
+              ],
+              "kind": "SIMULATOR"
+            }
+          ]
+        }
+      },
+      {
+        "type": "ciMacOsVersions",
+        "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f",
+        "attributes": {
+          "name": "Latest Release",
+          "version": "26B123"
+        }
+      }
+    ],
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/0549B95A-6802-4DE6-8A2E-0D79DF62DD1A?include=macOsVersion%2CxcodeVersion"
+    }
+  },
+  {
+    "data": {
+      "type": "ciWorkflows",
+      "id": "62e8529f-3823-4866-ba93-0f7a82d14eac",
+      "attributes": {
+        "manualTagStartCondition": null,
+        "isLockedForEditing": false,
+        "tagStartCondition": null,
+        "lastModifiedDate": "2026-11-05T16:38:42.235Z",
+        "manualPullRequestStartCondition": null,
+        "description": "Manual external-capable TestFlight candidate. Required full unit and UI suite on iPhone SE (3rd generation), iOS 27.0, plus PumpSync Beta archive. Run local release preflight before starting. Beta App Review and verified reviewer access are separate gates.",
+        "clean": false,
+        "branchStartCondition": null,
+        "containerFilePath": "PumpSync.xcodeproj",
+        "pullRequestStartCondition": null,
+        "scheduledStartCondition": null,
+        "isEnabled": true,
+        "name": "PumpSync External Beta",
+        "manualBranchStartCondition": {
+          "source": {
+            "isAllMatch": true,
+            "patterns": []
+          }
+        },
+        "actions": [
+          {
+            "name": "Test - iOS",
+            "actionType": "TEST",
+            "destination": null,
+            "buildDistributionAudience": null,
+            "testConfiguration": {
+              "kind": "USE_SCHEME_SETTINGS",
+              "testPlanName": "",
+              "testDestinations": [
+                {
+                  "deviceTypeName": "iPhone SE (3rd generation)",
+                  "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+                  "kind": "SIMULATOR"
+                }
+              ]
+            },
+            "scheme": "PumpSync",
+            "platform": "IOS",
+            "isRequiredToPass": true
+          },
+          {
+            "name": "Archive - iOS",
+            "actionType": "ARCHIVE",
+            "destination": null,
+            "buildDistributionAudience": "APP_STORE_ELIGIBLE",
+            "testConfiguration": null,
+            "scheme": "PumpSync Beta",
+            "platform": "IOS",
+            "isRequiredToPass": true
+          }
+        ]
+      },
+      "relationships": {
+        "macOsVersion": {
+          "data": {
+            "type": "ciMacOsVersions",
+            "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f"
+          }
+        },
+        "buildRuns": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/62e8529f-3823-4866-ba93-0f7a82d14eac/relationships/buildRuns",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/62e8529f-3823-4866-ba93-0f7a82d14eac/buildRuns"
+          }
+        },
+        "repository": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/62e8529f-3823-4866-ba93-0f7a82d14eac/relationships/repository",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/62e8529f-3823-4866-ba93-0f7a82d14eac/repository"
+          }
+        },
+        "xcodeVersion": {
+          "data": {
+            "type": "ciXcodeVersions",
+            "id": "c6252c7c-1b08-421a-921a-3c744e454fba"
+          }
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/62e8529f-3823-4866-ba93-0f7a82d14eac"
+      }
+    },
+    "included": [
+      {
+        "type": "ciMacOsVersions",
+        "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f",
+        "attributes": {
+          "name": "Latest Release",
+          "version": "26B123"
+        }
+      },
+      {
+        "type": "ciXcodeVersions",
+        "id": "c6252c7c-1b08-421a-921a-3c744e454fba",
+        "attributes": {
+          "name": "Xcode 27.1",
+          "version": "27A9275",
+          "testDestinations": [
+            {
+              "deviceTypeName": "iPhone SE (3rd generation)",
+              "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+              "availableRuntimes": [
+                {
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+                },
+                {
+                  "runtimeName": "iOS 27.1",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-1"
+                },
+                {
+                  "runtimeName": "iOS 16.4",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-16-4"
+                },
+                {
+                  "runtimeName": "iOS 17.5",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-17-5"
+                }
+              ],
+              "kind": "SIMULATOR"
+            }
+          ]
+        }
+      }
+    ],
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/62e8529f-3823-4866-ba93-0f7a82d14eac?include=macOsVersion%2CxcodeVersion"
+    }
+  },
+  {
+    "data": {
+      "type": "ciWorkflows",
+      "id": "752ce628-544a-43dc-b9f0-08b041e2ae9e",
+      "attributes": {
+        "manualTagStartCondition": null,
+        "isLockedForEditing": false,
+        "tagStartCondition": null,
+        "lastModifiedDate": "2026-11-05T16:40:14.938Z",
+        "manualPullRequestStartCondition": null,
+        "description": "Manual production App Store candidate. Required full unit and UI suite on iPhone SE (3rd generation), iOS 27.0, then PumpSync Release archive. Run the pinned local preflight and verify production, purchase routing, reviewer access, and release evidence before starting. No automatic distribution or publication.",
+        "clean": false,
+        "branchStartCondition": null,
+        "containerFilePath": "PumpSync.xcodeproj",
+        "pullRequestStartCondition": null,
+        "scheduledStartCondition": null,
+        "isEnabled": true,
+        "name": "PumpSync App Store Release",
+        "manualBranchStartCondition": {
+          "source": {
+            "isAllMatch": true,
+            "patterns": []
+          }
+        },
+        "actions": [
+          {
+            "name": "Test - iOS",
+            "actionType": "TEST",
+            "destination": null,
+            "buildDistributionAudience": null,
+            "testConfiguration": {
+              "kind": "USE_SCHEME_SETTINGS",
+              "testPlanName": "",
+              "testDestinations": [
+                {
+                  "deviceTypeName": "iPhone SE (3rd generation)",
+                  "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+                  "kind": "SIMULATOR"
+                }
+              ]
+            },
+            "scheme": "PumpSync",
+            "platform": "IOS",
+            "isRequiredToPass": true
+          },
+          {
+            "name": "Archive - iOS",
+            "actionType": "ARCHIVE",
+            "destination": null,
+            "buildDistributionAudience": "APP_STORE_ELIGIBLE",
+            "testConfiguration": null,
+            "scheme": "PumpSync",
+            "platform": "IOS",
+            "isRequiredToPass": true
+          }
+        ]
+      },
+      "relationships": {
+        "macOsVersion": {
+          "data": {
+            "type": "ciMacOsVersions",
+            "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f"
+          }
+        },
+        "buildRuns": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/752ce628-544a-43dc-b9f0-08b041e2ae9e/relationships/buildRuns",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/752ce628-544a-43dc-b9f0-08b041e2ae9e/buildRuns"
+          }
+        },
+        "repository": {
+          "links": {
+            "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/752ce628-544a-43dc-b9f0-08b041e2ae9e/relationships/repository",
+            "related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/752ce628-544a-43dc-b9f0-08b041e2ae9e/repository"
+          }
+        },
+        "xcodeVersion": {
+          "data": {
+            "type": "ciXcodeVersions",
+            "id": "c6252c7c-1b08-421a-921a-3c744e454fba"
+          }
+        }
+      },
+      "links": {
+        "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/752ce628-544a-43dc-b9f0-08b041e2ae9e"
+      }
+    },
+    "included": [
+      {
+        "type": "ciXcodeVersions",
+        "id": "c6252c7c-1b08-421a-921a-3c744e454fba",
+        "attributes": {
+          "name": "Xcode 27.1",
+          "version": "27A9275",
+          "testDestinations": [
+            {
+              "deviceTypeName": "iPhone SE (3rd generation)",
+              "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
+              "availableRuntimes": [
+                {
+                  "runtimeName": "iOS 27.0",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+                },
+                {
+                  "runtimeName": "iOS 27.1",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-1"
+                },
+                {
+                  "runtimeName": "iOS 16.4",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-16-4"
+                },
+                {
+                  "runtimeName": "iOS 17.5",
+                  "runtimeIdentifier": "com.apple.CoreSimulator.SimRuntime.iOS-17-5"
+                }
+              ],
+              "kind": "SIMULATOR"
+            }
+          ]
+        }
+      },
+      {
+        "type": "ciMacOsVersions",
+        "id": "31ce63a2-a54f-3e25-b883-dc13290abb7f",
+        "attributes": {
+          "name": "Latest Release",
+          "version": "26B123"
+        }
+      }
+    ],
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/752ce628-544a-43dc-b9f0-08b041e2ae9e?include=macOsVersion%2CxcodeVersion"
+    }
+  }
+]

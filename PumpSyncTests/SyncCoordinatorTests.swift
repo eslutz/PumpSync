@@ -2181,18 +2181,29 @@ final class SyncCoordinatorTests: XCTestCase {
       effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
     )
 
+    let metadata = makeSyncMetadataStore()
     let coordinator = makeCoordinator(
       authService: makeSignedInAuthService(),
       credentialStore: try makeValidatedCredentialStore(),
       healthKitService: fakeHealthKit,
-      importedSampleLedger: importedSampleLedger
+      importedSampleLedger: importedSampleLedger,
+      syncMetadataStore: metadata
     )
 
     await coordinator.sync(reason: .manual)
 
-    XCTAssertEqual(coordinator.lastMessage, "Imported 1 new samples.")
+    XCTAssertTrue(coordinator.lastMessage?.contains("not saved because Health write access") == true)
+    XCTAssertLessThanOrEqual(try XCTUnwrap(metadata.metadata.syncWatermark), Date(timeIntervalSince1970: 1_000_000))
     XCTAssertEqual(try importedSampleLedger.filterUnseen([written]).count, 0, "the written sample should be ledgered")
     XCTAssertEqual(try importedSampleLedger.filterUnseen([dropped]).count, 1, "the dropped sample must remain importable")
+    XCTAssertEqual(coordinator.attemptStore.history.first?.returnedCount, 2)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.permissionSkippedCount, 1)
+    fakeHealthKit.droppedExternalIds = []
+    await coordinator.sync(reason: .manual)
+    XCTAssertEqual(fakeHealthKit.savedSamples.map(\.externalId), ["carb-1"])
+    XCTAssertEqual(try importedSampleLedger.filterUnseen([dropped]).count, 0)
+    XCTAssertEqual(metadata.metadata.lastPermissionSkippedCount, 0)
+    XCTAssertEqual(metadata.metadata.syncWatermark, Date(timeIntervalSince1970: 1_100_000).addingTimeInterval(-24 * 60 * 60))
   }
 
   func testTandemCredentialRejectionInvalidatesValidationAndSurfacesBackendMessage() async throws {
@@ -2261,6 +2272,8 @@ final class SyncCoordinatorTests: XCTestCase {
       coordinator.lastMessage?.contains("no longer available") == true,
       "expected a data-gap notice, got: \(coordinator.lastMessage ?? "nil")"
     )
+    guard case .succeeded(let completion) = coordinator.operationState else { return XCTFail("Expected successful sync with a data-gap notice") }
+    XCTAssertTrue(completion.notice?.contains("no longer available") == true)
   }
 
   func testSyncRequestCarriesDeviceTimeZone() async throws {

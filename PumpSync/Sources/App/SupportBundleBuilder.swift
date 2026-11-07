@@ -34,6 +34,8 @@ struct SupportBundleContext {
 
 enum SupportBundleBuilder {
   static func build(context: SupportBundleContext, generatedAt: Date = Date()) -> String {
+    let history = SyncHistoryPresentation(metadata: context.syncMetadata,
+      attempts: (context.activeSyncAttempt.map { [$0] } ?? []) + context.syncAttempts)
     let lines = [
       "# PumpSync Support Bundle",
       "",
@@ -49,13 +51,16 @@ enum SupportBundleBuilder {
       "Refresh Credential Idle Expiry: \(format(context.refreshCredentialExpiresAt))",
       "Refresh Credential Absolute Expiry: \(format(context.refreshCredentialAbsoluteExpiresAt))",
       "",
-      "## Sync",
-      "Last Attempt: \(format(context.syncMetadata.lastAttemptAt))",
+      "## Sync — current pump account and server",
+      "Last Attempt: \(format(history.lastAttempt))",
       "Last Success: \(format(context.syncMetadata.lastSuccessfulSyncAt))",
-      "Last Returned Count: \(context.syncMetadata.lastSampleCount)",
-      "Last Imported Count: \(context.syncMetadata.lastImportedCount)",
+      "Last Returned Count: \(history.returned.map(String.init) ?? "Not recorded")",
+      "Last Imported Count: \(history.imported.map(String.init) ?? "Not recorded")",
       "Last Error: \(redacted(context.syncMetadata.lastErrorMessage ?? ((context.activeSyncAttempt != nil || !context.syncAttempts.isEmpty) ? "See owned attempt history" : "None")))",
       "Initial Import Range: \(context.syncMetadata.initialImportRange.rawValue)",
+      "Counts describe the last successful sync for this account and server.",
+      "Permission-skipped records: \(history.permissionSkipped.map(String.init) ?? "Not recorded")",
+      history.resetDescription ?? "",
       "",
       "## Owned Sync Attempts",
       attemptLines(context),
@@ -105,42 +110,12 @@ enum SupportBundleBuilder {
       return "No app diagnostics recorded."
     }
 
-    return entries
-      .prefix(50)
-      .map { entry in
-        [
-          "- \(format(entry.timestamp))",
-          entry.source.rawValue,
-          entry.severity.rawValue,
-          entry.title,
-          entry.message ?? ""
-        ]
-        .filter { !$0.isEmpty }
-        .map(redacted)
-        .joined(separator: " | ")
-      }
-      .joined(separator: "\n")
+    return entries.prefix(50).map(DiagnosticPresentation.export).joined(separator: "\n\n")
   }
 
   private static func nativeDiagnosticLines(_ entries: [NativeDiagnosticEntry]) -> String {
-    guard !entries.isEmpty else {
-      return "No native diagnostics recorded."
-    }
-
-    return entries
-      .prefix(50)
-      .map { entry in
-        [
-          "- \(format(entry.timestamp))",
-          entry.kind.rawValue,
-          entry.title,
-          "App \(entry.appVersion) (\(entry.buildNumber))",
-          entry.summary.replacingOccurrences(of: "\n", with: " ; ")
-        ]
-        .map(redacted)
-        .joined(separator: " | ")
-      }
-      .joined(separator: "\n")
+    guard !entries.isEmpty else { return "No native diagnostics recorded." }
+    return entries.prefix(50).map(DiagnosticPresentation.export).joined(separator: "\n\n")
   }
 
   private static func redacted(_ value: String) -> String {

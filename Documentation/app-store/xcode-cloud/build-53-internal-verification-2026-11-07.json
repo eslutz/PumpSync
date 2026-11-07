@@ -1,0 +1,14 @@
+{
+  "buildID": "683ad224-c9a5-47d6-8aa2-60b31e935e2a",
+  "version": "53",
+  "sourceCommit": "8e3ebf17b1fcb16ea940b4a21841d7f128127875",
+  "processingState": "VALID",
+  "groupID": "93121b60-16ee-439c-a441-df3ca9ae27ae",
+  "groupName": "Internal Testers",
+  "groupMembershipVerified": true,
+  "betaDetail": {
+    "autoNotifyEnabled": true,
+    "internalBuildState": "IN_BETA_TESTING",
+    "externalBuildState": "READY_FOR_BETA_SUBMISSION"
+  }
+}

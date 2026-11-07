@@ -12,7 +12,7 @@ struct SyncView: View {
     PumpSyncScreen {
       GlassSection {
         GlassStatusRow(
-          title: "Connection",
+          title: services.backendConfigurationStore.mode == .hosted ? "PumpSync service" : "Self-hosted service",
           value: connectionStatus,
           systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
           showsProgress: services.authService.isConnecting
@@ -21,7 +21,7 @@ struct SyncView: View {
         if !services.authService.isSignedIn && !services.authService.isConnecting && syncFailure == nil {
           Text(services.authService.errorMessage ?? "Connect before syncing pump data to Apple Health.")
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.pumpSyncSecondaryText)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.vertical, 6)
             .padding(.leading, iconColumnWidth + 14)
@@ -48,7 +48,7 @@ struct SyncView: View {
         GlassDivider()
 
         GlassStatusRow(
-          title: "Pump data",
+          title: "Tandem account",
           value: tandemStatus,
           systemImage: services.credentialStore.hasValidatedCredentials ? "key.fill" : "key.slash"
         )
@@ -56,41 +56,27 @@ struct SyncView: View {
 
       if services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil {
         GlassSection("Initial Import") {
+          if let reset = history.resetDescription {
+            Text(reset).font(.subheadline).foregroundStyle(Color.pumpSyncSecondaryText)
+          }
           initialImportMenu
 
           GlassDivider(leadingPadding: 0)
 
           Text("Choose how much pump history to import the first time. Future syncs import new data only. Keep PumpSync open while a sync is running; you can move around within PumpSync.")
             .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.pumpSyncSecondaryText)
             .padding(.vertical, 8)
         }
       }
 
-      if let failure = syncFailure {
-        GlassSection {
-          Label(failure.recovery == .openSubscription ? "Subscription required" : "Sync needs attention",
-                systemImage: "exclamationmark.triangle.fill")
-            .font(.headline)
-            .accessibilityAddTraits(.isHeader)
-            .fixedSize(horizontal: false, vertical: true)
-          Text(failure.message)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.vertical, 8)
-          Button(action: recoverSync) {
-            GlassPrimaryLabel(title: recoveryTitle, systemImage: recoveryIcon)
-          }
-          .buttonStyle(GroupedRowActionButtonStyle())
-          .disabled(services.syncCoordinator.isSyncing)
-        }
-      } else {
+      if syncFailure == nil {
         Button {
           if canSync { services.syncCoordinator.startManualSync() }
         } label: {
           SyncButtonLabel(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing)
         }
-        .buttonStyle(GroupedActionButtonStyle())
+        .buttonStyle(.borderedProminent).controlSize(.large).font(.title3.weight(.semibold))
         .disabled(!canSync)
       }
 
@@ -101,7 +87,7 @@ struct SyncView: View {
           ) {
             Text(presentation.detail)
               .font(.subheadline)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(Color.pumpSyncSecondaryText)
               .fixedSize(horizontal: false, vertical: true)
               .frame(maxWidth: .infinity, alignment: .leading)
               .accessibilityIdentifier("SyncProgressDetail")
@@ -117,12 +103,12 @@ struct SyncView: View {
            hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
          ) {
         GlassSection {
-          Text(message).foregroundStyle(.secondary)
+          Text(message).foregroundStyle(Color.pumpSyncSecondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
 
-      if let lastSuccessfulSyncAt = services.syncMetadataStore.metadata.lastSuccessfulSyncAt {
+      if let lastSuccessfulSyncAt = history.lastSuccess {
         VStack(alignment: .leading, spacing: 8) {
           GlassSection("Last Successful Sync") {
             GlassStatusRow(
@@ -132,18 +118,23 @@ struct SyncView: View {
               tint: .green
             )
           }
-          if case .succeeded(let completion) = services.syncCoordinator.operationState {
-            Text(completion.message)
+          if let summary = history.countsSummary {
+            Text(summary)
               .font(.subheadline)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(Color.pumpSyncSecondaryText)
               .fixedSize(horizontal: false, vertical: true)
               .padding(.horizontal, 16)
               .accessibilityIdentifier("SyncCompletionSummary")
           }
+          if case .succeeded(let completion) = services.syncCoordinator.operationState, let notice = completion.notice {
+            Text(notice).font(.subheadline).foregroundStyle(Color.pumpSyncSecondaryText)
+              .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 16)
+              .accessibilityIdentifier("SyncCompletionDetail")
+          }
           if Date().timeIntervalSince(lastSuccessfulSyncAt) >= AppConstants.staleSyncInterval {
             Label("Apple Health may be out of date.", systemImage: "clock.badge.exclamationmark")
               .font(.footnote)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(Color.pumpSyncSecondaryText)
               .padding(.horizontal, 16)
               .accessibilityIdentifier("StaleSyncNotice")
           }
@@ -158,18 +149,6 @@ struct SyncView: View {
       }
     }) {
       PumpSyncSubscriptionStoreView(isPresented: $showsSubscription)
-    }
-    .onChange(of: services.syncCoordinator.operationState) { _, state in
-      switch state {
-      case .succeeded(let completion):
-        UIAccessibility.post(notification: .announcement, argument: "Sync complete. \(completion.message)")
-      case .failed(let failure):
-        UIAccessibility.post(notification: .announcement, argument: failure.message)
-      case .running(let progress):
-        if progress.trigger == .background { break }
-        UIAccessibility.post(notification: .announcement, argument: progress.phase.message)
-      case .idle: break
-      }
     }
     .onAppear {
       services.healthKitService.refreshAuthorizationStatus()
@@ -219,11 +198,17 @@ struct SyncView: View {
     }
   }
 
+  private var history: SyncHistoryPresentation {
+    SyncHistoryPresentation(metadata: services.syncMetadataStore.metadata,
+      attempts: (services.syncCoordinator.attemptStore.active.map { [$0] } ?? []) + services.syncCoordinator.attemptStore.history)
+  }
+
   private var canSync: Bool {
     services.authService.isSignedIn
       && services.credentialStore.hasValidatedCredentials
       && services.healthKitService.hasAnyWritePermission
       && !services.syncCoordinator.isSyncing
+      && !services.authService.isReplacingConnection
   }
 
   private var connectionStatus: String {
@@ -337,7 +322,6 @@ private struct SyncButtonLabel: View {
       HStack(spacing: 14) {
         Image(systemName: "arrow.triangle.2.circlepath")
           .rowIconColumn()
-          .foregroundStyle(.tint)
           .rotationEffect(.degrees(
             SyncButtonIconRotation.angle(
               isSyncing: isSyncing,
@@ -349,7 +333,6 @@ private struct SyncButtonLabel: View {
           .accessibilityHidden(true)
 
         Text(title)
-          .foregroundStyle(.primary)
           .fixedSize(horizontal: false, vertical: true)
           .layoutPriority(1)
 

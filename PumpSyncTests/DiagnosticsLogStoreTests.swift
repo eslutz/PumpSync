@@ -3,6 +3,34 @@ import XCTest
 
 @MainActor
 final class DiagnosticsLogStoreTests: XCTestCase {
+  func testSecretRedactionIsIdempotentAcrossRepeatedExportBoundaries() {
+    let value = #"password="a multiword secret" accessToken=unquoted-token user@example.com"#
+    let once = DiagnosticsLogStore.redacted(value)
+    XCTAssertEqual(DiagnosticsLogStore.redacted(once), once)
+  }
+
+  func testQuotedSecretsAreFullyRemovedFromPersistenceAndExports() throws {
+    let suite = "QuotedSecrets.\(UUID())"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let store = DiagnosticsLogStore(defaults: defaults)
+    store.record(source: .auth, title: "Failure", message: #"password="correct horse,battery;staple" accessToken='escaped secret phrase'"#)
+    let entry = try XCTUnwrap(DiagnosticsLogStore(defaults: defaults).entries.first)
+    for output in [entry.message ?? "", DiagnosticPresentation.export(entry), String(decoding: defaults.data(forKey: "diagnostics-log")!, as: UTF8.self)] {
+      for secret in ["correct", "horse", "battery", "staple", "escaped", "phrase"] { XCTAssertFalse(output.contains(secret), secret) }
+    }
+  }
+
+  func testRedactsNamedSecretsAndTitlesBeforePersistence() {
+    let store = makeStore()
+    store.record(source: .auth, title: "Failure for private@example.com", message: "password=secret-marker accessToken=access-marker authorization=Basic-secret")
+    let entry = store.entries[0]
+    XCTAssertFalse(entry.title.contains("private@example.com"))
+    XCTAssertFalse(entry.message?.contains("secret-marker") ?? true)
+    XCTAssertFalse(entry.message?.contains("access-marker") ?? true)
+    XCTAssertFalse(entry.message?.contains("Basic-secret") ?? true)
+  }
+
   func testRedactsRenewableSessionCredentialsAndChallenges() {
     let redacted = DiagnosticsLogStore.redacted(
       "refresh=psrt1.019c1234567890abcdef1234567890ab.aVeryLongRefreshSecretValue123456789 challenge=psc1.payloadPayloadPayloadPayload.signatureSignatureSignature"

@@ -16,10 +16,27 @@ struct TandemCredentialForm: View {
   @State private var baselineUsername = ""
   @State private var baselineRegion = TandemRegion.us
   @State private var isConfirmingRemoval = false
+  @State private var isEditing = false
 
   var body: some View {
     PumpSyncScreen {
+      if services.credentialStore.hasStoredCredentials && !isEditing {
+        GlassSection("Saved Account") {
+          GlassStatusRow(title: "Username", value: baselineUsername, systemImage: "person.crop.circle")
+          GlassDivider()
+          GlassStatusRow(title: "Region", value: baselineRegion.title, systemImage: "globe")
+          GlassDivider()
+          GlassStatusRow(title: "Password", value: "Saved on this device", systemImage: "key")
+        }
+        Button("Change Account Details", systemImage: "pencil") { isEditing = true }
+          .buttonStyle(.borderedProminent).controlSize(.large).font(.title3.weight(.semibold))
+          .disabled(services.syncCoordinator.hasActiveSyncExecution || services.authService.isReplacingConnection)
+        Button("Remove Credentials", systemImage: "trash", role: .destructive) { isConfirmingRemoval = true }
+          .buttonStyle(.bordered).tint(Color.pumpSyncDestructiveAction).controlSize(.large).font(.title3.weight(.semibold))
+          .disabled(services.syncCoordinator.hasActiveSyncExecution)
+      } else {
       GlassSection("Tandem Source") {
+        Text("Username").font(.subheadline.weight(.semibold)).accessibilityHidden(true)
         TextField("Username", text: $username)
           .textContentType(.username)
           .textInputAutocapitalization(.never)
@@ -30,6 +47,7 @@ struct TandemCredentialForm: View {
 
         GlassDivider(leadingPadding: 0)
 
+        Text("Password").font(.subheadline.weight(.semibold)).accessibilityHidden(true)
         HStack(spacing: 12) {
           Group {
             if isShowingPassword {
@@ -59,7 +77,7 @@ struct TandemCredentialForm: View {
         if services.credentialStore.hasStoredCredentials {
           Text("A password is already saved on this device. Enter it again to change your username, password, or region.")
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.pumpSyncSecondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 8)
         }
@@ -104,25 +122,34 @@ struct TandemCredentialForm: View {
           }
         }
       } label: {
-        GlassPrimaryLabel(title: primaryActionTitle, systemImage: primaryActionSystemImage)
+        Label(primaryActionTitle, systemImage: primaryActionSystemImage)
+          .frame(maxWidth: .infinity).fixedSize(horizontal: false, vertical: true)
       }
-      .buttonStyle(GroupedActionButtonStyle())
+      .buttonStyle(.borderedProminent).controlSize(.large).font(.title3.weight(.semibold))
       .disabled(!canUsePrimaryAction)
       .accessibilityHint(primaryActionHint)
 
       if actionState == .saveDisabled && services.credentialStore.hasStoredCredentials && (usernameChanged || regionChanged) && password.isEmpty {
         Text("Enter your password to save changes.")
           .font(.footnote)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(Color.pumpSyncSecondaryText)
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(.horizontal, 4)
       }
+      if services.credentialStore.hasStoredCredentials {
+        Button("Cancel", role: .cancel) { cancelEditing() }.buttonStyle(.bordered).tint(.primary).frame(minHeight: 44)
+      }
+      }
     }
+    .privacySensitive()
+    .redacted(reason: scenePhase == .active ? [] : .privacy)
     .navigationTitle("Tandem")
     .onAppear(perform: load)
-    .onDisappear { validation.cancel() }
+    .onDisappear { validation.cancel(); password = ""; isShowingPassword = false; lastValidatedCredentials = nil }
     .onChange(of: services.backendConfigurationStore.revision) { _, _ in
       validation.cancel()
+      password = ""
+      isShowingPassword = false
       lastValidatedCredentials = nil
     }
     .onChange(of: scenePhase) { _, newPhase in
@@ -131,6 +158,8 @@ struct TandemCredentialForm: View {
       // app-switcher snapshot and remain visible on return.
       if newPhase != .active {
         isShowingPassword = false
+        password = ""
+        lastValidatedCredentials = nil
         validation.cancel()
       }
     }
@@ -138,7 +167,7 @@ struct TandemCredentialForm: View {
       Button("Remove Credentials", role: .destructive, action: delete)
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("You will need to enter your Tandem account details before syncing again.")
+      Text("Removes the Tandem sign-in from this device and stops pump sync until you save an account again. Current-account sync history resets. Existing Apple Health samples, duplicate-prevention records, backend metadata, and your subscription remain.")
     }
     .alert(
       alert?.title ?? "",
@@ -199,7 +228,7 @@ struct TandemCredentialForm: View {
 
   private var actionState: ActionState {
     Self.actionState(
-      hasStoredCredentials: services.credentialStore.hasStoredCredentials,
+      hasStoredCredentials: false,
       usernameChanged: usernameChanged,
       regionChanged: regionChanged,
       password: password
@@ -211,6 +240,8 @@ struct TandemCredentialForm: View {
       && (actionState == .remove || hasRequiredFields)
       && !isValidating
       && !services.authService.isConnecting
+      && !services.authService.isReplacingConnection
+      && !services.syncCoordinator.hasActiveSyncExecution
   }
 
   private var primaryActionTitle: String {
@@ -241,6 +272,15 @@ struct TandemCredentialForm: View {
     }
 
     return current == lastValidated
+  }
+
+  private func cancelEditing() {
+    validation.cancel()
+    password = ""
+    isShowingPassword = false
+    lastValidatedCredentials = nil
+    load()
+    isEditing = false
   }
 
   private func load() {
@@ -312,7 +352,8 @@ struct TandemCredentialForm: View {
       }
 
       try services.credentialStore.saveValidated(credentials)
-      lastValidatedCredentials = credentials
+      lastValidatedCredentials = nil
+      isEditing = false
       baselineUsername = credentials.username
       baselineRegion = TandemRegion(rawValue: credentials.region) ?? .us
       password = ""

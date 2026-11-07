@@ -17,12 +17,16 @@ enum DiagnosticSeverity: String, Codable {
 enum DiagnosticsRedactor {
   static func redacted(_ message: String) -> String {
     var result = message
-    let replacements = [
-      #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#: "[redacted email]",
-      #"Bearer\s+[A-Za-z0-9._\-]+"#: "Bearer [redacted token]",
-      #"\beyJ[A-Za-z0-9._\-]{20,}\b"#: "[redacted token]",
-      #"\bps(?:rt|c)1\.[A-Za-z0-9_\-\.]{20,}\b"#: "[redacted renewable credential]",
-      #"\b[A-Za-z0-9_\-]{32,}\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}\b"#: "[redacted token]"
+    let replacements: [(String, String)] = [
+      (#"(?i)(password|passwd|accessToken|refreshToken|authorization|signedTransactionInfo|attestationObject|assertion|challengeToken|clientSecret)[\"\']?\s*[:=]\s*"(?:\\.|[^"\\])*""#, "$1=[redacted-secret]"),
+      (#"(?i)(password|passwd|accessToken|refreshToken|authorization|signedTransactionInfo|attestationObject|assertion|challengeToken|clientSecret)[\"\']?\s*[:=]\s*'(?:\\.|[^'\\])*'"#, "$1=[redacted-secret]"),
+      (#"(?i)\b(authorization)\s*[:=]\s*(?:Bearer|Basic)\s+[^\s,;]+"#, "$1=[redacted-secret]"),
+      (#"(?i)(password|passwd|accessToken|refreshToken|authorization|signedTransactionInfo|attestationObject|assertion|challengeToken|clientSecret)\s*[\"\']?\s*[:=]\s*[\"\']?[^\s,;\"\'}]+"#, "$1=[redacted-secret]"),
+      (#"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#, "[redacted email]"),
+      (#"Bearer\s+[A-Za-z0-9._\-]+"#, "Bearer [redacted token]"),
+      (#"\beyJ[A-Za-z0-9._\-]{20,}\b"#, "[redacted token]"),
+      (#"\bps(?:rt|c)1\.[A-Za-z0-9_\-\.]{20,}\b"#, "[redacted renewable credential]"),
+      (#"\b[A-Za-z0-9_\-]{32,}\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}\b"#, "[redacted token]")
     ]
 
     for (pattern, replacement) in replacements {
@@ -44,6 +48,7 @@ struct DiagnosticEntry: Identifiable, Equatable, Codable {
   let severity: DiagnosticSeverity
   let title: String
   let message: String?
+  var syncAttempt: SyncAttempt? = nil
 
   init(
     id: UUID = UUID(),
@@ -51,14 +56,16 @@ struct DiagnosticEntry: Identifiable, Equatable, Codable {
     source: DiagnosticSource,
     severity: DiagnosticSeverity,
     title: String,
-    message: String?
+    message: String?,
+    syncAttempt: SyncAttempt? = nil
   ) {
+    self.syncAttempt = syncAttempt
     self.id = id
     self.timestamp = timestamp
     self.source = source
     self.severity = severity
-    self.title = title
-    self.message = message
+    self.title = DiagnosticsRedactor.redacted(title)
+    self.message = message.map(DiagnosticsRedactor.redacted)
   }
 }
 
@@ -80,7 +87,8 @@ final class DiagnosticsLogStore {
     source: DiagnosticSource,
     severity: DiagnosticSeverity = .info,
     title: String,
-    message: String? = nil
+    message: String? = nil,
+    syncAttempt: SyncAttempt? = nil
   ) {
     // message is redacted here, before the entry is ever constructed, so the
     // persisted copy below carries the exact same redaction as what's held
@@ -90,7 +98,8 @@ final class DiagnosticsLogStore {
       source: source,
       severity: severity,
       title: title,
-      message: message.map(Self.redacted)
+      message: message.map(Self.redacted),
+      syncAttempt: syncAttempt
     )
     entries.insert(entry, at: 0)
 
@@ -128,6 +137,10 @@ final class DiagnosticsLogStore {
       return []
     }
 
-    return Array(entries.prefix(maxEntries))
+    let sanitized = entries.prefix(maxEntries).map {
+      DiagnosticEntry(id: $0.id, timestamp: $0.timestamp, source: $0.source, severity: $0.severity, title: $0.title, message: $0.message, syncAttempt: $0.syncAttempt)
+    }
+    if let data = try? JSONEncoder().encode(sanitized) { defaults.set(data, forKey: defaultsKey) }
+    return sanitized
   }
 }

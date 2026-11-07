@@ -29,7 +29,10 @@ final class MetricKitDiagnosticsCollector: NSObject, MXMetricManagerSubscriber {
         kind: .performance,
         title: "Performance metrics",
         timestamp: payload.timeStampEnd,
-        summary: Self.summary(from: payload, preferredKeys: Self.performanceSummaryKeys)
+        summary: Self.reportSummary(NativeDiagnosticReport.make(from: Self.metricKitJSON(from: payload), windowStart: payload.timeStampBegin, windowEnd: payload.timeStampEnd)),
+        report: NativeDiagnosticReport.make(from: Self.metricKitJSON(from: payload), windowStart: payload.timeStampBegin, windowEnd: payload.timeStampEnd),
+        sourceVersion: payload.latestApplicationVersion + (payload.includesMultipleApplicationVersions ? " (multiple versions)" : ""),
+        sourceBuild: payload.metaData?.applicationBuildVersion ?? "Not reported"
       )
       Task { @MainActor [store] in
         store.record(entry)
@@ -40,14 +43,18 @@ final class MetricKitDiagnosticsCollector: NSObject, MXMetricManagerSubscriber {
   func didReceive(_ payloads: [MXDiagnosticPayload]) {
     for payload in payloads {
       let entry = makeEntry(
-        kind: .crash,
+        kind: Self.crashTitle(from: payload) == "Crash diagnostic" ? .crash
+          : (Self.crashTitle(from: payload) == "Hang diagnostic" ? .hang
+            : (Self.crashTitle(from: payload) == "CPU exception diagnostic" ? .cpuException : .diagnostic)),
         title: Self.crashTitle(from: payload),
         timestamp: payload.timeStampEnd,
         summary: Self.summary(
           from: payload,
           preferredKeys: Self.crashSummaryKeys,
           fallback: "MetricKit delivered a native diagnostic payload."
-        )
+        ),
+        report: NativeDiagnosticReport.make(from: Self.metricKitJSON(from: payload), windowStart: payload.timeStampBegin, windowEnd: payload.timeStampEnd),
+        sourceVersion: "Not reported", sourceBuild: "Not reported"
       )
       Task { @MainActor [store] in
         store.record(entry)
@@ -59,20 +66,30 @@ final class MetricKitDiagnosticsCollector: NSObject, MXMetricManagerSubscriber {
     kind: NativeDiagnosticKind,
     title: String,
     timestamp: Date,
-    summary: String
+    summary: String,
+    report: NativeDiagnosticReport? = nil,
+    sourceVersion: String? = nil,
+    sourceBuild: String? = nil
   ) -> NativeDiagnosticEntry {
     NativeDiagnosticEntry(
       timestamp: timestamp,
       kind: kind,
       title: title,
       summary: summary,
-      appVersion: bundleInfo.version,
-      buildNumber: bundleInfo.build
+      appVersion: sourceVersion ?? bundleInfo.version,
+      buildNumber: sourceBuild ?? bundleInfo.build,
+      report: report
     )
   }
 }
 
 extension MetricKitDiagnosticsCollector {
+  static func reportSummary(_ report: NativeDiagnosticReport) -> String {
+    let keys = ["Foreground time", "CPU time", "Wi-Fi downloaded", "Disk writes"]
+    let rows = keys.compactMap { key in report.measurements[key].map { "\(key): \($0)" } }
+    return rows.isEmpty ? "No supported summary measurements in this report. Open details for retained fields." : rows.joined(separator: " · ")
+  }
+
   static let performanceSummaryKeys = [
     "timeStampBegin",
     "timeStampEnd",

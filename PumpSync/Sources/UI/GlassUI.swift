@@ -22,6 +22,7 @@ struct PumpSyncScreen<Content: View>: View {
       .padding(.top, 12)
       .padding(.bottom, 24)
     }
+    .scrollDismissesKeyboard(.interactively)
     .background(Color(.systemGroupedBackground))
     .transaction { transaction in
       if reduceMotion {
@@ -46,7 +47,7 @@ struct GlassSection<Content: View>: View {
         Text(title)
           .font(.headline)
           .accessibilityAddTraits(.isHeader)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.primary)
           .padding(.horizontal, 4)
       }
 
@@ -90,6 +91,7 @@ struct GlassStatusRow: View {
   let systemImage: String
   var tint: Color = .accentColor
   var showsProgress = false
+  var truncatesValue = false
 
   var body: some View {
     let layout = dynamicTypeSize.isAccessibilitySize
@@ -105,8 +107,10 @@ struct GlassStatusRow: View {
         Text(title)
           .foregroundStyle(.primary)
         Text(value)
+          .lineLimit(truncatesValue ? 1 : nil)
+          .truncationMode(.middle)
           .font(.subheadline)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(Color.pumpSyncSecondaryText)
           .fixedSize(horizontal: false, vertical: true)
       }
       .layoutPriority(1)
@@ -126,6 +130,7 @@ struct GlassStatusRow: View {
 }
 
 struct GlassNavigationRow: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   let title: String
   let subtitle: String?
   let systemImage: String
@@ -138,10 +143,12 @@ struct GlassNavigationRow: View {
 
   var body: some View {
     HStack(spacing: 14) {
-      Image(systemName: systemImage)
-        .rowIconColumn()
-        .foregroundStyle(.tint)
-        .accessibilityHidden(true)
+      if !dynamicTypeSize.isAccessibilitySize {
+        Image(systemName: systemImage)
+          .rowIconColumn()
+          .foregroundStyle(.tint)
+          .accessibilityHidden(true)
+      }
 
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
@@ -150,7 +157,7 @@ struct GlassNavigationRow: View {
         if let subtitle {
           Text(subtitle)
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.pumpSyncSecondaryText)
             .fixedSize(horizontal: false, vertical: true)
         }
       }
@@ -311,6 +318,7 @@ struct NativeMenuPicker<Selection: Hashable, Options: View>: View {
   var body: some View {
     Picker(title, selection: $selection) { options }
       .pickerStyle(.menu)
+      .tint(.primary)
       .buttonStyle(NativeMenuPickerButtonStyle())
       .labelsHidden()
       .font(.subheadline)
@@ -325,5 +333,19 @@ private struct NativeMenuPickerButtonStyle: ButtonStyle {
     configuration.label
       .frame(minHeight: 44, alignment: .leading)
       .contentShape(Rectangle())
+  }
+}
+
+// The rendered system secondary label nearly failed ordinary-text contrast on
+// grouped surfaces in the design-review audit. Retain hierarchy with an
+// adaptive primary-label color at a stronger opacity in both appearances.
+extension Color {
+  static var pumpSyncSecondaryText: Color { Color.primary.opacity(0.8) }
+  static var pumpSyncDestructiveAction: Color {
+    Color(uiColor: UIColor { traits in
+      traits.userInterfaceStyle == .dark
+        ? UIColor(red: 1, green: 0.4, blue: 0.38, alpha: 1)
+        : UIColor(red: 0.65, green: 0.04, blue: 0.07, alpha: 1)
+    })
   }
 }
