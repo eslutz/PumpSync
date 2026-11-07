@@ -25,21 +25,21 @@ Source: PumpSync iOS Design Review, 6 November 2026, F01–F17. Baseline fronten
 | --- | --- | --- |
 | F01 | Native prominent Sync/Connect/Save actions, busy/disabled state, neutral subscription management | Implemented; complete simulator suite passes |
 | F02 | Saved-account summary; explicit Change, Save and Cancel; credentials preserved until validation succeeds | Implemented; storage and editor regressions pass |
-| F03 | Scoped credential-removal confirmation; request-only deletion email; no Apple Health/subscription deletion claim | Implemented; device mail handoff remains manual |
-| F04 | Keyboard Return dismisses input without authentication; explicit Connect; isolated candidate authentication; durable pointer activation; crash/journal route recovery; late-response fencing | Implemented; eight connection regressions pass; hardware proof remains a device gate |
+| F03 | Scoped credential-removal confirmation; request-only deletion email; no Apple Health/subscription deletion claim | Implemented; device mail handoff deferred |
+| F04 | Keyboard Return dismisses input without authentication; explicit Connect; isolated candidate authentication; durable pointer activation; crash/journal route recovery; late-response fencing | Implemented; eight connection regressions pass; hardware proof deferred |
 | F05 | Short task copy; consequences remain visible; conversion mechanics and sync explanation have detail destinations | Implemented |
 | F06 | Human summaries and navigable sanitized event/report details; legacy summaries identified | Implemented; discarded legacy payloads cannot be recovered |
 | F07 | Exact UTC timestamps, native report windows/units, scoped attempt counts; unavailable values remain unavailable | Implemented; presentation and migration regressions pass |
 | F08 | Named category copy, per-entry copy/share, explicit support-bundle scope and copy feedback | Implemented; category copy/clear UI regression passes |
-| F09 | Stronger adaptive text/action contrast; full-width privacy text and scalable Health step numerals; native audit, twelve actual text categories and VoiceOver | Automated audit, all twelve text categories and seven simulator VoiceOver flows pass; manual contrast, device VoiceOver, Reduce Motion/Transparency remain open |
+| F09 | Stronger adaptive text/action contrast; full-width privacy text and scalable Health step numerals; native audit, twelve actual text categories and VoiceOver | Automated audit, all twelve text categories and seven simulator VoiceOver flows pass; manual contrast, device VoiceOver, Reduce Motion/Transparency deferred |
 | F10 | One global status above TabView leaves native chrome unobscured; explicit keyboard dismissal and bidirectional final-content reachability | Implemented; compact and iPad recovery/navigation checks pass |
 | F11 | Existing conversion captured once per operation; backend normalization inspected; historical samples unchanged | **Resolved: U-100 source baseline confirmed by Eric Slutz; existing uniform conversion verified** |
 | F12 | Sync, Developer and exports share scoped history; saved counts survive idle/relaunch; latest attempts are separate; reset explanations and coherent fixtures | Implemented; restart, renewal and owner-change regressions pass |
 | F13 | Sanitization before persistence/export; protected, backup-excluded native reports; retention and deletion disclosures | Implemented; redaction/migration/category-clear regressions pass |
-| F14 | Decorative images hidden from VoiceOver; semantic native actions; full accessible/copyable installation ID | Implemented; spoken/device acceptance remains open |
+| F14 | Decorative images hidden from VoiceOver; semantic native actions; full accessible/copyable installation ID | Implemented; spoken/device acceptance deferred |
 | F15 | Draft cancel, candidate failure/late callback, busy/retry, cancellation, duplicate and partial-permission handling | Implemented; complete unit/UI suite passes |
 | F16 | Native menus preserved; unique accessible action names; cancel/confirm/category isolation | Implemented; native-menu and simulator VoiceOver checks pass |
-| F17 | Per-type authorization refresh at entry/foreground; partial import counts and bounded backfill | Implemented; permission-restoration regression passes; physical Health flow remains open |
+| F17 | Per-type authorization refresh at entry/foreground; partial import counts and bounded backfill | Implemented; permission-restoration regression passes; physical Health flow deferred |
 
 ## Validation results
 
@@ -55,7 +55,7 @@ No finding is closed from screenshots alone. Implementation completion is separa
 - **Configurations:** Beta and Release simulator builds passed with zero build-tool warnings. These are compilation checks, not signed archives.
 - **Backend:** Release build passed without warnings; complete tests **388/388**. The initial run exposed an Azurite readiness race; the test fixture now waits for an actual table operation. `/tmp/pumpsync-design-backend-final.log`.
 - **Website:** tests **20/20**, build and HTML validation passed; `/tmp/pumpsync-design-website-final.log`.
-- **Workflow source:** GitHub CI shell syntax and both validation-script shell checks passed. Hosted GitHub/Xcode Cloud execution and actual Cloud configuration readback are separate, unverified gates.
+- **Hosted validation:** [GitHub iOS CI](https://github.com/eslutz/PumpSync/actions/runs/42372161226) passed all 430 unit and 37 UI tests with Xcode 27.2 (`27B52`) and the strict warning gate. Cloud Validation 52 and Beta 53 each passed all 467 tests on SE (3rd generation) / iOS 27.2; the Beta archive succeeded. Both Cloud runs used implementation commit `8e3ebf17b1fcb16ea940b4a21841d7f128127875`. Backend CI also passed: [run 42372233224](https://github.com/eslutz/PumpSync-Backend/actions/runs/42372233224).
 
 Earlier failed or interrupted runs are retained and are not counted as final passes. Regressions reproduced partial-permission replay loss, quoted-secret leaks, journal/API route restoration, candidate lifecycle races, keyboard Return initiating authentication, fixture metadata mutation, iPad status/navigation overlap, and a 34.5-point recovery hit target. Fixes are covered by the final unit/UI suite. The keyboard-toolbar trial that produced a runtime layout warning was removed; the warning gate was preserved. The ledger retains the intermediate evidence and harness corrections.
 
@@ -80,14 +80,14 @@ Native report fidelity means retained allowlisted measurements, windows, numeric
 
 ## Decisions and remaining acceptance
 
-- Keep the existing clean development branch and leave changes uncommitted for review. This preserves repository ownership; concurrent unrelated work must still be reviewed before committing.
+- Initially kept the existing development branches and left changes uncommitted for review. Eric subsequently authorized commit/push and hosted validation after confirming F11; the remediation is now published through the existing frontend/website PRs, a scoped backend PR, and the canonical wiki.
 - Follow the user's latest-stable-Xcode instruction, minimum 27.2; retain iOS 27.0 compact coverage and add a latest-installed-runtime check. Compact coverage alone would miss newer-runtime behavior.
 - Retain only allowlisted native payload fields. This reduces diagnostic fidelity in exchange for excluding arbitrary sensitive content; legacy raw payload recovery is impossible.
 - Record unresolved native contrast nodes and obscured/offscreen text as coverage limits, with captures. A native automated pass is not a contrast conformance certificate; unresolved nodes require manual measurements in representative appearances.
 
-Computer-use validation is currently blocked because the Mac is locked. The optional unlock request does not block independent CLI tests; no inaccessible UI mode is claimed as verified.
+Manual and physical-device acceptance checks are explicitly deferred by Eric Slutz. The locked Mac separately prevents browser repair of the existing Internal Beta workflow; API access supports the other hosted steps.
 
-Deferred by Eric Slutz: manual and physical-device acceptance checks. Remaining release evidence: physical-device Health permission changes/write/deduplication; Secure Enclave/App Attest and StoreKit purchase/restore; actual mail-client handoff/fallback; spoken physical-device VoiceOver and focus; Reduce Motion and Reduce Transparency; physical-device Increase Contrast; remaining manual contrast nodes; actual hosted workflow/toolchain readback, CI/Cloud, deployment, distribution and human design acceptance. Existing clinical multipliers and historical Health samples were not changed.
+Deferred by Eric Slutz: physical-device Health permission changes/write/deduplication; Secure Enclave/App Attest and StoreKit purchase/restore; actual mail-client handoff/fallback; spoken physical-device VoiceOver and focus; Reduce Motion and Reduce Transparency; physical-device Increase Contrast; remaining manual contrast nodes; human design acceptance. Backend/website production deployment and PR merges are separate from this internal app delivery. Existing multipliers and historical Health samples were not changed.
 
 
 ## Final code-review fixes
@@ -112,3 +112,13 @@ Synthetic fixtures only; these are simulator evidence, not App Store submissions
 - [iPhone privacy final content](assets/2026-11-06-remediation/iphone-privacy-final-content.png)
 - [iPhone maximum text: privacy final content](assets/2026-11-06-remediation/iphone-max-privacy-final-content.png)
 - [iPhone maximum text: Developer final content](assets/2026-11-06-remediation/iphone-max-developer-final-content.png)
+
+## Publication and internal delivery
+
+The reviewed implementation is committed and pushed. Frontend [PR 5](https://github.com/eslutz/PumpSync/pull/5), backend [PR 8](https://github.com/eslutz/PumpSync-Backend/pull/8), and website [PR 10](https://github.com/eslutz/PumpSync-Website/pull/10) are assigned to Eric Slutz. The canonical wiki is updated. PRs are not merged; backend and website production services were not deployed.
+
+TestFlight build **53** is VALID, assigned to the existing Internal Testers group, and its internal state is **IN_BETA_TESTING**, verified through the API after all hosted gates passed. External testing and App Store submission were not started. Physical-device installation and acceptance remain explicitly deferred.
+
+Cloud Validation, External Beta and App Store Release use Latest Release Xcode (currently 27.2). The existing Internal Beta workflow remains on its old configuration because Apple's API rejected the action/distribution mapping update. Its repair requires browser access to the unlocked Mac. This build used the updated archive workflow with no distribution post-action, followed by an explicit assignment only to Internal Testers. Configuration rollback, invariant checks, test summaries and TestFlight membership/state evidence are retained in `Documentation/app-store/xcode-cloud/`.
+
+The source hashes from local preflight were rechecked before publication (104/104 unchanged). Subsequent evidence updates change documentation only; hosted test receipts identify the tested implementation revision explicitly.

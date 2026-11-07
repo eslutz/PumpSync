@@ -1,0 +1,17 @@
+[
+  {
+    "workflow": "PumpSync Validation",
+    "onlyTestRuntimeAndXcodeChanged": true,
+    "triggersAndArchiveScopePreserved": true
+  },
+  {
+    "workflow": "PumpSync External Beta",
+    "onlyTestRuntimeAndXcodeChanged": true,
+    "triggersAndArchiveScopePreserved": true
+  },
+  {
+    "workflow": "PumpSync App Store Release",
+    "onlyTestRuntimeAndXcodeChanged": true,
+    "triggersAndArchiveScopePreserved": true
+  }
+]
