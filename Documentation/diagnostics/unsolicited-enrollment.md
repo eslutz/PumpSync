@@ -110,3 +110,24 @@ pushed settings destinations all passed (3 UI tests). Result bundle:
 final auth source. `git diff --check` passed. The internal Cloud workflow will still
 run its complete test suite and archive; distribution evidence will distinguish a
 clean hosted result from any audit finding covered by this waiver.
+
+## Hosted build 55 and pending distribution decision
+
+Lifecycle implementation `ca307c415c33586f3f185705fc48ec16aa7573d6` was committed
+and pushed. Internal Beta run 55 (`fdbcaa73-d214-4bcb-b91e-69bddd03869c`) archived
+successfully and processed build `2f114a33-ae00-48aa-9d3f-1b107e029a3d` as VALID.
+Hosted results: 471/472 tests passed; the sole failure was
+`PumpSyncUITests.testVoiceOverDiagnosticsAndSourceData`: "VoiceOver could not reach
+Clear Logs". The native core-screen accessibility audit passed in this hosted run.
+Automatic Internal TestFlight distribution was skipped because the test action failed.
+No manual distribution was performed.
+
+The exact build-54 source passed the VoiceOver test in a single local baseline run
+(`/private/tmp/pumpsync-build54-voiceover-baseline.xcresult`). This baseline used
+SE / iOS 27.0, while Cloud used SE / iOS 27.2. The UI views/styles/tests/configuration
+are unchanged, but these results cannot establish that the hosted failure is
+pre-existing or exclude interaction with new lifecycle logging. No unchanged runs
+were repeated to obtain a pass. The user was asked whether to extend the conditional
+waiver to this specific unattributed UI failure. Build 55 is held for that decision.
+Current-source unit tests and all other hosted tests passed; release notes are saved.
+The existing 12-hour monitoring continues on the last confirmed installed build 54.
