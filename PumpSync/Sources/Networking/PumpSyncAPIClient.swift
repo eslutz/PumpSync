@@ -43,14 +43,16 @@ final class PumpSyncAPIClient {
   func createSubscriptionSession(_ request: SubscriptionSessionRequest, backendCorrelation: ((String?) -> Void)? = nil) async throws -> BackendSessionResponse {
     try await send(
       path: "/v1/subscription/session", method: "POST", body: request, accessToken: nil,
-      allowsRetry: false, timeoutInterval: ConnectionTimeouts.hosted, responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.hosted, responseCancellationPolicy: .preserveReceivedResponse,
+      responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
     )
   }
 
   func createSelfHostedSession(_ request: SelfHostedSessionRequest, backendCorrelation: ((String?) -> Void)? = nil) async throws -> BackendSessionResponse {
     try await send(
       path: "/v1/self-host/session", method: "POST", body: request, accessToken: nil,
-      allowsRetry: false, timeoutInterval: ConnectionTimeouts.selfHosted, responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.selfHosted, responseCancellationPolicy: .preserveReceivedResponse,
+      responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
     )
   }
 
@@ -65,7 +67,8 @@ final class PumpSyncAPIClient {
   func refreshSession(_ request: SessionRefreshRequest, mode: BackendAccessMode, backendCorrelation: ((String?) -> Void)? = nil) async throws -> BackendSessionResponse {
     try await send(
       path: "/v1/session/refresh", method: "POST", body: request, accessToken: nil,
-      allowsRetry: false, timeoutInterval: ConnectionTimeouts.value(for: mode), responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
+      allowsRetry: false, timeoutInterval: ConnectionTimeouts.value(for: mode), responseCancellationPolicy: .preserveReceivedResponse,
+      responseObserver: { backendCorrelation?($0.value(forHTTPHeaderField: "X-Correlation-ID")) }
     )
   }
 
@@ -95,6 +98,7 @@ final class PumpSyncAPIClient {
   /// operation. This GET is safe to retry once because it does not create or
   /// mutate authentication state.
   func warmup() async throws {
+    let session = urlSession
     var request = URLRequest(url: baseURL.appendingPathComponent("v1/capabilities"))
     request.httpMethod = "GET"
     request.timeoutInterval = ConnectionTimeouts.hosted
@@ -103,7 +107,7 @@ final class PumpSyncAPIClient {
     for attempt in 0...1 {
       let link = SyncDiagnosticContext.prepare(&request, path: "/v1/capabilities")
       do {
-        let (_, response) = try await urlSession.data(for: request)
+        let (_, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else {
           throw APIClientError.invalidResponse
         }
@@ -121,27 +125,37 @@ final class PumpSyncAPIClient {
     }
   }
 
-  private func send<Request: Encodable, Response: Decodable>(
+  private func send<Request: Encodable, Response: Decodable & Sendable>(
     path: String,
     method: String,
     body: Request,
     accessToken: String?,
     allowsRetry: Bool = true,
     timeoutInterval: TimeInterval? = nil,
+    responseCancellationPolicy: APIResponseCancellationPolicy = .cancelWhenRequested,
     responseObserver: ((HTTPURLResponse) -> Void)? = nil
   ) async throws -> Response {
     var lastError: Error?
-    let requestBaseURL = baseURL
+    // All retries belong to the same connection. A settings change may replace
+    // the client's configuration while URLSession is suspended.
+    let configuration = RequestConfiguration(
+      baseURL: baseURL, session: urlSession, retryCount: max(0, maxRetryCount),
+      timeout: timeoutInterval ?? self.timeoutInterval(for: path),
+      responseCancellationPolicy: responseCancellationPolicy
+    )
+    let encodedBody = method == "GET" ? nil : try NativePerformance.measure("Encode API request") {
+      try JSONCodec.encoder.encode(body)
+    }
 
-    for attempt in 0...maxRetryCount {
+    for attempt in 0...configuration.retryCount {
       do {
         return try await sendOnce(
-          baseURL: requestBaseURL, path: path, method: method, body: body, accessToken: accessToken,
-          timeoutInterval: timeoutInterval, responseObserver: responseObserver
+          configuration: configuration, path: path, method: method, body: encodedBody, accessToken: accessToken,
+          responseObserver: responseObserver
         )
       } catch {
         lastError = error
-        guard allowsRetry, shouldRetry(error: error), attempt < maxRetryCount else {
+        guard allowsRetry, shouldRetry(error: error), attempt < configuration.retryCount else {
           throw error
         }
 
@@ -152,21 +166,28 @@ final class PumpSyncAPIClient {
     throw lastError ?? APIClientError.invalidResponse
   }
 
-  private func sendOnce<Request: Encodable, Response: Decodable>(
-    baseURL: URL,
+  private struct RequestConfiguration {
+    let baseURL: URL
+    let session: URLSession
+    let retryCount: Int
+    let timeout: TimeInterval
+    let responseCancellationPolicy: APIResponseCancellationPolicy
+  }
+
+  private func sendOnce<Response: Decodable & Sendable>(
+    configuration: RequestConfiguration,
     path: String,
     method: String,
-    body: Request,
+    body: Data?,
     accessToken: String?,
-    timeoutInterval: TimeInterval?,
     responseObserver: ((HTTPURLResponse) -> Void)?
   ) async throws -> Response {
-    var urlRequest = URLRequest(url: baseURL.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))))
+    var urlRequest = URLRequest(url: configuration.baseURL.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))))
     urlRequest.httpMethod = method
     urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
 
-    if method != "GET" {
-      urlRequest.httpBody = try JSONCodec.encoder.encode(body)
+    if let body {
+      urlRequest.httpBody = body
       urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
     }
 
@@ -174,9 +195,15 @@ final class PumpSyncAPIClient {
       urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
     }
 
-    urlRequest.timeoutInterval = timeoutInterval ?? self.timeoutInterval(for: path)
+    urlRequest.timeoutInterval = configuration.timeout
     let link = SyncDiagnosticContext.prepare(&urlRequest, path: path)
-    let (data, response) = try await urlSession.data(for: urlRequest, delegate: SensitiveRequestRedirectGuard())
+    let download = NativePerformance.begin("Download API response")
+    let (data, response): (Data, URLResponse)
+    do {
+      defer { NativePerformance.end("Download API response", download) }
+      (data, response) = try await configuration.session.data(for: urlRequest, delegate: SensitiveRequestRedirectGuard())
+    }
+    try configuration.responseCancellationPolicy.checkCancellation()
     guard let httpResponse = response as? HTTPURLResponse else {
       throw APIClientError.invalidResponse
     }
@@ -184,7 +211,9 @@ final class PumpSyncAPIClient {
     SyncDiagnosticContext.received(httpResponse, link: link)
     responseObserver?(httpResponse)
     guard (200..<300).contains(httpResponse.statusCode) else {
-      let errorResponse = try? JSONCodec.decoder.decode(ErrorResponse.self, from: data)
+      let errorResponse = try? await APIResponseDecoder.decode(ErrorResponse.self, from: data,
+        cancellationPolicy: configuration.responseCancellationPolicy)
+      try configuration.responseCancellationPolicy.checkCancellation()
       throw APIClientError.httpStatus(
         httpResponse.statusCode,
         code: errorResponse?.code,
@@ -193,7 +222,8 @@ final class PumpSyncAPIClient {
       )
     }
 
-    return try JSONCodec.decoder.decode(Response.self, from: data)
+    return try await APIResponseDecoder.decode(Response.self, from: data,
+      cancellationPolicy: configuration.responseCancellationPolicy)
   }
 
   private func timeoutInterval(for path: String) -> TimeInterval {
@@ -237,7 +267,7 @@ final class PumpSyncAPIClient {
   }
 }
 
-private struct ErrorResponse: Decodable {
+private struct ErrorResponse: Decodable, Sendable {
   let code: String
   let message: String
   let correlationId: String?
@@ -341,51 +371,9 @@ enum APIClientError: LocalizedError {
   }
 }
 
-enum JSONCodec {
-  static let encoder: JSONEncoder = {
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .iso8601
-    return encoder
-  }()
-
-  static let decoder: JSONDecoder = {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .custom { decoder in
-      let container = try decoder.singleValueContainer()
-      let value = try container.decode(String.self)
-
-      if let date = iso8601WithFractionalSeconds.date(from: value) {
-        return date
-      }
-
-      if let date = iso8601.date(from: value) {
-        return date
-      }
-
-      throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO-8601 date: \(value)")
-    }
-    return decoder
-  }()
-
-  // ISO8601DateFormatter isn't Sendable, but these are configured once here
-  // and only ever used for read-only `.date(from:)` calls afterward, which is
-  // safe to share across threads in practice.
-  private nonisolated(unsafe) static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return formatter
-  }()
-
-  private nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime]
-    return formatter
-  }()
-}
-
 private struct EmptyAPIRequest: Encodable {}
 
-struct BackendCapabilitiesResponse: Decodable {
+struct BackendCapabilitiesResponse: Decodable, Sendable {
   let dataSourceMode: DataSourceMode
   let supportsImportPreview: Bool
   private enum CodingKeys: String, CodingKey { case dataSourceMode, supportsImportPreview }

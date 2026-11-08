@@ -57,7 +57,7 @@ xcrun simctl ui "$device_id" content_size large
   echo "Commit: $(git rev-parse HEAD)"
   git status --short
 } | tee -a "$results_dir/environment.txt"
-git ls-files -z --cached --others --exclude-standard -- PumpSync PumpSyncTests PumpSyncUITests project.yml PumpSync.xcodeproj \
+git ls-files -z --cached --others --exclude-standard -- PumpSync PumpSyncTests PumpSyncUITests project.yml PumpSync.xcodeproj Scripts/ios/validate-cloud-tests.sh \
   | xargs -0 shasum -a 256 > "$results_dir/source-hashes.txt"
 export PUMPSYNC_TEST_DESTINATION="platform=iOS Simulator,id=$device_id"
 
@@ -67,13 +67,29 @@ PUMPSYNC_TEST_LOG="$results_dir/full.log" bash Scripts/ios/validate-tests.sh \
 xcrun xcresulttool get test-results summary --path "$results_dir/full.xcresult" > "$results_dir/full-summary.json"
 
 # Use actual simulator text settings, rather than a launch environment variable
-# that does not reliably change SwiftUI's text size. Both text sizes must pass.
+# that does not reliably change SwiftUI's text size. Recovery, native typography,
+# and final-content reachability must pass at both sizes. Verify UIKit observed
+# the requested setting; a passing test under the wrong text size is insufficient.
 for text_size in large accessibility-extra-extra-extra-large; do
   xcrun simctl ui "$device_id" content_size "$text_size"
+  case "$text_size" in
+    large) expected_category="UICTContentSizeCategoryL" ;;
+    accessibility-extra-extra-extra-large) expected_category="UICTContentSizeCategoryAccessibilityXXXL" ;;
+  esac
   PUMPSYNC_TEST_LOG="$results_dir/recovery-$text_size.log" bash Scripts/ios/validate-tests.sh \
     -jobs 1 -parallel-testing-enabled NO \
     -only-testing:PumpSyncUITests/PumpSyncUITests/testConnectionRecoveryOpensSettingsTab \
+    -only-testing:PumpSyncUITests/NativeRefactorUITests/testNativeTypographyAndFinalContentFollowSystemTextSize \
     -resultBundlePath "$results_dir/recovery-$text_size.xcresult"
+  python3 - "$results_dir/recovery-$text_size.log" "$expected_category" <<'PYCODE'
+import re, sys
+log_path, expected = sys.argv[1:]
+with open(log_path) as log:
+    categories = re.findall(r'NATIVE_TYPOGRAPHY category=(\S+) bodyLineHeight=', log.read())
+if not categories or any(category != expected for category in categories):
+    raise SystemExit(f"Actual Dynamic Type category mismatch: expected {expected}, observed {categories}")
+print(f"Verified actual UIKit Dynamic Type category: {expected}")
+PYCODE
   xcrun xcresulttool get test-results summary --path "$results_dir/recovery-$text_size.xcresult" > "$results_dir/recovery-$text_size-summary.json"
 done
 shasum -a 256 -c "$results_dir/source-hashes.txt" > "$results_dir/source-verification.txt"

@@ -10,7 +10,7 @@ struct ImportPreviewView: View {
         List {
             Section {
                 Text("Viewing or refreshing these records doesn’t change Apple Health.")
-                    .foregroundStyle(Color.pumpSyncSecondaryText)
+                    .foregroundStyle(.secondary)
                     .accessibilityIdentifier("PreviewSafetyNotice")
             }
             switch controller.state {
@@ -28,7 +28,7 @@ struct ImportPreviewView: View {
                   }
                 case .failed(let message):
                   Section {
-                    Text(message).foregroundStyle(Color.pumpSyncSecondaryText)
+                    Text(message).foregroundStyle(.secondary)
                     Button("Try Again") { Task { await retry() } }
                         .frame(minHeight: 44)
                   }
@@ -73,16 +73,16 @@ struct ImportPreviewView: View {
                 .font(.headline)
             if let loadedAt = controller.loadedAt {
                 Text("Loaded \(loadedAt.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.subheadline).foregroundStyle(Color.pumpSyncSecondaryText)
+                    .font(.subheadline).foregroundStyle(.secondary)
             }
             Text("Insulin equivalents: \(plan.concentration.title)")
-                .font(.subheadline).foregroundStyle(Color.pumpSyncSecondaryText)
+                .font(.subheadline).foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Time range").font(.subheadline.weight(.semibold))
                 Text("Newest: \(plan.effectiveMaxDate.formatted(date: .abbreviated, time: .shortened))")
                 Text("Oldest: \(plan.effectiveMinDate.formatted(date: .abbreviated, time: .shortened))")
-                Text("Time zone: \(TimeZone.current.identifier)").foregroundStyle(Color.pumpSyncSecondaryText)
+                Text("Time zone: \(TimeZone.current.identifier)").foregroundStyle(.secondary)
             }
             .font(.subheadline)
 
@@ -96,7 +96,7 @@ struct ImportPreviewView: View {
             } else {
                 if let error = controller.refreshError {
                     Text("\(error) Showing the records loaded earlier.")
-                        .foregroundStyle(Color.pumpSyncSecondaryText)
+                        .foregroundStyle(.secondary)
                 }
                 Button { Task { await retry() } } label: {
                     Text("Refresh Records")

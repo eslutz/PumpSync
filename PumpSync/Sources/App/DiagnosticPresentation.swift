@@ -24,25 +24,56 @@ enum DiagnosticPresentation {
 
   static func summary(for entry: DiagnosticEntry) -> String? {
     guard let attempt = entry.syncAttempt else {
-      return entry.message == nil ? nil : "Open details for the diagnostic record."
+      return entry.message.map(DiagnosticsRedactor.redacted)
     }
-    guard let returned = attempt.returnedCount else { return "Counts not recorded for this stage." }
-    var parts = ["\(returned) returned", attempt.importedCount.map { "\($0) imported" } ?? "Import count unavailable"]
+    guard let returned = attempt.returnedCount else { return reason(for: attempt) ?? "Counts not recorded for this stage." }
+    var parts = [String(localized: "\(returned) records received"), attempt.importedCount.map { String(localized: "\($0) samples saved") } ?? String(localized: "Saved count unavailable")]
     if let skipped = attempt.permissionSkippedCount, skipped > 0 { parts.append("\(skipped) awaiting Health access") }
     return parts.joined(separator: " · ")
   }
 
+  static func reason(for attempt: SyncAttempt) -> String? {
+    switch attempt.reason {
+    case .completed, .none: return nil
+    case .fresh: return String(localized: "The last successful sync is recent; no download was needed.")
+    case .credentials: return String(localized: "Save and validate your Tandem account in Settings.")
+    case .healthPermission: return String(localized: "Allow PumpSync to write to Apple Health, then sync again.")
+    case .unverifiedSource: return String(localized: "The source could not be verified. No new samples were submitted.")
+    case .executionLeaseExpired: return String(localized: "iOS ended the available background time. Open PumpSync to try again.")
+    case .canceled: return String(localized: "The sync was canceled.")
+    case .contextReplaced: return String(localized: "The account or connection changed during this sync.")
+    case .requestFailed: return String(localized: "The request failed. Open the technical details for the retained record.")
+    case .proofUnavailable: return String(localized: "Device verification was unavailable. Open PumpSync to reconnect.")
+    case .processInterrupted: return String(localized: "The app stopped before it recorded an outcome. The actual end time is unknown.")
+    case .recovery(let reason):
+      switch reason {
+      case .networkUnavailable: return String(localized: "The network was unavailable. Try again when connected.")
+      case .missingEntitlement: return String(localized: "No active PumpSync subscription was found.")
+      case .storageUnavailable: return String(localized: "Secure storage was unavailable. Unlock the device and open PumpSync.")
+      case .configurationInvalid: return String(localized: "Review the connection configuration in Settings.")
+      case .connectionReplaced: return String(localized: "The connection changed while access was being restored.")
+      case .interactiveRecoveryRequired: return String(localized: "Open PumpSync to finish reconnecting.")
+      case .uncertainSubmission, .commitPending, .invalidationIncomplete:
+        return String(localized: "A previous connection change still needs to be reconciled.")
+      case .appAttestUnavailable, .appAttestTimedOut, .proofOperationInProgress, .deviceProofRejected, .invalidDeviceKey:
+        return String(localized: "Device verification could not complete. Open PumpSync to reconnect.")
+      case .authenticationRejected, .backendRejected:
+        return String(localized: "The service did not accept this connection. Review Settings.")
+      case .unverifiedSource: return String(localized: "The service could not verify the pump data source.")
+      case .unavailable: return String(localized: "The secure connection could not be restored.")
+      }
+    }
+  }
+
   static func exactTime(_ date: Date) -> String {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return formatter.string(from: date)
+    date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true))
   }
 
   static func export(_ entry: DiagnosticEntry) -> String {
     DiagnosticsRedactor.redacted([
       exactTime(entry.timestamp), entry.source.rawValue, entry.severity.rawValue,
-      title(for: entry), entry.title, entry.message ?? "",
-      entry.syncAttempt.map(SyncAttemptStore.description) ?? ""
+      title(for: entry),
+      entry.syncAttempt.map(SyncAttemptStore.description) ?? entry.message ?? ""
     ].filter { !$0.isEmpty }.joined(separator: " | "))
   }
 
@@ -66,8 +97,8 @@ struct SyncHistoryPresentation {
 
   var countsSummary: String? {
     guard lastSuccess != nil else { return nil }
-    var parts = [imported.map { "\($0) imported" } ?? "Import count unavailable",
-                 returned.map { "\($0) returned" } ?? "Returned count unavailable"]
+    var parts = [returned.map { String(localized: "\($0) records received") } ?? String(localized: "Received count unavailable"),
+                 imported.map { String(localized: "\($0) samples saved") } ?? String(localized: "Saved count unavailable")]
     if let permissionSkipped, permissionSkipped > 0 { parts.append("\(permissionSkipped) awaiting Health access") }
     return parts.joined(separator: " · ")
   }
@@ -91,65 +122,3 @@ struct SyncHistoryPresentation {
 
 /// Retain supported numeric fields and validated metadata, never arbitrary strings
 /// or full crash payloads. JSON is lossless for these allowlisted fields only.
-struct NativeDiagnosticReport: Codable, Equatable {
-  let windowStart: Date?
-  let windowEnd: Date?
-  let measurements: [String: String]
-  let json: String
-
-  static func make(from payload: Any, windowStart: Date? = nil, windowEnd: Date? = nil) -> NativeDiagnosticReport {
-    let source = payload as? [String: Any] ?? [:]
-    let groups: Set<String> = ["timeStampBegin", "timeStampEnd", "cpuMetrics", "memoryMetrics", "diskIOMetrics", "networkTransferMetrics", "applicationTimeMetrics", "applicationLaunchMetrics", "applicationResponsivenessMetrics", "cellularConditionMetrics", "applicationExitMetrics", "gpuMetrics", "displayMetrics", "animationMetrics", "locationActivityMetrics", "crashDiagnostics", "hangDiagnostics", "cpuExceptionDiagnostics", "diskWriteExceptionDiagnostics"]
-    var safe = source.filter { groups.contains($0.key) }.compactMapValues(sanitize)
-    if let windowStart { safe["timeStampBegin"] = DiagnosticPresentation.exactTime(windowStart) }
-    if let windowEnd { safe["timeStampEnd"] = DiagnosticPresentation.exactTime(windowEnd) }
-    let data = (try? JSONSerialization.data(withJSONObject: safe, options: [.sortedKeys, .prettyPrinted])) ?? Data("{}".utf8)
-    let flattened = MetricKitDiagnosticsCollector.flatten(safe)
-    var measurements: [String: String] = [:]
-    let names = ["cumulativeForegroundTime": "Foreground time", "cumulativeBackgroundTime": "Background time", "cumulativeCPUTime": "CPU time", "cumulativeLogicalWrites": "Disk writes", "cumulativeWifiDownload": "Wi-Fi downloaded", "cumulativeWifiUpload": "Wi-Fi uploaded"]
-    for (key, label) in names {
-      if let value = flattened.sorted(by: { $0.key < $1.key }).first(where: { $0.key.split(separator: ".").last.map(String.init) == key })?.value {
-        measurements[label] = value
-      }
-    }
-    return NativeDiagnosticReport(windowStart: windowStart ?? date(source["timeStampBegin"]), windowEnd: windowEnd ?? date(source["timeStampEnd"]), measurements: measurements, json: String(decoding: data, as: UTF8.self))
-  }
-
-  private static func date(_ value: Any?) -> Date? {
-    guard let string = value as? String else { return nil }
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return formatter.date(from: string) ?? ISO8601DateFormatter().date(from: string)
-  }
-
-  private static func sanitize(_ value: Any) -> Any? {
-    if let number = value as? NSNumber { return number.doubleValue.isFinite ? number : nil }
-    if let dictionary = value as? [String: Any] {
-      let fields: Set<String> = [
-        "exceptionType", "exceptionCode", "signal", "terminationReason", "callStackTree", "callStacks", "callStackRootFrames", "subFrames", "binaryUUID", "offsetIntoBinaryTextSegment", "address", "threadAttributed", "duration", "totalCPUTime", "totalSampledTime", "writesCaused",
-        "cumulativeCPUTime", "cumulativeGPUTime", "cumulativeForegroundTime", "cumulativeBackgroundTime",
-        "cumulativeHangTime", "cumulativeMemoryResourceLimitTime", "cumulativeLogicalWrites",
-        "cumulativeCellularDownload", "cumulativeCellularUpload", "cumulativeWifiDownload", "cumulativeWifiUpload",
-        "histogrammedTimeToFirstDraw", "histogrammedOptimizedTimeToFirstDraw", "histogrammedExtendedLaunch",
-        "histogrammedApplicationResumeTime", "histogrammedAppLaunchTime", "histogrammedTimeToHang",
-        "histogramNumBuckets", "histogramValue", "histogramBuckets", "bucketStart", "bucketEnd", "bucketCount",
-        "averageSuspendedMemory", "peakMemoryUsage", "averagePixelLuminance", "cumulativeBestAccuracyTime",
-        "cumulativeBestAccuracyForNavigationTime", "cumulativeNearestTenMetersAccuracyTime", "cumulativeHundredMetersAccuracyTime",
-        "cumulativeKilometerAccuracyTime", "cumulativeThreeKilometersAccuracyTime", "averageMemory", "averageValue",
-        "sampleCount", "standardDeviation", "foregroundExitData", "backgroundExitData",
-        "cumulativeNormalAppExitCount", "cumulativeMemoryResourceLimitExitCount", "cumulativeAbnormalExitCount",
-        "cumulativeBadAccessExitCount", "cumulativeIllegalInstructionExitCount", "cumulativeAppWatchdogExitCount",
-        "cumulativeCPUResourceLimitExitCount", "cumulativeBackgroundTaskAssertionTimeoutExitCount",
-        "cumulativeSuspendedWithLockedFileExitCount", "cumulativeMemoryPressureExitCount"
-      ]
-      return dictionary.filter { fields.contains($0.key) || $0.key.range(of: #"^bucket[0-9]+$"#, options: .regularExpression) != nil }.compactMapValues(sanitize)
-    }
-    if let array = value as? [Any] { return array.compactMap(sanitize) }
-    if let string = value as? String {
-      if date(string) != nil || UUID(uuidString: string) != nil { return string }
-      if string.range(of: #"^(?:0x[0-9a-fA-F]+|SIG[A-Z0-9]+|EXC_[A-Z_]+)$"#, options: .regularExpression) != nil { return string }
-      if string.range(of: #"^-?[0-9]+(?:\.[0-9]+)?(?:\s*(?:ms|s|sec|min|hr|h|B|kB|MB|GB|bytes|kilobytes|megabytes|percent|%))?$"#, options: .regularExpression) != nil { return string }
-    }
-    return nil
-  }
-}

@@ -2,200 +2,143 @@ import SwiftUI
 import UIKit
 
 struct SyncView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(AppServices.self) private var services
-  @ScaledMetric(relativeTo: .title3) private var iconColumnWidth = 28
   @State private var showsSubscription = false
   @Environment(\.openConnectionSettings) private var openConnectionSettings
 
   var body: some View {
-    PumpSyncScreen {
-      GlassSection {
-        GlassStatusRow(
-          title: services.backendConfigurationStore.mode == .hosted ? "PumpSync service" : "Self-hosted service",
-          value: connectionStatus,
-          systemImage: services.authService.isSignedIn ? "checkmark.seal.fill" : "network.badge.shield.half.filled",
-          showsProgress: services.authService.isConnecting
-        )
-
-        if !services.authService.isSignedIn && !services.authService.isConnecting && syncFailure == nil {
-          Text(services.authService.errorMessage ?? "Connect before syncing pump data to Apple Health.")
-            .font(.subheadline)
-            .foregroundStyle(Color.pumpSyncSecondaryText)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.vertical, 6)
-            .padding(.leading, iconColumnWidth + 14)
-
-          GlassDivider()
-          Button {
-            if services.authService.requiresSubscriptionAction { showsSubscription = true }
-            else { services.foregroundRecovery.retryConnection() }
-          } label: {
-            GlassPrimaryLabel(
-              title: services.authService.requiresSubscriptionAction ? "View Subscription" : "Retry Connection",
-              systemImage: services.authService.requiresSubscriptionAction ? "creditcard" : "arrow.clockwise"
-            )
+    Form {
+      if let lastSuccess = history.lastSuccess {
+        SyncSummarySection(history: history, lastSuccess: lastSuccess)
+        if case .succeeded(let completion) = services.syncCoordinator.operationState, let notice = completion.notice {
+          Section {
+            Text(notice).foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
+              .accessibilityIdentifier("SyncCompletionDetail")
           }
-          .buttonStyle(GroupedRowActionButtonStyle())
-
-          GlassDivider()
-          Button(action: openConnectionSettings) {
-            GlassNavigationRow("Connection Settings", systemImage: "gearshape")
-          }
-          .buttonStyle(.plain)
         }
-
-        GlassDivider()
-
-        GlassStatusRow(
-          title: "Tandem account",
-          value: tandemStatus,
-          systemImage: services.credentialStore.hasValidatedCredentials ? "key.fill" : "key.slash"
-        )
       }
 
-      if services.syncMetadataStore.metadata.lastSuccessfulSyncAt == nil {
-        GlassSection("Initial Import") {
-          if let reset = history.resetDescription {
-            Text(reset).font(.subheadline).foregroundStyle(Color.pumpSyncSecondaryText)
+      if history.lastSuccess == nil {
+        Section {
+          Picker("History range", selection: Binding(
+            get: { services.syncMetadataStore.metadata.initialImportRange },
+            set: { services.syncMetadataStore.setInitialImportRange($0) }
+          )) {
+            ForEach(InitialImportRange.allCases) { range in
+              Text(range.title).tag(range)
+            }
           }
-          initialImportMenu
-
-          GlassDivider(leadingPadding: 0)
-
+          .pickerStyle(.menu)
+          .accessibilityIdentifier("HistoryRangePicker")
+          .accessibilityHint("Changes how much pump history to import during the first sync")
+          if let reset = history.resetDescription {
+            Text(reset).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+          }
           Text("Choose how much pump history to import the first time. Future syncs import new data only. Keep PumpSync open while a sync is running; you can move around within PumpSync.")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(Color.pumpSyncSecondaryText)
-            .padding(.vertical, 8)
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
+        } header: {
+          Text("Initial Import").foregroundStyle(Color.primary)
         }
+        .headerProminence(.increased)
       }
 
       if syncFailure == nil {
-        Button {
-          if canSync { services.syncCoordinator.startManualSync() }
-        } label: {
-          SyncButtonLabel(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing)
-        }
-        .buttonStyle(.borderedProminent).controlSize(.large).font(.title3.weight(.semibold))
-        .disabled(!canSync)
-      }
+        Section {
+          SyncActionButton(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing,
+                           isEnabled: canSync, action: startSync)
+          .listRowBackground(Color.clear)
 
-      if services.syncCoordinator.isSyncing {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-          if let presentation = SyncStatusPresentation.make(
-            for: services.syncCoordinator.operationState, now: context.date
+          if services.syncCoordinator.isSyncing {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+              if let presentation = SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: context.date) {
+                Text(presentation.detail).foregroundStyle(Color.primary)
+                  .fixedSize(horizontal: false, vertical: true)
+                  .accessibilityIdentifier("SyncProgressDetail")
+              }
+            }
+          }
+          if services.authService.isSignedIn, let message = Self.readinessMessage(
+            isBackendConnected: true,
+            isConnecting: services.authService.isConnecting,
+            hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
+            hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
           ) {
-            Text(presentation.detail)
-              .font(.subheadline)
-              .foregroundStyle(Color.pumpSyncSecondaryText)
-              .fixedSize(horizontal: false, vertical: true)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .accessibilityIdentifier("SyncProgressDetail")
+            Text(message).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+            Button("Open Settings", systemImage: "gearshape", action: openConnectionSettings)
           }
         }
       }
 
-      if syncFailure == nil, services.authService.isSignedIn,
-         let message = Self.readinessMessage(
-           isBackendConnected: true,
-           isConnecting: services.authService.isConnecting,
-           hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
-           hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
-         ) {
-        GlassSection {
-          Text(message).foregroundStyle(Color.pumpSyncSecondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-      }
-
-      if let lastSuccessfulSyncAt = history.lastSuccess {
-        VStack(alignment: .leading, spacing: 8) {
-          GlassSection("Last Successful Sync") {
-            GlassStatusRow(
-              title: "Completed",
-              value: formattedDate(lastSuccessfulSyncAt),
-              systemImage: "checkmark.circle.fill",
-              tint: .green
-            )
-          }
-          if let summary = history.countsSummary {
-            Text(summary)
-              .font(.subheadline)
-              .foregroundStyle(Color.pumpSyncSecondaryText)
+      Section {
+        LabeledContent {
+          if services.authService.isConnecting {
+            ProgressView(connectionStatus)
+          } else {
+            Text(connectionStatus)
+              .foregroundStyle(Color.primary)
               .fixedSize(horizontal: false, vertical: true)
-              .padding(.horizontal, 16)
-              .accessibilityIdentifier("SyncCompletionSummary")
           }
-          if case .succeeded(let completion) = services.syncCoordinator.operationState, let notice = completion.notice {
-            Text(notice).font(.subheadline).foregroundStyle(Color.pumpSyncSecondaryText)
-              .fixedSize(horizontal: false, vertical: true).padding(.horizontal, 16)
-              .accessibilityIdentifier("SyncCompletionDetail")
-          }
-          if Date().timeIntervalSince(lastSuccessfulSyncAt) >= AppConstants.staleSyncInterval {
-            Label("Apple Health may be out of date.", systemImage: "clock.badge.exclamationmark")
-              .font(.footnote)
-              .foregroundStyle(Color.pumpSyncSecondaryText)
-              .padding(.horizontal, 16)
-              .accessibilityIdentifier("StaleSyncNotice")
+        } label: {
+          Text(services.backendConfigurationStore.mode == .hosted ? "PumpSync service" : "Self-hosted service")
+        }
+        LabeledContent("Tandem account") {
+          Text(tandemStatus).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+        }
+        if let lastAttempt = history.lastAttempt {
+          LabeledContent("Last checked") {
+            Text(lastAttempt.formatted(date: .abbreviated, time: .shortened))
+              .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
           }
         }
+        if !services.authService.isSignedIn && !services.authService.isConnecting && syncFailure == nil {
+          Text(services.authService.errorMessage ?? "Connect before syncing pump data to Apple Health.")
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
+          Button(services.authService.requiresSubscriptionAction ? "View Subscription" : "Retry Connection", action: retryConnection)
+          Button("Connection Settings", systemImage: "gearshape", action: openConnectionSettings)
+        }
+      } header: {
+        Text("Connection").foregroundStyle(Color.primary)
       }
+      .headerProminence(.increased)
     }
+    .font(.body)
     .navigationTitle("Sync")
-    .sheet(isPresented: $showsSubscription, onDismiss: {
-      if syncFailure?.recovery == .openSubscription,
-         !services.authService.requiresSubscriptionAction, canSync {
-        services.syncCoordinator.dismissResult()
-      }
-    }) {
-      PumpSyncSubscriptionStoreView(isPresented: $showsSubscription)
-    }
-    .onAppear {
-      services.healthKitService.refreshAuthorizationStatus()
-      if canSync, syncFailure?.recovery == .openSettings {
-        services.syncCoordinator.dismissResult()
+    .sheet(isPresented: $showsSubscription, onDismiss: subscriptionDismissed) {
+      NavigationStack {
+        SubscriptionSettingsView()
+          .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showsSubscription = false } } }
       }
     }
+    .onAppear(perform: refreshReadiness)
+  }
+
+  private func startSync() {
+    if canSync { services.syncCoordinator.startManualSync() }
+  }
+
+  private func retryConnection() {
+    if services.authService.requiresSubscriptionAction { showsSubscription = true }
+    else { services.foregroundRecovery.retryConnection() }
+  }
+
+  private func subscriptionDismissed() {
+    if syncFailure?.recovery == .openSubscription,
+       !services.authService.requiresSubscriptionAction, canSync {
+      services.syncCoordinator.dismissResult()
+    }
+  }
+
+  private func refreshReadiness() {
+    services.healthKitService.refreshAuthorizationStatus()
+    if canSync, syncFailure?.recovery == .openSettings { services.syncCoordinator.dismissResult() }
   }
 
   private var syncFailure: SyncFailure? {
     if case .failed(let failure) = services.syncCoordinator.operationState { return failure }
     return nil
-  }
-
-  private var recoveryTitle: String {
-    SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: Date())?.actionTitle ?? "Try Again"
-  }
-
-  private var recoveryIcon: String {
-    switch syncFailure?.recovery {
-    case .openSubscription: return "creditcard"
-    case .openSettings: return "gearshape"
-    default: return "arrow.clockwise"
-    }
-  }
-
-  private func recoverSync() {
-    switch syncFailure?.recovery {
-    case .openSubscription: showsSubscription = true
-    case .openSettings: openConnectionSettings()
-    default: services.syncCoordinator.startManualSync()
-    }
-  }
-
-  private var initialImportMenu: some View {
-    LabeledMenuPickerRow(title: "History range", systemImage: "calendar.badge.clock") {
-        NativeMenuPicker("History range", selection: Binding(
-          get: { services.syncMetadataStore.metadata.initialImportRange },
-          set: { services.syncMetadataStore.setInitialImportRange($0) }
-        )) {
-          ForEach(InitialImportRange.allCases) { range in
-            Text(dynamicTypeSize.isAccessibilitySize ? range.compactTitle : range.title).tag(range)
-          }
-        }
-        .accessibilityIdentifier("HistoryRangePicker")
-        .accessibilityHint("Changes how much pump history to import during the first sync")
-    }
   }
 
   private var history: SyncHistoryPresentation {
@@ -237,14 +180,6 @@ struct SyncView: View {
       hasCompletedInitialSync: services.syncMetadataStore.metadata.lastSuccessfulSyncAt != nil,
       initialImportRange: services.syncMetadataStore.metadata.initialImportRange
     )
-  }
-
-  private func formattedDate(_ date: Date?) -> String {
-    guard let date else {
-      return "Never"
-    }
-
-    return date.formatted(date: .abbreviated, time: .shortened)
   }
 
   static func connectionStatus(isSignedIn: Bool, isConnecting: Bool) -> String {
@@ -292,65 +227,89 @@ struct SyncView: View {
   }
 }
 
-enum SyncButtonIconRotation {
-  static func angle(
-    isSyncing: Bool,
-    startDate: Date?,
-    currentDate: Date,
-    revolutionDuration: TimeInterval = 0.8,
-    reduceMotion: Bool = false
-  ) -> Double {
-    guard isSyncing, !reduceMotion, let startDate, revolutionDuration > 0 else {
-      return 0
-    }
 
-    let elapsed = max(0, currentDate.timeIntervalSince(startDate))
-    let progress = elapsed.truncatingRemainder(dividingBy: revolutionDuration) / revolutionDuration
-    return progress * 360
+struct SyncSummarySection: View {
+  let history: SyncHistoryPresentation
+  let lastSuccess: Date
+
+  var body: some View {
+    Section {
+      LabeledContent("Completed") {
+        Text(lastSuccess.formatted(date: .abbreviated, time: .shortened))
+          .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+      }
+      LabeledContent("Records received") {
+        Text(history.returned.map { $0.formatted() } ?? "Not recorded")
+          .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+      }
+        .accessibilityIdentifier("SyncRecordsReceived")
+      LabeledContent("Samples saved") {
+        Text(history.imported.map { $0.formatted() } ?? "Not recorded")
+          .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+      }
+        .accessibilityIdentifier("SyncSamplesSaved")
+      if let skipped = history.permissionSkipped, skipped > 0 {
+        Text("\(skipped) records awaiting Health write access.").foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      if Date().timeIntervalSince(lastSuccess) >= AppConstants.staleSyncInterval {
+        Label("Apple Health may be out of date.", systemImage: "clock.badge.exclamationmark")
+          .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("StaleSyncNotice")
+      }
+      Text("Counts describe this completed sync. Previously saved records are not saved again; records without Health write access are skipped.")
+        .foregroundStyle(Color.primary)
+        .fixedSize(horizontal: false, vertical: true)
+    } header: {
+      Text("Last Successful Sync").foregroundStyle(Color.primary)
+    }
+    .headerProminence(.increased)
+    .font(.body)
   }
 }
 
-private struct SyncButtonLabel: View {
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var animationStartDate: Date?
+#Preview("Completed sync") {
+  let date = Date()
+  let metadata = SyncMetadata(lastAttemptAt: date, lastSuccessfulSyncAt: date, lastSampleCount: 48,
+                              lastImportedCount: 4, lastErrorMessage: nil)
+  NavigationStack {
+    Form { SyncSummarySection(history: SyncHistoryPresentation(metadata: metadata, attempts: []), lastSuccess: date) }
+      .navigationTitle("Sync")
+  }
+}
 
+private struct SyncActionButton: View {
   let title: String
   let isSyncing: Bool
+  let isEnabled: Bool
+  let action: () -> Void
 
   var body: some View {
-    TimelineView(.animation(paused: !isSyncing || reduceMotion)) { context in
-      HStack(spacing: 14) {
-        Image(systemName: "arrow.triangle.2.circlepath")
-          .rowIconColumn()
-          .rotationEffect(.degrees(
-            SyncButtonIconRotation.angle(
-              isSyncing: isSyncing,
-              startDate: animationStartDate,
-              currentDate: context.date,
-              reduceMotion: reduceMotion
-            )
-          ))
-          .accessibilityHidden(true)
-
-        Text(title)
-          .fixedSize(horizontal: false, vertical: true)
-          .layoutPriority(1)
-
+    Button(action: action) {
+      HStack {
+        if isSyncing { ProgressView().tint(.white).accessibilityHidden(true) }
+        Label {
+          Text(title).font(.body).lineLimit(nil).fixedSize(horizontal: false, vertical: true)
+        } icon: {
+          Image(systemName: "arrow.triangle.2.circlepath")
+            .foregroundStyle(.white)
+        }
       }
-      .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-      .contentShape(Rectangle())
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(title)
+      .frame(maxWidth: .infinity, minHeight: 44)
     }
-    .onAppear {
-      updateAnimationStartDate(isSyncing: isSyncing)
-    }
-    .onChange(of: isSyncing) { _, newValue in
-      updateAnimationStartDate(isSyncing: newValue)
-    }
+    .buttonStyle(.glassProminent)
+    .tint(Color("ProminentActionColor"))
+    .font(.body)
+    .controlSize(.large)
+    .disabled(!isEnabled)
   }
+}
 
-  private func updateAnimationStartDate(isSyncing: Bool) {
-    animationStartDate = isSyncing ? Date() : nil
+#Preview("Sync in progress") {
+  NavigationStack {
+    Form {
+      SyncActionButton(title: "Syncing", isSyncing: true, isEnabled: false, action: {})
+      Text("Saving new pump samples to Apple Health.").foregroundStyle(.secondary)
+    }.navigationTitle("Sync")
   }
 }

@@ -46,11 +46,11 @@ final class DiagnosticPresentationTests: XCTestCase {
     XCTAssertEqual(summary.lastAttempt, current.startedAt)
     XCTAssertEqual(summary.lastSuccess, metadata.lastSuccessfulSyncAt)
     XCTAssertEqual(summary.imported, 3)
-    XCTAssertEqual(summary.countsSummary, "3 imported · 4 returned")
+    XCTAssertEqual(summary.countsSummary, "4 records received · 3 samples saved")
     var partial = metadata
     partial.lastPermissionSkippedCount = 1
     XCTAssertEqual(SyncHistoryPresentation(metadata: partial, attempts: [current]).countsSummary,
-      "3 imported · 4 returned · 1 awaiting Health access")
+      "4 records received · 3 samples saved · 1 awaiting Health access")
   }
 }
 

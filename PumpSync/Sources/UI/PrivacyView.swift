@@ -4,19 +4,17 @@ import SwiftUI
 struct DataHandlingView: View {
   @Environment(AppServices.self) private var services
   @Environment(\.openURL) private var openURL
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var emailUnavailable = false
 
   var body: some View {
-    PumpSyncScreen(spacing: 16) {
-      GlassSection("Credentials") {
+    Form {
+      Section("Credentials") {
         DataHandlingRow(
           title: "Stored on this device",
           detail: "Your Tandem sign-in stays in device-only Keychain storage until you remove it. It is not synced through iCloud.",
           systemImage: "key"
         )
 
-        GlassDivider()
 
         DataHandlingRow(
           title: "Sent for validation, sync and preview",
@@ -24,15 +22,15 @@ struct DataHandlingView: View {
           systemImage: "lock.shield"
         )
       }
+      .headerProminence(.increased)
 
-      GlassSection("Pump Data") {
+      Section("Pump Data") {
         DataHandlingRow(
           title: "Temporary processing",
           detail: "Sync payloads are processed in memory and released when the attempt ends, including failure or cancellation. Source inspection clears its in-memory records when closed or backgrounded. Apple Health keeps confirmed imports.",
           systemImage: "externaldrive.badge.checkmark"
         )
 
-        GlassDivider()
 
         DataHandlingRow(
           title: "Duplicate prevention",
@@ -40,16 +38,18 @@ struct DataHandlingView: View {
           systemImage: "checkmark.seal"
         )
       }
+      .headerProminence(.increased)
 
-      GlassSection("Other Devices") {
+      Section("Other Devices") {
         DataHandlingRow(
           title: "Configure each device",
           detail: "Your pump account sign-in is not synced through iCloud. Set it up separately on each device.",
           systemImage: "iphone"
         )
       }
+      .headerProminence(.increased)
 
-      GlassSection("Data Deletion") {
+      Section("Data Deletion") {
         DataHandlingRow(
           title: "Request server metadata deletion",
           detail: services.backendConfigurationStore.mode == .hosted
@@ -58,43 +58,35 @@ struct DataHandlingView: View {
           systemImage: "envelope"
         )
 
-        GlassDivider()
 
         Button {
           if services.backendConfigurationStore.mode == .hosted {
             openURL(dataDeletionRequestURL) { accepted in emailUnavailable = !accepted }
           } else { openURL(AppConstants.dataDeletionURL) }
         } label: {
-          HStack(spacing: 14) {
-            if !dynamicTypeSize.isAccessibilitySize {
-              Image(systemName: "envelope")
-                .font(.title3)
-                .fixedSize()
-                .accessibilityHidden(true)
-            }
-
-            Text(services.backendConfigurationStore.mode == .hosted ? "Prepare Deletion Request Email" : "Self-hosted Deletion Instructions")
-              .layoutPriority(1)
-
-            Spacer(minLength: 0)
-          }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
+          Label(services.backendConfigurationStore.mode == .hosted ? "Prepare Deletion Request Email" : "Self-hosted Deletion Instructions", systemImage: "envelope")
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.bordered).tint(.primary)
+        .buttonStyle(.glass)
+        .controlSize(.large)
         .foregroundStyle(.primary)
         .accessibilityHint("Opens request instructions; does not delete data")
         Text("Removing credentials, clearing logs, or requesting server deletion does not remove Apple Health samples or cancel a subscription. Manage those separately in Health and Apple subscription settings.")
-          .font(.subheadline).foregroundStyle(Color.pumpSyncSecondaryText).padding(.vertical, 8)
+          .font(.body).foregroundStyle(.primary)
+          .fixedSize(horizontal: false, vertical: true)
         if emailUnavailable {
           Text("Email could not open. Contact support@ericslutz.dev with your installation ID from Developer settings. No request has been sent.")
+            .font(.body).foregroundStyle(.primary)
+            .fixedSize(horizontal: false, vertical: true)
           Button("Copy Installation ID") { DiagnosticsClipboard.copy(services.backendConfigurationStore.installationId) }
             .tint(.primary).frame(minHeight: 44)
         }
         Link(destination: AppConstants.dataDeletionURL) { Text("Full Privacy and Deletion Details").underline() }.foregroundStyle(.primary).frame(minHeight: 44)
       }
+      .headerProminence(.increased)
     }
     .navigationTitle("Data Handling")
+    .navigationBarTitleDisplayMode(.inline)
   }
 
   private var dataDeletionRequestURL: URL {
@@ -122,36 +114,25 @@ struct DataHandlingView: View {
 }
 
 private struct DataHandlingRow: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   let title: String
   let detail: String
   let systemImage: String
 
   var body: some View {
-    HStack(alignment: .top, spacing: 14) {
-      if !dynamicTypeSize.isAccessibilitySize {
-        Image(systemName: systemImage)
-          .rowIconColumn()
-          .foregroundStyle(.tint)
-          .accessibilityHidden(true)
-      }
-
+    Label {
       VStack(alignment: .leading, spacing: 4) {
         Text(title)
+          .font(.headline)
           .foregroundStyle(.primary)
 
         Text(detail)
-          .font(.subheadline)
-          .foregroundStyle(Color.pumpSyncSecondaryText)
-          .fixedSize(horizontal: false, vertical: true)
+          .font(.body)
+          .foregroundStyle(.primary)
       }
-      .layoutPriority(1)
-
-      Spacer(minLength: 0)
+      .fixedSize(horizontal: false, vertical: true)
+    } icon: {
+      Image(systemName: systemImage).foregroundStyle(.tint)
     }
     .padding(.vertical, 6)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(title)
-    .accessibilityValue(detail)
   }
 }

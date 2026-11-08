@@ -3,7 +3,6 @@ import SwiftUI
 struct TandemCredentialForm: View {
   @Environment(AppServices.self) private var services
   @Environment(\.scenePhase) private var scenePhase
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var validation = CredentialValidationLifetime()
 
   @State private var username = ""
@@ -17,133 +16,120 @@ struct TandemCredentialForm: View {
   @State private var baselineRegion = TandemRegion.us
   @State private var isConfirmingRemoval = false
   @State private var isEditing = false
+  @FocusState private var focusedField: CredentialField?
+
+  private enum CredentialField { case username, password }
 
   var body: some View {
-    PumpSyncScreen {
+    Form {
       if services.credentialStore.hasStoredCredentials && !isEditing {
-        GlassSection("Saved Account") {
-          GlassStatusRow(title: "Username", value: baselineUsername, systemImage: "person.crop.circle")
-          GlassDivider()
-          GlassStatusRow(title: "Region", value: baselineRegion.title, systemImage: "globe")
-          GlassDivider()
-          GlassStatusRow(title: "Password", value: "Saved on this device", systemImage: "key")
-        }
-        Button("Change Account Details", systemImage: "pencil") { isEditing = true }
-          .buttonStyle(.borderedProminent).controlSize(.large).font(.title3.weight(.semibold))
-          .disabled(services.syncCoordinator.hasActiveSyncExecution || services.authService.isReplacingConnection)
-        Button("Remove Credentials", systemImage: "trash", role: .destructive) { isConfirmingRemoval = true }
-          .buttonStyle(.bordered).tint(Color.pumpSyncDestructiveAction).controlSize(.large).font(.title3.weight(.semibold))
-          .disabled(services.syncCoordinator.hasActiveSyncExecution)
+        SavedTandemAccountSections(
+          username: baselineUsername, region: baselineRegion,
+          canEdit: !services.syncCoordinator.hasActiveSyncExecution && !services.authService.isReplacingConnection,
+          canRemove: !services.syncCoordinator.hasActiveSyncExecution,
+          edit: { isEditing = true }, remove: { isConfirmingRemoval = true }
+        )
       } else {
-      GlassSection("Tandem Source") {
-        Text("Username").font(.subheadline.weight(.semibold)).accessibilityHidden(true)
-        TextField("Username", text: $username)
-          .textContentType(.username)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .frame(minHeight: 44)
-          .accessibilityLabel("Tandem username")
-          .accessibilityHint("Enter the username for your pump account")
+        Section {
+          TextField("Username", text: $username)
+            .textContentType(.username)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityLabel("Tandem username")
+            .accessibilityHint("Enter the username for your pump account")
+            .focused($focusedField, equals: .username)
+            .submitLabel(.next)
+            .onSubmit { focusedField = .password }
 
-        GlassDivider(leadingPadding: 0)
-
-        Text("Password").font(.subheadline.weight(.semibold)).accessibilityHidden(true)
-        HStack(spacing: 12) {
-          Group {
-            if isShowingPassword {
-              TextField("Password", text: $password)
-            } else {
-              SecureField("Password", text: $password)
+          HStack {
+            Group {
+              if isShowingPassword {
+                TextField("Password", text: $password)
+              } else {
+                SecureField("Password", text: $password)
+              }
             }
-          }
-          .textContentType(.password)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .frame(minHeight: 44)
-          .accessibilityLabel("Tandem password")
-          .accessibilityHint("Enter the password for your pump account")
+            .textContentType(.password)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityLabel("Tandem password")
+            .accessibilityHint("Enter the password for your pump account")
+            .focused($focusedField, equals: .password)
+            .submitLabel(.done)
+            .onSubmit { focusedField = nil }
 
-          Button {
-            isShowingPassword.toggle()
-          } label: {
-            Image(systemName: isShowingPassword ? "eye.slash" : "eye")
-              .frame(width: 44, height: 44)
-          }
-          .buttonStyle(.plain)
-          .disabled(password.isEmpty)
-          .accessibilityLabel(isShowingPassword ? "Hide password" : "Show password")
-        }
-
-        if services.credentialStore.hasStoredCredentials {
-          Text("A password is already saved on this device. Enter it again to change your username, password, or region.")
-            .font(.footnote)
-            .foregroundStyle(Color.pumpSyncSecondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 8)
-        }
-
-        GlassDivider(leadingPadding: 0)
-
-        let layout = dynamicTypeSize.isAccessibilitySize
-          ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-          : AnyLayout(HStackLayout(spacing: 12))
-        layout {
-          Text("Region")
-            .foregroundStyle(.primary)
-            .accessibilityHidden(true)
-
-          if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 12) }
-
-          NativeMenuPicker("Tandem region", selection: $region) {
-            ForEach(TandemRegion.allCases) { choice in
-              Text(dynamicTypeSize.isAccessibilitySize && choice == .us ? "US" : choice.title).tag(choice)
+            Button(isShowingPassword ? "Hide password" : "Show password",
+              systemImage: isShowingPassword ? "eye.slash" : "eye") {
+              isShowingPassword.toggle()
             }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
+            .disabled(password.isEmpty)
           }
+
+          Picker("Tandem region", selection: $region) {
+            ForEach(TandemRegion.allCases) { choice in Text(choice.title).tag(choice) }
+          }
+          .pickerStyle(.menu)
           .accessibilityIdentifier("TandemRegionPicker")
-        }
-        .frame(minHeight: 44)
-        .accessibilityElement(children: .contain)
-      }
-      .disabled(isValidating)
-      // privacySensitive alone is inert — SwiftUI only redacts it while a
-      // .privacy redaction reason is active, which nothing applies by
-      // default. Drive it from the scene phase so the app-switcher snapshot
-      // (taken after the scene resigns active) never captures a revealed
-      // password.
-      .privacySensitive()
-      .redacted(reason: scenePhase == .active ? [] : .privacy)
 
-      Button(role: actionState == .remove ? .destructive : nil) {
-        if actionState == .remove {
-          isConfirmingRemoval = true
-        } else {
-          validation.start {
-            await validateAndSave()
+          if services.credentialStore.hasStoredCredentials {
+            Text("A password is already saved on this device. Enter it again to change your username, password, or region.")
+              .font(.body)
+              .foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        } header: {
+          Text("Tandem Source")
+            .foregroundStyle(Color.primary)
+        }
+        .headerProminence(.increased)
+        .disabled(isValidating)
+
+        Section {
+          Button(role: actionState == .remove ? .destructive : nil) {
+            if actionState == .remove { isConfirmingRemoval = true }
+            else { validation.start { await validateAndSave() } }
+          } label: {
+            if isValidating {
+              HStack {
+                ProgressView().tint(.white)
+                Text(primaryActionTitle)
+                  .fixedSize(horizontal: false, vertical: true)
+              }
+            } else {
+              Label {
+                Text(primaryActionTitle)
+                  .fixedSize(horizontal: false, vertical: true)
+              } icon: {
+                Image(systemName: primaryActionSystemImage)
+                  .foregroundStyle(.white)
+              }
+            }
+          }
+          .buttonStyle(.glassProminent)
+          .tint(actionState == .remove ? nil : Color("ProminentActionColor"))
+          .controlSize(.large)
+          .disabled(!canUsePrimaryAction)
+          .accessibilityHint(primaryActionHint)
+          if services.credentialStore.hasStoredCredentials {
+            Button("Cancel", role: .cancel) { cancelEditing() }
+          }
+          if actionState == .saveDisabled && services.credentialStore.hasStoredCredentials && (usernameChanged || regionChanged) && password.isEmpty {
+            Text("Enter your password to save changes.")
+              .font(.body)
+              .foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
           }
         }
-      } label: {
-        Label(primaryActionTitle, systemImage: primaryActionSystemImage)
-          .frame(maxWidth: .infinity).fixedSize(horizontal: false, vertical: true)
-      }
-      .buttonStyle(.borderedProminent).controlSize(.large).font(.title3.weight(.semibold))
-      .disabled(!canUsePrimaryAction)
-      .accessibilityHint(primaryActionHint)
-
-      if actionState == .saveDisabled && services.credentialStore.hasStoredCredentials && (usernameChanged || regionChanged) && password.isEmpty {
-        Text("Enter your password to save changes.")
-          .font(.footnote)
-          .foregroundStyle(Color.pumpSyncSecondaryText)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(.horizontal, 4)
-      }
-      if services.credentialStore.hasStoredCredentials {
-        Button("Cancel", role: .cancel) { cancelEditing() }.buttonStyle(.bordered).tint(.primary).frame(minHeight: 44)
-      }
       }
     }
+    .scrollDismissesKeyboard(.interactively)
     .privacySensitive()
     .redacted(reason: scenePhase == .active ? [] : .privacy)
     .navigationTitle("Tandem")
+    .navigationBarTitleDisplayMode(.inline)
     .onAppear(perform: load)
     .onDisappear { validation.cancel(); password = ""; isShowingPassword = false; lastValidatedCredentials = nil }
     .onChange(of: services.backendConfigurationStore.revision) { _, _ in
@@ -412,8 +398,94 @@ struct TandemCredentialForm: View {
   }
 }
 
+private struct SavedTandemAccountSections: View {
+  let username: String
+  let region: TandemRegion
+  let canEdit: Bool
+  let canRemove: Bool
+  let edit: () -> Void
+  let remove: () -> Void
+
+  var body: some View {
+    Section {
+      LabeledContent {
+        Text(username)
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
+      } label: {
+        Text("Username")
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      .font(.body)
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel("Tandem username")
+      .accessibilityValue(username)
+      LabeledContent {
+        Text(region.title)
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
+      } label: {
+        Text("Region")
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      .font(.body)
+      LabeledContent {
+        Text("Saved on this device")
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
+      } label: {
+        Text("Password")
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      .font(.body)
+      Button(action: edit) {
+        Label {
+          Text("Change Account Details")
+            .font(.body)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+          Image(systemName: "pencil")
+        }
+        .fixedSize(horizontal: false, vertical: true)
+      }
+      .disabled(!canEdit)
+    } header: {
+      Text("Saved Account")
+        .foregroundStyle(Color.primary)
+    }
+    .headerProminence(.increased)
+    Section {
+      Button(role: .destructive, action: remove) {
+        Label {
+          Text("Remove Credentials")
+            .font(.body)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+          Image(systemName: "trash")
+        }
+        .foregroundStyle(Color.primary)
+      }
+      .disabled(!canRemove)
+    }
+  }
+}
+
 private struct CredentialAlert: Identifiable {
   let id = UUID()
   let title: String
   let message: String
 }
+
+#if DEBUG
+#Preview("Saved Tandem account") {
+  NavigationStack {
+    Form {
+      SavedTandemAccountSections(username: "demo@example.com", region: .us,
+        canEdit: true, canRemove: true, edit: {}, remove: {})
+    }
+    .navigationTitle("Tandem")
+  }
+}
+#endif

@@ -229,7 +229,9 @@ final class AuthService {
   private(set) var isReplacingConnection = false
   private var unsolicitedEnrollmentForegroundActive = false
   private var unsolicitedEnrollmentTasks: [UUID: Task<Void, Never>] = [:]
-  private var transactionUpdatesTask: Task<Void, Never>?
+  private let subscriptionAccess: (any SubscriptionAccessProviding)?
+  private var screenshotSubscriptionStatus: SubscriptionAccessStatus?
+  private(set) var lastSubscriptionRestoreOutcome: SubscriptionRestoreOutcome?
   private var subscriptionOperationTask: Task<Void, Never>?
   private var subscriptionOperationID: UUID?
   private var subscriptionRecoveryAttempt: SessionRecoveryAttempt?
@@ -259,7 +261,8 @@ final class AuthService {
     sessionStore: BackendSessionStore? = nil,
     purpose: AuthPurpose = .liveImport,
     proofProvider: DeviceSessionProofProviding,
-    diagnostics: DiagnosticsLogStore? = nil
+    diagnostics: DiagnosticsLogStore? = nil,
+    subscriptionAccess: (any SubscriptionAccessProviding)? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
@@ -270,18 +273,10 @@ final class AuthService {
     self.diagnostics = diagnostics
     requiresVerifiedHostedRoute = true
     subscriptionSessionTimeout = ConnectionTimeouts.hosted
-    currentEntitlementJWS = {
-      try await StoreKitSubscriptionProvider.currentEntitlementJWS(
-        productId: AppConstants.subscriptionProductId,
-        syncWithAppStore: false
-      )
-    }
-    syncedCurrentEntitlementJWS = {
-      try await StoreKitSubscriptionProvider.currentEntitlementJWS(
-        productId: AppConstants.subscriptionProductId,
-        syncWithAppStore: true
-      )
-    }
+    let subscriptionAccess = subscriptionAccess ?? StoreKitSubscriptionService()
+    self.subscriptionAccess = subscriptionAccess
+    currentEntitlementJWS = { try await subscriptionAccess.currentEntitlement() }
+    syncedCurrentEntitlementJWS = { try await subscriptionAccess.restoreEntitlement() }
     createSubscriptionSession = { request in
       SessionRecoveryContext.current?.backendCorrelationID = nil
       return try await apiClient.createSubscriptionSession(request, backendCorrelation: { SessionRecoveryContext.current?.backendCorrelationID = $0 })
@@ -318,7 +313,8 @@ final class AuthService {
     createSessionChallenge: (@MainActor (SessionChallengeRequest) async throws -> SessionChallengeResponse)? = nil,
     verifiedEntitlement: (@MainActor () async throws -> VerifiedSubscriptionEntitlement)? = nil,
     requiresVerifiedHostedRoute: Bool = false,
-    testCommitter: AuthSessionCommitter? = nil
+    testCommitter: AuthSessionCommitter? = nil,
+    subscriptionAccess: (any SubscriptionAccessProviding)? = nil
   ) {
     self.apiClient = apiClient
     self.configurationStore = configurationStore
@@ -329,9 +325,15 @@ final class AuthService {
     self.diagnostics = diagnostics
     self.subscriptionSessionTimeout = subscriptionSessionTimeout
     self.requiresVerifiedHostedRoute = requiresVerifiedHostedRoute
-    self.currentEntitlementJWS = verifiedEntitlement ?? { .fixture(try await currentEntitlementJWS()) }
+    self.subscriptionAccess = subscriptionAccess
     let synced = syncedCurrentEntitlementJWS ?? currentEntitlementJWS
-    self.syncedCurrentEntitlementJWS = verifiedEntitlement ?? { .fixture(try await synced()) }
+    if let subscriptionAccess {
+      self.currentEntitlementJWS = { try await subscriptionAccess.currentEntitlement() }
+      self.syncedCurrentEntitlementJWS = { try await subscriptionAccess.restoreEntitlement() }
+    } else {
+      self.currentEntitlementJWS = verifiedEntitlement ?? { .fixture(try await currentEntitlementJWS()) }
+      self.syncedCurrentEntitlementJWS = verifiedEntitlement ?? { .fixture(try await synced()) }
+    }
     self.createSubscriptionSession = createSubscriptionSession
     self.createSelfHostedSession = createSelfHostedSession
     self.warmupHostedService = warmupHostedService
@@ -585,11 +587,57 @@ final class AuthService {
   func connectUsingCurrentSubscription() async {
     guard !isReplacingConnection else { return }
     await runQueuedExplicitSubscriptionOperation {
-      await self.restoreCurrentSubscription()
+      await self.restoreCurrentSubscription(synchronize: true)
     }
   }
 
-  private func restoreCurrentSubscription() async {
+  /// Call after StoreKit's own restore control completes successfully. The
+  /// system already synchronized; a second AppStore.sync would prompt twice.
+  func reconcileSubscriptionAfterRestore() async {
+    await connectUsingVerifiedSubscription()
+  }
+
+  /// Connect an already recognized purchase without asking Apple to restore it.
+  func connectUsingVerifiedSubscription() async {
+    guard !isReplacingConnection else { return }
+    await runQueuedExplicitSubscriptionOperation {
+      await self.restoreCurrentSubscription(synchronize: false)
+    }
+  }
+
+  var subscriptionAccessStatus: SubscriptionAccessStatus {
+    screenshotSubscriptionStatus ?? subscriptionAccess?.accessStatus ?? .unknown
+  }
+
+  func refreshSubscriptionStatus() async {
+    guard screenshotSubscriptionStatus == nil else { return }
+    _ = try? await subscriptionAccess?.currentEntitlement()
+  }
+
+  /// Restores App Store access without creating or replacing a connection.
+  /// This lets a self-hosted customer manage a PumpSync purchase safely.
+  func restoreSubscriptionAccess() async -> SubscriptionRestoreOutcome {
+    guard !isReplacingConnection else { return .cancelled }
+    if let screenshotSubscriptionStatus {
+      return screenshotSubscriptionStatus == .active ? .restored : .noActiveSubscription
+    }
+    var outcome: SubscriptionRestoreOutcome = .cancelled
+    await runQueuedExplicitSubscriptionOperation {
+      do {
+        _ = try await self.syncedCurrentEntitlementJWS()
+        outcome = .restored
+      } catch StoreKitSubscriptionError.noActiveSubscription {
+        outcome = .noActiveSubscription
+      } catch {
+        outcome = SubscriptionRestoreOutcome.isCancellation(error) ? .cancelled : .appStoreUnavailable
+      }
+    }
+    lastSubscriptionRestoreOutcome = outcome
+    return outcome
+  }
+
+  private func restoreCurrentSubscription(synchronize: Bool) async {
+    lastSubscriptionRestoreOutcome = nil
     let ownershipGeneration = authOwnershipGeneration
     let configurationRevision = configurationStore.revision
     do {
@@ -603,7 +651,12 @@ final class AuthService {
     diagnostics?.record(source: .auth, title: "Subscription restore started")
 
     do {
-      let entitlement = try await syncedCurrentEntitlementJWS()
+      let entitlement: VerifiedSubscriptionEntitlement
+      if synchronize {
+        entitlement = try await syncedCurrentEntitlementJWS()
+      } else {
+        entitlement = try await currentEntitlementJWS()
+      }
       try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       _ = await establishSubscriptionSession(
         entitlement: entitlement,
@@ -612,7 +665,14 @@ final class AuthService {
         publishesErrors: true,
         expectedConfigurationRevision: configurationRevision
       )
+      if Task.isCancelled {
+        lastSubscriptionRestoreOutcome = .cancelled
+        return
+      }
+      lastSubscriptionRestoreOutcome = errorMessage == nil && canFinishSubscriptionDelivery(entitlement: entitlement)
+        ? .restored : .backendVerificationFailed
     } catch StoreKitSubscriptionError.noActiveSubscription {
+      lastSubscriptionRestoreOutcome = .noActiveSubscription
       guard authOwnershipGeneration == ownershipGeneration, isCurrentHostedConfiguration(configurationRevision) else {
         recordSubscriptionRestoreConfigurationChange()
         return
@@ -634,7 +694,15 @@ final class AuthService {
         return
       }
       preserveValidSessionOrClear()
-      let message = subscriptionConnectionMessage(for: safeMessage("PumpSync subscription access could not be verified.", error: error), error: error)
+      if SubscriptionRestoreOutcome.isCancellation(error) {
+        lastSubscriptionRestoreOutcome = .cancelled
+        errorMessage = nil
+        statusMessage = "Subscription restore cancelled."
+        diagnostics?.record(source: .auth, title: "Subscription restore cancelled")
+        return
+      }
+      lastSubscriptionRestoreOutcome = .appStoreUnavailable
+      let message = subscriptionConnectionMessage(for: safeMessage("Your App Store purchases could not be checked. Try restoring again.", error: error), error: error)
       errorMessage = message
       statusMessage = message
       diagnostics?.record(error: error, source: .auth, title: "Subscription restore failed")
@@ -662,82 +730,44 @@ final class AuthService {
   }
 #endif
 
-  /// Starts listening for StoreKit transaction updates that arrive outside the
-  /// purchase sheet: Ask-to-Buy approvals, renewals after a billing retry, and
-  /// refunds/revocations. Without this, those transactions are never observed
-  /// or finished, and StoreKit keeps redelivering them on every launch.
+  /// The access service owns one listener; candidate AuthService instances do
+  /// not start their own StoreKit stream merely by being constructed.
   func startObservingTransactionUpdates() {
-    guard transactionUpdatesTask == nil else {
-      return
-    }
-
-    transactionUpdatesTask = Task { [weak self] in
-      for await result in Transaction.updates {
-        await self?.handleTransactionUpdate(result)
-      }
+    subscriptionAccess?.startObserving { [weak self] update in
+      await self?.handleSubscriptionUpdate(update)
     }
   }
 
-  func handleTransactionUpdate(_ result: VerificationResult<Transaction>) async {
+  func handleSubscriptionUpdate(_ update: SubscriptionUpdate) async {
     guard !isReplacingConnection else { return }
-    guard case .verified(let transaction) = result else {
+    switch update {
+    case .unverified:
       diagnostics?.record(source: .auth, severity: .warning, title: "Unverified subscription transaction update ignored")
-      return
-    }
-
-    guard transaction.productID == AppConstants.subscriptionProductId else {
-      await transaction.finish()
-      return
-    }
-
-    // These updates can arrive at any time, independent of which connection
-    // mode is currently selected. Acting on a hosted transaction while
-    // self-hosted mode is active would apply the self-hosted base URL,
-    // then post a hosted-session request there — at best a wasted/rejected
-    // request, at worst overwriting the self-hosted session with a
-    // mismatched one if that URL happens to accept it. Only hosted mode
-    // should ever be touched by these updates.
-    guard configurationStore.mode == .hosted else {
-      diagnostics?.record(
-        source: .auth,
-        title: "PumpSync subscription transaction update skipped",
-        message: "Self-hosted mode is active; not touching the current session. \(transaction.diagnosticSummary(active: transaction.isActiveSubscriptionEntitlement))"
-      )
-      await transaction.finish()
-      return
-    }
-
-    if transaction.isActiveSubscriptionEntitlement {
-      guard let entitlement = try? VerifiedSubscriptionEntitlement.verified(result) else {
-        diagnostics?.record(source: .auth, severity: .warning, title: "Unsupported subscription environment ignored")
-        await transaction.finish()
-        return
+    case let .active(entitlement, summary, finish):
+      // A self-hosted session neither consumes a hosted purchase nor supplies
+      // its service. Leave delivery pending; StoreKit keeps the entitlement.
+      guard configurationStore.mode == .hosted else { return }
+      await handleActiveSubscriptionTransactionUpdate(entitlement: entitlement, diagnosticSummary: summary, finish: finish)
+    case let .inactive(environment, summary, finish):
+      // An expired historical delivery must not invalidate a newer entitlement.
+      // If the complete access read failed, defer removal until it is known.
+      guard subscriptionAccessStatus == .active || subscriptionAccessStatus == .inactive else { return }
+      if let environment, subscriptionAccessStatus == .inactive {
+        recordSubscriptionRevokedOrExpired(environment: environment, diagnosticSummary: summary)
       }
-      await handleActiveSubscriptionTransactionUpdate(
-        entitlement: entitlement,
-        diagnosticSummary: transaction.diagnosticSummary(active: true),
-        finish: { await transaction.finish() }
-      )
-    } else if session != nil {
-      // Guarded on session != nil: the first time an app observes
-      // Transaction.updates, StoreKit replays every transaction that's
-      // never been finish()ed, not just new ones — for a long-running
-      // sandbox tester (5-minute renewal cycles), that can be hundreds of
-      // historical, already-superseded transactions delivered in a burst.
-      // Without this guard, each one redundantly cleared a session that
-      // was either already nil or about to be re-set by a later, more
-      // current transaction later in the same burst — flooding the
-      // diagnostics log and briefly leaving the app looking disconnected
-      // mid-replay. Only the transition from "had a session" to "don't
-      // anymore" is actually informative.
-      if let environment = HostedSubscriptionEnvironment(storeKitEnvironment: transaction.environment) {
-        recordSubscriptionRevokedOrExpired(environment: environment, diagnosticSummary: transaction.diagnosticSummary(active: false))
-      }
+      guard !incompleteInvalidation else { return }
+      // An inactive transaction has no service to deliver.
+      await finish()
     }
+  }
 
-    if !transaction.isActiveSubscriptionEntitlement {
-      await transaction.finish()
-    }
+  /// Finishing acknowledges delivery, not merely verification. A usable,
+  /// committed hosted connection is required; failed/uncertain commits leave
+  /// the transaction unfinished for restart recovery/redelivery.
+  func canFinishSubscriptionDelivery(entitlement: VerifiedSubscriptionEntitlement) -> Bool {
+    !isReplacingConnection && isSignedIn && configurationStore.mode == .hosted
+      && (!requiresVerifiedHostedRoute || entitlement.environment == configurationStore.hostedEnvironment)
+      && !committer.hasUnresolvedSubmission
   }
 
   func recordSubscriptionRevokedOrExpired(environment: HostedSubscriptionEnvironment, diagnosticSummary: String) {
@@ -792,7 +822,11 @@ final class AuthService {
     finish: @MainActor () async -> Void
   ) async {
     let configurationRevision = configurationStore.revision
-    await finish()
+    guard configurationStore.mode == .hosted else { return }
+    let alreadyDelivered = canFinishSubscriptionDelivery(entitlement: entitlement)
+    if alreadyDelivered {
+      await finish()
+    }
 
     let transactionHash = Self.subscriptionJWSHash(entitlement.signedTransactionInfo)
     guard !attemptedSubscriptionSessionJWSHashes.contains(transactionHash) else {
@@ -824,6 +858,9 @@ final class AuthService {
       message: "origin=storeKitUpdate owner=\(ownerID) foreground=true")
     defer { unsolicitedEnrollmentTasks[ownerID] = nil }
     await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
+    if !alreadyDelivered, !Task.isCancelled, canFinishSubscriptionDelivery(entitlement: entitlement) {
+      await finish()
+    }
     diagnostics?.record(source: .auth, title: "Unsolicited enrollment owner finished",
       message: "origin=storeKitUpdate owner=\(ownerID) canceled=\(task.isCancelled)")
   }
@@ -1804,18 +1841,10 @@ final class AuthService {
     }
   }
 
-  private func subscriptionEntitlementJWS(for requestedPolicy: SessionRecoveryPolicy) async throws -> VerifiedSubscriptionEntitlement {
-    var policy: SessionRecoveryPolicy { SessionRecoveryContext.policyProvider?() ?? requestedPolicy }
-    do {
-      return try await currentEntitlementJWS()
-    } catch StoreKitSubscriptionError.noActiveSubscription where policy.allowsInteractiveRecovery {
-      diagnostics?.record(
-        source: .auth,
-        title: "Subscription entitlement cache miss",
-        message: "retry=appStoreSync"
-      )
-      return try await syncedCurrentEntitlementJWS()
-    }
+  private func subscriptionEntitlementJWS(for _: SessionRecoveryPolicy) async throws -> VerifiedSubscriptionEntitlement {
+    // Recovery can run automatically on foreground activation. Only a customer
+    // choosing Restore may invoke AppStore.sync and its authentication prompt.
+    try await currentEntitlementJWS()
   }
 
   private func recoverSelfHostedSession() async {
@@ -2730,40 +2759,6 @@ enum StoreKitSubscriptionError: LocalizedError {
   }
 }
 
-private enum StoreKitSubscriptionProvider {
-  static func currentEntitlementJWS(productId: String, syncWithAppStore: Bool) async throws -> VerifiedSubscriptionEntitlement {
-    if syncWithAppStore {
-      try? await AppStore.sync()
-    }
-
-    for await result in Transaction.currentEntitlements {
-      let transaction = try verified(result)
-      guard transaction.productID == productId else {
-        continue
-      }
-
-      guard transaction.isActiveSubscriptionEntitlement else {
-        await transaction.finish()
-        continue
-      }
-
-      await transaction.finish()
-      return try VerifiedSubscriptionEntitlement.verified(result)
-    }
-
-    throw StoreKitSubscriptionError.noActiveSubscription
-  }
-
-  private static func verified<T>(_ result: VerificationResult<T>) throws -> T {
-    switch result {
-    case .verified(let value):
-      return value
-    case .unverified:
-      throw StoreKitSubscriptionError.unverifiedTransaction
-    }
-  }
-}
-
 extension Transaction {
   var isActiveSubscriptionEntitlement: Bool {
     if revocationDate != nil {
@@ -2803,6 +2798,7 @@ private extension Date {
 #if DEBUG
 extension AuthService {
   func applyScreenshotSession(serviceMode: String) {
+    screenshotSubscriptionStatus = serviceMode == "hosted" ? .active : .unknown
     try? installSession(BackendSessionResponse(
       accessToken: "screenshot-access-token",
       expiresAt: Date().addingTimeInterval(60 * 60),

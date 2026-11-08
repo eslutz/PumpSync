@@ -3,6 +3,99 @@ import XCTest
 
 @MainActor
 final class PumpSyncAPIClientTests: XCTestCase {
+  func testReceivedConsumingAuthResponsesSurviveCancellationBeforeDecoding() async throws {
+    let calls = LockIsolated(0)
+    // Encode the complete production response model, including its required
+    // protocol version, renewable credential and family fields.
+    let hostedBody = try JSONCodec.encoder.encode(BackendSessionResponse(
+      accessToken: "confirmed-token", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource",
+      protocolVersion: 3, sessionFamilyId: "confirmed-family", refreshToken: "confirmed-refresh",
+      refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture
+    ))
+    let selfHostedBody = try JSONCodec.encoder.encode(BackendSessionResponse(
+      accessToken: "confirmed-token", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource",
+      protocolVersion: 3, sessionFamilyId: "confirmed-family", refreshToken: "confirmed-refresh",
+      refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture
+    ))
+    URLProtocolStub.requestHandler = { request in
+      calls.modify { $0 += 1 }
+      let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["X-Correlation-ID": "safe-reference"])!
+      return (response, request.url?.path == "/api/v1/self-host/session" ? selfHostedBody : hostedBody)
+    }
+    let client = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+    for endpoint in ConsumingAuthEndpoint.allCases {
+      let request = Task {
+        try await consumingAuthRequest(endpoint, client: client) { correlation in
+          XCTAssertEqual(correlation, "safe-reference")
+          // This public response callback runs after URLSession supplies bytes
+          // and before the decoder hops off the UI executor.
+          withUnsafeCurrentTask { $0?.cancel() }
+        }
+      }
+      let response = try await request.value
+      XCTAssertTrue(request.isCancelled)
+      XCTAssertEqual(response.accessToken, "confirmed-token", "\(endpoint) must reach its guarded journal commit")
+    }
+    XCTAssertEqual(calls.value, ConsumingAuthEndpoint.allCases.count)
+  }
+
+  func testReceivedDefinitiveAuthRejectionSurvivesCancellationBeforeDecoding() async {
+    URLProtocolStub.requestHandler = { request in
+      let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: ["X-Correlation-ID": "safe-reference"])!
+      return (response, Data(#"{"code":"device_proof_rejected","message":"Rejected","correlationId":"safe-reference"}"#.utf8))
+    }
+    let client = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+    for endpoint in ConsumingAuthEndpoint.allCases {
+      let request = Task {
+        try await consumingAuthRequest(endpoint, client: client) { _ in withUnsafeCurrentTask { $0?.cancel() } }
+      }
+      do {
+        _ = try await request.value
+        XCTFail("Expected definitive rejection")
+      } catch let error as APIClientError {
+        XCTAssertEqual(error.backendCode, "device_proof_rejected")
+        XCTAssertEqual(error.correlationId, "safe-reference")
+        XCTAssertFalse(error.hasAmbiguousOutcome, "Received rejection must not become uncertain cancellation")
+      } catch { XCTFail("Expected received auth rejection, got \(error)") }
+    }
+  }
+
+  func testImportResponseStillHonorsCancellationAfterBytesArrive() async {
+    URLProtocolStub.requestHandler = { request in
+      let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["X-Correlation-ID": "safe-reference"])!
+      return (response, Data(#"{"samples":[],"effectiveMinDate":"2026-10-11T00:00:00Z","effectiveMaxDate":"2026-10-11T01:00:00Z","dataSourceMode":"tandemSource"}"#.utf8))
+    }
+    let client = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+    let request = Task {
+      try await client.syncTandem(.init(tandem: .init(username: "fixture", password: "fixture", region: "us"), minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC"), accessToken: "fixture", backendCorrelation: { _ in
+        withUnsafeCurrentTask { $0?.cancel() }
+      })
+    }
+    do {
+      _ = try await request.value
+      XCTFail("Canceled import must not hand samples to its caller")
+    } catch is CancellationError {
+    } catch { XCTFail("Unexpected error: \(error)") }
+  }
+
+  private enum ConsumingAuthEndpoint: CaseIterable { case hosted, selfHosted, refresh }
+
+  private func consumingAuthRequest(
+    _ endpoint: ConsumingAuthEndpoint, client: PumpSyncAPIClient,
+    observedResponse: @escaping (String?) -> Void
+  ) async throws -> BackendSessionResponse {
+    switch endpoint {
+    case .hosted:
+      return try await client.createSubscriptionSession(.init(signedTransactionInfo: "fixture", installationId: "fixture",
+        deviceEnrollment: .init(requestId: "fixture", issuedAt: Date(), challengeToken: "fixture", keyId: "fixture", proofKind: "attestation", proof: "fixture")), backendCorrelation: observedResponse)
+    case .selfHosted:
+      return try await client.createSelfHostedSession(.init(installationId: "fixture",
+        deviceEnrollment: .init(requestId: "fixture", issuedAt: Date(), challengeToken: "fixture", publicKey: "fixture", signature: "fixture")), backendCorrelation: observedResponse)
+    case .refresh:
+      return try await client.refreshSession(.init(installationId: "fixture", refreshToken: "fixture", requestId: "fixture", issuedAt: Date(), proof: "fixture"), mode: .hosted, backendCorrelation: observedResponse)
+    }
+  }
+
   func testRetriesLinkOneOperationWithDistinctRequestIdsAndTrace() async throws {
     let requests = LockIsolated<[URLRequest]>([])
     let links = LockIsolated<[SyncRequestLink]>([])
@@ -178,12 +271,14 @@ final class PumpSyncAPIClientTests: XCTestCase {
     XCTAssertEqual(timeout.value, 75)
   }
 
-  func testRequestRetriesKeepTheBaseURLCapturedAtRequestStart() async throws {
+  func testRequestRetriesKeepTheConfigurationCapturedAtRequestStart() async throws {
     let firstRequestStarted = expectation(description: "first request started")
     let allowFirstRequestToFail = DispatchSemaphore(value: 0)
     let hosts = LockIsolated<[String]>([])
+    let sessions = LockIsolated<[String]>([])
     URLProtocolStub.requestHandler = { request in
       hosts.modify { $0.append(request.url?.host ?? "missing") }
+      sessions.modify { $0.append(request.value(forHTTPHeaderField: "X-Test-Session") ?? "missing") }
       if hosts.value.count == 1 {
         firstRequestStarted.fulfill()
         allowFirstRequestToFail.wait()
@@ -198,9 +293,12 @@ final class PumpSyncAPIClientTests: XCTestCase {
       )!
       return (response, Data(#"{"protocolVersion":3,"proofKind":"appAttest","challengeToken":"challenge","expiresAt":"2099-01-01T00:00:00Z"}"#.utf8))
     }
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [URLProtocolStub.self]
+    sessionConfiguration.httpAdditionalHeaders = ["X-Test-Session": "original"]
     let client = PumpSyncAPIClient(
       baseURL: URL(string: "https://hosted.example/api")!,
-      urlSession: URLProtocolStub.makeSession(),
+      urlSession: URLSession(configuration: sessionConfiguration),
       maxRetryCount: 1
     )
 
@@ -213,10 +311,13 @@ final class PumpSyncAPIClientTests: XCTestCase {
     }
     await fulfillment(of: [firstRequestStarted], timeout: 1)
     client.updateBaseURL(URL(string: "https://self-hosted.example/api")!)
+    client.urlSession = URLProtocolStub.makeSession()
+    client.maxRetryCount = 0
     allowFirstRequestToFail.signal()
     _ = try await request.value
 
     XCTAssertEqual(hosts.value, ["hosted.example", "hosted.example"])
+    XCTAssertEqual(sessions.value, ["original", "original"])
   }
 
   func testSubscriptionEnrollmentDoesNotRetryServerFailure() async {

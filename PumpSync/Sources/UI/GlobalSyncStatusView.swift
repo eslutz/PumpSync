@@ -23,16 +23,15 @@ struct GlobalSyncStatusView: View {
       .sheet(item: $sheet) { destination in
         switch destination {
         case .subscription:
-          PumpSyncSubscriptionStoreView(isPresented: Binding(get: { sheet == .subscription }, set: { if !$0 { sheet = nil } }))
+          NavigationStack {
+            SubscriptionSettingsView()
+              .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { sheet = nil } } }
+          }
         case .details:
           NavigationStack {
-            PumpSyncScreen {
+            Form {
               if let presentation = SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: Date()) {
-                Text(presentation.title).font(.headline)
-                Text(presentation.detail)
-                if let title = presentation.actionTitle, let action = presentation.action {
-                  Button(title) { recover(action) }.buttonStyle(.bordered).tint(.primary).controlSize(.large)
-                }
+                SyncRecoveryContent(presentation: presentation, recover: recover)
               }
             }
             .navigationTitle("Sync Details")
@@ -79,7 +78,7 @@ struct GlobalSyncStatusView: View {
             }
           }
           if let title = presentation.actionTitle, let action = presentation.action {
-            Button(title) { recover(action) }.buttonStyle(.bordered).tint(.primary).controlSize(.large)
+            Button(title) { recover(action) }.buttonStyle(.glass).controlSize(.large)
           }
         }
       }
@@ -102,5 +101,30 @@ struct GlobalSyncStatusView: View {
     case .openSettings: sheet = nil; openConnectionSettings()
     case .openSubscription: sheet = .subscription
     }
+  }
+}
+
+
+private struct SyncRecoveryContent: View {
+  let presentation: SyncStatusPresentation
+  let recover: (SyncStatusAction) -> Void
+
+  var body: some View {
+    Text(presentation.title).font(.headline)
+    Text(presentation.detail)
+    if let title = presentation.actionTitle, let action = presentation.action {
+      Button(title) { recover(action) }.buttonStyle(.glass).controlSize(.large)
+    }
+  }
+}
+
+#Preview("Sync needs attention") {
+  NavigationStack {
+    Form {
+      if let presentation = SyncStatusPresentation.make(
+        for: .failed(SyncFailure(message: "The service is unavailable. Try again later.", recovery: .retry)), now: Date()) {
+        SyncRecoveryContent(presentation: presentation, recover: { _ in })
+      }
+    }.navigationTitle("Sync Details")
   }
 }

@@ -211,6 +211,8 @@ final class HealthKitService {
   var concentration: InsulinConcentration { insulinConcentrationStore.concentration }
 
   func save(batch: HealthImportBatch) async throws -> [SampleDTO] {
+    let interval = NativePerformance.begin("Health submission")
+    defer { NativePerformance.end("Health submission", interval) }
     try HealthImportPolicy.validate(batch: batch, current: currentContext())
     let samples = batch.plan.samples
     try Task.checkCancellation()

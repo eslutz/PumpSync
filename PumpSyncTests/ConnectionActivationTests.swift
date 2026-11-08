@@ -213,13 +213,140 @@ final class ConnectionActivationTests: XCTestCase {
     XCTAssertEqual(BackendConfigurationStore.validatedSelfHostedURL(from: " https://example.com/api/ ")?.path, "/api")
     XCTAssertNotNil(BackendConfigurationStore.validatedSelfHostedURL(from: "http://localhost:8080/api"))
   }
+
+  func testRecognizedSubscriptionConnectsWithoutRestoreAndActivatesAtomically() async throws {
+    let services = AppServices.screenshotFixture()
+    let root = Persistence()
+    let storage = ConnectionActivationStorage(root: root)
+    let configuration = services.backendConfigurationStore
+    configuration.mode = .selfHosted
+    configuration.selfHostedBaseURLString = "https://existing.example/api"
+    let store = BackendSessionStore(keychain: storage)
+    let live = AuthService(apiClient: services.apiClient, configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { throw APIClientError.invalidResponse },
+      createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+      createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: ConnectionProof())
+    live.applyScreenshotSession(serviceMode: "selfHosted")
+    let original = try XCTUnwrap(live.authenticatedConnection)
+    try store.save(original)
+    var reads = 0
+    var posts = 0
+    let controller = ConnectionSettingsController(configuration: configuration, auth: live, api: services.apiClient,
+      sync: services.syncCoordinator, storage: storage, diagnostics: services.diagnosticsLogStore) { api, candidate, persistence, _ in
+        let proof = ConnectionProof()
+        proof.allowsHostedEnrollment = true
+        return AuthService(apiClient: api, configurationStore: candidate, sessionStore: BackendSessionStore(keychain: persistence),
+          currentEntitlementJWS: { reads += 1; return "recognized-subscription" },
+          syncedCurrentEntitlementJWS: { XCTFail("Connect with recognized access must not restore purchases"); return "unexpected" },
+          createSubscriptionSession: { _ in
+            posts += 1
+            XCTAssertEqual(configuration.mode, .selfHosted, "Draft must stay inactive until its response commits")
+            XCTAssertEqual(live.authenticatedConnection, original)
+            return BackendSessionResponse(accessToken: "hosted-replacement", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource")
+          }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: proof)
+      }
+    controller.mode = .hosted
+    await controller.connect(restorePurchases: false)
+    XCTAssertEqual(reads, 1)
+    XCTAssertEqual(posts, 1)
+    XCTAssertEqual(configuration.mode, .hosted)
+    XCTAssertEqual(live.accessToken, "hosted-replacement")
+    XCTAssertFalse(live.isReplacingConnection)
+    XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(live.connectionBinding))?.session.accessToken, "hosted-replacement")
+  }
+
+  func testControllerCancellationStopsHostedRestoreAndConnectBeforeSubmission() async throws {
+    for restorePurchases in [false, true] {
+      let services = AppServices.screenshotFixture()
+      let storage = ConnectionActivationStorage(root: Persistence())
+      let configuration = services.backendConfigurationStore
+      let store = BackendSessionStore(keychain: storage)
+      let proof = ConnectionProof()
+      proof.allowsHostedEnrollment = true
+      let proofStarted = expectation(description: "proof started")
+      let proofCancelled = expectation(description: "controller cancellation reached proof")
+      var releaseProof: CheckedContinuation<Void, Never>?
+      proof.beforeHostedEnrollment = {
+        await withTaskCancellationHandler {
+          await withCheckedContinuation { continuation in
+            releaseProof = continuation
+            proofStarted.fulfill()
+          }
+        } onCancel: { proofCancelled.fulfill() }
+      }
+      var posts = 0
+      let live = AuthService(apiClient: services.apiClient, configurationStore: configuration, sessionStore: store,
+        currentEntitlementJWS: { "recognized-subscription" },
+        createSubscriptionSession: { _ in posts += 1; throw APIClientError.invalidResponse },
+        createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: proof)
+      let controller = ConnectionSettingsController(configuration: configuration, auth: live, api: services.apiClient,
+        sync: services.syncCoordinator, storage: storage, diagnostics: services.diagnosticsLogStore)
+      let caller = Task { await controller.connect(restorePurchases: restorePurchases) }
+      await fulfillment(of: [proofStarted], timeout: 2)
+
+      // A different screen invokes this, without owning or canceling caller.
+      controller.cancel()
+      await fulfillment(of: [proofCancelled], timeout: 2)
+      releaseProof?.resume()
+      await caller.value
+
+      XCTAssertEqual(posts, 0)
+      XCTAssertFalse(live.isSignedIn)
+      XCTAssertNil(try store.loadAuthJournal())
+      XCTAssertFalse(controller.isConnecting)
+      XCTAssertTrue(controller.canConnect)
+    }
+  }
+
+  func testControllerCancellationPreservesAlreadySubmittedHostedResponseCommit() async throws {
+    let services = AppServices.screenshotFixture()
+    let storage = ConnectionActivationStorage(root: Persistence())
+    let configuration = services.backendConfigurationStore
+    let store = BackendSessionStore(keychain: storage)
+    let proof = ConnectionProof()
+    proof.allowsHostedEnrollment = true
+    let submitted = expectation(description: "request submitted")
+    let committed = expectation(description: "confirmed late response committed")
+    var responseContinuation: CheckedContinuation<BackendSessionResponse, Never>?
+    let live = AuthService(apiClient: services.apiClient, configurationStore: configuration, sessionStore: store,
+      currentEntitlementJWS: { "recognized-subscription" },
+      createSubscriptionSession: { _ in
+        await withCheckedContinuation { continuation in
+          responseContinuation = continuation
+          submitted.fulfill()
+        }
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: proof)
+    live.configurationDidCommit = { committed.fulfill() }
+    var newSyncSignals = 0
+    live.setSessionEstablishedHandler { newSyncSignals += 1 }
+    let controller = ConnectionSettingsController(configuration: configuration, auth: live, api: services.apiClient,
+      sync: services.syncCoordinator, storage: storage, diagnostics: services.diagnosticsLogStore)
+    let caller = Task { await controller.connect(restorePurchases: false) }
+    await fulfillment(of: [submitted], timeout: 2)
+    controller.cancel()
+    await caller.value
+    responseContinuation?.resume(returning: BackendSessionResponse(
+      accessToken: "confirmed-late-response", expiresAt: .distantFuture, serviceMode: "hosted", dataSourceMode: "tandemSource"
+    ))
+    await fulfillment(of: [committed], timeout: 2)
+
+    XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(live.connectionBinding))?.session.accessToken, "confirmed-late-response")
+    XCTAssertEqual(newSyncSignals, 0, "A canceled owner may retain a confirmed credential but cannot trigger new sync work")
+    XCTAssertFalse(controller.isConnecting)
+  }
 }
 
 @MainActor
 private final class ConnectionProof: DeviceSessionProofProviding {
+  var allowsHostedEnrollment = false
+  var beforeHostedEnrollment: (@MainActor () async -> Void)?
   func hostedRecoveryDisposition() throws -> HostedProofRecoveryDisposition { .ready }
   func invalidateHostedProofOperation() {}
-  func hostedEnrollment(challenge: SessionChallengeResponse, installationId: String, signedTransactionInfo: String) async throws -> HostedDeviceEnrollment { throw APIClientError.invalidResponse }
+  func hostedEnrollment(challenge: SessionChallengeResponse, installationId: String, signedTransactionInfo: String) async throws -> HostedDeviceEnrollment {
+    guard allowsHostedEnrollment else { throw APIClientError.invalidResponse }
+    await beforeHostedEnrollment?()
+    return HostedDeviceEnrollment(requestId: UUID().uuidString, issuedAt: Date(), challengeToken: challenge.challengeToken, keyId: "fixture", proofKind: "attestation", proof: "fixture")
+  }
   func markHostedEnrollmentSubmissionStarted(keyId: String, requestId: String) throws -> Bool { true }
   func markHostedEnrollmentRegistered(keyId: String, requestId: String) throws -> Bool { true }
   func resolveRejectedHostedEnrollment(keyId: String, requestId: String) throws -> Bool { false }

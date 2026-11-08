@@ -424,9 +424,11 @@ final class SyncCoordinator {
       self?.recoveryPolicy(for: intent) ?? .background
     }
     attemptStore.advance(operationID: intent.operationID, stage: .recovering)
+    let recoveryInterval = NativePerformance.begin("Session recovery")
     let recovery = await authService.recoverSessionIfNeeded(policy: policyProvider(), policyProvider: policyProvider, backendCorrelation: { [weak self] value in
       self?.attemptStore.correlate(operationID: intent.operationID, value: value)
     })
+    NativePerformance.end("Session recovery", recoveryInterval)
     let recoveredAccessToken: String?
     if case .ready(let connection, _) = recovery { recoveredAccessToken = connection.session.accessToken }
     else { recoveredAccessToken = nil }
@@ -551,7 +553,9 @@ final class SyncCoordinator {
       })
       try checkExecution(intent)
       guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
-      let plan = try ImportPlanner.makePlan(response: response, context: context, concentration: concentration)
+      let plan = try NativePerformance.measure("Import conversion") {
+        try ImportPlanner.makePlan(response: response, context: context, concentration: concentration)
+      }
       _ = try HealthImportPolicy.authorize(plan: plan, current: current)
       syncMetadataStore.recordAttempt()
       authService.markHostedSubscriptionAccessRestored()

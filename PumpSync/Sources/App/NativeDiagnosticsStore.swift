@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum NativeDiagnosticKind: String, Codable {
+enum NativeDiagnosticKind: String, Codable, Sendable {
   case crash = "Crash"
   case performance = "Performance"
   case hang = "Hang"
@@ -9,7 +9,7 @@ enum NativeDiagnosticKind: String, Codable {
   case diagnostic = "Diagnostic"
 }
 
-struct NativeDiagnosticEntry: Identifiable, Codable, Equatable {
+struct NativeDiagnosticEntry: Identifiable, Codable, Equatable, Sendable {
   let id: UUID
   let timestamp: Date
   let kind: NativeDiagnosticKind

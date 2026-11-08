@@ -297,6 +297,32 @@ final class AppServices {
         buildNumber: "1"
       )
     ])
+    if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-diagnostics") {
+      let now = Date()
+      let report = NativeDiagnosticReport.make(from: [
+        "applicationTimeMetrics": ["cumulativeForegroundTime": "15 sec"],
+        "cpuMetrics": ["cumulativeCPUTime": "1 sec"]
+      ], windowStart: now.addingTimeInterval(-86_400), windowEnd: now)
+      nativeDiagnosticsStore.applyScreenshotEntries([
+        NativeDiagnosticEntry(timestamp: now, kind: .performance, title: "Performance metrics",
+          summary: "CPU time: 1 sec", appVersion: "1.0.0", buildNumber: "54", report: report),
+        NativeDiagnosticEntry(timestamp: now.addingTimeInterval(-86_400), kind: .performance,
+          title: "Legacy performance metrics", summary: "Retained summary", appVersion: "1.0.0", buildNumber: "53")
+      ])
+      diagnosticsLogStore.clear()
+      var attempt = SyncAttempt(operationID: UUID(), trigger: .manual, startedAt: now.addingTimeInterval(-5), stage: .recovering)
+      diagnosticsLogStore.record(source: .sync, title: "Owned sync attempt", syncAttempt: attempt)
+      attempt.stage = .downloading
+      diagnosticsLogStore.record(source: .sync, title: "Owned sync attempt", syncAttempt: attempt)
+      attempt.stage = .terminal
+      attempt.outcome = .completed
+      attempt.reason = .completed
+      attempt.returnedCount = 48
+      attempt.importedCount = 4
+      attempt.completedAt = now
+      attempt.durationSeconds = 5
+      diagnosticsLogStore.record(source: .sync, title: "Owned sync attempt", syncAttempt: attempt)
+    }
     let metricKitDiagnosticsCollector = MetricKitDiagnosticsCollector(store: nativeDiagnosticsStore, isEnabled: false)
 
     return AppServices(

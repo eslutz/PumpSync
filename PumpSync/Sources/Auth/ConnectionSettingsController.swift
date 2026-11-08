@@ -26,6 +26,7 @@ final class ConnectionSettingsController {
   private var generation = UUID()
   private var ownsReplacement = false
   private var inFlight = false
+  private var connectionTask: Task<Void, Never>?
   private var canceledNamespaces = Set<UUID>()
   typealias CandidateFactory = @MainActor (PumpSyncAPIClient, BackendConfigurationStore, any BackendSessionPersistence, DiagnosticsLogStore) -> AuthService
   private let makeCandidate: CandidateFactory
@@ -58,6 +59,9 @@ final class ConnectionSettingsController {
   }
 
   func cancel() {
+    // The operation can originate in Subscription or Settings. Its cancellation
+    // owner must outlive either screen's navigation/task state.
+    connectionTask?.cancel()
     generation = UUID()
     if let candidate {
       canceledNamespaces.insert(candidate.namespace)
@@ -88,15 +92,22 @@ final class ConnectionSettingsController {
     return SubscriptionConnectionRequest(id: generation, auth: auth, namespace: candidate?.namespace)
   }
 
-  func connect() async {
-    guard canConnect else { return }
+  func connect(restorePurchases: Bool = true) async {
+    guard canConnect, !Task.isCancelled else { return }
     if !hasChanges {
       inFlight = true
       isConnecting = true
       let submitted = generation
+      let submittedMode = mode
       defer { inFlight = false; isConnecting = false }
-      if mode == .hosted { await liveAuth.connectUsingCurrentSubscription() }
-      else { await liveAuth.connectSelfHosted() }
+      await runOwnedConnectionOperation {
+        if submittedMode == .hosted {
+          if restorePurchases { await self.liveAuth.connectUsingCurrentSubscription() }
+          else { await self.liveAuth.connectUsingVerifiedSubscription() }
+        }
+        else { await self.liveAuth.connectSelfHosted() }
+      }
+      if Task.isCancelled, submitted == generation { cancel() }
       guard submitted == generation else { return }
       feedback = liveAuth.errorMessage ?? liveAuth.statusMessage
       return
@@ -105,16 +116,33 @@ final class ConnectionSettingsController {
     inFlight = true
     defer { inFlight = false }
     let submitted = generation
+    let submittedMode = mode
     let submittedNamespace = candidate?.namespace
     defer {
       if submitted != generation, let submittedNamespace { try? storage.discardIfInactive(submittedNamespace) }
     }
-    if mode == .hosted || !auth.isSignedIn {
-      if mode == .hosted { await auth.connectUsingCurrentSubscription() }
-      else { await auth.connectSelfHosted() }
+    if submittedMode == .hosted || !auth.isSignedIn {
+      await runOwnedConnectionOperation {
+        if submittedMode == .hosted {
+          if restorePurchases { await auth.connectUsingCurrentSubscription() }
+          else { await auth.connectUsingVerifiedSubscription() }
+        }
+        else { await auth.connectSelfHosted() }
+      }
     }
+    if Task.isCancelled, submitted == generation { cancel() }
     guard submitted == generation else { return }
     finish()
+  }
+
+  private func runOwnedConnectionOperation(_ operation: @escaping @MainActor () async -> Void) async {
+    let task = Task { @MainActor in
+      guard !Task.isCancelled else { return }
+      await operation()
+    }
+    connectionTask = task
+    defer { connectionTask = nil }
+    await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
   }
 
   func finishSubscription(_ request: SubscriptionConnectionRequest, verified: Bool) {

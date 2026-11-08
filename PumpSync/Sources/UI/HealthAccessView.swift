@@ -5,103 +5,117 @@ struct HealthAccessView: View {
   @State private var isRequestingAccess = false
 
   var body: some View {
-    PumpSyncScreen {
-      Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
-        .foregroundStyle(Color.pumpSyncSecondaryText)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 4)
-
-      if services.healthKitService.hasAnyWritePermission && !services.healthKitService.isAuthorized {
-        Text("Sync imports only the allowed types. Records missing write access are skipped and retried after access is enabled, while they remain available from Tandem.")
-          .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("PartialHealthAccessNotice")
+    HealthAccessContent(
+      permissions: services.healthKitService.writePermissions,
+      hasAnyWritePermission: services.healthKitService.hasAnyWritePermission,
+      isAuthorized: services.healthKitService.isAuthorized,
+      isRequestingAccess: isRequestingAccess,
+      errorMessage: services.healthKitService.errorMessage,
+      managementMessage: services.healthKitService.managementMessage,
+      requestAccess: {
+        Task {
+          isRequestingAccess = true
+          await services.healthKitService.manageWriteAccess()
+          isRequestingAccess = false
+        }
       }
-      GlassSection("Write Permissions") {
-        ForEach(Array(services.healthKitService.writePermissions.enumerated()), id: \.element.id) { index, permission in
-          GlassStatusRow(
-            title: permission.title,
-            value: permission.statusDescription,
-            systemImage: permission.kind.systemImage,
-            tint: permission.status == .sharingAuthorized ? .green : .accentColor
-          )
+    )
+    .task { services.healthKitService.refreshAuthorizationStatus() }
+  }
+}
 
-          if index < services.healthKitService.writePermissions.count - 1 {
-            GlassDivider()
+private struct HealthAccessContent: View {
+  let permissions: [HealthWritePermission]
+  let hasAnyWritePermission: Bool
+  let isAuthorized: Bool
+  let isRequestingAccess: Bool
+  let errorMessage: String?
+  let managementMessage: String?
+  let requestAccess: () -> Void
+
+  var body: some View {
+    Form {
+      Section {
+        ForEach(permissions) { permission in
+          LabeledContent {
+            Text(permission.statusDescription)
+              .foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          } label: {
+            Text(permission.title)
+              .fixedSize(horizontal: false, vertical: true)
           }
+        }
+        Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
+          .font(.body)
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
+      } header: {
+        Text("Write Permissions")
+          .foregroundStyle(Color.primary)
+      }
+      .headerProminence(.increased)
+
+      if hasAnyWritePermission && !isAuthorized {
+        Section {
+          Text("Sync imports only the allowed types. Records missing write access are skipped and retried after access is enabled, while they remain available from Tandem.")
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("PartialHealthAccessNotice")
         }
       }
 
-      if !services.healthKitService.hasAnyWritePermission {
-        Button {
-          Task {
-            isRequestingAccess = true
-            await services.healthKitService.manageWriteAccess()
-            isRequestingAccess = false
-          }
-        } label: {
-          HStack {
-            Spacer()
+      if !hasAnyWritePermission {
+        Section {
+          Button(action: requestAccess) {
             if isRequestingAccess {
-              ProgressView()
+              HStack { ProgressView().tint(.white); Text("Requesting Access") }
             } else {
               Text("Allow Access to Health")
+                .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
           }
+          .buttonStyle(.glassProminent)
+          .tint(Color("ProminentActionColor"))
+          .controlSize(.large)
+          .disabled(isRequestingAccess)
         }
-        .buttonStyle(.borderedProminent)
-        .font(.title3.weight(.semibold))
-        .buttonBorderShape(.roundedRectangle(radius: 24))
-        .controlSize(.large)
-        .frame(maxWidth: .infinity)
-        .disabled(isRequestingAccess)
       }
 
-      if let message = services.healthKitService.errorMessage {
-        GlassSection {
+      if let message = errorMessage {
+        Section { Text(message) }
+      }
+
+      Section {
+        if let message = managementMessage {
           Text(message)
-            .foregroundStyle(Color.pumpSyncSecondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-      }
-
-      GlassSection("Change Access") {
-        if services.healthKitService.managementMessage == nil {
-          VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(HealthAccessCopy.healthAppInstructionSteps.enumerated()), id: \.offset) { index, step in
-              HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("\(index + 1)")
-                  .font(.subheadline.weight(.semibold))
-                  .foregroundStyle(.primary)
-                  .monospacedDigit()
-                  .frame(minWidth: 20)
-                Text(step)
-                  .foregroundStyle(Color.pumpSyncSecondaryText)
-              }
-            }
-          }
-          .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
         } else {
-          Text(services.healthKitService.managementMessage ?? "")
-            .foregroundStyle(Color.pumpSyncSecondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
+          ForEach(Array(HealthAccessCopy.healthAppInstructionSteps.enumerated()), id: \.offset) { index, step in
+            Text("\(index + 1). \(step)")
+              .fixedSize(horizontal: false, vertical: true)
+          }
         }
+      } header: {
+        Text("Change Access")
+          .foregroundStyle(Color.primary)
       }
+      .headerProminence(.increased)
     }
     .navigationTitle("Apple Health")
-    .task {
-      services.healthKitService.refreshAuthorizationStatus()
-    }
-  }
-
-}
-
-private extension HealthWriteSampleKind {
-  var systemImage: String {
-    switch self {
-    case .insulinDelivery:
-      return "syringe"
-    case .dietaryCarbohydrates:
-      return "fork.knife"
-    }
+    .navigationBarTitleDisplayMode(.inline)
   }
 }
+
+#if DEBUG
+#Preview("Partial Health access") {
+  NavigationStack {
+    HealthAccessContent(
+      permissions: HealthWritePermission.defaultWritePermissions(statuses: [
+        .insulinDelivery: .sharingAuthorized, .dietaryCarbohydrates: .sharingDenied
+      ]),
+      hasAnyWritePermission: true, isAuthorized: false, isRequestingAccess: false,
+      errorMessage: nil, managementMessage: nil, requestAccess: {}
+    )
+  }
+}
+#endif
