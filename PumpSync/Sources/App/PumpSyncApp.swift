@@ -23,6 +23,7 @@ struct PumpSyncApp: App {
       AppView()
         .environment(services)
         .onChange(of: scenePhase, initial: true) { _, phase in
+          services.authService.setUnsolicitedEnrollmentForegroundActive(phase == .active)
           services.foregroundRecovery.setScenePhase(phase)
           if phase == .background {
             services.backgroundSyncScheduler.scheduleDailySync(trigger: "appBackground")

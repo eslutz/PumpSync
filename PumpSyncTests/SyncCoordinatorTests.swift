@@ -173,6 +173,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let metadata = makeSyncMetadataStore()
     let health = FakeHealthKitService()
     let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    auth.setUnsolicitedEnrollmentForegroundActive(true)
     let owner = Task { await auth.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "verified-fixture", diagnosticSummary: "fixture", finish: {}) }
     await fulfillment(of: [started], timeout: 2)
     let joined = Task { await coordinator.run(reason: .background, lease: grantedBackgroundLease()) }
@@ -1559,6 +1560,7 @@ final class SyncCoordinatorTests: XCTestCase {
     guard case .failed = coordinator.operationState else { return XCTFail("Unavailable bootstrap auth must end its owner") }
     XCTAssertEqual(count.value, 0)
     var finishedTransactions = 0
+    auth.setUnsolicitedEnrollmentForegroundActive(true)
     await auth.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "verified-fixture", diagnosticSummary: "fixture-active") {
       finishedTransactions += 1
     }

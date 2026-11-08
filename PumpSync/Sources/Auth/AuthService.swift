@@ -3,6 +3,11 @@ import Foundation
 import Observation
 import StoreKit
 
+private enum SubscriptionEnrollmentDiagnostics {
+  @TaskLocal static var origin = "connectionRecovery"
+  @TaskLocal static var ownerID: UUID?
+}
+
 enum BackendAccessMode: String, Codable, CaseIterable, Identifiable {
   case hosted
   case selfHosted
@@ -222,6 +227,8 @@ final class AuthService {
   }
   private var recoveryRequiresActiveSubscription = false
   private(set) var isReplacingConnection = false
+  private var unsolicitedEnrollmentForegroundActive = false
+  private var unsolicitedEnrollmentTasks: [UUID: Task<Void, Never>] = [:]
   private var transactionUpdatesTask: Task<Void, Never>?
   private var subscriptionOperationTask: Task<Void, Never>?
   private var subscriptionOperationID: UUID?
@@ -753,6 +760,30 @@ final class AuthService {
     diagnostics?.record(source: .auth, severity: .warning, title: "PumpSync subscription revoked or expired", message: diagnosticSummary)
   }
 
+  func setUnsolicitedEnrollmentForegroundActive(_ active: Bool) {
+    guard active != unsolicitedEnrollmentForegroundActive else { return }
+    unsolicitedEnrollmentForegroundActive = active
+    diagnostics?.record(source: .auth, title: "Subscription enrollment lifecycle",
+      message: "origin=storeKitUpdate foreground=\(active) owners=\(unsolicitedEnrollmentTasks.count)")
+    if !active {
+      for (ownerID, task) in unsolicitedEnrollmentTasks {
+        diagnostics?.record(source: .auth, title: "Unsolicited enrollment deferred",
+          message: "origin=storeKitUpdate owner=\(ownerID) reason=foregroundEnded")
+        task.cancel()
+      }
+    }
+  }
+
+  private func deferUnsolicitedEnrollmentIfNeeded() -> Bool {
+    let reason: String
+    if isSignedIn { reason = "usableSession" }
+    else if !unsolicitedEnrollmentForegroundActive { reason = "notForeground" }
+    else { return false }
+    diagnostics?.record(source: .auth, title: "Unsolicited enrollment deferred",
+      message: "origin=storeKitUpdate reason=\(reason) foreground=\(unsolicitedEnrollmentForegroundActive)")
+    return true
+  }
+
   /// Handles only verified, active updates from `Transaction.updates` after
   /// product and connection-mode validation.
   func handleActiveSubscriptionTransactionUpdate(
@@ -761,8 +792,6 @@ final class AuthService {
     finish: @MainActor () async -> Void
   ) async {
     let configurationRevision = configurationStore.revision
-    let progressLeaseID = beginConnectionProgressLease()
-    defer { endConnectionProgressLease(progressLeaseID) }
     await finish()
 
     let transactionHash = Self.subscriptionJWSHash(entitlement.signedTransactionInfo)
@@ -775,7 +804,36 @@ final class AuthService {
       return
     }
 
+    guard isCurrentHostedConfiguration(configurationRevision) else {
+      diagnostics?.record(source: .auth, title: "PumpSync subscription transaction update skipped",
+        message: "reason=connectionModeChanged \(diagnosticSummary)")
+      return
+    }
+    guard !Task.isCancelled, !deferUnsolicitedEnrollmentIfNeeded() else { return }
+    let ownerID = UUID()
+    let task = Task { @MainActor in
+      await SubscriptionEnrollmentDiagnostics.$origin.withValue("storeKitUpdate") {
+        await SubscriptionEnrollmentDiagnostics.$ownerID.withValue(ownerID) {
+          await self.performUnsolicitedEnrollment(entitlement: entitlement, diagnosticSummary: diagnosticSummary,
+            transactionHash: transactionHash, configurationRevision: configurationRevision)
+        }
+      }
+    }
+    unsolicitedEnrollmentTasks[ownerID] = task
+    diagnostics?.record(source: .auth, title: "Unsolicited enrollment owner started",
+      message: "origin=storeKitUpdate owner=\(ownerID) foreground=true")
+    defer { unsolicitedEnrollmentTasks[ownerID] = nil }
+    await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
+    diagnostics?.record(source: .auth, title: "Unsolicited enrollment owner finished",
+      message: "origin=storeKitUpdate owner=\(ownerID) canceled=\(task.isCancelled)")
+  }
+
+  private func performUnsolicitedEnrollment(entitlement: VerifiedSubscriptionEntitlement,
+    diagnosticSummary: String, transactionHash: Data, configurationRevision: Int) async {
+    let progressLeaseID = beginConnectionProgressLease()
+    defer { endConnectionProgressLease(progressLeaseID) }
     while !attemptedSubscriptionSessionJWSHashes.contains(transactionHash) {
+      guard !Task.isCancelled, !deferUnsolicitedEnrollmentIfNeeded() else { return }
       guard isCurrentHostedConfiguration(configurationRevision) else {
         diagnostics?.record(
           source: .auth,
@@ -795,6 +853,7 @@ final class AuthService {
           return
         }
 
+        guard !self.deferUnsolicitedEnrollmentIfNeeded() else { return }
         configurationChanged = await self.establishSubscriptionSession(
           entitlement: entitlement,
           activityMessage: "Connecting to PumpSync…",
@@ -1329,7 +1388,10 @@ final class AuthService {
     let hasValidPreviousSession = previousSession.map { sessionIsValid($0) } ?? false
     errorMessage = nil
     statusMessage = activityMessage
-    diagnostics?.record(source: .auth, title: "Subscription session started")
+    let enrollmentOrigin = SubscriptionEnrollmentDiagnostics.origin
+    let enrollmentOwner = SubscriptionEnrollmentDiagnostics.ownerID?.uuidString ?? "connectionOperation"
+    diagnostics?.record(source: .auth, title: "Subscription session started",
+      message: "origin=\(enrollmentOrigin) owner=\(enrollmentOwner) foreground=\(unsolicitedEnrollmentForegroundActive) timeoutSeconds=\(Int(subscriptionSessionTimeout))")
 
     let backendStartedAt = Date()
     var timeoutKind = SubscriptionSessionTimeoutKind.none
@@ -1370,9 +1432,21 @@ final class AuthService {
         try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
       }
 
+      if enrollmentOrigin == "storeKitUpdate", isSignedIn {
+        diagnostics?.record(source: .auth, title: "Unsolicited enrollment deferred",
+          message: "origin=storeKitUpdate owner=\(enrollmentOwner) reason=usableSessionAfterRefresh")
+        if let session { statusMessage = Self.connectedStatusMessage(for: session) }
+        return false
+      }
       let mutationLease = try await committer.acquireLease()
       defer { committer.releaseLease(mutationLease) }
       try prepareHostedRequest(configurationRevision: configurationRevision, ownershipGeneration: ownershipGeneration)
+      if enrollmentOrigin == "storeKitUpdate", isSignedIn {
+        diagnostics?.record(source: .auth, title: "Unsolicited enrollment deferred",
+          message: "origin=storeKitUpdate owner=\(enrollmentOwner) reason=usableSessionAfterLease")
+        if let session { statusMessage = Self.connectedStatusMessage(for: session) }
+        return false
+      }
       let request = try await makeSubscriptionSessionRequest(
         signedTransactionInfo: entitlement.signedTransactionInfo,
         configurationRevision: configurationRevision,
@@ -1416,9 +1490,9 @@ final class AuthService {
       } catch {
         diagnostics?.record(
           source: .auth,
-          severity: .warning,
-          title: "Subscription session request failed",
-          message: "elapsedMs=\(elapsedMilliseconds(since: sessionRequestStartedAt)) proofKind=\(request.deviceEnrollment.proofKind) outcome=failure backendCode=\((error as? APIClientError)?.backendCode ?? "none")"
+          severity: Task.isCancelled || error is CancellationError ? .info : .warning,
+          title: Task.isCancelled || error is CancellationError ? "Subscription session request canceled" : "Subscription session request failed",
+          message: "origin=\(enrollmentOrigin) owner=\(enrollmentOwner) clientElapsedMs=\(elapsedMilliseconds(since: sessionRequestStartedAt)) proofKind=\(request.deviceEnrollment.proofKind) outcome=\(Task.isCancelled || error is CancellationError ? "canceled" : "failure") backendCode=\((error as? APIClientError)?.backendCode ?? "none")"
         )
         throw error
       }
@@ -1601,7 +1675,7 @@ final class AuthService {
       source: .auth,
       severity: timeoutKind == .none ? .info : .warning,
       title: "Subscription session timing",
-      message: "backendMs=\(backendMs) timedOut=\(timeoutKind != .none) timeoutKind=\(timeoutKind.rawValue) cacheHit=false"
+      message: "origin=\(enrollmentOrigin) owner=\(enrollmentOwner) clientElapsedMs=\(backendMs) timeoutSeconds=\(Int(subscriptionSessionTimeout)) timedOut=\(timeoutKind != .none) timeoutKind=\(timeoutKind.rawValue) cacheHit=false"
     )
 
     return false
@@ -2286,6 +2360,11 @@ final class AuthService {
     ownershipGeneration: UUID
   ) async throws -> BackendSessionResponse {
     let race = SubscriptionRequestRace()
+    let deadline = Date().addingTimeInterval(subscriptionSessionTimeout)
+    let origin = SubscriptionEnrollmentDiagnostics.origin
+    let owner = SubscriptionEnrollmentDiagnostics.ownerID?.uuidString ?? "connectionOperation"
+    diagnostics?.record(source: .auth, title: "Subscription request deadline",
+      message: "origin=\(origin) owner=\(owner) deadline=\(ISO8601DateFormatter().string(from: deadline))")
     return try await withTaskCancellationHandler(operation: {
       try await withCheckedThrowingContinuation { continuation in
         race.continuation = continuation
@@ -2318,6 +2397,8 @@ final class AuthService {
           } catch {
             return
           }
+          diagnostics?.record(source: .auth, severity: .warning, title: "Subscription request deadline observed",
+            message: "origin=\(origin) owner=\(owner) deadline=\(ISO8601DateFormatter().string(from: deadline)) observedAt=\(ISO8601DateFormatter().string(from: Date())) overdueMs=\(max(0, Int(Date().timeIntervalSince(deadline) * 1000))) foreground=\(unsolicitedEnrollmentForegroundActive)")
           race.finish(.failure(SubscriptionSessionTimeoutError()))
         }
       }

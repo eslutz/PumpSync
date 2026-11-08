@@ -1898,6 +1898,96 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(diagnostics.entries.map(\.title).contains("PumpSync subscription purchased"))
   }
 
+  func testUnsolicitedEnrollmentDefersInBackgroundAndDoesNotConsumeUpdate() async {
+    let diagnostics = makeDiagnostics()
+    var calls = 0
+    var finished = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        calls += 1
+        return BackendSessionResponse(accessToken: "token", expiresAt: Date(timeIntervalSince1970: 1800), serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, diagnostics: diagnostics, proofProvider: AcceptingProofProvider())
+    await service.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "unsolicited", diagnosticSummary: "active=true", finish: { finished += 1 })
+    XCTAssertEqual(finished, 1)
+    XCTAssertEqual(calls, 0)
+    XCTAssertTrue(diagnostics.entries.contains { $0.message?.contains("reason=notForeground") == true })
+    service.setUnsolicitedEnrollmentForegroundActive(true)
+    await service.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "unsolicited", diagnosticSummary: "active=true", finish: {})
+    XCTAssertEqual(calls, 1)
+  }
+
+  func testUnsolicitedEnrollmentDefersWhenSessionIsUsable() async {
+    let diagnostics = makeDiagnostics()
+    var calls = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        calls += 1
+        return BackendSessionResponse(accessToken: "token", expiresAt: Date(timeIntervalSince1970: 1800), serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, diagnostics: diagnostics, proofProvider: AcceptingProofProvider())
+    await service.activateSubscription(signedTransactionInfo: "initial")
+    service.setUnsolicitedEnrollmentForegroundActive(true)
+    await service.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "renewed", diagnosticSummary: "active=true", finish: {})
+    XCTAssertEqual(calls, 1)
+    XCTAssertTrue(service.isSignedIn)
+    XCTAssertTrue(diagnostics.entries.contains { $0.message?.contains("reason=usableSession") == true })
+  }
+
+  func testForegroundEndCancelsUnsolicitedEnrollmentWithoutPublishingFailure() async {
+    let diagnostics = makeDiagnostics()
+    let started = expectation(description: "enrollment started")
+    var cancelled = false
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { throw StoreKitSubscriptionError.noActiveSubscription },
+      createSubscriptionSession: { _ in
+        started.fulfill()
+        do { try await Task.sleep(for: .seconds(30)) }
+        catch { cancelled = true; throw error }
+        throw APIClientError.invalidResponse
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, diagnostics: diagnostics, proofProvider: AcceptingProofProvider())
+    service.setUnsolicitedEnrollmentForegroundActive(true)
+    let update = Task { await service.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "renewed", diagnosticSummary: "active=true", finish: {}) }
+    await fulfillment(of: [started], timeout: 2)
+    service.setUnsolicitedEnrollmentForegroundActive(false)
+    await update.value
+    XCTAssertTrue(cancelled)
+    XCTAssertNil(service.errorMessage)
+    XCTAssertFalse(diagnostics.entries.contains { $0.title == "Subscription session failed" })
+    XCTAssertTrue(diagnostics.entries.contains { $0.message?.contains("reason=foregroundEnded") == true })
+  }
+
+  func testForegroundEndPreservesEnrollmentWithAnotherWaitingOwner() async {
+    let diagnostics = makeDiagnostics()
+    let gate = AsyncGate()
+    var started = false
+    var cancelled = false
+    var calls = 0
+    let service = AuthService(apiClient: makeAPIClient(), configurationStore: makeConfigurationStore(), sessionStore: makeSessionStore(),
+      currentEntitlementJWS: { "current-entitlement" },
+      createSubscriptionSession: { _ in
+        calls += 1
+        started = true
+        await gate.wait()
+        cancelled = cancelled || Task.isCancelled
+        return BackendSessionResponse(accessToken: "shared-token", expiresAt: Date(timeIntervalSince1970: 1800), serviceMode: "hosted", dataSourceMode: "tandemSource")
+      }, createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, diagnostics: diagnostics, proofProvider: AcceptingProofProvider())
+    service.setUnsolicitedEnrollmentForegroundActive(true)
+    let automatic = Task { await service.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "renewed", diagnosticSummary: "active=true", finish: {}) }
+    await waitUntil { started }
+    let explicit = Task { await service.connectUsingCurrentSubscription() }
+    await waitUntil { diagnostics.entries.contains { $0.title == "Subscription operation coalesced" } }
+    service.setUnsolicitedEnrollmentForegroundActive(false)
+    // Cancellation removes only the unsolicited waiter; the explicit waiter owns the request.
+    for _ in 0..<10 { await Task.yield() }
+    await gate.open()
+    await automatic.value
+    await explicit.value
+    XCTAssertFalse(cancelled)
+    XCTAssertEqual(calls, 2, "Explicit restore still performs its separately requested enrollment after joining")
+    XCTAssertTrue(service.isSignedIn)
+  }
+
   func testAutomaticTransactionUpdateActivatesSubscriptionForUnattemptedJWS() async {
     var submittedTransactions: [String] = []
     var finishCount = 0
@@ -1919,6 +2009,7 @@ final class AuthServiceTests: XCTestCase {
       proofProvider: AcceptingProofProvider()
     )
 
+    service.setUnsolicitedEnrollmentForegroundActive(true)
     await service.handleActiveSubscriptionTransactionUpdate(
       signedTransactionInfo: "automatic-transaction-jws",
       diagnosticSummary: "productID=subscription, active=true",
@@ -1974,6 +2065,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    service.setUnsolicitedEnrollmentForegroundActive(true)
     await service.handleActiveSubscriptionTransactionUpdate(
       signedTransactionInfo: signedTransactionInfo,
       diagnosticSummary: "productID=subscription, id=…0001, active=true",
@@ -2014,6 +2106,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    service.setUnsolicitedEnrollmentForegroundActive(true)
     await service.handleActiveSubscriptionTransactionUpdate(
       signedTransactionInfo: signedTransactionInfo,
       diagnosticSummary: "productID=subscription, id=…0002, active=true",
@@ -2066,6 +2159,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    service.setUnsolicitedEnrollmentForegroundActive(true)
     await service.handleActiveSubscriptionTransactionUpdate(
       signedTransactionInfo: signedTransactionInfo,
       diagnosticSummary: "productID=subscription, id=…0003, active=true",
@@ -2178,6 +2272,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     await service.activateSubscription(signedTransactionInfo: signedTransactionInfo)
+    service.setUnsolicitedEnrollmentForegroundActive(true)
     await service.handleActiveSubscriptionTransactionUpdate(
       signedTransactionInfo: signedTransactionInfo,
       diagnosticSummary: "productID=subscription, id=…0004, active=true",
@@ -2222,6 +2317,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     await service.activateSubscription(signedTransactionInfo: "first-transaction-jws")
+    service.setUnsolicitedEnrollmentForegroundActive(true)
     await service.handleActiveSubscriptionTransactionUpdate(
       signedTransactionInfo: "different-transaction-jws",
       diagnosticSummary: "productID=subscription, id=…0004, active=true",
@@ -2273,6 +2369,7 @@ final class AuthServiceTests: XCTestCase {
     await waitUntil { firstRequestStarted }
 
     let automaticUpdate = Task {
+      service.setUnsolicitedEnrollmentForegroundActive(true)
       await service.handleActiveSubscriptionTransactionUpdate(
         signedTransactionInfo: "different-transaction-jws",
         diagnosticSummary: "productID=subscription, id=…0005, active=true",
@@ -2294,7 +2391,7 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertTrue(service.isSignedIn)
   }
 
-  func testAutomaticTransactionUpdatesQueueEveryDistinctJWSAcrossRepeatedCoalescing() async {
+  func testAutomaticTransactionUpdatesStopQueuedEnrollmentWhenAnotherUpdateCreatesUsableSession() async {
     let diagnostics = makeDiagnostics()
     let firstRequestGate = AsyncGate()
     let secondRequestGate = AsyncGate()
@@ -2343,6 +2440,7 @@ final class AuthServiceTests: XCTestCase {
     await waitUntil { firstRequestStarted }
 
     let secondUpdate = Task {
+      service.setUnsolicitedEnrollmentForegroundActive(true)
       await service.handleActiveSubscriptionTransactionUpdate(
         signedTransactionInfo: secondJWS,
         diagnosticSummary: "productID=subscription, id=…0006, active=true",
@@ -2350,6 +2448,7 @@ final class AuthServiceTests: XCTestCase {
       )
     }
     let thirdUpdate = Task {
+      service.setUnsolicitedEnrollmentForegroundActive(true)
       await service.handleActiveSubscriptionTransactionUpdate(
         signedTransactionInfo: thirdJWS,
         diagnosticSummary: "productID=subscription, id=…0007, active=true",
@@ -2372,8 +2471,8 @@ final class AuthServiceTests: XCTestCase {
 
     XCTAssertEqual(finishCount, 2)
     XCTAssertEqual(submittedTransactions.first, firstJWS)
-    XCTAssertEqual(Set(submittedTransactions), Set([firstJWS, secondJWS, thirdJWS]))
-    XCTAssertEqual(submittedTransactions.count, 3)
+    XCTAssertEqual(submittedTransactions.count, 2)
+    XCTAssertTrue(submittedTransactions.contains(secondJWS) || submittedTransactions.contains(thirdJWS))
   }
 
   func testConnectionChangeLetsExplicitRestoreBypassObsoleteSubscriptionOperation() async {
@@ -2463,6 +2562,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let automaticUpdate = Task {
+      service.setUnsolicitedEnrollmentForegroundActive(true)
       await service.handleActiveSubscriptionTransactionUpdate(
         signedTransactionInfo: signedTransactionInfo,
         diagnosticSummary: "productID=subscription, id=…0008, active=true",
@@ -2529,6 +2629,7 @@ final class AuthServiceTests: XCTestCase {
     }
     await waitUntil { firstRequestStarted }
     let automaticUpdate = Task {
+      service.setUnsolicitedEnrollmentForegroundActive(true)
       await service.handleActiveSubscriptionTransactionUpdate(
         signedTransactionInfo: automaticJWS,
         diagnosticSummary: "productID=subscription, id=…0009, active=true",
@@ -2594,6 +2695,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let automaticUpdate = Task {
+      service.setUnsolicitedEnrollmentForegroundActive(true)
       await service.handleActiveSubscriptionTransactionUpdate(
         signedTransactionInfo: "warmup-mode-change-jws",
         diagnosticSummary: "productID=subscription, id=…0010, active=true",
@@ -2643,6 +2745,7 @@ final class AuthServiceTests: XCTestCase {
     )
 
     let automaticUpdate = Task {
+      service.setUnsolicitedEnrollmentForegroundActive(true)
       await service.handleActiveSubscriptionTransactionUpdate(
         signedTransactionInfo: "backend-mode-change-jws",
         diagnosticSummary: "productID=subscription, id=…0011, active=true",
