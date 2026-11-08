@@ -1,5 +1,23 @@
 # Xcode Cloud workflow configuration
 
+## November 8 Internal Beta repair
+
+PumpSync Internal Beta is repaired and saved through App Store Connect's web editor.
+It now selects **Latest Release Xcode** (currently 27.2, `27B52`), with iPhone SE (3rd generation) using **Latest from Selected Xcode** (currently iOS 27.2, runtime identifier `default`).
+This replaces the fixed 27.1 toolchain and 27.0 runtime without pinning future stable releases.
+
+Reloaded web-editor and independent API readback verified the saved configuration.
+The existing test and archive action IDs are unchanged: required full tests use `PumpSync`, and the required `PumpSync Beta` archive retains `INTERNAL_ONLY` distribution preparation.
+The original **TestFlight Internal Testing - iOS** post-action still references **Archive - iOS** and the **Internal Testers** group.
+Manual start for any branch, cached builds, macOS selection and other start conditions are unchanged.
+No new build was started for this configuration repair; a subsequent Internal Beta run is the execution/distribution gate for the repaired configuration.
+
+Before/after settings and verification: [repair record](internal-beta-repair-2026-11-08.json).
+Screenshots: [saved workflow and automatic post-action](evidence/2026-11-08/internal-beta-repaired.png), [saved runtime alias](evidence/2026-11-08/internal-beta-runtime.png).
+Rollback restores the before-record's Xcode relationship, matching test runtime and description together through the web editor; retain the existing action IDs and TestFlight post-action.
+
+The November 7 Internal Beta API-repair limitation below is historical and is resolved by this web-editor repair.
+
 ## November 7 design remediation
 
 API readback confirmed **Latest Release Xcode**, currently 27.2 (`27B52`), and iPhone SE (3rd generation) / iOS 27.2 on PumpSync Validation, PumpSync External Beta, and PumpSync App Store Release.
