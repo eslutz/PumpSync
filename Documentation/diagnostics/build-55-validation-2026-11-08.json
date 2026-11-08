@@ -20,7 +20,7 @@
   "processingState": "VALID",
   "betaState": {
     "autoNotifyEnabled": true,
-    "internalBuildState": "READY_FOR_BETA_TESTING",
+    "internalBuildState": "IN_BETA_TESTING",
     "externalBuildState": "NOT_APPLICABLE"
   },
   "uiTreesUnchangedFromBuild54": {
@@ -33,5 +33,6 @@
   "localBaselineDestination": "iPhone SE (3rd generation) / iOS 27.0",
   "baselineNativeAudit": "PASSED this run",
   "baselineVoiceOverDiagnostics": "PASSED this run",
-  "distributionDecision": "Held pending explicit user decision on the unattributed hosted VoiceOver failure; the conditional pre-existing-UI waiver does not conclusively establish this failure is covered."
+  "distributionDecision": "User explicitly approved extending the waiver to the unattributed VoiceOver Clear Logs failure on November 8, 2026; existing build 55 manually distributed to Internal Testers.",
+  "internalGroupMembershipVerified": true
 }

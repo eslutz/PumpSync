@@ -131,3 +131,13 @@ were repeated to obtain a pass. The user was asked whether to extend the conditi
 waiver to this specific unattributed UI failure. Build 55 is held for that decision.
 Current-source unit tests and all other hosted tests passed; release notes are saved.
 The existing 12-hour monitoring continues on the last confirmed installed build 54.
+
+## Approved internal distribution
+
+On November 8, the user explicitly approved extending the waiver to the unattributed
+VoiceOver Clear Logs failure. Existing build 55 was manually added to Internal Testers
+without a rebuild or test suppression. API readback verified group membership and
+`IN_BETA_TESTING`; external distribution remains not applicable. The hosted outcome
+remains 471/472, not a clean test pass. Source implementation is `ca307c4`.
+The 12-hour check-in schedule and original November 10 endpoint remain unchanged;
+monitoring distinguishes build 54 from 55 when installation is confirmed.
