@@ -639,11 +639,21 @@ final class PumpSyncUITests: XCTestCase {
     let app = launchScreenshotFixture()
     navigate(to: "Settings", in: app)
     tapSegment("Self-hosted", in: app)
-    XCTAssertTrue(app.buttons["Cancel Changes"].waitForExistence(timeout: 3))
-    XCTAssertTrue(app.staticTexts["Changes take effect only after connection succeeds. Your current setup remains active."].exists)
-    app.buttons["Cancel Changes"].tap()
+    XCTAssertTrue(app.textFields["Server URL"].waitForExistence(timeout: 3))
+    let feedback = app.staticTexts["Changes take effect only after connection succeeds. Your current setup remains active."]
+    revealFormControl(feedback, in: app)
+    XCTAssertTrue(feedback.waitForExistence(timeout: 3))
+    let cancel = app.buttons["Cancel Changes"]
+    revealFormControl(cancel, in: app)
+    XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+    XCTAssertTrue(cancel.isHittable)
+    cancel.tap()
+    // Inspect the field's location after cancellation, not a lazy offscreen row.
+    revealConnectionModePicker(in: app)
     XCTAssertFalse(app.textFields["Server URL"].exists)
     navigate(to: "Sync", in: app)
+    revealFormControl(app.buttons["Sync Now"], in: app)
+    XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 3))
     XCTAssertTrue(app.buttons["Sync Now"].isEnabled)
   }
 
@@ -739,38 +749,7 @@ final class PumpSyncUITests: XCTestCase {
   func testDesignReviewAdaptiveReachability() {
     let app = launchScreenshotFixture()
     func reveal(_ element: XCUIElement) {
-      for _ in 0..<48 {
-        guard element.exists else {
-          // Native Form/List rows are materialized as they enter the viewport.
-          // Do not ask an absent row for its identity or geometry.
-          let scroll = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch
-            : app.scrollViews.firstMatch.exists ? app.scrollViews.firstMatch : app
-          scroll.swipeUp()
-          continue
-        }
-        if element.isHittable { break }
-        let distanceToCenter = element.frame.midY - app.frame.midY
-        let scrollDown = distanceToCenter < 0
-        let identity = element.identifier.isEmpty ? element.label : element.identifier
-        let containingScroll = app.scrollViews.containing(.any, identifier: identity).firstMatch
-        let containingList = app.collectionViews.containing(.any, identifier: identity).firstMatch
-        let scroll = containingList.exists ? containingList
-          : containingScroll.exists ? containingScroll
-          : app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch
-          : app.scrollViews.firstMatch.exists ? app.scrollViews.firstMatch : app
-        let distance = min(0.4, max(0.08, abs(distanceToCenter) / max(1, scroll.frame.height)))
-        let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        let finish = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5 + (scrollDown ? distance : -distance)))
-        start.press(forDuration: 0.05, thenDragTo: finish, withVelocity: .slow, thenHoldForDuration: 0.1)
-      }
-      if !element.isHittable {
-        attachScreenshot(named: "unreachable-final-content", from: app)
-        let tree = XCTAttachment(string: app.debugDescription)
-        tree.name = "unreachable-content-accessibility-tree"
-        tree.lifetime = .keepAlways
-        add(tree)
-      }
-      XCTAssertTrue(element.isHittable, "Final content must be reachable: \(element)")
+      revealFormControl(element, in: app)
     }
     reveal(app.buttons["Sync Now"])
     XCTAssertGreaterThanOrEqual(app.buttons["Sync Now"].frame.height, 44 - 0.01)
@@ -789,8 +768,8 @@ final class PumpSyncUITests: XCTestCase {
     field.typeText("https://edited.example/api\n")
     XCTAssertTrue(app.staticTexts["SelfHostedConnectionFeedback"].waitForExistence(timeout: 3))
     XCTAssertEqual(app.staticTexts["SelfHostedConnectionFeedback"].label, draftFeedback, "Keyboard return must not begin connection authentication")
-    XCTAssertTrue(app.buttons["Cancel Changes"].waitForExistence(timeout: 3), "Keyboard return must leave connection changes as a draft")
     reveal(app.buttons["Cancel Changes"])
+    XCTAssertTrue(app.buttons["Cancel Changes"].waitForExistence(timeout: 3), "Keyboard return must leave connection changes as a draft")
     attachScreenshot(named: "design-review-draft-keyboard-dismissed", from: app)
     app.buttons["Cancel Changes"].tap()
     tapNavigationLink("Tandem Account", in: app)
@@ -1189,6 +1168,7 @@ final class PumpSyncUITests: XCTestCase {
   }
 
   private func tapSegment(_ title: String, in app: XCUIApplication) {
+    revealConnectionModePicker(in: app)
     let segment = app.segmentedControls.buttons[title]
     if segment.waitForExistence(timeout: 2) {
       scrollTo(segment, in: app)
@@ -1204,6 +1184,46 @@ final class PumpSyncUITests: XCTestCase {
     let button = app.buttons[title].firstMatch
     XCTAssertTrue(button.waitForExistence(timeout: 5), "Could not find segment \(title)")
     button.tap()
+  }
+
+  private func revealConnectionModePicker(in app: XCUIApplication) {
+    // Returning from a pushed destination can retain Settings' scroll position.
+    // Native Form may omit the picker from its accessibility tree until shown.
+    let picker = app.descendants(matching: .any)
+      .matching(identifier: "ConnectionModePicker").firstMatch
+    for _ in 0..<12 {
+      if picker.exists {
+        revealFormControl(picker, in: app)
+        if picker.isHittable { return }
+      }
+      let scroll = app.collectionViews.firstMatch.exists
+        ? app.collectionViews.firstMatch : app.scrollViews.firstMatch
+      guard scroll.exists else { break }
+      scroll.swipeDown()
+    }
+    recordUIState(named: "unreachable-connection-mode-picker", in: app)
+    XCTFail("Connection mode picker must be reachable at the top of Settings")
+  }
+
+  private func revealFormControl(_ element: XCUIElement, in app: XCUIApplication) {
+    for _ in 0..<48 {
+      let scroll = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch
+        : app.scrollViews.firstMatch.exists ? app.scrollViews.firstMatch : app
+      var offset = -0.25
+      if element.exists {
+        if element.isHittable { return }
+        let distanceToCenter = element.frame.midY - app.frame.midY
+        let distance = min(0.4, max(0.08, abs(distanceToCenter) / max(1, scroll.frame.height)))
+        offset = distanceToCenter < 0 ? distance : -distance
+      }
+      // Native rows may not exist until they approach the viewport. Small,
+      // slow drags reveal them without full-swipe momentum skipping the target.
+      let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+      let finish = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5 + offset))
+      start.press(forDuration: 0.05, thenDragTo: finish, withVelocity: .slow, thenHoldForDuration: 0.1)
+    }
+    recordUIState(named: "unreachable-form-control", in: app)
+    XCTFail("Form control must be reachable: \(element)")
   }
 
   private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
