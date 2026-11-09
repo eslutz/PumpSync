@@ -49,39 +49,53 @@ struct DataHandlingView: View {
       }
       .headerProminence(.increased)
 
-      Section("Data Deletion") {
-        DataHandlingRow(
-          title: "Request server metadata deletion",
-          detail: services.backendConfigurationStore.mode == .hosted
-            ? "Prepare an email to request deletion of hosted metadata linked to this installation. A draft is not a sent request or completed deletion."
-            : "Contact your self-hosted server operator to delete server metadata. Hosted support cannot delete records on your own server.",
-          systemImage: "envelope"
-        )
-
-
+      Section {
+        Text(services.backendConfigurationStore.mode == .hosted
+          ? "Request deletion of hosted metadata linked to this installation."
+          : "Contact your self-hosted server operator to delete server metadata.")
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+          .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
         Button {
           if services.backendConfigurationStore.mode == .hosted {
             openURL(dataDeletionRequestURL) { accepted in emailUnavailable = !accepted }
           } else { openURL(AppConstants.dataDeletionURL) }
         } label: {
-          Label(services.backendConfigurationStore.mode == .hosted ? "Prepare Deletion Request Email" : "Self-hosted Deletion Instructions", systemImage: "envelope")
+          Label(
+            services.backendConfigurationStore.mode == .hosted ? "Email Deletion Request" : "Deletion Instructions",
+            systemImage: services.backendConfigurationStore.mode == .hosted ? "envelope" : "doc.text"
+          )
             .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.glass)
-        .controlSize(.large)
-        .foregroundStyle(.primary)
-        .accessibilityHint("Opens request instructions; does not delete data")
-        Text("Removing credentials, clearing logs, or requesting server deletion does not remove Apple Health samples or cancel a subscription. Manage those separately in Health and Apple subscription settings.")
-          .font(.body).foregroundStyle(.primary)
-          .fixedSize(horizontal: false, vertical: true)
+        .accessibilityHint(services.backendConfigurationStore.mode == .hosted
+          ? "Opens an email to request deletion of server metadata"
+          : "Opens instructions for deleting data from your server")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
         if emailUnavailable {
           Text("Email could not open. Contact support@ericslutz.dev with your installation ID from Developer settings. No request has been sent.")
-            .font(.body).foregroundStyle(.primary)
             .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
           Button("Copy Installation ID") { DiagnosticsClipboard.copy(services.backendConfigurationStore.installationId) }
-            .tint(.primary).frame(minHeight: 44)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
         }
-        Link(destination: AppConstants.dataDeletionURL) { Text("Full Privacy and Deletion Details").underline() }.foregroundStyle(.primary).frame(minHeight: 44)
+        Link("Privacy and Deletion Details", destination: AppConstants.dataDeletionURL)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+          .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
+      } header: {
+        Text("Data Deletion")
+      } footer: {
+        Text("Deleting server metadata does not remove Apple Health samples or cancel a subscription. Manage these separately in Health and Apple subscription settings.")
+          .font(.body)
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
       }
       .headerProminence(.increased)
     }

@@ -7,7 +7,7 @@ final class NativeRefactorUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testSyncCountsPrecedeActionAndConcentrationRemainsInSettings() {
+    func testSyncProgressPrecedesActionAndCountsRemainOrderedWithConcentrationInSettings() {
         let app = fixture()
         let received = app.staticTexts["SyncRecordsReceived"]
         let saved = app.staticTexts["SyncSamplesSaved"]
@@ -15,7 +15,10 @@ final class NativeRefactorUITests: XCTestCase {
         XCTAssertTrue(saved.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 5))
         XCTAssertLessThan(received.frame.minY, saved.frame.minY)
-        XCTAssertLessThan(saved.frame.minY, app.buttons["Sync Now"].frame.minY)
+        let progress = app.staticTexts["SyncProgressTitle"]
+        XCTAssertTrue(progress.waitForExistence(timeout: 5))
+        XCTAssertLessThan(progress.frame.minY, app.buttons["Sync Now"].frame.minY)
+        XCTAssertLessThan(app.buttons["Sync Now"].frame.minY, received.frame.minY)
         XCTAssertFalse(app.staticTexts["Insulin Concentration"].exists)
         capture("native-sync", app: app)
         settings(app)
@@ -35,7 +38,7 @@ final class NativeRefactorUITests: XCTestCase {
         capture("native-subscription", app: app)
     }
 
-    func testPerformanceShowsStructuredMeasurementsAndOptionalTechnicalDetails() {
+    func testPerformanceShowsStructuredMeasurementsAndOptionalReportData() {
         let app = fixture()
         developer(app)
         open("devicePerformanceLogLink", app: app)
@@ -46,11 +49,10 @@ final class NativeRefactorUITests: XCTestCase {
         XCTAssertTrue(cpu.waitForExistence(timeout: 5))
         XCTAssertEqual(cpu.label, "CPU time, 1 sec")
         XCTAssertTrue(app.staticTexts["From"].exists)
-        XCTAssertTrue(app.buttons["Copy Entry"].exists)
-        XCTAssertTrue(app.buttons["Share Entry"].exists)
+        assertDiagnosticExportActions(app)
         XCTAssertFalse(app.staticTexts["DiagnosticRecordDetail"].exists)
         capture("native-performance", app: app)
-        open("Technical Details", app: app)
+        open("Report Data", app: app)
         XCTAssertTrue(app.staticTexts["DiagnosticRecordDetail"].waitForExistence(timeout: 3))
     }
 
@@ -97,8 +99,8 @@ final class NativeRefactorUITests: XCTestCase {
         capture("native-typography-sync", app: app)
 
         settings(app)
-        assertReadableText("U-100", app: app, bodyLineHeight: bodyLineHeight,
-            evidenceName: "native-typography-settings-concentration")
+        // Follow the Settings row order. At maximum text size, revealing a
+        // later row can recycle earlier rows out of the accessibility tree.
         open("TandemAccountLink", app: app)
         assertReadableText("Saved on this device", app: app, bodyLineHeight: bodyLineHeight,
             evidenceName: "native-typography-tandem-password")
@@ -110,7 +112,7 @@ final class NativeRefactorUITests: XCTestCase {
         capture("native-typography-tandem-edit", app: app)
         edit.tap()
         XCTAssertTrue(app.secureTextFields["Tandem password"].waitForExistence(timeout: 5))
-        assertReadableText("A password is already saved on this device. Enter it again to change your username, password, or region.",
+        assertReadableText("Enter the password you currently use for Tandem. This updates the login saved in PumpSync; it does not change your Tandem password.",
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-tandem-instructions")
         back(app)
 
@@ -118,8 +120,10 @@ final class NativeRefactorUITests: XCTestCase {
         assertReadableText("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.",
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-health-explanation")
         back(app)
+        assertReadableText("U-100", app: app, bodyLineHeight: bodyLineHeight,
+            evidenceName: "native-typography-settings-concentration")
         open("AboutPumpSyncLink", app: app)
-        assertReadableText("Last Successful Sync shows the last completed sync, even if there were no new records.",
+        assertReadableText("Shows the last completed sync, even when there were no new records.",
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-about-final-paragraph")
     }
 
@@ -142,8 +146,7 @@ final class NativeRefactorUITests: XCTestCase {
         let cpu = app.staticTexts["PerformanceMeasurement-CPU time"]
         XCTAssertTrue(cpu.waitForExistence(timeout: 5))
         XCTAssertEqual(cpu.label, "CPU time, 1 sec")
-        XCTAssertTrue(app.buttons["Copy Entry"].exists)
-        XCTAssertTrue(app.buttons["Share Entry"].exists)
+        assertDiagnosticExportActions(app)
         capture("native-performance-accessibility", app: app)
         audit(app, screen: "Performance")
     }
@@ -226,6 +229,26 @@ final class NativeRefactorUITests: XCTestCase {
         open("DeveloperLink", app: app)
     }
 
+    private func assertDiagnosticExportActions(_ app: XCUIApplication) {
+        let copy = app.buttons["CopyDiagnosticEntry"]
+        var openedOverflow = false
+        if !copy.isHittable {
+            let fallback = app.buttons["DiagnosticExportActions"]
+            let nativeOverflow = app.navigationBars.buttons["More"].firstMatch
+            let overflow = fallback.exists ? fallback : nativeOverflow
+            if !overflow.waitForExistence(timeout: 3) {
+                attachText(app.debugDescription, named: "diagnostic-toolbar-hierarchy")
+            }
+            XCTAssertTrue(overflow.isHittable, "Native toolbar export actions must remain reachable")
+            overflow.tap()
+            openedOverflow = true
+        }
+        XCTAssertTrue(copy.waitForExistence(timeout: 3))
+        XCTAssertTrue(copy.isEnabled)
+        XCTAssertTrue(app.buttons["Share Entry"].exists)
+        if openedOverflow { app.tap() }
+    }
+
     private func back(_ app: XCUIApplication) {
         let button = app.navigationBars.buttons.matching(identifier: "BackButton").firstMatch
         XCTAssertTrue(button.waitForExistence(timeout: 3))
@@ -250,14 +273,18 @@ final class NativeRefactorUITests: XCTestCase {
             let navigationBar = app.navigationBars.firstMatch
             let tabBar = app.tabBars.firstMatch
             let top = navigationBar.exists ? navigationBar.frame.maxY : app.frame.minY
+            // Native Form footers can end exactly at the tab bar's edge.
+            // Their text frame remains unobscured there; an extra margin
+            // would incorrectly reject the final line at the scroll limit.
             let bottom = tabBar.exists && tabBar.frame.midY > app.frame.midY
-                ? tabBar.frame.minY - 8 : app.frame.maxY - 8
+                ? tabBar.frame.minY : app.frame.maxY - 8
             if element.exists {
                 let frame = element.frame
                 let finalLineHeight = min(minimumVisibleHeight, frame.height)
                 if frame.width > 0, frame.height > 0, frame.maxY <= bottom,
                     frame.maxY - finalLineHeight >= top,
                     frame.minX >= app.frame.minX, frame.maxX <= app.frame.maxX {
+                    print("NATIVE_TEXT_VISIBILITY frame=\(frame) top=\(top) bottom=\(bottom) finalLineHeight=\(finalLineHeight)")
                     return
                 }
                 // A long paragraph's center can remain outside the viewport
@@ -266,8 +293,10 @@ final class NativeRefactorUITests: XCTestCase {
                 let desiredEndY = bottom - finalLineHeight * 0.5
                 let distanceToEnd = frame.maxY - desiredEndY
                 let identity = element.identifier.isEmpty ? element.label : element.identifier
-                let containingScroll = app.scrollViews.containing(.any, identifier: identity).firstMatch
-                let containingList = app.collectionViews.containing(.any, identifier: identity).firstMatch
+                // The identifier overload rejects long paragraph labels.
+                let descendant = NSPredicate(format: "identifier == %@ OR label == %@", identity, identity)
+                let containingScroll = app.scrollViews.containing(descendant).firstMatch
+                let containingList = app.collectionViews.containing(descendant).firstMatch
                 let scroll = containingList.exists ? containingList
                     : containingScroll.exists ? containingScroll
                     : app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch
@@ -281,23 +310,40 @@ final class NativeRefactorUITests: XCTestCase {
                 app.swipeUp()
             }
         }
+        attachText(app.debugDescription, named: "unreachable-final-line-hierarchy")
+        capture("unreachable-final-line", app: app)
         XCTFail("Could not reveal the final line of \(element.label)")
     }
 
     private func open(_ identifier: String, app: XCUIApplication) {
-        for _ in 0..<8 {
+        for _ in 0..<20 {
             let button = app.buttons[identifier].firstMatch
             let cell = app.cells.containing(.staticText, identifier: identifier).firstMatch
             let target = button.exists ? button : cell
             // Native Form rows can still be exposed beneath the floating tab
             // bar. Bring their center into content before XCTest taps it.
             let tabBar = app.tabBars.firstMatch
-            let isBehindBottomTabBar = target.exists && tabBar.exists && tabBar.frame.midY > app.frame.midY
-                && target.frame.midY >= tabBar.frame.minY - 8
-            if target.isHittable && !isBehindBottomTabBar { target.tap(); return }
-            if target.exists, target.frame.midY < app.frame.midY { app.swipeDown() }
-            else { app.swipeUp() }
+            let navigationBar = app.navigationBars.firstMatch
+            let top = navigationBar.exists ? navigationBar.frame.maxY : app.frame.minY
+            let bottom = tabBar.exists && tabBar.frame.midY > app.frame.midY
+                ? tabBar.frame.minY - 8 : app.frame.maxY - 8
+            let scroll = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch
+                : app.scrollViews.firstMatch.exists ? app.scrollViews.firstMatch : app
+            var distanceToCenter = scroll.frame.height * 0.25
+            if target.exists {
+                let center = target.frame.midY
+                if target.isHittable && center >= top && center < bottom { target.tap(); return }
+                distanceToCenter = center - (top + bottom) * 0.5
+            }
+            // Full swipes can alternate past a tall row at accessibility sizes.
+            let distance = min(0.25, max(0.08, abs(distanceToCenter) / max(1, scroll.frame.height)))
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            let finish = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5,
+                dy: 0.5 + (distanceToCenter < 0 ? distance : -distance)))
+            start.press(forDuration: 0.05, thenDragTo: finish, withVelocity: .slow, thenHoldForDuration: 0.1)
         }
+        attachText(app.debugDescription, named: "unreachable-navigation-row-hierarchy")
+        capture("unreachable-navigation-row", app: app)
         XCTFail("Could not reach \(identifier)")
     }
 

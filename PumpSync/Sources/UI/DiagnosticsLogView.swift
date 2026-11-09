@@ -52,6 +52,7 @@ struct DiagnosticsLogView: View {
           NavigationLink {
             DiagnosticDetailView(title: entry.title, text: DiagnosticPresentation.export(entry), report: entry.report,
                                  appVersion: "\(entry.appVersion) (\(entry.buildNumber))", timestamp: entry.timestamp)
+
           } label: {
             PerformanceReportRow(entry: entry)
           }
@@ -62,22 +63,20 @@ struct DiagnosticsLogView: View {
     .navigationTitle(destination == .appEvents ? "App Event Log" : "Performance")
     .navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier(destination.rawValue + "LogScreen")
+    .onChange(of: export) { _, _ in copied = false }
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Menu("Log Actions", systemImage: "ellipsis") {
-          Button("Copy All", systemImage: "doc.on.doc", action: copyAll)
-            .accessibilityLabel(destination == .appEvents ? "Copy All App Events" : "Copy All Performance Reports")
+          Button(copied ? "Copied" : "Copy All", systemImage: copied ? "checkmark" : "doc.on.doc", action: copyAll)
+            .accessibilityLabel(copied
+              ? (destination == .appEvents ? "All App Events Copied" : "All Performance Reports Copied")
+              : (destination == .appEvents ? "Copy All App Events" : "Copy All Performance Reports"))
+            .accessibilityValue(copied ? "Copied" : "")
             .accessibilityIdentifier("CopyDiagnosticsLog").disabled(count == 0)
           ShareLink(item: export) { Label("Share All", systemImage: "square.and.arrow.up") }.disabled(count == 0)
           Button(destination.clearTitle, systemImage: "trash", role: .destructive) { confirmsClear = true }
             .accessibilityIdentifier("ClearDiagnosticsLog").disabled(count == 0 || unavailable != nil)
         }.accessibilityIdentifier("DiagnosticsLogActions")
-      }
-    }
-    .safeAreaInset(edge: .bottom) {
-      if copied {
-        Text(destination == .appEvents ? "All app events copied" : "All performance reports copied")
-          .padding().frame(maxWidth: .infinity).background(.bar).accessibilityIdentifier("DiagnosticsCopyFeedback")
       }
     }
     .alert(destination.clearTitle + "?", isPresented: $confirmsClear) {

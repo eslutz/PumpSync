@@ -6,6 +6,7 @@ final class PumpSyncUITests: XCTestCase {
   override func setUp() {
     super.setUp()
     continueAfterFailure = false
+
   }
 
   func testSourceDataReadyStatesAndRefreshUseNativeNavigation() {
@@ -37,6 +38,20 @@ final class PumpSyncUITests: XCTestCase {
       attachScreenshot(named: "review-source-" + state + "-records", from: app)
       tapBack(in: app)
       XCTAssertTrue(app.navigationBars["Developer"].exists)
+      if state == "populated" {
+        let log = app.buttons["appEventsLogLink"]
+        scrollTo(log, in: app)
+        log.tap()
+        let readyEvent = app.buttons.matching(NSPredicate(
+          format: "label CONTAINS %@ AND label CONTAINS %@", "Import preview", "records available")).firstMatch
+        revealFormControl(readyEvent, in: app)
+        XCTAssertTrue(readyEvent.isHittable)
+        readyEvent.tap()
+        XCTAssertTrue(app.staticTexts["Summary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Records available"].exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "purpose=real")).firstMatch.exists)
+        attachScreenshot(named: "review-import-preview-readable-event", from: app)
+      }
       app.terminate()
     }
   }
@@ -91,7 +106,7 @@ final class PumpSyncUITests: XCTestCase {
     try voiceOver.disable()
     _ = launchScreenshotFixture()
     try enableVoiceOver()
-    let speech = try recordVoiceOverScreen("sync-ready", maximum: 14)
+    let speech = try recordVoiceOverScreen("sync-ready", maximum: 24)
     XCTAssertTrue(speech.contains { $0.contains("Last Successful Sync Heading") })
     XCTAssertEqual(speech.filter { $0.contains("Sync Now Button") }.count, 1)
     XCTAssertTrue(speech.contains { $0.contains("selected Sync Tab") })
@@ -350,35 +365,17 @@ final class PumpSyncUITests: XCTestCase {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-connection-failure"])
     navigate(to: "Settings", in: app)
     tapNavigationLink("About PumpSync", in: app)
-    let status = app.descendants(matching: .any)["GlobalSyncStatus"].firstMatch
-    XCTAssertTrue(status.waitForExistence(timeout: 3))
+    let recovery = app.buttons["SyncMessageActionButton"]
+    XCTAssertTrue(recovery.waitForExistence(timeout: 3))
+    let banner = app.descendants(matching: .any).matching(identifier: "SyncMessageBanner").firstMatch
+    revealBannerControl(recovery, banner: banner, in: app)
     let tab = app.tabBars.buttons["Settings"].firstMatch
-    if tab.exists { XCTAssertFalse(status.frame.intersects(tab.frame), "Pinned status must leave native tabs unobscured") }
+    if tab.exists { XCTAssertFalse(recovery.frame.intersects(tab.frame), "Floating feedback must leave native tabs unobscured") }
     let back = app.navigationBars.buttons.firstMatch
-    if back.exists { XCTAssertFalse(status.frame.intersects(back.frame), "Pinned status must leave Back unobscured") }
-    attachScreenshot(named: "global-recovery-before-menu", from: app)
-    let settings = app.descendants(matching: .any)["Connection Settings"].firstMatch
-    if !settings.exists {
-      let menu = app.descendants(matching: .any)["GlobalSyncStatusActions"].firstMatch
-      if menu.exists { menu.tap() }
-      else {
-        // A lone SwiftUI Menu can inherit its container's identifier. Match
-        // its observed accessible label rather than unrelated recovery buttons.
-        let inheritedMenu = app.buttons.matching(NSPredicate(format: "identifier == %@ AND label == %@", "GlobalSyncStatus", "Sync needs attention")).firstMatch
-        XCTAssertTrue(inheritedMenu.exists)
-        inheritedMenu.tap()
-      }
-    }
-    if !settings.waitForExistence(timeout: 5) {
-      attachScreenshot(named: "missing-global-recovery-action", from: app)
-      let tree = XCTAttachment(string: app.debugDescription)
-      tree.name = "global-recovery-accessibility-tree"
-      tree.lifetime = .keepAlways
-      add(tree)
-    }
-    XCTAssertTrue(settings.exists)
-    attachScreenshot(named: "connection-recovery-card", from: app)
-    settings.tap()
+    if back.exists { XCTAssertFalse(recovery.frame.intersects(back.frame), "Floating feedback must leave Back unobscured") }
+    XCTAssertTrue(recovery.isHittable)
+    attachScreenshot(named: "connection-recovery-floating-message", from: app)
+    recovery.tap()
     if app.tabBars.buttons["Settings"].exists {
       XCTAssertTrue(app.tabBars.buttons["Settings"].isSelected)
     } else {
@@ -386,6 +383,7 @@ final class PumpSyncUITests: XCTestCase {
     }
     XCTAssertTrue(app.staticTexts["Connection Configuration"].waitForExistence(timeout: 5))
     XCTAssertFalse(app.navigationBars["About PumpSync"].exists)
+    XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
   }
 
 
@@ -417,7 +415,7 @@ final class PumpSyncUITests: XCTestCase {
     }
     XCTAssertTrue(whileSyncing.isHittable)
     attachScreenshot(named: "about-quick-guide-lower", from: app)
-    let completion = app.staticTexts["Last Successful Sync shows the last completed sync, even if there were no new records."]
+    let completion = app.staticTexts["Shows the last completed sync, even when there were no new records."]
     for _ in 0..<10 {
       if completion.isHittable { break }
       app.swipeUp()
@@ -434,29 +432,26 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertFalse(syncingButton.isEnabled)
   }
 
-  func testInlineProgressPreservesSyncAndTabNavigation() {
+  func testInlineProgressPersistsAcrossTabNavigationWithoutStatusSheet() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-syncing"])
+    let action = app.buttons["SyncNowButton"]
+    revealFormControl(action, in: app)
+    XCTAssertFalse(action.isEnabled)
     let detail = app.staticTexts["SyncProgressDetail"]
-    scrollTo(detail, in: app)
+    revealFormControl(detail, in: app)
     XCTAssertTrue(detail.waitForExistence(timeout: 5))
-    XCTAssertFalse(app.buttons["Dismiss notification"].exists)
-    XCTAssertFalse(app.buttons["Syncing"].isEnabled)
+    XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
+    XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
+    XCTAssertFalse(app.navigationBars["Sync Details"].exists)
+    attachScreenshot(named: "sync-inline-progress", from: app)
     navigate(to: "Settings", in: app)
-    XCTAssertTrue(app.descendants(matching: .any)["GlobalSyncStatus"].firstMatch.exists)
-    XCTAssertFalse(app.staticTexts["SyncProgressDetail"].exists)
+    XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
+    XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
     navigate(to: "Sync", in: app)
-    scrollTo(detail, in: app)
-    let detailExists = detail.waitForExistence(timeout: 5)
-    if !detailExists {
-      attachScreenshot(named: "inline-sync-progress-missing-after-navigation", from: app)
-      let hierarchy = XCTAttachment(string: app.debugDescription)
-      hierarchy.name = "inline-sync-progress-missing-accessibility-tree"
-      hierarchy.lifetime = .keepAlways
-      add(hierarchy)
-    }
-    XCTAssertTrue(detailExists)
-    XCTAssertFalse(app.buttons["Syncing"].isEnabled)
-    attachScreenshot(named: "inline-sync-progress", from: app)
+    revealFormControl(action, in: app)
+    XCTAssertFalse(action.isEnabled)
+    revealFormControl(detail, in: app)
+    XCTAssertTrue(detail.isHittable)
   }
 
   func testSuccessSummaryPersistsAcrossNavigation() {
@@ -467,7 +462,7 @@ final class PumpSyncUITests: XCTestCase {
     let received = app.staticTexts["SyncRecordsReceived"]
     XCTAssertEqual(received.label, "Records received, 48")
     XCTAssertLessThan(received.frame.minY, summary.frame.minY)
-    XCTAssertFalse(app.buttons["Dismiss notification"].exists)
+    XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
     navigate(to: "Settings", in: app)
     navigate(to: "Sync", in: app)
     XCTAssertTrue(summary.waitForExistence(timeout: 5))
@@ -475,13 +470,394 @@ final class PumpSyncUITests: XCTestCase {
     attachScreenshot(named: "inline-sync-success", from: app)
   }
 
-  func testFailureHasOneRecoveryAction() {
+  func testImportantCompletionMessageDismissesWithoutLosingSyncSummary() {
+    let app = launchScreenshotFixture(launchArguments: [
+      "--pumpsync-screenshot-sync-success", "--pumpsync-screenshot-sync-notice"
+    ])
+    let dismiss = app.buttons["DismissSyncMessageButton"]
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    let action = app.buttons["SyncNowButton"]
+    let before = action.frame
+    let navigationFrame = app.navigationBars.firstMatch.frame
+    let tabFrame = app.tabBars.firstMatch.frame
+    attachScreenshot(named: "sync-important-completion-message", from: app)
+    dismiss.tap()
+    XCTAssertTrue(dismiss.waitForNonExistence(timeout: 3))
+    XCTAssertEqual(action.frame, before)
+    XCTAssertEqual(app.navigationBars.firstMatch.frame, navigationFrame)
+    XCTAssertEqual(app.tabBars.firstMatch.frame, tabFrame)
+    let summary = app.staticTexts["SyncSamplesSaved"]
+    revealFormControl(summary, in: app)
+    XCTAssertEqual(summary.label, "Samples saved, 4")
+    navigate(to: "Settings", in: app)
+    navigate(to: "Sync", in: app)
+    XCTAssertFalse(dismiss.exists)
+    revealFormControl(summary, in: app)
+    XCTAssertEqual(summary.label, "Samples saved, 4")
+  }
+
+  func testFeedbackTransitionsKeepLayoutStableInOneSession() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-feedback-sequence"])
+    let advance = app.buttons["AdvanceFeedbackFixture"]
+    XCTAssertTrue(advance.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    assertFeedbackSystemTextSize(advance)
+    let status = app.descendants(matching: .any).matching(identifier: "SyncInlineStatus").firstMatch
+    XCTAssertTrue(status.waitForExistence(timeout: 5))
+    let baseline = feedbackFrames(in: app, status: status)
+    XCTAssertGreaterThan(status.frame.height, 0)
+    XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
+
+    for (step, title) in [(1, "Starting secure service…"), (2, "Downloading pump data…"),
+                          (3, "Updating Apple Health…")] {
+      advanceFeedback(to: step, title: title, in: app)
+      if step == 1 {
+        let detail = app.staticTexts["SyncProgressDetail"]
+        XCTAssertTrue(detail.wait(for: \.label, toEqual: "This can take about 30 seconds after inactivity. Keep PumpSync open.", timeout: 6))
+      }
+      assertFeedbackFrames(baseline, in: app, status: status)
+      XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
+    }
+    attachScreenshot(named: "feedback-inline-in-session", from: app)
+
+    advanceFeedback(to: 4, title: "Sync needs attention", in: app)
+    let dismiss = app.buttons["DismissSyncMessageButton"]
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    assertFeedbackFrames(baseline, in: app, status: status)
+    attachScreenshot(named: "feedback-error-appeared-in-session", from: app)
+    dismissSyncMessage(in: app)
+    assertFeedbackFrames(baseline, in: app, status: status)
+    XCTAssertEqual(app.staticTexts["SyncProgressTitle"].label, "Sync needs attention")
+    navigate(to: "Settings", in: app)
+    XCTAssertFalse(dismiss.exists)
+    navigate(to: "Sync", in: app)
+    XCTAssertFalse(dismiss.exists, "Navigation must not revive a dismissed occurrence")
+
+    // A new attempt with the same error must still inform the user.
+    let beforeRetry = feedbackFrames(in: app, status: status)
+    advanceFeedback(to: 5, title: "Starting secure service…", in: app)
+    assertFeedbackFrames(beforeRetry, in: app, status: status)
+    advanceFeedback(to: 6, title: "Sync needs attention", in: app)
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    assertFeedbackFrames(beforeRetry, in: app, status: status)
+    dismissSyncMessage(in: app)
+    assertFeedbackFrames(beforeRetry, in: app, status: status)
+
+    advanceFeedback(to: 7, title: "Sync complete", in: app)
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    assertFeedbackFrames(beforeRetry, in: app, status: status)
+    attachScreenshot(named: "feedback-notice-appeared-in-session", from: app)
+    dismissSyncMessage(in: app)
+    assertFeedbackFrames(beforeRetry, in: app, status: status)
+    XCTAssertTrue(app.staticTexts["SyncCompletionDetail"].exists,
+                  "Dismissing the overlay must preserve the important notice inline")
+    advanceFeedback(to: 8, title: "Sync complete", in: app)
+    assertFeedbackFrames(beforeRetry, in: app, status: status)
+    XCTAssertFalse(dismiss.exists, "Routine success must not display another banner")
+    XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
+    XCTAssertFalse(app.navigationBars["Sync Details"].exists)
+  }
+
+  func testFeedbackTextAndActionsRemainReachableAtSystemTextSize() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-feedback-sequence"])
+    let advance = app.buttons["AdvanceFeedbackFixture"]
+    XCTAssertTrue(advance.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    assertFeedbackSystemTextSize(advance)
+    for (step, title) in [(1, "Starting secure service…"), (2, "Downloading pump data…"),
+                          (3, "Updating Apple Health…"), (4, "Sync needs attention")] {
+      advanceFeedback(to: step, title: title, in: app)
+    }
+    let dismiss = app.buttons["DismissSyncMessageButton"]
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    XCTAssertTrue(meetsMinimumHitTargetDimension(dismiss.frame.width))
+    XCTAssertTrue(meetsMinimumHitTargetDimension(dismiss.frame.height))
+    let banner = app.descendants(matching: .any).matching(identifier: "SyncMessageBanner").firstMatch
+    let detail = app.staticTexts["SyncMessageDetail"]
+    let bodyHeight = UIFont.preferredFont(forTextStyle: .body).lineHeight
+    XCTAssertGreaterThanOrEqual(detail.frame.height, bodyHeight * 0.85)
+    let retry = app.buttons["SyncMessageActionButton"]
+    revealBannerControl(retry, banner: banner, in: app)
+    XCTAssertTrue(retry.isHittable)
+    XCTAssertTrue(meetsMinimumHitTargetDimension(retry.frame.height))
+    XCTAssertTrue(dismiss.isHittable, "Close must remain reachable while long message content scrolls")
+    attachScreenshot(named: "feedback-large-text-banner-actions", from: app)
+    dismissSyncMessage(in: app)
+
+    let recovery = app.buttons["SyncRecoveryButton"]
+    revealFormControl(recovery, in: app)
+    XCTAssertTrue(recovery.isHittable)
+    XCTAssertTrue(meetsMinimumHitTargetDimension(recovery.frame.height))
+    let sync = app.buttons["SyncNowButton"]
+    revealFormControl(sync, in: app)
+    XCTAssertTrue(sync.isHittable)
+    XCTAssertTrue(sync.isEnabled)
+    attachScreenshot(named: "feedback-large-text-inline-recovery", from: app)
+
+    // Keep the current scroll position: appearance/dismissal may not snap the Form.
+    let before = [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame, sync.frame]
+    advanceFeedback(to: 5, title: nil, in: app)
+    advanceFeedback(to: 6, title: nil, in: app)
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    assertSameFrames(before, [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame, sync.frame])
+    dismissSyncMessage(in: app)
+    assertSameFrames(before, [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame, sync.frame])
+
+    advanceFeedback(to: 7, title: nil, in: app)
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    dismissSyncMessage(in: app)
+    let notice = app.staticTexts["SyncCompletionDetail"]
+    let noticeScroll = app.scrollViews.containing(NSPredicate(format: "identifier == %@", "SyncCompletionDetail")).firstMatch
+    // At AX5 the nested viewport itself can be taller than the screen. Bring
+    // its lower edge into view using only the outer Form's edge, then scroll
+    // inside the actual visible intersection instead of swiping its full frame.
+    exposeInlineViewportBottom(noticeScroll, in: app, minimumHeight: bodyHeight)
+    for _ in 0..<16 {
+      XCTAssertTrue(noticeScroll.exists, "The inline viewport must stay instantiated while reading it")
+      let visible = feedbackVisibleContent(in: app).intersection(noticeScroll.frame)
+      XCTAssertGreaterThanOrEqual(visible.height, bodyHeight)
+      if notice.exists && notice.frame.maxY <= visible.maxY + 0.5
+          && notice.frame.maxY >= visible.minY + bodyHeight { break }
+      let distance = notice.exists ? notice.frame.maxY - (visible.maxY - 2) : visible.height * 0.5
+      dragFeedbackViewport(visible, contentOffset: -distance, in: app)
+    }
+    XCTAssertTrue(notice.exists)
+    let visible = feedbackVisibleContent(in: app).intersection(noticeScroll.frame)
+    print("SYNC_FEEDBACK_NOTICE_FINAL frame=\(notice.frame) viewport=\(noticeScroll.frame) visible=\(visible)")
+    XCTAssertLessThanOrEqual(notice.frame.maxY, visible.maxY + 0.5,
+                             "The important notice's final line must be visible at the system text size")
+    XCTAssertGreaterThanOrEqual(notice.frame.maxY, visible.minY + bodyHeight)
+    XCTAssertTrue(notice.label.hasSuffix("all older records have been imported."))
+    attachScreenshot(named: "feedback-large-text-notice-final-line", from: app)
+  }
+
+  private func assertFeedbackSystemTextSize(_ advance: XCUIElement) {
+    let category = UIApplication.shared.preferredContentSizeCategory.rawValue
+    let appCategory = (advance.value as? String)?.split(separator: "|").last.map(String.init)
+    XCTAssertEqual(appCategory, category, "App and test runner must use the actual system text category")
+    let evidence = "SYNC_FEEDBACK_TYPOGRAPHY category=\(category) appCategory=\(appCategory ?? "missing") bodyLineHeight=\(UIFont.preferredFont(forTextStyle: .body).lineHeight)"
+    print(evidence)
+    let attachment = XCTAttachment(string: evidence)
+    attachment.name = "feedback-system-text-size"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+  }
+
+  private func advanceFeedback(to step: Int, title: String?, in app: XCUIApplication) {
+    let control = app.buttons["AdvanceFeedbackFixture"]
+    XCTAssertTrue(control.isHittable)
+    control.tap()
+    let predicate = NSPredicate(format: "value BEGINSWITH %@", "\(step)|")
+    let advanced = XCTNSPredicateExpectation(predicate: predicate, object: control)
+    XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 5), .completed)
+    if let title {
+      XCTAssertTrue(app.staticTexts["SyncProgressTitle"].wait(for: \.label, toEqual: title, timeout: 5))
+    }
+  }
+
+  private func feedbackFrames(in app: XCUIApplication, status: XCUIElement) -> [String: CGRect] {
+    // A SwiftUI accessibility container is the union of accessible children,
+    // which can change when an action appears inside a fixed-height Form row.
+    // Measure the native cell itself to test the physical layout allocation.
+    let statusCell = app.cells.containing(.any, identifier: "SyncInlineStatus").firstMatch
+    XCTAssertTrue(statusCell.waitForExistence(timeout: 3),
+                  "The native Form cell containing inline sync status must be measurable")
+    XCTAssertGreaterThan(statusCell.frame.height, 0)
+    var frames: [String: CGRect] = [
+      "navigation": app.navigationBars.firstMatch.frame,
+      "tabs": app.tabBars.firstMatch.frame,
+      "statusCell": statusCell.frame
+    ]
+    // At larger text sizes the Form can virtualize offscreen rows. Include
+    // downstream anchors whenever present; changes in their presence fail too.
+    for (name, element) in [("syncAction", app.buttons["SyncNowButton"]),
+                            ("successHeading", app.staticTexts["Last Successful Sync"])] where element.exists {
+      frames[name] = element.frame
+    }
+    let stage = app.buttons["AdvanceFeedbackFixture"].value as? String ?? "unknown"
+    let evidence = "SYNC_FEEDBACK_FRAMES stage=\(stage) axStatus=\(status.frame) "
+      + frames.keys.sorted().map { "\($0)=\(frames[$0]!)" }.joined(separator: " ")
+    print(evidence)
+    let attachment = XCTAttachment(string: evidence)
+    attachment.name = "feedback-physical-frames-\(stage)"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    return frames
+  }
+
+  private func assertFeedbackFrames(_ expected: [String: CGRect], in app: XCUIApplication, status: XCUIElement) {
+    let actual = feedbackFrames(in: app, status: status)
+    XCTAssertEqual(Set(expected.keys), Set(actual.keys), "The same physical anchors must remain measurable")
+    for name in expected.keys.sorted() {
+      guard let before = expected[name], let after = actual[name] else {
+        XCTFail("Missing physical layout anchor: \(name)")
+        return
+      }
+      XCTAssertEqual(after.minX, before.minX, accuracy: 0.5, "\(name) horizontal position")
+      XCTAssertEqual(after.minY, before.minY, accuracy: 0.5, "Messages must not move \(name)")
+      XCTAssertEqual(after.width, before.width, accuracy: 0.5, "\(name) width")
+      XCTAssertEqual(after.height, before.height, accuracy: 0.5, "Messages must not resize \(name)")
+    }
+  }
+
+  private func assertSameFrames(_ expected: [CGRect], _ actual: [CGRect]) {
+    XCTAssertEqual(expected.count, actual.count)
+    for (before, after) in zip(expected, actual) {
+      XCTAssertEqual(after.minX, before.minX, accuracy: 0.5)
+      XCTAssertEqual(after.minY, before.minY, accuracy: 0.5, "Messages must not move existing content")
+      XCTAssertEqual(after.width, before.width, accuracy: 0.5)
+      XCTAssertEqual(after.height, before.height, accuracy: 0.5, "Messages must not resize existing content")
+    }
+  }
+
+  private func revealBannerControl(_ control: XCUIElement, banner: XCUIElement, in app: XCUIApplication) {
+    let scroll = app.scrollViews.containing(.button, identifier: control.identifier).firstMatch
+    for _ in 0..<16 {
+      let viewport = (scroll.exists ? scroll.frame : banner.frame).intersection(feedbackVisibleContent(in: app))
+      XCTAssertGreaterThan(viewport.height, 0)
+      if control.exists {
+        let frame = control.frame
+        if control.isHittable && frame.minY >= viewport.minY - 0.5 && frame.maxY <= viewport.maxY + 0.5
+            && frame.minX >= viewport.minX - 0.5 && frame.maxX <= viewport.maxX + 0.5 {
+          print("SYNC_FEEDBACK_BANNER_ACTION frame=\(frame) viewport=\(viewport)")
+          return
+        }
+        XCTAssertLessThanOrEqual(frame.height, viewport.height + 0.5,
+          "The full recovery action must fit within the banner's visible viewport")
+        let distance = frame.maxY > viewport.maxY ? frame.maxY - (viewport.maxY - 2)
+          : frame.minY - (viewport.minY + 2)
+        dragFeedbackViewport(viewport, contentOffset: -distance, in: app)
+      } else {
+        dragFeedbackViewport(viewport, contentOffset: -viewport.height * 0.5, in: app)
+      }
+    }
+    XCTFail("The entire long-message recovery button must be visible and hittable, not merely partially exposed")
+  }
+
+  private func feedbackVisibleContent(in app: XCUIApplication) -> CGRect {
+    let frame = app.frame
+    let navigation = app.navigationBars.firstMatch
+    let tabs = app.tabBars.firstMatch
+    let top = navigation.exists ? max(frame.minY, navigation.frame.maxY) : frame.minY
+    let bottom = tabs.exists && tabs.frame.midY > frame.midY ? min(frame.maxY, tabs.frame.minY) : frame.maxY
+    return CGRect(x: frame.minX, y: top, width: frame.width, height: max(0, bottom - top))
+  }
+
+  private func exposeInlineViewportBottom(_ scroll: XCUIElement, in app: XCUIApplication, minimumHeight: CGFloat) {
+    let form = app.collectionViews.firstMatch
+    XCTAssertTrue(form.exists)
+    for _ in 0..<16 {
+      let screen = feedbackVisibleContent(in: app)
+      let visibleForm = screen.intersection(form.frame)
+      if scroll.exists {
+        let frame = scroll.frame
+        if frame.maxY <= screen.maxY - 2 && frame.maxY >= screen.minY + minimumHeight + 12 { return }
+        let movement = (screen.maxY - 8) - frame.maxY
+        print("SYNC_FEEDBACK_EXPOSE_INLINE viewport=\(frame) screen=\(screen) movement=\(movement)")
+        dragFeedbackViewport(visibleForm, contentOffset: movement, in: app, useFormEdge: true)
+      } else {
+        // The previous anchor is Sync Now below this section. Move toward the
+        // beginning until the virtualized status row is instantiated again.
+        dragFeedbackViewport(visibleForm, contentOffset: visibleForm.height * 0.5, in: app, useFormEdge: true)
+      }
+    }
+    XCTFail("The lower edge of the inline message viewport must be exposed before reading its final line")
+  }
+
+  private func dragFeedbackViewport(_ viewport: CGRect, contentOffset: CGFloat, in app: XCUIApplication,
+                                    useFormEdge: Bool = false) {
+    XCTAssertGreaterThan(viewport.height, 40, "Scroll gestures must stay inside a visible viewport")
+    let distance = min(viewport.height * 0.55, max(12, abs(contentOffset)))
+    let x = useFormEdge ? viewport.minX + 4 : viewport.midX
+    let startY = contentOffset < 0 ? viewport.maxY - 12 : viewport.minY + 12
+    let finishY = startY + (contentOffset < 0 ? -distance : distance)
+    let origin = app.coordinate(withNormalizedOffset: .zero)
+    let start = origin.withOffset(CGVector(dx: x - app.frame.minX, dy: startY - app.frame.minY))
+    let finish = origin.withOffset(CGVector(dx: x - app.frame.minX, dy: finishY - app.frame.minY))
+    start.press(forDuration: 0.05, thenDragTo: finish, withVelocity: .slow, thenHoldForDuration: 0.1)
+  }
+
+  func testSyncFeedbackDoesNotMoveNavigationOrExistingContent() {
+    var baseline: [CGRect]?
+    for argument in [nil, "--pumpsync-screenshot-syncing", "--pumpsync-screenshot-sync-success", "--pumpsync-screenshot-sync-failure"] as [String?] {
+      let app = launchScreenshotFixture(launchArguments: argument.map { [$0] } ?? [])
+      let heading = app.staticTexts["Last Successful Sync"]
+      let action = app.buttons["SyncNowButton"]
+      XCTAssertTrue(heading.waitForExistence(timeout: 5))
+      XCTAssertTrue(action.waitForExistence(timeout: 5))
+      XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
+      let tabFrame = app.tabBars.firstMatch.exists ? app.tabBars.firstMatch.frame : .zero
+      let frames = [app.navigationBars.firstMatch.frame, tabFrame, heading.frame, action.frame]
+      if let baseline {
+        for (expected, actual) in zip(baseline, frames) {
+          XCTAssertEqual(actual.minX, expected.minX, accuracy: 0.5)
+          XCTAssertEqual(actual.width, expected.width, accuracy: 0.5)
+          XCTAssertEqual(actual.minY, expected.minY, accuracy: 0.5,
+                         "Transient sync feedback must not move existing content: \(argument ?? "ready")")
+          XCTAssertEqual(actual.height, expected.height, accuracy: 0.5,
+                         "Transient sync feedback must not resize existing content: \(argument ?? "ready")")
+        }
+      } else { baseline = frames }
+      if app.buttons["DismissSyncMessageButton"].exists {
+        dismissSyncMessage(in: app)
+        XCTAssertEqual(action.frame, frames[3])
+        XCTAssertEqual(heading.frame, frames[2])
+      }
+      attachScreenshot(named: "stable-sync-layout-" + (argument ?? "ready"), from: app)
+      app.terminate()
+    }
+
+    var initialImportFrame: CGRect?
+    for isSyncing in [false, true] {
+      var arguments = ["--pumpsync-screenshot-initial-sync"]
+      if isSyncing { arguments.append("--pumpsync-screenshot-syncing") }
+      let app = launchScreenshotFixture(launchArguments: arguments)
+      let action = app.buttons["SyncNowButton"]
+      revealFormControl(action, in: app)
+      XCTAssertTrue(action.waitForExistence(timeout: 5))
+      if let initialImportFrame {
+        XCTAssertEqual(action.frame, initialImportFrame,
+                       "Starting the initial import must preserve the action's frame despite the shorter progress label")
+        XCTAssertFalse(action.isEnabled)
+      } else {
+        initialImportFrame = action.frame
+        XCTAssertTrue(action.isEnabled)
+      }
+      attachScreenshot(named: "stable-initial-import-" + (isSyncing ? "running" : "ready"), from: app)
+      app.terminate()
+    }
+  }
+
+  func testDismissingFailureBannerPreservesInlineRecovery() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-failure"])
-    XCTAssertTrue(app.staticTexts["Sync needs attention"].waitForExistence(timeout: 5))
-    XCTAssertEqual(app.buttons.matching(identifier: "Try Again").count, 1)
-    XCTAssertFalse(app.buttons["Sync Now"].exists)
-    XCTAssertFalse(app.buttons["Dismiss notification"].exists)
-    attachScreenshot(named: "inline-sync-failure", from: app)
+    let dismiss = app.buttons["DismissSyncMessageButton"]
+    XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["SyncMessageActionButton"].exists)
+    let heading = app.staticTexts["Last Successful Sync"]
+    let headingFrame = heading.frame
+    let navigationFrame = app.navigationBars.firstMatch.frame
+    let tabFrame = app.tabBars.firstMatch.frame
+    attachScreenshot(named: "sync-floating-error", from: app)
+    dismiss.tap()
+    XCTAssertTrue(dismiss.waitForNonExistence(timeout: 3))
+    XCTAssertEqual(heading.frame, headingFrame)
+    XCTAssertEqual(app.navigationBars.firstMatch.frame, navigationFrame)
+    XCTAssertEqual(app.tabBars.firstMatch.frame, tabFrame)
+    let retry = app.buttons["SyncRecoveryButton"]
+    revealFormControl(retry, in: app)
+    XCTAssertTrue(retry.isHittable)
+    XCTAssertEqual(retry.label, "Try Again")
+    XCTAssertEqual(app.buttons.matching(identifier: "SyncRecoveryButton").count, 1)
+    XCTAssertFalse(app.buttons["SyncMessageActionButton"].exists)
+    let syncNow = app.buttons["SyncNowButton"]
+    revealFormControl(syncNow, in: app)
+    XCTAssertTrue(syncNow.isHittable)
+    XCTAssertTrue(syncNow.isEnabled, "A retained recovery notice must not hide or disable a ready manual sync")
+    attachScreenshot(named: "sync-error-inline-after-dismissal", from: app)
+    navigate(to: "Settings", in: app)
+    XCTAssertFalse(dismiss.exists)
+    navigate(to: "Sync", in: app)
+    revealFormControl(retry, in: app)
+    XCTAssertTrue(retry.isHittable)
+    XCTAssertFalse(dismiss.exists, "The same dismissed failure must not return on tab changes")
   }
 
   func testMinimumHitTargetAcceptsOnlyFloatingPointPrecisionError() {
@@ -491,6 +867,34 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertFalse(meetsMinimumHitTargetDimension(43.999))
   }
 
+  func testDismissingRecoveryKeepsFailureWhenConnectionStillAppearsReady() {
+    for (argument, status, recovery) in [
+      ("--pumpsync-screenshot-subscription-failure", "Subscription required", "View Subscription"),
+      ("--pumpsync-screenshot-settings-failure", "Sync needs attention", "Connection Settings")
+    ] {
+      let app = launchScreenshotFixture(launchArguments: [argument])
+      dismissSyncMessage(in: app)
+      let inlineRecovery = app.buttons["SyncRecoveryButton"]
+      revealFormControl(inlineRecovery, in: app)
+      XCTAssertEqual(inlineRecovery.label, recovery)
+      XCTAssertEqual(app.staticTexts["SyncProgressTitle"].label, status)
+      inlineRecovery.tap()
+      if recovery == "View Subscription" {
+        XCTAssertTrue(app.navigationBars["Subscription"].waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Subscription"].waitForNonExistence(timeout: 5))
+      } else {
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+      }
+      navigate(to: "Settings", in: app)
+      navigate(to: "Sync", in: app)
+      revealFormControl(inlineRecovery, in: app)
+      XCTAssertEqual(inlineRecovery.label, recovery)
+      XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
+      app.terminate()
+    }
+  }
+
   private func meetsMinimumHitTargetDimension(_ dimension: CGFloat) -> Bool {
     // Accessibility frames can lose a few floating-point bits when their
     // coordinates are converted. Keep the 44-point requirement while
@@ -498,23 +902,28 @@ final class PumpSyncUITests: XCTestCase {
     dimension >= 44 - 1e-9
   }
 
-  func testInlineFailureKeepsNavigationAndRecoveryReachable() {
+  func testFloatingFailureKeepsNavigationAndRecoveryReachable() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-failure"])
-    let retry = app.buttons["Try Again"]
-    for _ in 0..<8 {
-      if retry.isHittable { break }
-      app.swipeUp()
+    let retry = app.buttons["SyncMessageActionButton"]
+    let dismiss = app.buttons["DismissSyncMessageButton"]
+    XCTAssertTrue(retry.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    XCTAssertTrue(dismiss.isHittable)
+    for control in [retry, dismiss] {
+      XCTAssertTrue(meetsMinimumHitTargetDimension(control.frame.height), "Message action target must be at least 44 points: \(control.frame)")
+      XCTAssertTrue(meetsMinimumHitTargetDimension(control.frame.width))
     }
-    XCTAssertTrue(retry.isHittable)
-    XCTAssertTrue(meetsMinimumHitTargetDimension(retry.frame.height), "Recovery target must be at least 44 points: \(retry.frame)")
-    let dismiss = app.buttons["Dismiss Sync Message"]
-    XCTAssertTrue(meetsMinimumHitTargetDimension(dismiss.frame.height))
-    XCTAssertTrue(meetsMinimumHitTargetDimension(dismiss.frame.width))
     navigate(to: "Settings", in: app)
-    XCTAssertTrue(app.staticTexts["Sync needs attention"].exists)
+    XCTAssertTrue(dismiss.isHittable)
+    let tab = app.tabBars.buttons["Sync"].firstMatch
+    if tab.exists { XCTAssertFalse(dismiss.frame.intersects(tab.frame)) }
+    dismiss.tap()
+    XCTAssertTrue(dismiss.waitForNonExistence(timeout: 5))
     navigate(to: "Sync", in: app)
-    XCTAssertTrue(app.staticTexts["Sync needs attention"].waitForExistence(timeout: 5))
-    XCTAssertFalse(app.buttons["Sync Now"].exists)
+    let inlineRecovery = app.buttons["SyncRecoveryButton"]
+    revealFormControl(inlineRecovery, in: app)
+    XCTAssertTrue(inlineRecovery.isHittable)
+    XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
+    XCTAssertFalse(app.navigationBars["Sync Details"].exists)
   }
 
   func testCoreScreensRenderInScreenshotMode() {
@@ -536,14 +945,20 @@ final class PumpSyncUITests: XCTestCase {
 
     tapNavigationLink("Apple Health", in: app)
     XCTAssertTrue(app.staticTexts["Write Permissions"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "review-health-native-permission-rows", from: app)
     tapBack(in: app)
 
     tapNavigationLink("Data Handling", in: app)
     XCTAssertTrue(app.staticTexts["Pump Data"].waitForExistence(timeout: 5))
+    scrollTo(app.buttons["Email Deletion Request"], in: app)
+    attachScreenshot(named: "review-data-deletion-native-actions", from: app)
+    scrollTo(app.descendants(matching: .any)["Privacy and Deletion Details"].firstMatch, in: app)
+    attachScreenshot(named: "review-data-deletion-footer", from: app)
     tapBack(in: app)
 
     tapNavigationLink("Developer", in: app)
     assertDeveloperDiagnosticsVisible(in: app)
+    attachScreenshot(named: "review-developer-native-diagnostics", from: app)
   }
 
   func testInstallationIDCopiesFromExplicitAction() {
@@ -590,8 +1005,9 @@ final class PumpSyncUITests: XCTestCase {
       XCTAssertTrue(copy.waitForExistence(timeout: 3))
       XCTAssertTrue(copy.isEnabled)
       copy.tap()
-      XCTAssertTrue(app.staticTexts["DiagnosticsCopyFeedback"].waitForExistence(timeout: 3))
       app.buttons["DiagnosticsLogActions"].tap()
+      XCTAssertEqual(app.buttons["CopyDiagnosticsLog"].label,
+                     identifier == "appEvents" ? "All App Events Copied" : "All Performance Reports Copied")
       app.buttons["ClearDiagnosticsLog"].firstMatch.tap()
       XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 3))
       attachScreenshot(named: identifier + "-clear-confirmation", from: app)
@@ -610,7 +1026,7 @@ final class PumpSyncUITests: XCTestCase {
     }
   }
 
-  func testSavedAccountEditingCancelPreservesSavedSummary() {
+  func testSavedAccountEditingBackPreservesSavedSummary() {
     let app = launchScreenshotFixture()
     navigate(to: "Settings", in: app)
     tapNavigationLink("Tandem Account", in: app)
@@ -620,41 +1036,160 @@ final class PumpSyncUITests: XCTestCase {
     let password = app.secureTextFields["Tandem password"]
     XCTAssertTrue(password.waitForExistence(timeout: 3))
     XCTAssertEqual(password.value as? String, "Password")
-    app.buttons["Cancel"].tap()
+    password.tap()
+    password.typeText("unsaved-password\n")
+    tapBack(in: app)
+    dismissSyntheticPasswordSavePrompt(in: app)
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["Tandem"].waitForNonExistence(timeout: 5))
+    tapNavigationLink("Tandem Account", in: app)
+    XCTAssertTrue(app.navigationBars["Tandem"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.staticTexts["Saved Account"].waitForExistence(timeout: 3))
     XCTAssertFalse(password.exists)
     XCTAssertTrue(app.buttons["Remove Credentials"].exists)
   }
 
-  func testSyncStatusRemainsVisibleOnPushedSettingsDestinations() {
-    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-syncing"])
+  func testFailureBannerRemainsDismissibleOnPushedSettingsDestinations() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-failure"])
     navigate(to: "Settings", in: app)
     tapNavigationLink("Apple Health", in: app)
-    XCTAssertTrue(app.descendants(matching: .any)["GlobalSyncStatus"].firstMatch.waitForExistence(timeout: 3))
     XCTAssertTrue(app.staticTexts["Write Permissions"].exists)
-    attachScreenshot(named: "global-sync-status-health-destination", from: app)
+    XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
+    let permissionsFrame = app.staticTexts["Write Permissions"].frame
+    let backFrame = app.navigationBars.firstMatch.frame
+    attachScreenshot(named: "floating-error-health-destination", from: app)
+    dismissSyncMessage(in: app)
+    XCTAssertEqual(app.staticTexts["Write Permissions"].frame, permissionsFrame)
+    XCTAssertEqual(app.navigationBars.firstMatch.frame, backFrame)
+    XCTAssertTrue(app.staticTexts["Write Permissions"].exists)
+    tapBack(in: app)
+    XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
   }
 
-  func testDraftModeChangeLeavesActiveConnectionAndCanCancel() {
+  func testConnectionDraftIsDiscardedWhenOpeningASettingsDetail() {
     let app = launchScreenshotFixture()
     navigate(to: "Settings", in: app)
     tapSegment("Self-hosted", in: app)
-    XCTAssertTrue(app.textFields["Server URL"].waitForExistence(timeout: 3))
-    let feedback = app.staticTexts["Changes take effect only after connection succeeds. Your current setup remains active."]
-    revealFormControl(feedback, in: app)
-    XCTAssertTrue(feedback.waitForExistence(timeout: 3))
-    let cancel = app.buttons["Cancel Changes"]
-    revealFormControl(cancel, in: app)
-    XCTAssertTrue(cancel.waitForExistence(timeout: 3))
-    XCTAssertTrue(cancel.isHittable)
-    cancel.tap()
-    // Inspect the field's location after cancellation, not a lazy offscreen row.
+    replaceText(in: app.textFields["ServerURLField"], with: "https://unsaved.example/custom\n", app: app)
+    XCTAssertFalse(app.buttons["SubscriptionSettingsLink"].exists)
+    tapNavigationLink("Tandem Account", in: app)
+    XCTAssertTrue(app.staticTexts["Saved Account"].waitForExistence(timeout: 5))
+    tapBack(in: app)
     revealConnectionModePicker(in: app)
-    XCTAssertFalse(app.textFields["Server URL"].exists)
+    XCTAssertTrue(app.buttons["SubscriptionSettingsLink"].exists)
+    XCTAssertFalse(app.textFields["ServerURLField"].exists)
+    tapSegment("Self-hosted", in: app)
+    assertEmptyField(app.textFields["ServerURLField"])
+  }
+
+  func testConnectionDraftIsDiscardedWhenChangingTabs() {
+    let app = launchScreenshotFixture()
+    navigate(to: "Settings", in: app)
+    tapSegment("Self-hosted", in: app)
+    replaceText(in: app.textFields["ServerURLField"], with: "https://unsaved.example/custom\n", app: app)
     navigate(to: "Sync", in: app)
     revealFormControl(app.buttons["Sync Now"], in: app)
     XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 3))
     XCTAssertTrue(app.buttons["Sync Now"].isEnabled)
+    navigate(to: "Settings", in: app)
+    revealConnectionModePicker(in: app)
+    XCTAssertTrue(app.buttons["SubscriptionSettingsLink"].exists)
+    XCTAssertFalse(app.textFields["ServerURLField"].exists)
+    tapSegment("Self-hosted", in: app)
+    assertEmptyField(app.textFields["ServerURLField"])
+  }
+
+  func testDismissingFloatingMessageKeepsCurrentConnectionDraft() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-feedback-sequence"])
+    navigate(to: "Settings", in: app)
+    tapSegment("Self-hosted", in: app)
+    let address = app.textFields["ServerURLField"]
+    replaceText(in: address, with: "https://unsaved.example/custom\n", app: app)
+    // Show the error after editing, rather than trying to type through an
+    // already-present overlay that correctly intercepts touches.
+    for step in 1...4 { advanceFeedback(to: step, title: nil, in: app) }
+    dismissSyncMessage(in: app)
+    XCTAssertEqual(address.value as? String, "https://unsaved.example/custom",
+                   "Dismissing an overlay is not leaving the editing screen")
+    navigate(to: "Sync", in: app)
+    navigate(to: "Settings", in: app)
+    revealConnectionModePicker(in: app)
+    XCTAssertTrue(app.buttons["SubscriptionSettingsLink"].exists)
+    XCTAssertFalse(address.exists)
+    tapSegment("Self-hosted", in: app)
+    assertEmptyField(address)
+  }
+
+  func testTandemDraftClearsAllUnsavedFieldsOnBackAndTabExit() {
+    for leaveByTab in [false, true] {
+      let app = launchScreenshotFixture()
+      navigate(to: "Settings", in: app)
+      tapNavigationLink("Tandem Account", in: app)
+      app.buttons["Change Account Details"].tap()
+      let username = app.textFields["Tandem username"]
+      let password = app.secureTextFields["Tandem password"]
+      let region = app.buttons["TandemRegionPicker"]
+      let savedUsername = username.value as? String
+      let savedRegion = "\(region.label)|\(region.value as? String ?? "")"
+      replaceText(in: username, with: "unsaved@pumpsync.example", app: app)
+      password.tap()
+      password.typeText("unsaved-password\n")
+      region.tap()
+      app.buttons["Europe"].firstMatch.tap()
+      XCTAssertTrue("\(region.label)|\(region.value as? String ?? "")".contains("Europe"))
+      XCTAssertFalse(app.buttons["Cancel"].exists)
+
+      if leaveByTab {
+        navigate(to: "Sync", in: app)
+        dismissSyntheticPasswordSavePrompt(in: app)
+        navigate(to: "Settings", in: app)
+      } else {
+        tapBack(in: app)
+        dismissSyntheticPasswordSavePrompt(in: app)
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Tandem"].waitForNonExistence(timeout: 5))
+        tapNavigationLink("Tandem Account", in: app)
+        XCTAssertTrue(app.navigationBars["Tandem"].waitForExistence(timeout: 5))
+      }
+      XCTAssertTrue(app.staticTexts["Saved Account"].waitForExistence(timeout: 5))
+      XCTAssertFalse(password.exists)
+      app.buttons["Change Account Details"].tap()
+      XCTAssertEqual(username.value as? String, savedUsername)
+      assertEmptyField(password)
+      XCTAssertEqual("\(region.label)|\(region.value as? String ?? "")", savedRegion)
+      revealFormControl(app.buttons["Save Credentials"], in: app)
+      XCTAssertFalse(app.buttons["Save Credentials"].isEnabled)
+      app.terminate()
+    }
+  }
+
+  func testFirstTimeTandemDraftIsDiscardedOnBack() {
+    let app = launchScreenshotFixture()
+    navigate(to: "Settings", in: app)
+    tapNavigationLink("Tandem Account", in: app)
+    revealFormControl(app.buttons["Remove Credentials"], in: app)
+    app.buttons["Remove Credentials"].tap()
+    let sheetAction = app.sheets.buttons["Remove Credentials"].firstMatch
+    let popoverAction = app.popovers.buttons["Remove Credentials"].firstMatch
+    XCTAssertTrue(sheetAction.waitForExistence(timeout: 3) || popoverAction.waitForExistence(timeout: 3))
+    let confirmation = sheetAction.exists ? sheetAction : popoverAction
+    confirmation.tap()
+    let username = app.textFields["Tandem username"]
+    XCTAssertTrue(username.waitForExistence(timeout: 5))
+    replaceText(in: username, with: "unsaved@pumpsync.example", app: app)
+    app.secureTextFields["Tandem password"].tap()
+    app.secureTextFields["Tandem password"].typeText("unsaved-password\n")
+    app.buttons["TandemRegionPicker"].tap()
+    app.buttons["Europe"].firstMatch.tap()
+    tapBack(in: app)
+    dismissSyntheticPasswordSavePrompt(in: app)
+    tapNavigationLink("Tandem Account", in: app)
+    assertEmptyField(username)
+    assertEmptyField(app.secureTextFields["Tandem password"])
+    let region = app.buttons["TandemRegionPicker"]
+    XCTAssertTrue("\(region.label)|\(region.value as? String ?? "")".contains("United States"))
+    revealFormControl(app.buttons["Save Credentials"], in: app)
+    XCTAssertFalse(app.buttons["Save Credentials"].isEnabled)
   }
 
   func testConcentrationChoicesHaveNativeSelectionAndAccessibleTargets() {
@@ -686,6 +1221,22 @@ final class PumpSyncUITests: XCTestCase {
     attachScreenshot(named: "concentration-native-inline-selection", from: app)
     XCTAssertTrue(app.buttons["U-100"].exists)
     XCTAssertTrue(app.buttons["U-500"].exists)
+    tapNavigationLink("How Insulin Conversion Works", in: app)
+    XCTAssertTrue(app.navigationBars["Insulin Conversion"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.staticTexts["Current Selection"].exists)
+    attachScreenshot(named: "review-insulin-conversion-overview", from: app)
+    for (concentration, multiplier) in [("U-100", "1"), ("U-200", "2"), ("U-500", "5")] {
+      let factor = app.descendants(matching: .any).matching(NSPredicate(
+        format: "label == %@ AND value == %@", concentration, "Multiply by \(multiplier)")).firstMatch
+      revealFormControl(factor, in: app)
+      XCTAssertTrue(factor.isHittable, "Each conversion factor must be readable and accessible")
+    }
+    attachScreenshot(named: "review-insulin-conversion-factors", from: app)
+    let finalGuidance = app.descendants(matching: .any).matching(NSPredicate(
+      format: "label CONTAINS %@", "Confirm your concentration against your insulin prescription")).firstMatch
+    revealFormControl(finalGuidance, in: app)
+    XCTAssertTrue(finalGuidance.isHittable)
+    attachScreenshot(named: "review-insulin-conversion-final-guidance", from: app)
   }
 
   func testSettingsShowsCompactInsulinConcentrationRow() {
@@ -714,6 +1265,8 @@ final class PumpSyncUITests: XCTestCase {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-preview", "empty"])
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.textFields["ServerURLField"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["SubscriptionSettingsLink"].exists)
+    tapSegment("PumpSync", in: app)
     tapNavigationLink("Subscription", in: app)
     XCTAssertTrue(app.buttons["ManageSubscriptionButton"].waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["ConnectSubscriptionButton"].exists)
@@ -721,7 +1274,7 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No active subscription was found. Your self-hosted connection is unchanged."].waitForExistence(timeout: 5))
     tapBack(in: app)
     XCTAssertEqual(app.textFields["ServerURLField"].value as? String, "https://example.com/api")
-    XCTAssertFalse(app.buttons["Cancel Changes"].exists,
+    XCTAssertFalse(app.buttons["SubscriptionSettingsLink"].exists,
                    "Restoring an App Store purchase must not select a hosted connection")
   }
 
@@ -764,26 +1317,24 @@ final class PumpSyncUITests: XCTestCase {
       let tip = surface.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "sliding your finger across the letters")).firstMatch
       if tip.exists, surface.buttons["Continue"].exists { surface.buttons["Continue"].tap() }
     }
-    let draftFeedback = app.staticTexts["SelfHostedConnectionFeedback"].label
     field.typeText("https://edited.example/api\n")
-    XCTAssertTrue(app.staticTexts["SelfHostedConnectionFeedback"].waitForExistence(timeout: 3))
-    XCTAssertEqual(app.staticTexts["SelfHostedConnectionFeedback"].label, draftFeedback, "Keyboard return must not begin connection authentication")
-    reveal(app.buttons["Cancel Changes"])
-    XCTAssertTrue(app.buttons["Cancel Changes"].waitForExistence(timeout: 3), "Keyboard return must leave connection changes as a draft")
+    XCTAssertEqual(field.value as? String, "https://edited.example/api")
+    XCTAssertFalse(app.buttons["Connecting"].exists, "Keyboard return must not begin connection authentication")
+    reveal(app.buttons["Connect"])
+    XCTAssertTrue(app.buttons["Connect"].isEnabled)
     attachScreenshot(named: "design-review-draft-keyboard-dismissed", from: app)
-    app.buttons["Cancel Changes"].tap()
     tapNavigationLink("Tandem Account", in: app)
     reveal(app.buttons["Remove Credentials"])
     for _ in 0..<8 { if app.buttons["Change Account Details"].isHittable { break }; app.swipeDown() }
     app.buttons["Change Account Details"].tap()
-    reveal(app.buttons["Cancel"])
-    app.buttons["Cancel"].tap()
+    reveal(app.buttons["Save Credentials"])
+    XCTAssertFalse(app.buttons["Save Credentials"].isEnabled)
     tapBack(in: app)
     tapNavigationLink("Insulin Concentration", in: app)
     reveal(app.buttons["How Insulin Conversion Works"])
     tapBack(in: app)
     tapNavigationLink("Data Handling", in: app)
-    reveal(app.descendants(matching: .any)["Full Privacy and Deletion Details"].firstMatch)
+    reveal(app.descendants(matching: .any)["Privacy and Deletion Details"].firstMatch)
     attachScreenshot(named: "design-review-data-handling-final-content", from: app)
     tapBack(in: app)
     tapNavigationLink("Developer", in: app)
@@ -802,7 +1353,7 @@ final class PumpSyncUITests: XCTestCase {
       evidence.lifetime = .keepAlways
       add(evidence)
     }
-    func auditUnobscuredContent() throws {
+    func auditUnobscuredContent(screen: String) throws {
       do {
       // Native Form/Label nodes on iOS 27 can report unsupported scaling or
       // predicted clipping even when every word grows and remains reachable.
@@ -812,7 +1363,26 @@ final class PumpSyncUITests: XCTestCase {
         // Native floating navigation intentionally blends the scrolled content
         // beneath its pill. Audit that text after revealing it, not while it is
         // physically covered by navigation. Never suppress hit/label issues.
-        guard issue.auditType == .contrast else { return false }
+        guard issue.auditType == .contrast else {
+          let element = issue.element
+          let diagnostic = "CORE_SCREEN_AUDIT screen=\(screen) type=\(issue.auditType) "
+            + "description=\(issue.detailedDescription) element=\(String(describing: element))"
+          print(diagnostic)
+          let evidence = XCTAttachment(string: diagnostic + "\n\n" + app.debugDescription)
+          evidence.name = "core-screen-audit-failure-" + screen
+          evidence.lifetime = .keepAlways
+          self.add(evidence)
+          self.attachScreenshot(named: "core-screen-audit-failure-" + screen, from: app)
+          if let element, element.exists {
+            let details = "label=\(element.label) identifier=\(element.identifier) frame=\(element.frame)"
+            print("CORE_SCREEN_AUDIT_ELEMENT: \(details)")
+            let target = XCTAttachment(string: details)
+            target.name = "core-screen-audit-element-" + screen
+            target.lifetime = .keepAlways
+            self.add(target)
+          }
+          return false
+        }
         guard let element = issue.element else {
           unresolvedNativeContrastNodes += 1
           print("UNRESOLVABLE_NATIVE_CONTRAST_NODE: \(issue.detailedDescription)")
@@ -855,20 +1425,35 @@ final class PumpSyncUITests: XCTestCase {
         print("ACCESSIBILITY_AUDIT: \(issue.compactDescription) · \(element.label) · \(element.frame)")
         return false
       }
-      } catch { XCTFail("Accessibility audit failed: \(error)") }
+      } catch { XCTFail("Accessibility audit failed on \(screen): \(error)") }
     }
-    try auditUnobscuredContent()
-    navigate(to: "Settings", in: app)
-    try auditUnobscuredContent()
+    func restartAtSettings() {
+      // Audits returned the same unresolvable AX identity on six destinations
+      // after auditing a scrolled parent in one process.
+      // Give each screen an independent audit process, without filtering
+      // hit-region or description failures from the resulting audit.
+      app.terminate()
+      app.launch()
+      XCTAssertTrue(app.navigationBars["Sync"].waitForExistence(timeout: 5))
+      navigate(to: "Settings", in: app)
+      XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    }
+    try auditUnobscuredContent(screen: "Sync")
+    restartAtSettings()
+    try auditUnobscuredContent(screen: "Settings-top")
     app.swipeUp()
-    try auditUnobscuredContent()
+    try auditUnobscuredContent(screen: "Settings-scrolled")
     for title in ["Tandem Account", "Apple Health", "Insulin Concentration", "Data Handling", "About PumpSync", "Developer"] {
+      restartAtSettings()
       tapNavigationLink(title, in: app)
+      let navigationTitle = title == "Tandem Account" ? "Tandem" : title
+      XCTAssertTrue(app.navigationBars[navigationTitle].waitForExistence(timeout: 5))
       attachScreenshot(named: "accessibility-audit-" + title, from: app)
-      try auditUnobscuredContent()
+      try auditUnobscuredContent(screen: title + "-top")
       app.swipeUp()
-      try auditUnobscuredContent()
+      try auditUnobscuredContent(screen: title + "-scrolled")
       tapBack(in: app)
+      XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
     }
   }
 
@@ -1003,7 +1588,9 @@ final class PumpSyncUITests: XCTestCase {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-initial-sync"])
     attachScreenshot(named: "remediation-initial-light", from: app)
     let history = app.buttons["HistoryRangePicker"]
+    revealFormControl(history, in: app)
     XCTAssertTrue(history.waitForExistence(timeout: 5))
+    XCTAssertTrue(history.isHittable)
     history.tap()
     XCTAssertTrue(app.buttons["Past 2 days"].waitForExistence(timeout: 5))
     attachScreenshot(named: "remediation-history-menu-light", from: app)
@@ -1084,12 +1671,63 @@ final class PumpSyncUITests: XCTestCase {
     return app
   }
 
+  private func dismissSyntheticPasswordSavePrompt(in app: XCUIApplication) {
+    // AutoFill's remote service can start after Back has already completed.
+    // Wait on its interactive button instead of tapping the app-forwarded
+    // element while the sheet is appearing. Never save fixture credentials.
+    let surfaces: [(XCUIApplication, TimeInterval)] = [
+      (XCUIApplication(bundleIdentifier: "com.apple.SafariViewService"), 8),
+      (app, 2),
+      (XCUIApplication(bundleIdentifier: "com.apple.springboard"), 2)
+    ]
+    for (surface, timeout) in surfaces {
+      let deadline = Date().addingTimeInterval(timeout)
+      let title = surface.staticTexts["Save Password?"]
+      let decline = surface.buttons["Not Now"]
+      if title.waitForExistence(timeout: timeout),
+         decline.wait(for: \.isHittable, toEqual: true, timeout: max(0, deadline.timeIntervalSinceNow)) {
+        decline.tap()
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 5),
+                      "The password sheet must return control to PumpSync")
+        return
+      }
+    }
+  }
+
   private func tapBack(in app: XCUIApplication) {
     // Some installed runtimes expose native Back as Other in legacy AX data.
     // Its observed system identifier remains stable across those role changes.
     let back = app.navigationBars.descendants(matching: .any).matching(identifier: "BackButton").firstMatch
     if back.exists { back.tap() }
     else { app.navigationBars.buttons.firstMatch.tap() }
+  }
+
+  private func dismissSyncMessage(in app: XCUIApplication) {
+    let dismiss = app.buttons["DismissSyncMessageButton"]
+    XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    dismiss.tap()
+    XCTAssertTrue(dismiss.waitForNonExistence(timeout: 5))
+  }
+
+  private func replaceText(in field: XCUIElement, with text: String, app: XCUIApplication) {
+    revealFormControl(field, in: app)
+    field.tap()
+    for surface in [app, XCUIApplication(bundleIdentifier: "com.apple.springboard")] {
+      let tip = surface.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "sliding your finger across the letters")).firstMatch
+      if tip.exists, surface.buttons["Continue"].exists { surface.buttons["Continue"].tap() }
+    }
+    let existing = field.value as? String ?? ""
+    if existing != field.placeholderValue {
+      field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
+    }
+    field.typeText(text)
+  }
+
+  private func assertEmptyField(_ field: XCUIElement) {
+    XCTAssertTrue(field.waitForExistence(timeout: 3))
+    let value = field.value as? String ?? ""
+    XCTAssertTrue(value.isEmpty || value == field.placeholderValue,
+                  "An abandoned edit must reload the empty saved field: \(field.identifier)")
   }
 
   private func navigate(to title: String, in app: XCUIApplication) {
@@ -1123,7 +1761,8 @@ final class PumpSyncUITests: XCTestCase {
     if let identifier {
       let identifiedLink = app.buttons[identifier]
       if identifiedLink.waitForExistence(timeout: 2) {
-        scrollTo(identifiedLink, in: app)
+        revealFormControl(identifiedLink, in: app)
+        XCTAssertTrue(identifiedLink.isHittable, "Navigation link must be reachable: \(title)")
         identifiedLink.tap()
         return
       }
@@ -1211,7 +1850,10 @@ final class PumpSyncUITests: XCTestCase {
         : app.scrollViews.firstMatch.exists ? app.scrollViews.firstMatch : app
       var offset = -0.25
       if element.exists {
-        if element.isHittable { return }
+        let tabBar = app.tabBars.firstMatch
+        let isBehindBottomTabBar = tabBar.exists && tabBar.frame.midY > app.frame.midY
+          && element.frame.midY >= tabBar.frame.minY - 8
+        if element.isHittable && !isBehindBottomTabBar { return }
         let distanceToCenter = element.frame.midY - app.frame.midY
         let distance = min(0.4, max(0.08, abs(distanceToCenter) / max(1, scroll.frame.height)))
         offset = distanceToCenter < 0 ? distance : -distance

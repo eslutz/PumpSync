@@ -1060,6 +1060,34 @@ final class SyncCoordinatorTests: XCTestCase {
     )
   }
 
+  func testRateLimitWaitActionRetriesOnlyWhenExplicitlyRequested() async throws {
+    let requests = LockIsolated(0)
+    let success = syncResponseHandler(samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000))
+    let rateLimit = errorResponseHandler(statusCode: 429, code: "rate_limit_exceeded", message: "Wait before trying again.")
+    URLProtocolStub.requestHandler = { request in
+      let count = requests.withValue { value in value += 1; return value }
+      return try count == 1 ? rateLimit(request) : success(request)
+    }
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore())
+
+    await coordinator.sync(reason: .manual)
+    XCTAssertEqual(requests.value, 1, "Rate limits must not start an automatic retry loop")
+    guard case .failed(let failure) = coordinator.operationState else {
+      return XCTFail("Expected a recoverable rate limit")
+    }
+    XCTAssertEqual(failure.recovery, .waitAndRetry)
+
+    coordinator.retry()
+    await waitUntil { !coordinator.isSyncing }
+    XCTAssertEqual(requests.value, 2)
+    guard case .succeeded = coordinator.operationState else {
+      return XCTFail("The advertised manual retry action must start a new attempt")
+    }
+  }
+
   func testBackgroundSuccessReturnsToIdleWithoutPublishingCompletion() async throws {
     URLProtocolStub.requestHandler = syncResponseHandler(
       samples: [],
@@ -1491,6 +1519,9 @@ final class SyncCoordinatorTests: XCTestCase {
     if repeatedDenial {
       guard case .failed(let failure) = coordinator.operationState else { return XCTFail("Expected a terminal subscription warning") }
       XCTAssertEqual(failure.recovery, .openSubscription)
+      XCTAssertTrue(authService.isSignedIn)
+      XCTAssertFalse(authService.requiresSubscriptionAction,
+                     "A replacement session does not prove the protected sync request succeeded")
     } else {
       XCTAssertEqual(coordinator.operationState, .idle)
     }

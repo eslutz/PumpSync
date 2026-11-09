@@ -18,7 +18,7 @@ struct AboutPumpSyncView: View {
             Section("How Sync Works") {
               AboutGuideRow(
                 title: "Manual sync",
-                detail: "Tap Sync Now. Opening the app also attempts a sync if none has succeeded yet or the last success was at least four hours ago.",
+                detail: "Opening the app also attempts a sync if the last success was at least four hours ago.",
                 systemImage: "arrow.triangle.2.circlepath"
             )
               AboutGuideRow(
@@ -31,14 +31,13 @@ struct AboutPumpSyncView: View {
                 detail: "Keep PumpSync open until a foreground sync finishes. You can move between screens.",
                 systemImage: "iphone"
             )
-
+              AboutGuideRow(
+                title: "Last successful sync",
+                detail: "Shows the last completed sync, even when there were no new records.",
+                systemImage: "checkmark.circle"
+            )
             }
             .headerProminence(.increased)
-
-            Text("Last Successful Sync shows the last completed sync, even if there were no new records.")
-                .font(.body)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .navigationTitle("About PumpSync")
         .navigationBarTitleDisplayMode(.inline)

@@ -42,17 +42,23 @@ private struct HealthAccessContent: View {
               .foregroundStyle(Color.primary)
               .fixedSize(horizontal: false, vertical: true)
           } label: {
-            Text(permission.title)
-              .fixedSize(horizontal: false, vertical: true)
+            Label {
+              Text(permission.title)
+                .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+              Image(systemName: permission.kind == .insulinDelivery ? "syringe" : "fork.knife")
+                .foregroundStyle(.tint)
+            }
           }
         }
+      } header: {
+        Text("Write Permissions")
+          .foregroundStyle(Color.primary)
+      } footer: {
         Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
           .font(.body)
           .foregroundStyle(Color.primary)
           .fixedSize(horizontal: false, vertical: true)
-      } header: {
-        Text("Write Permissions")
-          .foregroundStyle(Color.primary)
       }
       .headerProminence(.increased)
 
@@ -68,15 +74,12 @@ private struct HealthAccessContent: View {
         Section {
           Button(action: requestAccess) {
             if isRequestingAccess {
-              HStack { ProgressView().tint(.white); Text("Requesting Access") }
+              HStack { ProgressView(); Text("Requesting Access") }
             } else {
               Text("Allow Access to Health")
                 .fixedSize(horizontal: false, vertical: true)
             }
           }
-          .buttonStyle(.glassProminent)
-          .tint(Color("ProminentActionColor"))
-          .controlSize(.large)
           .disabled(isRequestingAccess)
         }
       }

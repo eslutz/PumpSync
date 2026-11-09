@@ -1,12 +1,17 @@
 import SwiftUI
 
+private enum SettingsDestination: Hashable {
+  case subscription
+}
+
 struct SettingsView: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.editingScreenDepartureID) private var editingScreenDepartureID
   @State private var connectionTask: Task<Void, Never>?
 
   private var connectionFeedback: String {
     let connection = services.connectionSettings
-    return connection.hasChanges || connection.isConnecting || !services.authService.isSignedIn || connection.feedback != nil
+    return connection.isConnecting || connection.feedback != nil
       ? connection.connectionDescription : ""
   }
 
@@ -16,16 +21,10 @@ struct SettingsView: View {
         mode: Binding(get: { services.connectionSettings.mode }, set: { services.connectionSettings.mode = $0 }),
         serverURL: Binding(get: { services.connectionSettings.serverURL }, set: { services.connectionSettings.serverURL = $0 }),
         subscriptionStatus: services.authService.subscriptionAccessStatus,
-        activeService: services.authService.isSignedIn ? services.backendConfigurationStore.mode.title : nil,
-        hasChanges: services.connectionSettings.hasChanges,
         isConnecting: services.connectionSettings.isConnecting,
         canConnect: services.connectionSettings.canConnect,
         feedback: connectionFeedback,
-        connect: { connectionTask = Task { await services.connectionSettings.connect() } },
-        cancel: {
-          connectionTask?.cancel()
-          services.connectionSettings.cancel()
-        }
+        connect: { connectionTask = Task { await services.connectionSettings.connect() } }
       )
 
       Section {
@@ -82,11 +81,25 @@ struct SettingsView: View {
     .font(.body)
     .scrollDismissesKeyboard(.interactively)
     .navigationTitle("Settings")
+    .navigationDestination(for: SettingsDestination.self) { destination in
+      switch destination {
+      case .subscription: SubscriptionSettingsView()
+      }
+    }
+    .onAppear(perform: discardDraft)
+    .onDisappear(perform: discardDraft)
+    .onChange(of: editingScreenDepartureID) { _, _ in discardDraft() }
     .task {
       if !AppLaunchEnvironment.isScreenshotMode {
         await services.authService.refreshSubscriptionStatus()
       }
     }
+  }
+
+  private func discardDraft() {
+    connectionTask?.cancel()
+    connectionTask = nil
+    services.connectionSettings.cancel()
   }
 }
 
@@ -96,13 +109,10 @@ private struct ConnectionConfigurationSection: View {
   @Binding var mode: BackendAccessMode
   @Binding var serverURL: String
   let subscriptionStatus: SubscriptionAccessStatus
-  let activeService: String?
-  let hasChanges: Bool
   let isConnecting: Bool
   let canConnect: Bool
   let feedback: String
   let connect: () -> Void
-  let cancel: () -> Void
   @FocusState private var isServerURLFocused: Bool
 
   var body: some View {
@@ -124,59 +134,47 @@ private struct ConnectionConfigurationSection: View {
           .focused($isServerURLFocused)
           .submitLabel(.done)
           .onSubmit { isServerURLFocused = false }
-        Text("Use an HTTPS base API URL ending in /api. You manage hosting, security, and maintenance.")
-          .foregroundStyle(Color.primary)
-          .fixedSize(horizontal: false, vertical: true)
-        Button(isConnecting ? "Connecting" : "Connect", systemImage: "link") {
+        Button {
           isServerURLFocused = false
           connect()
+        } label: {
+          Label {
+            Text("Connect")
+          } icon: {
+            Image(systemName: "link")
+              .opacity(isConnecting ? 0 : 1)
+              .overlay {
+                if isConnecting { ProgressView().controlSize(.small) }
+              }
+              .accessibilityHidden(true)
+          }
         }
-        .buttonStyle(.glassProminent)
-        .tint(Color("ProminentActionColor"))
-        .controlSize(.large)
-        .disabled(!canConnect || BackendConfigurationStore.validatedSelfHostedURL(from: serverURL) == nil)
+        .accessibilityValue(isConnecting ? Text("Connecting") : Text(""))
+        .disabled(!canConnect || serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       }
 
-      NavigationLink {
-        SubscriptionSettingsView()
-      } label: {
-        LabeledContent("Subscription") {
-          Text(subscriptionStatus.title).foregroundStyle(Color.primary)
-            .fixedSize(horizontal: false, vertical: true)
+      if mode == .hosted {
+        NavigationLink(value: SettingsDestination.subscription) {
+          LabeledContent("Subscription") {
+            Text(subscriptionStatus.title).foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
         }
+        .accessibilityIdentifier("SubscriptionSettingsLink")
       }
-      .accessibilityIdentifier("SubscriptionSettingsLink")
 
-      if isConnecting {
-        HStack {
-          ProgressView()
-          Text(feedback)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-      } else if hasChanges || !feedback.isEmpty {
+      if !isConnecting && !feedback.isEmpty {
         Text(feedback)
           .foregroundStyle(Color.primary)
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("SelfHostedConnectionFeedback")
       }
 
-      if hasChanges || isConnecting {
-        if let activeService {
-          Text("Currently connected to \(activeService)")
-            .foregroundStyle(Color.primary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        Button("Cancel Changes", role: .cancel) {
-          isServerURLFocused = false
-          cancel()
-        }
+      if mode == .hosted {
+        Text("Your subscription configures the PumpSync service. Changing connection mode does not cancel your subscription.")
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
       }
-      Text(mode == .hosted
-        ? "Your subscription configures the PumpSync service. Manage or restore it from Subscription. Changing connection mode does not cancel your subscription."
-        : "Connect validates the new service using your pump account. Sync and source inspection continue using the current service until the new connection succeeds.")
-        .foregroundStyle(Color.primary)
-        .fixedSize(horizontal: false, vertical: true)
     } header: {
       Text("Connection Configuration").foregroundStyle(Color.primary)
     }
@@ -199,8 +197,8 @@ private struct ConnectionConfigurationSection: View {
   NavigationStack {
     Form {
       ConnectionConfigurationSection(mode: .constant(.hosted), serverURL: .constant(""),
-        subscriptionStatus: .active, activeService: "PumpSync", hasChanges: false,
-        isConnecting: false, canConnect: true, feedback: "", connect: {}, cancel: {})
+        subscriptionStatus: .active,
+        isConnecting: false, canConnect: true, feedback: "", connect: {})
     }
     .navigationTitle("Settings")
   }
@@ -210,8 +208,8 @@ private struct ConnectionConfigurationSection: View {
   NavigationStack {
     Form {
       ConnectionConfigurationSection(mode: .constant(.selfHosted), serverURL: .constant("https://example.com/api"),
-        subscriptionStatus: .active, activeService: "PumpSync", hasChanges: true,
-        isConnecting: false, canConnect: true, feedback: "Changes take effect only after connection succeeds. Your current setup remains active.", connect: {}, cancel: {})
+        subscriptionStatus: .active,
+        isConnecting: false, canConnect: true, feedback: "", connect: {})
     }
     .navigationTitle("Settings")
     .dynamicTypeSize(.accessibility3)

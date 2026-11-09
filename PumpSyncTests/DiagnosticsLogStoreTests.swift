@@ -3,6 +3,41 @@ import XCTest
 
 @MainActor
 final class DiagnosticsLogStoreTests: XCTestCase {
+  func testStructuredPreviewMetadataSurvivesRelaunch() {
+    let suite = "PreviewMetadata.\(UUID())"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let store = DiagnosticsLogStore(defaults: defaults)
+    let preview = ImportPreviewDiagnostic(status: .ready, source: .tandemSource, recordCount: 233)
+    store.record(source: .sync, title: "Import preview", message: "purpose=real state=ready source=tandemSource count=233", importPreview: preview)
+    XCTAssertEqual(DiagnosticsLogStore(defaults: defaults).entries.first?.importPreview, preview)
+  }
+
+  func testLegacyAndFuturePreviewMetadataDoNotDiscardRetainedEntries() throws {
+    let suite = "LegacyPreviewMetadata.\(UUID())"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let legacy = #"{"id":"11111111-1111-1111-1111-111111111111","timestamp":0,"source":"Sync","severity":"Info","title":"Import preview","message":"purpose=real state=loading"}"#
+    let future = #"{"id":"22222222-2222-2222-2222-222222222222","timestamp":1,"source":"Sync","severity":"Info","title":"Import preview","message":"password=private-marker","importPreview":{"status":"futureState"}}"#
+    defaults.set(Data("[\(legacy),\(future)]".utf8), forKey: "diagnostics-log")
+    let entries = DiagnosticsLogStore(defaults: defaults).entries
+    XCTAssertEqual(entries.count, 2)
+    XCTAssertNil(entries.first?.importPreview)
+    XCTAssertEqual(DiagnosticPresentation.importPreview(for: try XCTUnwrap(entries.first))?.status, .loading)
+    XCTAssertNil(entries.last?.importPreview)
+    XCTAssertFalse(try XCTUnwrap(entries.last?.message).contains("private-marker"))
+  }
+
+  func testDecodedPreviewMetadataDoesNotInventNegativeOrPrematureCounts() throws {
+    let ready = try JSONDecoder().decode(ImportPreviewDiagnostic.self,
+      from: Data(#"{"status":"ready","source":"tandemSource","recordCount":-1}"#.utf8))
+    XCTAssertNil(ready.recordCount)
+    let loading = try JSONDecoder().decode(ImportPreviewDiagnostic.self,
+      from: Data(#"{"status":"loading","source":"tandemSource","recordCount":10}"#.utf8))
+    XCTAssertNil(loading.source)
+    XCTAssertNil(loading.recordCount)
+  }
+
   func testSecretRedactionIsIdempotentAcrossRepeatedExportBoundaries() {
     let value = #"password="a multiword secret" accessToken=unquoted-token user@example.com"#
     let once = DiagnosticsLogStore.redacted(value)

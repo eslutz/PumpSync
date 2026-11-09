@@ -149,12 +149,18 @@ final class SyncCoordinator {
   }
 
 #if DEBUG
+  func applyScreenshotFeedbackState(_ state: SyncOperationState) {
+    guard AppLaunchEnvironment.isScreenshotMode,
+          ProcessInfo.processInfo.arguments.contains("--pumpsync-feedback-sequence") else { return }
+    operationState = state
+  }
+
   func applyScreenshotSyncing() {
     operationState = .running(SyncProgress(phase: .preparing, trigger: .manual, startedAt: Date()))
   }
 
-  func applyScreenshotSuccess(completedAt: Date = Date()) {
-    operationState = .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: completedAt))
+  func applyScreenshotSuccess(completedAt: Date = Date(), notice: String? = nil) {
+    operationState = .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: completedAt, notice: notice))
   }
 
   func applyScreenshotFailure(recovery: SyncRecovery = .retry) {
@@ -280,7 +286,8 @@ final class SyncCoordinator {
   }
 
   func retry() {
-    guard case .failed(let failure) = operationState, failure.recovery == .retry else {
+    guard case .failed(let failure) = operationState,
+          failure.recovery == .retry || failure.recovery == .waitAndRetry else {
       return
     }
     startManualSync()

@@ -2,6 +2,50 @@ import XCTest
 @testable import PumpSync
 
 final class DiagnosticPresentationTests: XCTestCase {
+  func testLegacyImportPreviewHasReadableFieldsWhileExportRetainsLog() throws {
+    let message = "purpose=real state=ready source=tandemSource count=233"
+    let entry = DiagnosticEntry(source: .sync, severity: .info, title: "Import preview", message: message)
+    let preview = try XCTUnwrap(DiagnosticPresentation.importPreview(for: entry))
+    XCTAssertEqual(preview, ImportPreviewDiagnostic(status: .ready, source: .tandemSource, recordCount: 233))
+    XCTAssertEqual(DiagnosticPresentation.previewStatus(preview.status), "Ready")
+    XCTAssertEqual(DiagnosticPresentation.previewSource(try XCTUnwrap(preview.source)), "Tandem")
+    XCTAssertEqual(DiagnosticPresentation.summary(for: entry), "Preview ready · 233 records available")
+    XCTAssertTrue(DiagnosticPresentation.export(entry).contains(message))
+  }
+
+  func testLegacyPreviewParsingRejectsUnknownOrAmbiguousMetadata() {
+    for message in [
+      "purpose=real state=ready source=newProvider count=2",
+      "purpose=real state=ready source=tandemSource count=-1",
+      "purpose=real state=ready source=tandemSource count=02",
+      "purpose=real state=ready source=tandemSource count=2 extra=1",
+      "purpose=demo state=ready source=tandemSource count=2"
+    ] {
+      let entry = DiagnosticEntry(source: .sync, severity: .info, title: "Import preview", message: message)
+      XCTAssertNil(DiagnosticPresentation.importPreview(for: entry), message)
+      XCTAssertEqual(DiagnosticPresentation.summary(for: entry), "Additional information is available in Log Details.")
+      XCTAssertTrue(DiagnosticPresentation.export(entry).contains(message))
+    }
+    let unrelated = DiagnosticEntry(source: .auth, severity: .info, title: "Import preview",
+      message: "purpose=real state=loading")
+    XCTAssertNil(DiagnosticPresentation.importPreview(for: unrelated))
+  }
+
+  func testStructuredPreviewMetadataIsPreferredAndDoesNotExposeArbitraryLogText() {
+    let entry = DiagnosticEntry(source: .sync, severity: .info, title: "Import preview",
+      message: "future-format password=private-marker user@example.com",
+      importPreview: ImportPreviewDiagnostic(status: .ready, source: .tandemSource, recordCount: 0))
+    XCTAssertEqual(DiagnosticPresentation.summary(for: entry), "Preview ready · 0 records available")
+    XCTAssertFalse(DiagnosticPresentation.export(entry).contains("private-marker"))
+    XCTAssertFalse(DiagnosticPresentation.export(entry).contains("user@example.com"))
+    let loading = DiagnosticEntry(source: .sync, severity: .info, title: "Import preview",
+      message: "purpose=real state=loading")
+    XCTAssertEqual(DiagnosticPresentation.summary(for: loading), "Loading source records for inspection.")
+    let failed = DiagnosticEntry(source: .sync, severity: .info, title: "Import preview",
+      message: "purpose=real state=failed reason=previewUnavailable")
+    XCTAssertEqual(DiagnosticPresentation.summary(for: failed), "The preview could not be loaded.")
+  }
+
   func testReportPreservesWindowAndUnitsButExcludesUnrecognizedFields() throws {
     let report = NativeDiagnosticReport.make(from: [
       "timeStampBegin": "2026-11-05T00:00:00Z", "timeStampEnd": "2026-11-06T00:00:00Z",

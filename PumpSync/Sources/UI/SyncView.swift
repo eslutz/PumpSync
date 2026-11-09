@@ -8,15 +8,16 @@ struct SyncView: View {
 
   var body: some View {
     Form {
+      Section {
+        SyncInlineStatus(state: services.syncCoordinator.operationState)
+      }
+      Section {
+        SyncActionButton(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing,
+                         isEnabled: canSync, action: startSync)
+        .listRowBackground(Color.clear)
+      }
       if let lastSuccess = history.lastSuccess {
         SyncSummarySection(history: history, lastSuccess: lastSuccess)
-        if case .succeeded(let completion) = services.syncCoordinator.operationState, let notice = completion.notice {
-          Section {
-            Text(notice).foregroundStyle(Color.primary)
-              .fixedSize(horizontal: false, vertical: true)
-              .accessibilityIdentifier("SyncCompletionDetail")
-          }
-        }
       }
 
       if history.lastSuccess == nil {
@@ -44,30 +45,15 @@ struct SyncView: View {
         .headerProminence(.increased)
       }
 
-      if syncFailure == nil {
+      if services.authService.isSignedIn, let message = Self.readinessMessage(
+        isBackendConnected: true,
+        isConnecting: services.authService.isConnecting,
+        hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
+        hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
+      ) {
         Section {
-          SyncActionButton(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing,
-                           isEnabled: canSync, action: startSync)
-          .listRowBackground(Color.clear)
-
-          if services.syncCoordinator.isSyncing {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-              if let presentation = SyncStatusPresentation.make(for: services.syncCoordinator.operationState, now: context.date) {
-                Text(presentation.detail).foregroundStyle(Color.primary)
-                  .fixedSize(horizontal: false, vertical: true)
-                  .accessibilityIdentifier("SyncProgressDetail")
-              }
-            }
-          }
-          if services.authService.isSignedIn, let message = Self.readinessMessage(
-            isBackendConnected: true,
-            isConnecting: services.authService.isConnecting,
-            hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
-            hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
-          ) {
-            Text(message).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
-            Button("Open Settings", systemImage: "gearshape", action: openConnectionSettings)
-          }
+          Text(message).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+          Button("Open Settings", systemImage: "gearshape", action: openConnectionSettings)
         }
       }
 
@@ -106,10 +92,14 @@ struct SyncView: View {
     }
     .font(.body)
     .navigationTitle("Sync")
-    .sheet(isPresented: $showsSubscription, onDismiss: subscriptionDismissed) {
+    .sheet(isPresented: $showsSubscription) {
       NavigationStack {
         SubscriptionSettingsView()
-          .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showsSubscription = false } } }
+          .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+              Button("Done") { showsSubscription = false }
+            }
+          }
       }
     }
     .onAppear(perform: refreshReadiness)
@@ -124,16 +114,8 @@ struct SyncView: View {
     else { services.foregroundRecovery.retryConnection() }
   }
 
-  private func subscriptionDismissed() {
-    if syncFailure?.recovery == .openSubscription,
-       !services.authService.requiresSubscriptionAction, canSync {
-      services.syncCoordinator.dismissResult()
-    }
-  }
-
   private func refreshReadiness() {
     services.healthKitService.refreshAuthorizationStatus()
-    if canSync, syncFailure?.recovery == .openSettings { services.syncCoordinator.dismissResult() }
   }
 
   private var syncFailure: SyncFailure? {
@@ -175,7 +157,7 @@ struct SyncView: View {
 
   private var syncButtonTitle: String {
     Self.syncButtonTitle(
-      isSyncing: services.syncCoordinator.isSyncing,
+      isSyncing: false,
       isConnecting: services.authService.isConnecting,
       hasCompletedInitialSync: services.syncMetadataStore.metadata.lastSuccessfulSyncAt != nil,
       initialImportRange: services.syncMetadataStore.metadata.initialImportRange
@@ -279,6 +261,7 @@ struct SyncSummarySection: View {
 }
 
 private struct SyncActionButton: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   let title: String
   let isSyncing: Bool
   let isEnabled: Bool
@@ -286,13 +269,26 @@ private struct SyncActionButton: View {
 
   var body: some View {
     Button(action: action) {
-      HStack {
-        if isSyncing { ProgressView().tint(.white).accessibilityHidden(true) }
-        Label {
-          Text(title).font(.body).lineLimit(nil).fixedSize(horizontal: false, vertical: true)
-        } icon: {
-          Image(systemName: "arrow.triangle.2.circlepath")
-            .foregroundStyle(.white)
+      Group {
+        // At accessibility sizes, give the native text the whole button width.
+        // Inline progress already communicates activity without a second icon.
+        if dynamicTypeSize.isAccessibilitySize {
+          stableTitle
+        } else {
+          Label {
+            stableTitle
+          } icon: {
+            Group {
+              if isSyncing { ProgressView().controlSize(.small).tint(.white) }
+              else {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                  .font(.system(size: 20))
+                  .foregroundStyle(.white)
+              }
+            }
+            .frame(width: 24, height: 24)
+            .accessibilityHidden(true)
+          }
         }
       }
       .frame(maxWidth: .infinity, minHeight: 44)
@@ -302,6 +298,22 @@ private struct SyncActionButton: View {
     .font(.body)
     .controlSize(.large)
     .disabled(!isEnabled)
+    .accessibilityLabel(isSyncing ? "Syncing" : title)
+    .accessibilityIdentifier("SyncNowButton")
+  }
+
+  private var stableTitle: some View {
+    // Reserve both states, including wrapping, so starting or finishing a sync
+    // never changes the button's height at the current system text size.
+    ZStack {
+      Text(title).hidden().accessibilityHidden(true)
+      Text("Syncing").hidden().accessibilityHidden(true)
+      Text(isSyncing ? "Syncing" : title)
+    }
+    .font(.body)
+    .lineLimit(nil)
+    .multilineTextAlignment(.center)
+    .fixedSize(horizontal: false, vertical: true)
   }
 }
 

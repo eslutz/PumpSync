@@ -57,7 +57,7 @@ xcrun simctl ui "$device_id" content_size large
   echo "Commit: $(git rev-parse HEAD)"
   git status --short
 } | tee -a "$results_dir/environment.txt"
-git ls-files -z --cached --others --exclude-standard -- PumpSync PumpSyncTests PumpSyncUITests project.yml PumpSync.xcodeproj Scripts/ios/validate-cloud-tests.sh \
+git ls-files -z --cached --others --exclude-standard -- PumpSync PumpSyncTests PumpSyncUITests project.yml PumpSync.xcodeproj Scripts/ios/validate-cloud-tests.sh Scripts/ios/validate-tests.sh \
   | xargs -0 shasum -a 256 > "$results_dir/source-hashes.txt"
 export PUMPSYNC_TEST_DESTINATION="platform=iOS Simulator,id=$device_id"
 
@@ -68,7 +68,7 @@ xcrun xcresulttool get test-results summary --path "$results_dir/full.xcresult" 
 
 # Use actual simulator text settings, rather than a launch environment variable
 # that does not reliably change SwiftUI's text size. Recovery, native typography,
-# and final-content reachability must pass at both sizes. Verify UIKit observed
+# final-content reachability, and message layout must pass at both sizes. Verify UIKit observed
 # the requested setting; a passing test under the wrong text size is insufficient.
 for text_size in large accessibility-extra-extra-extra-large; do
   xcrun simctl ui "$device_id" content_size "$text_size"
@@ -79,15 +79,21 @@ for text_size in large accessibility-extra-extra-extra-large; do
   PUMPSYNC_TEST_LOG="$results_dir/recovery-$text_size.log" bash Scripts/ios/validate-tests.sh \
     -jobs 1 -parallel-testing-enabled NO \
     -only-testing:PumpSyncUITests/PumpSyncUITests/testConnectionRecoveryOpensSettingsTab \
+    -only-testing:PumpSyncUITests/PumpSyncUITests/testFeedbackTransitionsKeepLayoutStableInOneSession \
+    -only-testing:PumpSyncUITests/PumpSyncUITests/testFeedbackTextAndActionsRemainReachableAtSystemTextSize \
     -only-testing:PumpSyncUITests/NativeRefactorUITests/testNativeTypographyAndFinalContentFollowSystemTextSize \
     -resultBundlePath "$results_dir/recovery-$text_size.xcresult"
   python3 - "$results_dir/recovery-$text_size.log" "$expected_category" <<'PYCODE'
 import re, sys
 log_path, expected = sys.argv[1:]
 with open(log_path) as log:
-    categories = re.findall(r'NATIVE_TYPOGRAPHY category=(\S+) bodyLineHeight=', log.read())
+    contents = log.read()
+    categories = re.findall(r'NATIVE_TYPOGRAPHY category=(\S+) bodyLineHeight=', contents)
 if not categories or any(category != expected for category in categories):
     raise SystemExit(f"Actual Dynamic Type category mismatch: expected {expected}, observed {categories}")
+feedback_categories = re.findall(r'SYNC_FEEDBACK_TYPOGRAPHY category=(\S+) appCategory=(\S+)', contents)
+if len(feedback_categories) != 2 or any(pair != (expected, expected) for pair in feedback_categories):
+    raise SystemExit(f"Feedback Dynamic Type category mismatch: expected {expected}, observed {feedback_categories}")
 print(f"Verified actual UIKit Dynamic Type category: {expected}")
 PYCODE
   xcrun xcresulttool get test-results summary --path "$results_dir/recovery-$text_size.xcresult" > "$results_dir/recovery-$text_size-summary.json"

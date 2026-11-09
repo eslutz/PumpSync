@@ -44,21 +44,20 @@ struct DiagnosticDetailView: View {
           Text(report == nil ? "This legacy report contains a retained summary only." : "No supported summary measurements in this report.")
             .foregroundStyle(.secondary)
         }
-        Text("Totals cover the reporting window, not a single sync. Histogram bucket boundaries are not averages or percentiles.")
-          .font(.footnote)
-          .foregroundStyle(.primary)
+        Text("Measurements cover the reporting period shown above and may include multiple syncs.")
+          .font(.body)
+          .foregroundStyle(Color.primary)
           .fixedSize(horizontal: false, vertical: true)
       } header: {
         Text("Measurements")
       }
       .headerProminence(.increased)
       Section {
-        DisclosureGroup("Technical Details") {
+        DisclosureGroup("Report Data") {
           Text(DiagnosticsRedactor.redacted(text)).font(.body.monospaced()).textSelection(.enabled)
             .accessibilityIdentifier("DiagnosticRecordDetail")
         }
       }
-      if copied { Text("Entry copied").accessibilityIdentifier("DiagnosticCopyFeedback") }
     }
     .navigationTitle("Report").navigationBarTitleDisplayMode(.inline)
     .toolbar { DiagnosticExportActions(text: text, copied: $copied) }
@@ -77,7 +76,7 @@ struct DiagnosticEventDetailView: View {
 
   var body: some View {
     Form {
-      Section("Outcome") {
+      Section("Summary") {
         Text(group.title).font(.headline)
         if let attempt = group.latest.syncAttempt {
           if let reason = DiagnosticPresentation.reason(for: attempt) { Text(reason) }
@@ -100,8 +99,20 @@ struct DiagnosticEventDetailView: View {
                 .foregroundStyle(Color.primary)
             }
           }
-        } else if let message = group.latest.message {
-          Text(DiagnosticsRedactor.redacted(message))
+        } else if let preview = DiagnosticPresentation.importPreview(for: group.latest) {
+          LabeledContent("Status") {
+            Text(DiagnosticPresentation.previewStatus(preview.status)).foregroundStyle(Color.primary)
+          }
+          if let source = preview.source {
+            LabeledContent("Source") {
+              Text(DiagnosticPresentation.previewSource(source)).foregroundStyle(Color.primary)
+            }
+          }
+          if let count = preview.recordCount {
+            LabeledContent("Records available") { Text(count.formatted()).foregroundStyle(Color.primary) }
+          }
+        } else if let summary = DiagnosticPresentation.summary(for: group.latest) {
+          Text(summary)
         }
         LabeledContent("Recorded") { Text(fullDate(group.timestamp)).foregroundStyle(Color.primary) }
         LabeledContent("Time zone") { Text(TimeZone.current.identifier).foregroundStyle(Color.primary) }
@@ -119,14 +130,16 @@ struct DiagnosticEventDetailView: View {
           }
         } footer: {
           Text("This timeline includes retained snapshots only; older stages may no longer be available.")
+            .font(.body)
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
       Section {
-        DisclosureGroup("Technical Details") {
+        DisclosureGroup("Log Details") {
           Text(export).font(.body.monospaced()).textSelection(.enabled).accessibilityIdentifier("DiagnosticRecordDetail")
         }
       }
-      if copied { Text("Entry copied").accessibilityIdentifier("DiagnosticCopyFeedback") }
     }
     .navigationTitle("App Event").navigationBarTitleDisplayMode(.inline)
     .toolbar { DiagnosticExportActions(text: export, copied: $copied) }
@@ -142,14 +155,35 @@ private struct DiagnosticExportActions: ToolbarContent {
   @Binding var copied: Bool
 
   var body: some ToolbarContent {
-    ToolbarItemGroup(placement: .topBarTrailing) {
-      Button(copied ? "Entry Copied" : "Copy Entry", systemImage: "doc.on.doc") {
-        DiagnosticsClipboard.copy(text)
-        copied = true
-        UIAccessibility.post(notification: .announcement, argument: "Entry copied")
+    if #available(iOS 27.0, *) {
+      ToolbarItem(placement: .topBarTrailing) { copyAction }
+        .visibilityPriority(.low)
+      ToolbarItem(placement: .topBarTrailing) { shareAction }
+        .visibilityPriority(.low)
+    } else {
+      ToolbarItem(placement: .topBarTrailing) {
+        Menu("Export Actions", systemImage: "ellipsis") {
+          copyAction
+          shareAction
+        }
+        .accessibilityIdentifier("DiagnosticExportActions")
       }
-      ShareLink(item: DiagnosticsRedactor.redacted(text)) { Label("Share Entry", systemImage: "square.and.arrow.up") }
     }
+  }
+
+  private var copyAction: some View {
+    Button(copied ? "Entry Copied" : "Copy Entry", systemImage: copied ? "checkmark" : "doc.on.doc") {
+      DiagnosticsClipboard.copy(text)
+      copied = true
+      UIAccessibility.post(notification: .announcement, argument: "Entry copied")
+    }
+    .accessibilityIdentifier("CopyDiagnosticEntry")
+    .accessibilityValue(copied ? "Copied" : "")
+  }
+
+  private var shareAction: some View {
+    ShareLink(item: DiagnosticsRedactor.redacted(text)) { Label("Share Entry", systemImage: "square.and.arrow.up") }
+      .accessibilityIdentifier("ShareDiagnosticEntry")
   }
 }
 

@@ -49,6 +49,7 @@ struct DiagnosticEntry: Identifiable, Equatable, Codable {
   let title: String
   let message: String?
   var syncAttempt: SyncAttempt? = nil
+  var importPreview: ImportPreviewDiagnostic? = nil
 
   init(
     id: UUID = UUID(),
@@ -57,15 +58,59 @@ struct DiagnosticEntry: Identifiable, Equatable, Codable {
     severity: DiagnosticSeverity,
     title: String,
     message: String?,
-    syncAttempt: SyncAttempt? = nil
+    syncAttempt: SyncAttempt? = nil,
+    importPreview: ImportPreviewDiagnostic? = nil
   ) {
     self.syncAttempt = syncAttempt
+    self.importPreview = importPreview
     self.id = id
     self.timestamp = timestamp
     self.source = source
     self.severity = severity
     self.title = DiagnosticsRedactor.redacted(title)
     self.message = message.map(DiagnosticsRedactor.redacted)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case id, timestamp, source, severity, title, message, syncAttempt, importPreview
+  }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(
+      id: try values.decode(UUID.self, forKey: .id),
+      timestamp: try values.decode(Date.self, forKey: .timestamp),
+      source: try values.decode(DiagnosticSource.self, forKey: .source),
+      severity: try values.decode(DiagnosticSeverity.self, forKey: .severity),
+      title: try values.decode(String.self, forKey: .title),
+      message: try values.decodeIfPresent(String.self, forKey: .message),
+      syncAttempt: try values.decodeIfPresent(SyncAttempt.self, forKey: .syncAttempt),
+      // Older or future optional metadata must not discard the retained log.
+      importPreview: try? values.decodeIfPresent(ImportPreviewDiagnostic.self, forKey: .importPreview)
+    )
+  }
+}
+
+/// Only the state, known source and record count are retained, never pump records.
+struct ImportPreviewDiagnostic: Codable, Equatable {
+  enum Status: String, Codable { case idle, loading, ready, failed }
+  let status: Status
+  let source: DataSourceMode?
+  let recordCount: Int?
+
+  init(status: Status, source: DataSourceMode? = nil, recordCount: Int? = nil) {
+    self.status = status
+    self.source = status == .ready ? source : nil
+    self.recordCount = status == .ready ? recordCount.flatMap { $0 >= 0 ? $0 : nil } : nil
+  }
+
+  private enum CodingKeys: String, CodingKey { case status, source, recordCount }
+
+  init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(status: try values.decode(Status.self, forKey: .status),
+      source: try values.decodeIfPresent(DataSourceMode.self, forKey: .source),
+      recordCount: try values.decodeIfPresent(Int.self, forKey: .recordCount))
   }
 }
 
@@ -88,7 +133,8 @@ final class DiagnosticsLogStore {
     severity: DiagnosticSeverity = .info,
     title: String,
     message: String? = nil,
-    syncAttempt: SyncAttempt? = nil
+    syncAttempt: SyncAttempt? = nil,
+    importPreview: ImportPreviewDiagnostic? = nil
   ) {
     // message is redacted here, before the entry is ever constructed, so the
     // persisted copy below carries the exact same redaction as what's held
@@ -99,7 +145,8 @@ final class DiagnosticsLogStore {
       severity: severity,
       title: title,
       message: message.map(Self.redacted),
-      syncAttempt: syncAttempt
+      syncAttempt: syncAttempt,
+      importPreview: importPreview
     )
     entries.insert(entry, at: 0)
 
@@ -138,7 +185,7 @@ final class DiagnosticsLogStore {
     }
 
     let sanitized = entries.prefix(maxEntries).map {
-      DiagnosticEntry(id: $0.id, timestamp: $0.timestamp, source: $0.source, severity: $0.severity, title: $0.title, message: $0.message, syncAttempt: $0.syncAttempt)
+      DiagnosticEntry(id: $0.id, timestamp: $0.timestamp, source: $0.source, severity: $0.severity, title: $0.title, message: $0.message, syncAttempt: $0.syncAttempt, importPreview: $0.importPreview)
     }
     if let data = try? JSONEncoder().encode(sanitized) { defaults.set(data, forKey: defaultsKey) }
     return sanitized

@@ -3826,15 +3826,15 @@ final class AuthServiceTests: XCTestCase {
     XCTAssertNotNil(configuration.selectedBaseURL, "an HTTPS self-host URL must be accepted")
   }
 
-  func testSelfHostedBaseURLAllowsHttpForLoopbackOnly() {
+  func testSelfHostedBaseURLRequiresHttpsForLoopbackHosts() {
     let configuration = makeConfigurationStore()
     configuration.mode = .selfHosted
 
     configuration.selfHostedBaseURLString = "http://localhost:8080/api"
-    XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to localhost must be allowed for local development")
+    XCTAssertNil(configuration.selectedBaseURL, "HTTPS is required for every user-configured endpoint")
 
     configuration.selfHostedBaseURLString = "http://127.0.0.1:8080/api"
-    XCTAssertNotNil(configuration.selectedBaseURL, "plain HTTP to 127.0.0.1 must be allowed for local development")
+    XCTAssertNil(configuration.selectedBaseURL, "HTTPS is required for every user-configured endpoint")
   }
 
   func testSelfHostedBaseURLRejectsMalformedOrEmptyInput() {

@@ -109,6 +109,7 @@ targets:
         LSRequiresIPhoneOS: true
         NSHealthShareUsageDescription: PumpSync checks authorization status for insulin and carbohydrate samples before syncing Tandem data.
         NSHealthUpdateUsageDescription: PumpSync writes Tandem insulin and carbohydrate samples to Apple Health after you start a sync.
+        NSLocalNetworkUsageDescription: PumpSync connects to the self-hosted HTTPS server you configure on your local network.
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UIBackgroundModes:

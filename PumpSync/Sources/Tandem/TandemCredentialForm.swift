@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TandemCredentialForm: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.editingScreenDepartureID) private var editingScreenDepartureID
   @Environment(\.scenePhase) private var scenePhase
   @State private var validation = CredentialValidationLifetime()
 
@@ -74,27 +75,13 @@ struct TandemCredentialForm: View {
           .pickerStyle(.menu)
           .accessibilityIdentifier("TandemRegionPicker")
 
-          if services.credentialStore.hasStoredCredentials {
-            Text("A password is already saved on this device. Enter it again to change your username, password, or region.")
-              .font(.body)
-              .foregroundStyle(Color.primary)
-              .fixedSize(horizontal: false, vertical: true)
-          }
-        } header: {
-          Text("Tandem Source")
-            .foregroundStyle(Color.primary)
-        }
-        .headerProminence(.increased)
-        .disabled(isValidating)
-
-        Section {
-          Button(role: actionState == .remove ? .destructive : nil) {
-            if actionState == .remove { isConfirmingRemoval = true }
-            else { validation.start { await validateAndSave() } }
+          Button {
+            focusedField = nil
+            validation.start { await validateAndSave() }
           } label: {
             if isValidating {
               HStack {
-                ProgressView().tint(.white)
+                ProgressView()
                 Text(primaryActionTitle)
                   .fixedSize(horizontal: false, vertical: true)
               }
@@ -103,26 +90,23 @@ struct TandemCredentialForm: View {
                 Text(primaryActionTitle)
                   .fixedSize(horizontal: false, vertical: true)
               } icon: {
-                Image(systemName: primaryActionSystemImage)
-                  .foregroundStyle(.white)
+                Image(systemName: "key.fill")
               }
             }
           }
-          .buttonStyle(.glassProminent)
-          .tint(actionState == .remove ? nil : Color("ProminentActionColor"))
-          .controlSize(.large)
           .disabled(!canUsePrimaryAction)
           .accessibilityHint(primaryActionHint)
-          if services.credentialStore.hasStoredCredentials {
-            Button("Cancel", role: .cancel) { cancelEditing() }
-          }
-          if actionState == .saveDisabled && services.credentialStore.hasStoredCredentials && (usernameChanged || regionChanged) && password.isEmpty {
-            Text("Enter your password to save changes.")
-              .font(.body)
-              .foregroundStyle(Color.primary)
-              .fixedSize(horizontal: false, vertical: true)
-          }
+        } header: {
+          Text("Tandem Source")
+            .foregroundStyle(Color.primary)
+        } footer: {
+          Text("Enter the password you currently use for Tandem. This updates the login saved in PumpSync; it does not change your Tandem password.")
+            .font(.body)
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
         }
+        .headerProminence(.increased)
+        .disabled(isValidating)
       }
     }
     .scrollDismissesKeyboard(.interactively)
@@ -131,7 +115,8 @@ struct TandemCredentialForm: View {
     .navigationTitle("Tandem")
     .navigationBarTitleDisplayMode(.inline)
     .onAppear(perform: load)
-    .onDisappear { validation.cancel(); password = ""; isShowingPassword = false; lastValidatedCredentials = nil }
+    .onDisappear(perform: discardDraft)
+    .onChange(of: editingScreenDepartureID) { _, _ in discardDraft() }
     .onChange(of: services.backendConfigurationStore.revision) { _, _ in
       validation.cancel()
       password = ""
@@ -181,49 +166,17 @@ struct TandemCredentialForm: View {
     )
   }
 
-  private var hasRequiredFields: Bool {
-    !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty
-  }
-
   enum ActionState: Equatable {
     case save
     case saveDisabled
-    case remove
   }
 
-  static func actionState(
-    hasStoredCredentials: Bool,
-    usernameChanged: Bool,
-    regionChanged: Bool,
-    password: String
-  ) -> ActionState {
-    if !hasStoredCredentials {
-      return password.isEmpty ? .saveDisabled : .save
-    }
-    if password.isEmpty {
-      return usernameChanged || regionChanged ? .saveDisabled : .remove
-    }
-    return .save
-  }
-
-  private var usernameChanged: Bool {
-    username.trimmingCharacters(in: .whitespacesAndNewlines) != baselineUsername
-  }
-
-  private var regionChanged: Bool { region != baselineRegion }
-
-  private var actionState: ActionState {
-    Self.actionState(
-      hasStoredCredentials: false,
-      usernameChanged: usernameChanged,
-      regionChanged: regionChanged,
-      password: password
-    )
+  static func actionState(username: String, password: String) -> ActionState {
+    username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty ? .saveDisabled : .save
   }
 
   private var canUsePrimaryAction: Bool {
-    actionState != .saveDisabled
-      && (actionState == .remove || hasRequiredFields)
+    Self.actionState(username: username, password: password) == .save
       && !isValidating
       && !services.authService.isConnecting
       && !services.authService.isReplacingConnection
@@ -239,17 +192,11 @@ struct TandemCredentialForm: View {
       return "Connecting"
     }
 
-    return actionState == .remove ? "Remove Credentials" : "Save Credentials"
-  }
-
-  private var primaryActionSystemImage: String {
-    actionState == .remove ? "trash" : "key.fill"
+    return "Save Credentials"
   }
 
   private var primaryActionHint: String {
-    actionState == .remove
-      ? "Removes the saved pump account credentials from this device"
-      : "Validates the pump account credentials using the current PumpSync connection, then saves them on this device"
+    "Validates your current Tandem login, then saves it on this device"
   }
 
   static func shouldSkipRevalidation(current: TandemCredentials, lastValidated: TandemCredentials?) -> Bool {
@@ -260,16 +207,23 @@ struct TandemCredentialForm: View {
     return current == lastValidated
   }
 
-  private func cancelEditing() {
+  private func discardDraft() {
     validation.cancel()
+    focusedField = nil
     password = ""
     isShowingPassword = false
     lastValidatedCredentials = nil
     load()
     isEditing = false
+    alert = nil
+    isConfirmingRemoval = false
   }
 
   private func load() {
+    username = ""
+    region = .us
+    baselineUsername = ""
+    baselineRegion = .us
     do {
       guard let credentials = try services.credentialStore.load() else {
         return
@@ -277,9 +231,8 @@ struct TandemCredentialForm: View {
 
       // The password is intentionally not loaded into view state: doing so
       // put the plaintext password one tap ("Show password") away from
-      // anyone with momentary access to an unlocked device. Changing any
-      // field, including just the username or region, requires re-entering
-      // the password.
+      // anyone with momentary access to an unlocked device. The entered
+      // password validates the current Tandem login, not the saved password.
       username = credentials.username
       region = TandemRegion(rawValue: credentials.region) ?? .us
       baselineUsername = credentials.username

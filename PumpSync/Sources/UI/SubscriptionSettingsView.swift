@@ -3,33 +3,49 @@ import SwiftUI
 
 struct SubscriptionSettingsView: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.editingScreenDepartureID) private var editingScreenDepartureID
+  @State private var connection: ConnectionSettingsController?
   @State private var purchaseRequest: SubscriptionConnectionRequest?
+  @State private var presentedPurchaseRequest: SubscriptionConnectionRequest?
   @State private var showsManagement = false
   @State private var isRestoring = false
   @State private var restoreMessage: String?
+  @State private var operation: Task<Void, Never>?
+  @State private var operationID = UUID()
+  @State private var managementID: UUID?
 
   var body: some View {
     SubscriptionSettingsContent(
       status: services.authService.subscriptionAccessStatus,
       isRestoring: isRestoring,
-      isConnecting: services.connectionSettings.isConnecting,
-      needsConnection: services.connectionSettings.mode == .hosted
-        && (services.connectionSettings.hasChanges || !services.authService.isSignedIn),
-      canActivate: services.connectionSettings.mode == .hosted && services.connectionSettings.canConnect,
-      canRestore: services.connectionSettings.mode == .selfHosted || services.connectionSettings.canConnect,
+      isConnecting: connection?.isConnecting == true,
+      needsConnection: services.backendConfigurationStore.mode != .hosted || !services.authService.isSignedIn,
+      canActivate: connection?.canConnect == true,
+      canRestore: connection?.committedMode == .selfHosted || connection?.canConnect == true,
       message: restoreMessage,
-      manage: { showsManagement = true },
+      manage: { managementID = operationID; showsManagement = true },
       connect: connect,
-      subscribe: { purchaseRequest = services.connectionSettings.prepareSubscription() },
+      subscribe: subscribe,
       restore: restore
     )
+    .onAppear {
+      if connection == nil { connection = services.connectionSettings.independentController() }
+    }
+    .onDisappear {
+      // Apple's sheets continue the current explicit action. Navigating to
+      // another app screen instead invalidates this screen's work.
+      if purchaseRequest == nil && !showsManagement { discardDraft() }
+    }
+    .onChange(of: editingScreenDepartureID) { _, _ in discardDraft() }
     .manageSubscriptionsSheet(isPresented: $showsManagement, subscriptionGroupID: AppConstants.subscriptionGroupId)
     .onChange(of: showsManagement) { _, presented in
       if !presented {
-        Task { await services.authService.refreshSubscriptionStatus() }
+        let isCurrent = managementID == operationID
+        managementID = nil
+        if isCurrent { refreshSubscriptionStatus() }
       }
     }
-    .sheet(item: $purchaseRequest) { request in
+    .sheet(item: $purchaseRequest, onDismiss: purchaseSheetDidDismiss) { request in
       Group {
 #if DEBUG
         if AppLaunchEnvironment.isScreenshotMode { SubscriptionScreenshotView() }
@@ -38,7 +54,6 @@ struct SubscriptionSettingsView: View {
         store(request)
 #endif
       }
-      .onDisappear { services.connectionSettings.finishSubscription(request, verified: false) }
     }
     .task {
       if !AppLaunchEnvironment.isScreenshotMode {
@@ -53,27 +68,57 @@ struct SubscriptionSettingsView: View {
         if !$0 && purchaseRequest?.id == request.id { purchaseRequest = nil }
       }),
       authServiceOverride: request.auth,
-      onConnectionVerified: { services.connectionSettings.finishSubscription(request, verified: true) },
-      onConnectionAttemptFinished: { services.connectionSettings.subscriptionAttemptFinished(request) }
+      onConnectionVerified: { connection?.finishSubscription(request, verified: true) },
+      onConnectionAttemptFinished: { connection?.subscriptionAttemptFinished(request) },
+      isConnectionRequestCurrent: { connection?.isCurrentSubscriptionRequest(request) == true },
+      connectionFailureMessage: { connection?.connectionDescription ?? "Connect PumpSync to use your subscription." }
     )
   }
 
+  private func subscribe() {
+    guard presentedPurchaseRequest == nil, let connection, connection.canConnect else { return }
+    connection.mode = .hosted
+    let request = connection.prepareSubscription()
+    presentedPurchaseRequest = request
+    purchaseRequest = request
+  }
+
+  private func purchaseSheetDidDismiss() {
+    // The retained identity belongs to this presentation, including while
+    // Apple's management UI temporarily covers its content. A new purchase
+    // cannot replace it before the sheet's dismissal has completed.
+    guard let request = presentedPurchaseRequest else { return }
+    presentedPurchaseRequest = nil
+    guard connection?.isCurrentSubscriptionRequest(request) == true else { return }
+    connection?.finishSubscription(request, verified: false)
+  }
+
   private func restore() {
-    guard !isRestoring,
-      services.connectionSettings.mode == .selfHosted || services.connectionSettings.canConnect else { return }
+    guard let connection, !isRestoring,
+      connection.committedMode == .selfHosted || connection.canConnect else { return }
+    operation?.cancel()
+    let submitted = UUID()
+    operationID = submitted
     restoreMessage = nil
     isRestoring = true
-    // ConnectionSettingsController owns hosted connection cancellation, so
-    // returning to Settings keeps its Cancel Changes action effective.
-    Task {
-      defer { isRestoring = false }
-      if services.connectionSettings.mode == .hosted {
-        await services.connectionSettings.connect()
+    let restoresHostedConnection = connection.committedMode == .hosted
+    operation = Task {
+      defer {
+        if operationID == submitted { isRestoring = false; operation = nil }
+      }
+      if restoresHostedConnection {
+        connection.mode = .hosted
+        await connection.connect()
+        guard !Task.isCancelled, operationID == submitted else { return }
         await services.authService.refreshSubscriptionStatus()
-        restoreMessage = services.connectionSettings.connectionDescription
+        guard !Task.isCancelled, operationID == submitted else { return }
+        restoreMessage = connection.connectionDescription
       } else {
-        // Subscription recovery must not replace an intentionally self-hosted connection.
-        switch await services.authService.restoreSubscriptionAccess() {
+        // Restore access for the committed service; a discarded Settings
+        // picker selection must never replace a self-hosted connection.
+        let result = await services.authService.restoreSubscriptionAccess()
+        guard !Task.isCancelled, operationID == submitted else { return }
+        switch result {
         case .restored:
           restoreMessage = "Your subscription is active. Your self-hosted connection is unchanged."
         case .noActiveSubscription:
@@ -88,12 +133,36 @@ struct SubscriptionSettingsView: View {
   }
 
   private func connect() {
+    guard let connection, connection.canConnect else { return }
+    operation?.cancel()
+    let submitted = UUID()
+    operationID = submitted
     restoreMessage = nil
-    Task {
-      await services.connectionSettings.connect(restorePurchases: false)
+    connection.mode = .hosted
+    operation = Task {
+      defer { if operationID == submitted { operation = nil } }
+      await connection.connect(restorePurchases: false)
+      guard !Task.isCancelled, operationID == submitted else { return }
       await services.authService.refreshSubscriptionStatus()
-      restoreMessage = services.connectionSettings.connectionDescription
+      guard !Task.isCancelled, operationID == submitted else { return }
+      restoreMessage = connection.connectionDescription
     }
+  }
+
+  private func refreshSubscriptionStatus() {
+    operation?.cancel()
+    operation = Task { await services.authService.refreshSubscriptionStatus() }
+  }
+
+  private func discardDraft() {
+    managementID = nil
+    operationID = UUID()
+    operation?.cancel()
+    operation = nil
+    connection?.cancel()
+    purchaseRequest = nil
+    isRestoring = false
+    restoreMessage = nil
   }
 }
 
@@ -123,9 +192,6 @@ private struct SubscriptionSettingsContent: View {
           .accessibilityIdentifier("ManageSubscriptionButton")
         if needsConnection && status == .active {
           Button(isConnecting && !isRestoring ? "Connecting" : "Connect PumpSync", systemImage: "link", action: connect)
-            .buttonStyle(.glassProminent)
-            .tint(Color("ProminentActionColor"))
-            .controlSize(.large)
             .disabled(!canActivate || isRestoring)
             .accessibilityIdentifier("ConnectSubscriptionButton")
         }

@@ -58,9 +58,18 @@ final class ConnectionSettingsController {
     return liveAuth.isSignedIn ? liveAuth.statusMessage : "Choose a service and connect."
   }
 
+  /// A destination starts from committed settings, never another screen's
+  /// unsaved draft. Each controller owns its own cancellation generation.
+  func independentController() -> ConnectionSettingsController {
+    ConnectionSettingsController(configuration: configuration, auth: liveAuth, api: liveAPI,
+      sync: sync, storage: storage, diagnostics: diagnostics, makeCandidate: makeCandidate)
+  }
+
+  var committedMode: BackendAccessMode { configuration.mode }
+
   func cancel() {
-    // The operation can originate in Subscription or Settings. Its cancellation
-    // owner must outlive either screen's navigation/task state.
+    // Invalidate this screen's work before resetting its draft. Another
+    // screen's independent controller and StoreKit delivery remain untouched.
     connectionTask?.cancel()
     generation = UUID()
     if let candidate {
@@ -152,10 +161,14 @@ final class ConnectionSettingsController {
     }
     if verified {
       if ownsReplacement { finish() }
-    } else if ownsReplacement {
+    } else {
       cancel()
     }
     candidateAuth = nil
+  }
+
+  func isCurrentSubscriptionRequest(_ request: SubscriptionConnectionRequest) -> Bool {
+    request.id == generation
   }
 
   func subscriptionAttemptFinished(_ request: SubscriptionConnectionRequest) {
@@ -175,7 +188,7 @@ final class ConnectionSettingsController {
     draft.mode = mode
     if mode == .selfHosted {
       guard let url = BackendConfigurationStore.validatedSelfHostedURL(from: serverURL) else {
-        feedback = "Enter an HTTPS API URL ending in /api, without a username, password, query, or fragment. HTTP is allowed only for localhost."
+        feedback = "Enter a valid HTTPS server URL without a username, password, query, or fragment."
         release()
         return nil
       }

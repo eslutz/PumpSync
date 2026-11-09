@@ -24,7 +24,22 @@ enum DiagnosticPresentation {
 
   static func summary(for entry: DiagnosticEntry) -> String? {
     guard let attempt = entry.syncAttempt else {
-      return entry.message.map(DiagnosticsRedactor.redacted)
+      if let preview = importPreview(for: entry) {
+        if preview.status == .ready, let count = preview.recordCount {
+          return String(localized: "Preview ready · \(count) records available")
+        }
+        return switch preview.status {
+        case .idle: String(localized: "Preview is not loaded.")
+        case .loading: String(localized: "Loading source records for inspection.")
+        case .ready: String(localized: "Source records are ready to inspect.")
+        case .failed: String(localized: "The preview could not be loaded.")
+        }
+      }
+      guard let message = entry.message else { return nil }
+      if message.range(of: #"\b[A-Za-z][A-Za-z0-9_]*="#, options: .regularExpression) != nil {
+        return String(localized: "Additional information is available in Log Details.")
+      }
+      return DiagnosticsRedactor.redacted(message)
     }
     guard let returned = attempt.returnedCount else { return reason(for: attempt) ?? "Counts not recorded for this stage." }
     var parts = [String(localized: "\(returned) records received"), attempt.importedCount.map { String(localized: "\($0) samples saved") } ?? String(localized: "Saved count unavailable")]
@@ -42,7 +57,7 @@ enum DiagnosticPresentation {
     case .executionLeaseExpired: return String(localized: "iOS ended the available background time. Open PumpSync to try again.")
     case .canceled: return String(localized: "The sync was canceled.")
     case .contextReplaced: return String(localized: "The account or connection changed during this sync.")
-    case .requestFailed: return String(localized: "The request failed. Open the technical details for the retained record.")
+    case .requestFailed: return String(localized: "The request failed. Open Log Details for the retained record.")
     case .proofUnavailable: return String(localized: "Device verification was unavailable. Open PumpSync to reconnect.")
     case .processInterrupted: return String(localized: "The app stopped before it recorded an outcome. The actual end time is unknown.")
     case .recovery(let reason):
@@ -62,6 +77,45 @@ enum DiagnosticPresentation {
       case .unverifiedSource: return String(localized: "The service could not verify the pump data source.")
       case .unavailable: return String(localized: "The secure connection could not be restored.")
       }
+    }
+  }
+
+  static func importPreview(for entry: DiagnosticEntry) -> ImportPreviewDiagnostic? {
+    guard entry.source == .sync, entry.title == "Import preview", entry.syncAttempt == nil else { return nil }
+    if let preview = entry.importPreview {
+      return ImportPreviewDiagnostic(status: preview.status, source: preview.source, recordCount: preview.recordCount)
+    }
+    // Recognize only the exact legacy formats emitted by ImportPreviewController.
+    // Unknown keys or values remain available in the sanitized log disclosure.
+    switch entry.message {
+    case "purpose=real state=idle": return ImportPreviewDiagnostic(status: .idle)
+    case "purpose=real state=loading": return ImportPreviewDiagnostic(status: .loading)
+    case "purpose=real state=failed reason=previewUnavailable": return ImportPreviewDiagnostic(status: .failed)
+    default: break
+    }
+    guard let parts = entry.message?.components(separatedBy: " "), parts.count == 4,
+          parts[0] == "purpose=real", parts[1] == "state=ready",
+          parts[2].hasPrefix("source="), parts[3].hasPrefix("count="),
+          let source = DataSourceMode(rawValue: String(parts[2].dropFirst("source=".count))),
+          let count = Int(parts[3].dropFirst("count=".count)), count >= 0,
+          parts[3] == "count=\(count)" else { return nil }
+    return ImportPreviewDiagnostic(status: .ready, source: source, recordCount: count)
+  }
+
+  static func previewStatus(_ status: ImportPreviewDiagnostic.Status) -> String {
+    switch status {
+    case .idle: String(localized: "Not loaded")
+    case .loading: String(localized: "Loading")
+    case .ready: String(localized: "Ready")
+    case .failed: String(localized: "Could not load")
+    }
+  }
+
+  static func previewSource(_ source: DataSourceMode) -> String {
+    switch source {
+    case .tandemSource: String(localized: "Tandem")
+    case .syntheticDemo: String(localized: "Demo data")
+    case .unknown: String(localized: "Unknown")
     }
   }
 

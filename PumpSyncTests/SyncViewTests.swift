@@ -56,13 +56,13 @@ final class SyncViewTests: XCTestCase {
     XCTAssertEqual(updatingHealth.detail, "Saving new pump samples to Apple Health.")
   }
 
-  func testBackgroundProgressAndSuccessAreNotPresented() {
+  func testActiveBackgroundWorkIsDiscoverableWhileIdleHasNoResult() {
     let now = Date(timeIntervalSince1970: 100)
 
-    XCTAssertNil(SyncStatusPresentation.make(
+    XCTAssertTrue(SyncStatusPresentation.make(
       for: .running(SyncProgress(phase: .preparing, trigger: .background, startedAt: now)),
       now: now
-    ))
+    )?.showsProgress == true)
     XCTAssertNil(SyncStatusPresentation.make(for: .idle, now: now))
   }
 
@@ -115,8 +115,8 @@ final class SyncViewTests: XCTestCase {
     XCTAssertEqual(subscription.action, .openSubscription)
     XCTAssertEqual(wait.actionTitle, "Try Again Later")
     XCTAssertEqual(wait.action, .retry)
-    XCTAssertEqual(dismiss.actionTitle, "Try Again")
-    XCTAssertEqual(dismiss.action, .retry)
+    XCTAssertNil(dismiss.actionTitle)
+    XCTAssertNil(dismiss.action)
   }
 
   func testSyncPhaseMessagesExplainLongRunningActivation() {

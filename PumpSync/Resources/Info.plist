@@ -36,6 +36,8 @@
 	<string>PumpSync checks authorization status for insulin and carbohydrate samples before syncing Tandem data.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>PumpSync writes Tandem insulin and carbohydrate samples to Apple Health after you start a sync.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>PumpSync connects to the self-hosted HTTPS server you configure on your local network.</string>
 	<key>PRODUCTION_API_BASE_URL</key>
 	<string>https://api.pumpsync.ericslutz.dev/api</string>
 	<key>SANDBOX_API_BASE_URL</key>

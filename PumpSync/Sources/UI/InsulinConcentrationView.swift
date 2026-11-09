@@ -36,7 +36,7 @@ private struct InsulinConcentrationForm: View {
         Text("Applies to the next sync. A running sync keeps its starting setting. It does not change pump settings or previously imported Apple Health records.")
           .fixedSize(horizontal: false, vertical: true)
         NavigationLink {
-          InsulinConversionExplanation(concentration: concentration)
+          InsulinConversionExplanation()
         } label: {
           Label {
             Text("How Insulin Conversion Works")
@@ -53,27 +53,56 @@ private struct InsulinConcentrationForm: View {
 }
 
 private struct InsulinConversionExplanation: View {
-  let concentration: InsulinConcentration
-
   var body: some View {
     List {
-      Section("Current Selection") {
-        LabeledContent("Insulin Concentration") { Text(concentration.title).foregroundStyle(Color.primary) }
-        Text(InsulinConcentrationPresentation.effect(for: concentration))
+      Section("How Conversion Works") {
+        explanation("Source insulin", systemImage: "drop.fill",
+          detail: "All source insulin amounts use a U-100 baseline.")
+        explanation("Apply the concentration", systemImage: "multiply.circle",
+          detail: "PumpSync multiplies source insulin amounts by the factor for your selected concentration.")
+        explanation("Save to Apple Health", systemImage: "heart.fill",
+          detail: "The converted insulin amount is saved to Apple Health. Carbohydrates remain in grams.")
       }
-      Section("Conversion Only") {
-        Text("PumpSync assumes all source insulin data uses a U-100 baseline. The selected concentration changes how those insulin amounts are converted before saving them to Apple Health. Carbohydrates remain in grams.")
+      Section("Conversion Factors") {
+        ForEach(InsulinConcentration.allCases) { concentration in
+          LabeledContent(concentration.title) {
+            Text("×\(concentration.healthMultiplierFactor)")
+              .monospacedDigit()
+              .foregroundStyle(Color.primary)
+          }
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel(concentration.title)
+          .accessibilityValue("Multiply by \(concentration.healthMultiplierFactor)")
+        }
       }
-      Section("Apple Health Only") {
-        Text("Changes apply to the next sync. A sync already running keeps its starting setting. Previously imported Apple Health data is not changed. PumpSync does not change your pump settings.")
+      Section("When Changes Apply") {
+        explanation("Next sync", systemImage: "clock.arrow.circlepath",
+          detail: "A sync already running keeps its starting setting. Previously imported Apple Health data is unchanged.")
+        explanation("Pump settings stay the same", systemImage: "checkmark.shield",
+          detail: "PumpSync converts data for Apple Health. It does not change your pump settings.")
       }
-      Section("Not Sure?") {
-        Text("If you are unsure, verify your current selection before changing it. Confirm it against your insulin prescription, pump configuration, or care team.")
+      Section {
+        explanation("Not sure?", systemImage: "questionmark.circle",
+          detail: "Confirm your concentration against your insulin prescription, pump configuration, or care team before changing it.")
       }
     }
     .headerProminence(.increased)
     .navigationTitle("Insulin Conversion")
     .navigationBarTitleDisplayMode(.inline)
+  }
+
+  private func explanation(_ title: LocalizedStringKey, systemImage: String, detail: LocalizedStringKey) -> some View {
+    Label {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(title).font(.headline)
+        Text(detail).fixedSize(horizontal: false, vertical: true)
+      }
+    } icon: {
+      Image(systemName: systemImage)
+        .foregroundStyle(Color.accentColor)
+        .accessibilityHidden(true)
+    }
+    .accessibilityElement(children: .combine)
   }
 }
 

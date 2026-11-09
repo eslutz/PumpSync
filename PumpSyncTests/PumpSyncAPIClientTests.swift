@@ -3,6 +3,49 @@ import XCTest
 
 @MainActor
 final class PumpSyncAPIClientTests: XCTestCase {
+  func testCertificateFailureDoesNotRetryOrChangeTheHTTPSDestination() async throws {
+    let destinations = LockIsolated<[URL]>([])
+    URLProtocolStub.requestHandler = { request in
+      destinations.modify { $0.append(request.url!) }
+      throw URLError(.serverCertificateUntrusted)
+    }
+    let client = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/custom")!,
+      urlSession: URLProtocolStub.makeSession(), maxRetryCount: 2)
+    do {
+      _ = try await client.capabilities()
+      XCTFail("An untrusted certificate must fail the request")
+    } catch {
+      XCTAssertEqual((error as? URLError)?.code, .serverCertificateUntrusted)
+    }
+    XCTAssertEqual(destinations.value, [URL(string: "https://example.com/custom/v1/capabilities")!])
+  }
+
+  func testSelfHostedEndpointsPreserveRootAndCustomBasePaths() async throws {
+    let paths = LockIsolated<[String]>([])
+    let sessionBody = try JSONCodec.encoder.encode(BackendSessionResponse(
+      accessToken: "fixture", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource",
+      protocolVersion: 3, sessionFamilyId: "fixture", refreshToken: "fixture",
+      refreshTokenExpiresAt: .distantFuture, refreshTokenAbsoluteExpiresAt: .distantFuture
+    ))
+    URLProtocolStub.requestHandler = { request in
+      paths.modify { $0.append(request.url!.path) }
+      let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+      if request.url!.path.hasSuffix("/challenge") {
+        return (response, Data(#"{"protocolVersion":3,"proofKind":"ecdsaP256","challengeToken":"fixture","expiresAt":"2099-01-01T00:00:00Z"}"#.utf8))
+      }
+      return (response, sessionBody)
+    }
+    for prefix in ["", "/api", "/services/pump-sync"] {
+      paths.set([])
+      let baseURL = try XCTUnwrap(BackendConfigurationStore.validatedSelfHostedURL(from: "https://example.com\(prefix)/"))
+      let client = PumpSyncAPIClient(baseURL: baseURL, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
+      _ = try await client.createSessionChallenge(.init(installationId: "fixture", purpose: "selfHostedEnrollment", requestHash: "fixture"))
+      _ = try await consumingAuthRequest(.selfHosted, client: client, observedResponse: { _ in })
+      _ = try await client.refreshSession(.init(installationId: "fixture", refreshToken: "fixture", requestId: "fixture", issuedAt: Date(), proof: "fixture"), mode: .selfHosted)
+      XCTAssertEqual(paths.value, ["\(prefix)/v1/session/challenge", "\(prefix)/v1/self-host/session", "\(prefix)/v1/session/refresh"])
+    }
+  }
+
   func testReceivedConsumingAuthResponsesSurviveCancellationBeforeDecoding() async throws {
     let calls = LockIsolated(0)
     // Encode the complete production response model, including its required

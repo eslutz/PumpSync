@@ -278,9 +278,16 @@ final class AppServices {
     if AppLaunchEnvironment.isScreenshotSyncing {
       syncCoordinator.applyScreenshotSyncing()
     } else if AppLaunchEnvironment.isScreenshotSyncSuccess {
-      syncCoordinator.applyScreenshotSuccess(completedAt: screenshotCompletionDate)
+      let notice = ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-sync-notice")
+        ? "Some records need Apple Health write access. Enable it in Settings before syncing again." : nil
+      syncCoordinator.applyScreenshotSuccess(completedAt: screenshotCompletionDate, notice: notice)
     } else if AppLaunchEnvironment.isScreenshotSyncFailure {
       syncCoordinator.applyScreenshotFailure()
+    } else if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-subscription-failure") {
+      // A valid replacement session can still be denied by the protected API.
+      syncCoordinator.applyScreenshotFailure(recovery: .openSubscription)
+    } else if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-settings-failure") {
+      syncCoordinator.applyScreenshotFailure(recovery: .openSettings)
     } else if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-connection-failure") {
       authService.clearSessionForConnectionChange()
       syncCoordinator.applyScreenshotFailure(recovery: .openSettings)

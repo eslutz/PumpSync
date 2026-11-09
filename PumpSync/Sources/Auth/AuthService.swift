@@ -110,21 +110,15 @@ final class BackendConfigurationStore {
     }
   }
 
-  /// ATS does not block cleartext HTTP to IP-address literals or unqualified
-  /// hostnames — exactly what a self-hosted URL typically looks like — so this
-  /// requires HTTPS explicitly rather than relying on ATS alone. Loopback is
-  /// allowed over HTTP for local development against a backend run on the
-  /// same machine.
-  private static let loopbackHosts: Set<String> = ["localhost", "127.0.0.1", "::1"]
-
+  /// Accept the server's HTTPS base path as entered. A reverse proxy may mount
+  /// the API at the host root or a custom prefix instead of `/api`.
   static func validatedSelfHostedURL(from rawValue: String) -> URL? {
     guard
       var url = URL(string: rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),
-      let scheme = url.scheme?.lowercased(),
+      url.scheme?.lowercased() == "https",
       let host = url.host,
       !host.isEmpty, url.user == nil, url.password == nil,
-      url.query == nil, url.fragment == nil,
-      url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).hasSuffix("api")
+      url.query == nil, url.fragment == nil
     else {
       return nil
     }
@@ -135,16 +129,7 @@ final class BackendConfigurationStore {
       guard let normalized = components?.url else { return nil }
       url = normalized
     }
-    guard url.path == "/api" || url.path.hasSuffix("/api") else { return nil }
-    if scheme == "https" {
-      return url
-    }
-
-    if scheme == "http" && loopbackHosts.contains(host.lowercased()) {
-      return url
-    }
-
-    return nil
+    return url
   }
 
   func apply(to apiClient: PumpSyncAPIClient) -> Bool {
@@ -938,7 +923,7 @@ final class AuthService {
     let configurationRevision = configurationStore.revision
     guard isCurrentConfiguration(configurationRevision, mode: .selfHosted),
           configurationStore.apply(to: apiClient) else {
-      errorMessage = "Enter a valid self-hosted service URL starting with https:// (http:// is only allowed for localhost)."
+      errorMessage = "Enter a valid HTTPS server URL."
       statusMessage = errorMessage ?? statusMessage
       return
     }

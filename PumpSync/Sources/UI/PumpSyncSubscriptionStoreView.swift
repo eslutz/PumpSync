@@ -83,8 +83,15 @@ struct PumpSyncSubscriptionStoreView: View {
   var authServiceOverride: AuthService? = nil
   var onConnectionVerified: (() -> Void)? = nil
   var onConnectionAttemptFinished: (() -> Void)? = nil
+  var isConnectionRequestCurrent: () -> Bool = { true }
+  var connectionFailureMessage: (() -> String)? = nil
   private var connectionAuth: AuthService { authServiceOverride ?? services.authService }
   @State private var purchaseAlert: ConnectionAlert?
+  @State private var deliveryTask: Task<Void, Never>?
+  @State private var deliveryID: UUID?
+  @State private var managementTask: Task<Void, Never>?
+  @State private var managementID: UUID?
+  @State private var isManagingSubscription = false
 
   var body: some View {
     SubscriptionStoreView(productIDs: [AppConstants.subscriptionProductId]) {
@@ -133,7 +140,19 @@ struct PumpSyncSubscriptionStoreView: View {
     .subscriptionStorePolicyDestination(url: AppConstants.termsOfUseURL, for: .termsOfService)
     .subscriptionStorePolicyDestination(url: AppConstants.privacyPolicyURL, for: .privacyPolicy)
     .onInAppPurchaseCompletion { _, result in
-      await handlePurchaseCompletion(result)
+      let submitted = UUID()
+      deliveryID = submitted
+      deliveryTask?.cancel()
+      let task = Task { await handlePurchaseCompletion(result) }
+      deliveryTask = task
+      await withTaskCancellationHandler(operation: { await task.value }, onCancel: { task.cancel() })
+      if deliveryID == submitted { deliveryTask = nil; deliveryID = nil }
+    }
+    .onDisappear {
+      if !isManagingSubscription {
+        deliveryTask?.cancel()
+        managementTask?.cancel()
+      }
     }
     .alert(
       purchaseAlert?.title ?? "",
@@ -149,11 +168,7 @@ struct PumpSyncSubscriptionStoreView: View {
     ) { alert in
       switch alert.action {
       case .manageSubscription:
-        Button("Manage Subscription") {
-          Task {
-            await presentManageSubscriptions()
-          }
-        }
+        Button("Manage Subscription", action: startSubscriptionManagement)
         Button("OK", role: .cancel) {}
       case nil:
         Button("OK", role: .cancel) {}
@@ -165,6 +180,7 @@ struct PumpSyncSubscriptionStoreView: View {
 
   private func handlePurchaseCompletion(_ result: Result<Product.PurchaseResult, Error>) async {
     defer { onConnectionAttemptFinished?() }
+    guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
     switch result {
     case .success(.success(let verificationResult)):
       do {
@@ -177,6 +193,7 @@ struct PumpSyncSubscriptionStoreView: View {
             message: transaction.diagnosticSummary(active: false)
           )
           await transaction.finish()
+          guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
           purchaseAlert = ConnectionAlert(
             title: "Subscription Inactive",
             message: "This subscription is inactive. Manage your Apple subscription, then return to PumpSync and tap Restore Purchases.",
@@ -191,17 +208,23 @@ struct PumpSyncSubscriptionStoreView: View {
           message: transaction.diagnosticSummary(active: true)
         )
         let entitlement = try VerifiedSubscriptionEntitlement.verified(verificationResult)
+        // StoreKit retains an unfinished verified transaction for delivery.
+        // Leaving this editor must not start a new connection from its draft.
+        guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
         await connectionAuth.activateSubscription(entitlement: entitlement)
+        guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
         if connectionAuth.errorMessage == nil && connectionAuth.canFinishSubscriptionDelivery(entitlement: entitlement) {
           onConnectionVerified?()
           if services.authService.canFinishSubscriptionDelivery(entitlement: entitlement) {
             await transaction.finish()
+            guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
             await services.authService.refreshSubscriptionStatus()
+            guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
             isPresented = false
           } else {
             purchaseAlert = ConnectionAlert(
               title: "Connection Activation Failed",
-              message: services.connectionSettings.connectionDescription
+              message: connectionFailureMessage?() ?? connectionAuth.connectionRequiredMessage
             )
           }
         } else {
@@ -211,6 +234,7 @@ struct PumpSyncSubscriptionStoreView: View {
           )
         }
       } catch {
+        guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
         connectionAuth.recordSubscriptionPurchaseFailed(error)
         purchaseAlert = ConnectionAlert(
           title: "Subscription Verification Failed",
@@ -250,7 +274,9 @@ struct PumpSyncSubscriptionStoreView: View {
   }
 
   private func presentManageSubscriptions() async {
-    defer { onConnectionAttemptFinished?() }
+    guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
+    isManagingSubscription = true
+    defer { isManagingSubscription = false; onConnectionAttemptFinished?() }
     guard let scene = UIApplication.shared.foregroundWindowScene else {
       let error = StoreKitSubscriptionError.subscriptionManagementUnavailable
       services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
@@ -263,17 +289,35 @@ struct PumpSyncSubscriptionStoreView: View {
 
     do {
       try await AppStore.showManageSubscriptions(in: scene, subscriptionGroupID: AppConstants.subscriptionGroupId)
+      // Only Apple's presented UI is a continuation that can cover this view.
+      // Once it closes, leaving the purchase page must cancel recovery work.
+      isManagingSubscription = false
+      guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
       await connectionAuth.recoverSessionIfNeeded()
+      guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
       if SubscriptionPresentation.shouldDismissAfterManageSubscriptions(isSignedIn: connectionAuth.isSignedIn) {
         onConnectionVerified?()
         isPresented = false
       }
     } catch {
+      guard !Task.isCancelled, isConnectionRequestCurrent() else { return }
       services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
       purchaseAlert = ConnectionAlert(
         title: "Manage Subscription Failed",
         message: "PumpSync could not open Apple subscription management. Try again from the Settings app."
       )
+    }
+  }
+
+  private func startSubscriptionManagement() {
+    managementTask?.cancel()
+    let submitted = UUID()
+    managementID = submitted
+    managementTask = Task {
+      await presentManageSubscriptions()
+      guard managementID == submitted else { return }
+      managementTask = nil
+      managementID = nil
     }
   }
 }

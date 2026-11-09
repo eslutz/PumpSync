@@ -133,8 +133,13 @@ final class ConnectionActivationTests: XCTestCase {
     XCTAssertEqual(requests, 1)
     controller.cancel()
     XCTAssertFalse(live.isReplacingConnection)
+    // A rapid return to the screen cannot overlap the canceled owner's
+    // deferred cleanup while its request is still unwinding.
+    await controller.connect()
+    XCTAssertEqual(requests, 1)
     continuation?.resume()
     await task.value
+    XCTAssertTrue(controller.canConnect)
     XCTAssertEqual(configuration.mode, .hosted)
     XCTAssertEqual(live.authenticatedConnection, original)
     pause = false
@@ -206,12 +211,66 @@ final class ConnectionActivationTests: XCTestCase {
     XCTAssertEqual(live.accessToken, "replacement")
   }
 
-  func testURLValidationRejectsCredentialsQueriesAndMissingAPIPath() {
-    for value in ["https://user:password@example.com/api", "https://example.com/api?token=secret", "https://example.com", "http://remote.example/api"] {
+  func testURLValidationAcceptsRootAndCustomHTTPSBasePathsWithoutAddingAPI() {
+    for value in ["https://example.com", "https://example.com/api", "https://example.com/pumpsync/custom", "https://example.com:8443/custom", "https://[::1]:8443/custom", "https://[2001:db8::1]:8443/custom"] {
+      XCTAssertEqual(BackendConfigurationStore.validatedSelfHostedURL(from: value)?.absoluteString, value)
+    }
+    XCTAssertEqual(BackendConfigurationStore.validatedSelfHostedURL(from: " https://example.com/custom/// ")?.absoluteString, "https://example.com/custom")
+    XCTAssertEqual(BackendConfigurationStore.validatedSelfHostedURL(from: "https://example.com/")?.absoluteString, "https://example.com")
+  }
+
+  func testURLValidationRejectsHTTPAndNonEndpointComponents() {
+    for value in ["https://user:password@example.com/api", "https://example.com/api?token=secret", "https://example.com/api#fragment", "example.com/api", "http://remote.example/api", "http://localhost:8080/api", "http://127.0.0.1:8080/api", "http://[::1]:8080/api", "ftp://example.com/api", "https:///api"] {
       XCTAssertNil(BackendConfigurationStore.validatedSelfHostedURL(from: value))
     }
-    XCTAssertEqual(BackendConfigurationStore.validatedSelfHostedURL(from: " https://example.com/api/ ")?.path, "/api")
-    XCTAssertNotNil(BackendConfigurationStore.validatedSelfHostedURL(from: "http://localhost:8080/api"))
+  }
+
+  func testSubscriptionControllerStartsFromCommittedSettingsAndOwnsItsRequest() throws {
+    let services = AppServices.screenshotFixture()
+    let configuration = services.backendConfigurationStore
+    configuration.mode = .selfHosted
+    configuration.selfHostedBaseURLString = "https://active.example/custom"
+    let storage = ConnectionActivationStorage(root: Persistence())
+    let settings = ConnectionSettingsController(configuration: configuration, auth: services.authService,
+      api: services.apiClient, sync: services.syncCoordinator, storage: storage, diagnostics: services.diagnosticsLogStore) { api, candidate, persistence, _ in
+        AuthService(apiClient: api, configurationStore: candidate, sessionStore: BackendSessionStore(keychain: persistence),
+          currentEntitlementJWS: { "fixture" }, createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+          createSelfHostedSession: { _ in throw APIClientError.invalidResponse }, proofProvider: ConnectionProof())
+      }
+    settings.mode = .hosted
+    settings.serverURL = "https://unsaved.example/ignored"
+    let subscription = settings.independentController()
+    XCTAssertEqual(subscription.mode, .selfHosted)
+    XCTAssertEqual(subscription.serverURL, "https://active.example/custom")
+    XCTAssertEqual(subscription.committedMode, .selfHosted, "Restore must use the committed service, not the Settings picker draft")
+    subscription.mode = .hosted
+    let request = try XCTUnwrap(subscription.prepareSubscription())
+    settings.cancel() // A delayed outgoing-screen callback cannot cancel the destination.
+    XCTAssertTrue(subscription.isCurrentSubscriptionRequest(request))
+    XCTAssertTrue(subscription.candidateAuth === request.auth)
+    XCTAssertTrue(services.authService.isReplacingConnection)
+    subscription.cancel()
+    XCTAssertFalse(subscription.isCurrentSubscriptionRequest(request))
+    subscription.finishSubscription(request, verified: true)
+    XCTAssertEqual(configuration.mode, .selfHosted)
+    XCTAssertEqual(subscription.mode, .selfHosted)
+    XCTAssertEqual(subscription.serverURL, "https://active.example/custom")
+    XCTAssertFalse(services.authService.isReplacingConnection)
+  }
+
+  func testDismissingSameHostedPurchaseInvalidatesItsLateCallbacks() throws {
+    let services = AppServices.screenshotFixture()
+    let controller = ConnectionSettingsController(configuration: services.backendConfigurationStore,
+      auth: services.authService, api: services.apiClient, sync: services.syncCoordinator,
+      storage: ConnectionActivationStorage(root: Persistence()), diagnostics: services.diagnosticsLogStore)
+    let old = try XCTUnwrap(controller.prepareSubscription())
+    controller.finishSubscription(old, verified: false)
+    XCTAssertFalse(controller.isCurrentSubscriptionRequest(old))
+    let newer = try XCTUnwrap(controller.prepareSubscription())
+    controller.finishSubscription(old, verified: true)
+    XCTAssertTrue(controller.isCurrentSubscriptionRequest(newer))
+    XCTAssertTrue(controller.candidateAuth === newer.auth)
+    controller.cancel()
   }
 
   func testRecognizedSubscriptionConnectsWithoutRestoreAndActivatesAtomically() async throws {

@@ -10,13 +10,22 @@ final class ImportPreviewController {
     private(set) var state: State = .idle {
         didSet {
             let summary: String
+            let preview: ImportPreviewDiagnostic
             switch state {
-            case .idle: summary = "state=idle"
-            case .loading: summary = "state=loading"
-            case .ready(let plan): summary = "state=ready source=\(plan.context.dataSourceMode.rawValue) count=\(plan.downloadedRecordCount)"
-            case .failed: summary = "state=failed reason=previewUnavailable"
+            case .idle:
+                summary = "state=idle"
+                preview = ImportPreviewDiagnostic(status: .idle)
+            case .loading:
+                summary = "state=loading"
+                preview = ImportPreviewDiagnostic(status: .loading)
+            case .ready(let plan):
+                summary = "state=ready source=\(plan.context.dataSourceMode.rawValue) count=\(plan.downloadedRecordCount)"
+                preview = ImportPreviewDiagnostic(status: .ready, source: plan.context.dataSourceMode, recordCount: plan.downloadedRecordCount)
+            case .failed:
+                summary = "state=failed reason=previewUnavailable"
+                preview = ImportPreviewDiagnostic(status: .failed)
             }
-            diagnostics?.record(source: .sync, title: "Import preview", message: "purpose=real \(summary)")
+            diagnostics?.record(source: .sync, title: "Import preview", message: "purpose=real \(summary)", importPreview: preview)
         }
     }
     private let diagnostics: DiagnosticsLogStore?
