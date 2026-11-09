@@ -84,3 +84,13 @@ Deactivate PumpSync Validation rather than deleting its build history.
 
 The App Store Connect API returned HTTP 405 for create/update requests during this change; saves were completed through App Store Connect in Codex Browser.
 Read-only API verification succeeded.
+
+## API-key CLI fallback
+
+When Cloud cannot start, an explicitly authorized local delivery can use the existing team API key and Xcode command-line tools without interactive App Store Connect sign-in. The established signing setup is documented in Gus's `Documentation/AppStore/cli-release.md`; credentials and its dedicated signing keychain remain outside Git under `~/.appstoreconnect/`. Never copy credential contents into logs or documentation.
+
+Use the required successful local gate and verify its source manifest against the exact archived revision. Choose an unused build number after checking uploaded app builds and Cloud runs. Archive the `PumpSync Beta` scheme/configuration for `generic/platform=iOS`, overriding `CURRENT_PROJECT_VERSION` only for the release invocation. Supply `-allowProvisioningUpdates` and Xcode's `-authenticationKeyPath`, `-authenticationKeyID`, and `-authenticationKeyIssuerID` from the existing protected configuration. Keep the normal warning gates, team, entitlements and Beta environment.
+
+Export with `method=app-store-connect`, `signingStyle=automatic`, the existing distribution identity, `testFlightInternalTestingOnly=true`, `manageAppVersionAndBuildNumber=false`, and `uploadSymbols=true`. First use `destination=export` to inspect the signed IPA; then use `destination=upload`. Put system tools first in PATH to avoid the documented Homebrew/system rsync packaging mismatch. Verify archive/package signatures, version, bundle identifier, Beta backend and App Attest environment before upload.
+
+After upload, inspect Apple's build-upload errors/warnings, require the exact build to become `VALID` and `INTERNAL_ONLY`, then verify its Internal Testers group linkage and `IN_BETA_TESTING` state. Add only that verified new build to the existing internal group if necessary. A successful CLI release does not establish successful Cloud tests or execution of Cloud post-actions. Preserve the saved automatic Internal Beta workflow. Before its next run, verify the Cloud-assigned build number is greater than the CLI-uploaded number to avoid a duplicate version.
