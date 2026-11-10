@@ -4,17 +4,17 @@ import SwiftUI
 struct DataHandlingView: View {
   @Environment(AppServices.self) private var services
   @Environment(\.openURL) private var openURL
+  @State private var emailUnavailable = false
 
   var body: some View {
-    PumpSyncScreen(spacing: 16) {
-      GlassSection("Credentials") {
+    Form {
+      Section("Credentials") {
         DataHandlingRow(
           title: "Stored on this device",
-          detail: "Your pump account sign-in is stored securely on this device.",
+          detail: "Your Tandem sign-in stays in device-only Keychain storage until you remove it. It is not synced through iCloud.",
           systemImage: "key"
         )
 
-        GlassDivider()
 
         DataHandlingRow(
           title: "Sent for validation, sync and preview",
@@ -22,63 +22,85 @@ struct DataHandlingView: View {
           systemImage: "lock.shield"
         )
       }
+      .headerProminence(.increased)
 
-      GlassSection("Pump Data") {
+      Section("Pump Data") {
         DataHandlingRow(
-          title: "Not retained after write",
-          detail: "For sync, PumpSync removes downloaded pump data after Apple Health confirms it was saved. Preview records stay in memory and are cleared when you close the preview or the app goes into the background.",
+          title: "Temporary processing",
+          detail: "Sync payloads are processed in memory and released when the attempt ends, including failure or cancellation. Source inspection clears its in-memory records when closed or backgrounded. Apple Health keeps confirmed imports.",
           systemImage: "externaldrive.badge.checkmark"
         )
 
-        GlassDivider()
 
         DataHandlingRow(
           title: "Duplicate prevention",
-          detail: "PumpSync keeps a secure record on this device so the same pump data is not added to Apple Health twice.",
+          detail: "Hashed sample identifiers and import times remain on this device to prevent repeat imports. This local record is separate from Apple Health and is not shared with another device.",
           systemImage: "checkmark.seal"
         )
       }
+      .headerProminence(.increased)
 
-      GlassSection("Other Devices") {
+      Section("Other Devices") {
         DataHandlingRow(
           title: "Configure each device",
           detail: "Your pump account sign-in is not synced through iCloud. Set it up separately on each device.",
           systemImage: "iphone"
         )
       }
+      .headerProminence(.increased)
 
-      GlassSection("Data Deletion") {
-        DataHandlingRow(
-          title: "Delete PumpSync data",
-          detail: "PumpSync can prepare an email asking support to delete information linked to this app installation.",
-          systemImage: "envelope"
-        )
-
-        GlassDivider()
-
+      Section {
+        Text(services.backendConfigurationStore.mode == .hosted
+          ? "Request deletion of hosted metadata linked to this installation."
+          : "Contact your self-hosted server operator to delete server metadata.")
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+          .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
         Button {
-          openURL(dataDeletionRequestURL)
+          if services.backendConfigurationStore.mode == .hosted {
+            openURL(dataDeletionRequestURL) { accepted in emailUnavailable = !accepted }
+          } else { openURL(AppConstants.dataDeletionURL) }
         } label: {
-          HStack(spacing: 14) {
-            Image(systemName: "trash")
-              .font(.title3)
-              .fixedSize()
-              .accessibilityHidden(true)
-
-            Text("Request Data Deletion")
-              .layoutPriority(1)
-
-            Spacer(minLength: 0)
-          }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
+          Label(
+            services.backendConfigurationStore.mode == .hosted ? "Email Deletion Request" : "Deletion Instructions",
+            systemImage: services.backendConfigurationStore.mode == .hosted ? "envelope" : "doc.text"
+          )
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(.red)
-        .accessibilityHint("Opens a prefilled email to PumpSync support with this installation ID")
+        .accessibilityHint(services.backendConfigurationStore.mode == .hosted
+          ? "Opens an email to request deletion of server metadata"
+          : "Opens instructions for deleting data from your server")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
+        if emailUnavailable {
+          Text("Email could not open. Contact support@ericslutz.dev with your installation ID from Developer settings. No request has been sent.")
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
+          Button("Copy Installation ID") { DiagnosticsClipboard.copy(services.backendConfigurationStore.installationId) }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
+        }
+        Link("Privacy and Deletion Details", destination: AppConstants.dataDeletionURL)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+          .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
+      } header: {
+        Text("Data Deletion")
+      } footer: {
+        Text("Deleting server metadata does not remove Apple Health samples or cancel a subscription. Manage these separately in Health and Apple subscription settings.")
+          .font(.body)
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
       }
+      .headerProminence(.increased)
     }
     .navigationTitle("Data Handling")
+    .navigationBarTitleDisplayMode(.inline)
   }
 
   private var dataDeletionRequestURL: URL {
@@ -111,28 +133,20 @@ private struct DataHandlingRow: View {
   let systemImage: String
 
   var body: some View {
-    HStack(alignment: .top, spacing: 14) {
-      Image(systemName: systemImage)
-        .rowIconColumn()
-        .foregroundStyle(.tint)
-        .accessibilityHidden(true)
-
+    Label {
       VStack(alignment: .leading, spacing: 4) {
         Text(title)
+          .font(.headline)
           .foregroundStyle(.primary)
 
         Text(detail)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
+          .font(.body)
+          .foregroundStyle(.primary)
       }
-      .layoutPriority(1)
-
-      Spacer(minLength: 0)
+      .fixedSize(horizontal: false, vertical: true)
+    } icon: {
+      Image(systemName: systemImage).foregroundStyle(.tint)
     }
     .padding(.vertical, 6)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(title)
-    .accessibilityValue(detail)
   }
 }

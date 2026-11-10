@@ -1,6 +1,6 @@
 import Foundation
 
-enum DataSourceMode: String, Codable, Equatable {
+enum DataSourceMode: String, Codable, Equatable, Sendable {
     case tandemSource
     case syntheticDemo
     case unknown

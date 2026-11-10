@@ -1,0 +1,15 @@
+{
+  "runNumber": 53,
+  "sourceCommit": "8e3ebf17b1fcb16ea940b4a21841d7f128127875",
+  "totalTests": 467,
+  "statusCounts": {
+    "SUCCESS": 467
+  },
+  "uiTests": 37,
+  "destinations": [
+    [
+      "iPhone SE (3rd generation)",
+      "27.2"
+    ]
+  ]
+}

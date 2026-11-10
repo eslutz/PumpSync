@@ -1,0 +1,38 @@
+{
+  "sourceCommit": "ca307c415c33586f3f185705fc48ec16aa7573d6",
+  "runID": "fdbcaa73-d214-4bcb-b91e-69bddd03869c",
+  "buildNumber": 55,
+  "buildID": "2f114a33-ae00-48aa-9d3f-1b107e029a3d",
+  "runCompletionStatus": "FAILED",
+  "hostedTestOutcomes": {
+    "SUCCESS": 471,
+    "FAILURE": 1
+  },
+  "hostedFailures": [
+    {
+      "className": "PumpSyncUITests",
+      "name": "testVoiceOverDiagnosticsAndSourceData()",
+      "message": "failed - VoiceOver could not reach Clear Logs"
+    }
+  ],
+  "hostedDestination": "iPhone SE (3rd generation) / iOS 27.2",
+  "archive": "SUCCEEDED",
+  "processingState": "VALID",
+  "betaState": {
+    "autoNotifyEnabled": true,
+    "internalBuildState": "IN_BETA_TESTING",
+    "externalBuildState": "NOT_APPLICABLE"
+  },
+  "uiTreesUnchangedFromBuild54": {
+    "PumpSync/Sources/UI": true,
+    "PumpSync/Sources/Tandem": true,
+    "PumpSyncUITests": true,
+    "project.yml": true
+  },
+  "baselineSource": "cb989f7cec49a6f9f75f26a32747296150e89fbf",
+  "localBaselineDestination": "iPhone SE (3rd generation) / iOS 27.0",
+  "baselineNativeAudit": "PASSED this run",
+  "baselineVoiceOverDiagnostics": "PASSED this run",
+  "distributionDecision": "User explicitly approved extending the waiver to the unattributed VoiceOver Clear Logs failure on November 8, 2026; existing build 55 manually distributed to Internal Testers.",
+  "internalGroupMembershipVerified": true
+}

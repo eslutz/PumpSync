@@ -19,9 +19,6 @@ struct SyncStatusPresentation: Equatable {
     case .idle:
       return nil
     case .running(let progress):
-      guard progress.trigger != .background else {
-        return nil
-      }
       return running(progress, now: now)
     case .succeeded(let completion):
       return SyncStatusPresentation(
@@ -34,8 +31,10 @@ struct SyncStatusPresentation: Equatable {
       )
     case .failed(let failure):
       let action: (String, SyncStatusAction)? = switch failure.recovery {
-      case .retry, .none:
+      case .retry:
         ("Try Again", .retry)
+      case .none:
+        nil
       case .openSubscription:
         ("View Subscription", .openSubscription)
       case .openSettings:

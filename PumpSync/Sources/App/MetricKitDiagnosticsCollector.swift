@@ -1,173 +1,27 @@
 import Foundation
 import MetricKit
 
-final class MetricKitDiagnosticsCollector: NSObject, MXMetricManagerSubscriber {
-  private let store: NativeDiagnosticsStore
-  private let bundleInfo: AppBundleInfo
-  private let isEnabled: Bool
+/// Owns exactly one ingestion path. Retaining this object retains its listener;
+/// releasing it unregisters the legacy subscriber or cancels both async tasks.
+final class MetricKitDiagnosticsCollector {
+  private let implementation: AnyObject?
 
   init(store: NativeDiagnosticsStore, bundle: Bundle = .main, isEnabled: Bool = true) {
-    self.store = store
-    self.bundleInfo = AppBundleInfo(bundle: bundle)
-    self.isEnabled = isEnabled
-    super.init()
-
-    if isEnabled {
-      MXMetricManager.shared.add(self)
-    }
-  }
-
-  deinit {
-    if isEnabled {
-      MXMetricManager.shared.remove(self)
-    }
-  }
-
-  func didReceive(_ payloads: [MXMetricPayload]) {
-    for payload in payloads {
-      let entry = makeEntry(
-        kind: .performance,
-        title: "Performance metrics",
-        timestamp: payload.timeStampEnd,
-        summary: Self.summary(from: payload, preferredKeys: Self.performanceSummaryKeys)
-      )
-      Task { @MainActor [store] in
-        store.record(entry)
-      }
-    }
-  }
-
-  func didReceive(_ payloads: [MXDiagnosticPayload]) {
-    for payload in payloads {
-      let entry = makeEntry(
-        kind: .crash,
-        title: Self.crashTitle(from: payload),
-        timestamp: payload.timeStampEnd,
-        summary: Self.summary(
-          from: payload,
-          preferredKeys: Self.crashSummaryKeys,
-          fallback: "MetricKit delivered a native diagnostic payload."
-        )
-      )
-      Task { @MainActor [store] in
-        store.record(entry)
-      }
-    }
-  }
-
-  private func makeEntry(
-    kind: NativeDiagnosticKind,
-    title: String,
-    timestamp: Date,
-    summary: String
-  ) -> NativeDiagnosticEntry {
-    NativeDiagnosticEntry(
-      timestamp: timestamp,
-      kind: kind,
-      title: title,
-      summary: summary,
-      appVersion: bundleInfo.version,
-      buildNumber: bundleInfo.build
-    )
-  }
-}
-
-extension MetricKitDiagnosticsCollector {
-  static let performanceSummaryKeys = [
-    "timeStampBegin",
-    "timeStampEnd",
-    "cumulativeForegroundTime",
-    "cumulativeBackgroundTime",
-    "cumulativeHangTime",
-    "histogrammedTimeToFirstDraw",
-    "histogrammedApplicationResumeTime",
-    "cumulativeCPUTime",
-    "cumulativeMemoryResourceLimitTime",
-    "cumulativeLogicalWrites",
-    "cumulativeCellularDownload",
-    "cumulativeWifiDownload"
-  ]
-
-  static let crashSummaryKeys = [
-    "timeStampBegin",
-    "timeStampEnd",
-    "exceptionType",
-    "exceptionCode",
-    "signal",
-    "terminationReason"
-  ]
-
-  static func summary(
-    from payload: NSObject,
-    preferredKeys: [String],
-    fallback: String? = nil
-  ) -> String {
-    let json = metricKitJSON(from: payload)
-    let flattened = flatten(json)
-    var lines: [String] = []
-
-    for key in preferredKeys {
-      let matches = flattened
-        .filter { $0.key.localizedCaseInsensitiveContains(key) }
-        .sorted { $0.key < $1.key }
-        .prefix(3)
-
-      for match in matches {
-        lines.append("\(shortKey(match.key)): \(match.value)")
-      }
-    }
-
-    if lines.isEmpty {
-      if let fallback {
-        return fallback
-      }
-
-      lines = flattened
-        .sorted { $0.key < $1.key }
-        .prefix(8)
-        .map { "\(shortKey($0.key)): \($0.value)" }
-    }
-
-    return lines.isEmpty ? "MetricKit delivered a diagnostic payload." : lines.joined(separator: "\n")
-  }
-
-  static func crashTitle(from payload: NSObject) -> String {
-    let json = metricKitJSON(from: payload)
-    let flattened = flatten(json)
-
-    if flattened.keys.contains(where: { $0.localizedCaseInsensitiveContains("crashDiagnostics") }) {
-      return "Crash diagnostic"
-    }
-
-    if flattened.keys.contains(where: { $0.localizedCaseInsensitiveContains("hangDiagnostics") }) {
-      return "Hang diagnostic"
-    }
-
-    if flattened.keys.contains(where: { $0.localizedCaseInsensitiveContains("cpuExceptionDiagnostics") }) {
-      return "CPU exception diagnostic"
-    }
-
-    return "Native diagnostic"
-  }
-
-  static func metricKitJSON(from payload: NSObject) -> Any {
-    let data: Data?
-    if let metricPayload = payload as? MXMetricPayload {
-      data = metricPayload.jsonRepresentation()
-    } else if let diagnosticPayload = payload as? MXDiagnosticPayload {
-      data = diagnosticPayload.jsonRepresentation()
+    if !isEnabled {
+      implementation = nil
+    } else if #available(iOS 27.0, *) {
+      implementation = AsyncMetricKitCollector(store: store)
+      NativePerformance.metricCollectorStarted(modern: true)
     } else {
-      data = nil
+      implementation = LegacyMetricKitCollector(store: store)
+      NativePerformance.metricCollectorStarted(modern: false)
     }
+  }
 
-    guard
-      let data,
-      let object = try? JSONSerialization.jsonObject(with: data)
-    else {
-      return [:]
-    }
-
-    return object
+  static func reportSummary(_ report: NativeDiagnosticReport) -> String {
+    let keys = ["Foreground time", "CPU time", "Wi-Fi downloaded", "Disk writes"]
+    let rows = keys.compactMap { key in report.measurements[key].map { "\(key): \($0)" } }
+    return rows.isEmpty ? "No supported summary measurements in this report. Open details for retained fields." : rows.joined(separator: " · ")
   }
 
   static func flatten(_ value: Any, prefix: String = "") -> [String: String] {
@@ -204,10 +58,90 @@ extension MetricKitDiagnosticsCollector {
     return [:]
   }
 
-  private static func shortKey(_ key: String) -> String {
-    key
-      .split(separator: ".")
-      .suffix(3)
-      .joined(separator: ".")
+}
+
+@available(iOS 27.0, *)
+private final class AsyncMetricKitCollector {
+  private let manager: MetricManager
+  private let metricTask: Task<Void, Never>
+  private let diagnosticTask: Task<Void, Never>
+
+  init(store: NativeDiagnosticsStore) {
+    let manager = MetricManager()
+    self.manager = manager
+    metricTask = Task.detached(priority: .utility) { [manager, store] in
+      for await report in manager.metricReports {
+        guard !Task.isCancelled else { return }
+        let entry = NativePerformance.measure("Normalize MetricKit report") { MetricKitReportAdapter.performanceEntry(report) }
+        guard !Task.isCancelled else { return }
+        await store.record(entry)
+      }
+    }
+    diagnosticTask = Task.detached(priority: .utility) { [manager, store] in
+      for await report in manager.diagnosticReports {
+        guard !Task.isCancelled else { return }
+        let entry = NativePerformance.measure("Normalize MetricKit diagnostic") { MetricKitReportAdapter.diagnosticEntry(report) }
+        guard !Task.isCancelled else { return }
+        await store.record(entry)
+      }
+    }
+  }
+
+  deinit {
+    metricTask.cancel()
+    diagnosticTask.cancel()
+  }
+}
+
+// Keeping the legacy types inside their supported OS range avoids deprecation
+// warnings without disabling warnings or subscribing twice on newer systems.
+@available(iOS, introduced: 13.0, obsoleted: 27.0)
+private final class LegacyMetricKitCollector: NSObject, MXMetricManagerSubscriber {
+  private let store: NativeDiagnosticsStore
+
+  init(store: NativeDiagnosticsStore) {
+    self.store = store
+    super.init()
+    MXMetricManager.shared.add(self)
+  }
+
+  deinit { MXMetricManager.shared.remove(self) }
+
+  func didReceive(_ payloads: [MXMetricPayload]) {
+    for payload in payloads {
+      let json = (try? JSONSerialization.jsonObject(with: payload.jsonRepresentation())) ?? [:]
+      let report = NativeDiagnosticReport.make(from: json, windowStart: payload.timeStampBegin, windowEnd: payload.timeStampEnd)
+      let entry = NativeDiagnosticEntry(
+        timestamp: payload.timeStampEnd, kind: .performance, title: "Performance metrics",
+        summary: MetricKitDiagnosticsCollector.reportSummary(report),
+        appVersion: payload.latestApplicationVersion + (payload.includesMultipleApplicationVersions ? " (multiple versions)" : ""),
+        buildNumber: payload.metaData?.applicationBuildVersion ?? "Not reported", report: report
+      )
+      Task { @MainActor [store] in store.record(entry) }
+    }
+  }
+
+  func didReceive(_ payloads: [MXDiagnosticPayload]) {
+    for payload in payloads {
+      let json = (try? JSONSerialization.jsonObject(with: payload.jsonRepresentation())) as? [String: Any] ?? [:]
+      let report = NativeDiagnosticReport.make(from: json, windowStart: payload.timeStampBegin, windowEnd: payload.timeStampEnd)
+      let kind: NativeDiagnosticKind
+      let title: String
+      if !(payload.crashDiagnostics ?? []).isEmpty {
+        kind = .crash; title = "Crash diagnostic"
+      } else if !(payload.hangDiagnostics ?? []).isEmpty {
+        kind = .hang; title = "Hang diagnostic"
+      } else if !(payload.cpuExceptionDiagnostics ?? []).isEmpty {
+        kind = .cpuException; title = "CPU exception diagnostic"
+      } else {
+        kind = .diagnostic; title = "Native diagnostic"
+      }
+      let entry = NativeDiagnosticEntry(
+        timestamp: payload.timeStampEnd, kind: kind, title: title,
+        summary: "MetricKit delivered a native diagnostic report. Open details for retained fields.",
+        appVersion: "Not reported", buildNumber: "Not reported", report: report
+      )
+      Task { @MainActor [store] in store.record(entry) }
+    }
   }
 }

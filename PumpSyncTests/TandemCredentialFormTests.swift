@@ -28,18 +28,14 @@ final class TandemCredentialFormTests: XCTestCase {
   }
 
   func testActionStateForNewCredentialsRequiresAllFields() {
-    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: false, usernameChanged: false, regionChanged: false, password: ""), .saveDisabled)
-    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: false, usernameChanged: true, regionChanged: false, password: "secret"), .save)
+    XCTAssertEqual(TandemCredentialForm.actionState(username: "fixture", password: ""), .saveDisabled)
+    XCTAssertEqual(TandemCredentialForm.actionState(username: " \n ", password: "current-password"), .saveDisabled)
+    XCTAssertEqual(TandemCredentialForm.actionState(username: "fixture", password: "current-password"), .save)
   }
 
-  func testStoredUnchangedCredentialsOfferRemoval() {
-    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: false, regionChanged: false, password: ""), .remove)
-  }
-
-  func testStoredEditedCredentialsRequirePasswordBeforeSave() {
-    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: true, regionChanged: false, password: ""), .saveDisabled)
-    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: false, regionChanged: true, password: ""), .saveDisabled)
-    XCTAssertEqual(TandemCredentialForm.actionState(hasStoredCredentials: true, usernameChanged: true, regionChanged: false, password: "secret"), .save)
+  func testEditingCurrentLoginNeverTurnsSaveIntoCredentialRemoval() {
+    XCTAssertEqual(TandemCredentialForm.actionState(username: "saved-account", password: ""), .saveDisabled)
+    XCTAssertEqual(TandemCredentialForm.actionState(username: "saved-account", password: "updated-tandem-password"), .save)
   }
 
   func testSkipsRevalidationWhenCredentialsExactlyMatchLastValidatedSave() {

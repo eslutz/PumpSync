@@ -50,7 +50,34 @@ final class SyncAttemptStoreTests: XCTestCase {
     XCTAssertEqual(restarted.history.first?.operationID, id)
     XCTAssertEqual(restarted.history.first?.outcome, .interrupted)
     XCTAssertEqual(restarted.history.first?.reason, .processInterrupted)
-    XCTAssertEqual(restarted.history.first?.durationSeconds, 2)
+    XCTAssertNil(restarted.history.first?.durationSeconds)
+    XCTAssertNil(restarted.history.first?.completedAt)
+    XCTAssertEqual(restarted.history.first?.interruptionDetectedAt, Date(timeIntervalSince1970: 12))
+  }
+
+  func testRestartPreservesEachImportCheckpointAndCountsWithoutInventingDuration() throws {
+    for checkpoint in [SyncImportCheckpoint.healthSaveStarted, .healthSaveCompleted, .ledgerCommitStarted, .ledgerCommitCompleted, .metadataCommitted] {
+      let suite = "Checkpoint.\(UUID())"
+      let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+      defer { defaults.removePersistentDomain(forName: suite) }
+      let store = SyncAttemptStore(defaults: defaults)
+      let id = UUID()
+      store.begin(operationID: id, trigger: .background, at: Date(timeIntervalSince1970: 10))
+      store.advance(operationID: id, stage: .updatingHealth, at: Date(timeIntervalSince1970: 11))
+      store.recordCounts(operationID: id, returned: 12, imported: 4, permissionSkipped: 0)
+      store.checkpoint(operationID: UUID(), checkpoint: .metadataCommitted)
+      XCTAssertNil(store.active?.importCheckpoint)
+      store.checkpoint(operationID: id, checkpoint: checkpoint, at: Date(timeIntervalSince1970: 12))
+      let restarted = SyncAttemptStore(defaults: defaults, now: Date(timeIntervalSince1970: 60_000))
+      let attempt = try XCTUnwrap(restarted.history.first)
+      XCTAssertEqual(attempt.importCheckpoint, checkpoint)
+      XCTAssertEqual(attempt.lastObservedAt, Date(timeIntervalSince1970: 12))
+      XCTAssertEqual(attempt.importedCount, 4)
+      XCTAssertNotNil(attempt.protectedDataAvailable)
+      XCTAssertNil(attempt.durationSeconds)
+      XCTAssertTrue(SyncAttemptStore.description(attempt).contains("durationSeconds=unknown"))
+      XCTAssertEqual(SyncAttemptStore(defaults: defaults).history, restarted.history)
+    }
   }
 
   func testHistoryRetainsTwentyAndActiveAndRejectsPrivateCorrelation() throws {

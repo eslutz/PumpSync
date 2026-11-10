@@ -173,6 +173,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let metadata = makeSyncMetadataStore()
     let health = FakeHealthKitService()
     let coordinator = makeCoordinator(authService: auth, credentialStore: try makeValidatedCredentialStore(), healthKitService: health, syncMetadataStore: metadata)
+    auth.setUnsolicitedEnrollmentForegroundActive(true)
     let owner = Task { await auth.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "verified-fixture", diagnosticSummary: "fixture", finish: {}) }
     await fulfillment(of: [started], timeout: 2)
     let joined = Task { await coordinator.run(reason: .background, lease: grantedBackgroundLease()) }
@@ -504,9 +505,17 @@ final class SyncCoordinatorTests: XCTestCase {
     health.resumeSave()
     let result = await task.value
     XCTAssertEqual(result, .canceled)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importCheckpoint, .ledgerCommitCompleted)
     XCTAssertTrue(try ledger.filterUnseen([confirmed]).isEmpty)
     XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
     XCTAssertNil(metadata.metadata.syncWatermark)
+    health.suspendsSave = false
+    health.saveStarted = nil
+    let retry = await coordinator.run(reason: .manual)
+    XCTAssertEqual(retry, .completed)
+    XCTAssertTrue(health.savedSamples.isEmpty, "Confirmed writes must be filtered on replay")
+    XCTAssertNotNil(metadata.metadata.syncWatermark)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importCheckpoint, .metadataCommitted)
   }
 
   func testLedgerCommitFailureAfterHealthSaveDoesNotPublishSuccess() async throws {
@@ -519,6 +528,8 @@ final class SyncCoordinatorTests: XCTestCase {
     XCTAssertEqual(result, .failed)
     XCTAssertEqual(health.savedSamples.count, 1)
     XCTAssertEqual(ledger.commitCount, 1)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importCheckpoint, .ledgerCommitStarted)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.importedCount, 1)
     XCTAssertNil(metadata.metadata.lastSuccessfulSyncAt)
     XCTAssertNil(metadata.metadata.syncWatermark)
     XCTAssertNotNil(metadata.metadata.lastErrorMessage)
@@ -1049,6 +1060,34 @@ final class SyncCoordinatorTests: XCTestCase {
     )
   }
 
+  func testRateLimitWaitActionRetriesOnlyWhenExplicitlyRequested() async throws {
+    let requests = LockIsolated(0)
+    let success = syncResponseHandler(samples: [],
+      effectiveMinDate: Date(timeIntervalSince1970: 1_000_000),
+      effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000))
+    let rateLimit = errorResponseHandler(statusCode: 429, code: "rate_limit_exceeded", message: "Wait before trying again.")
+    URLProtocolStub.requestHandler = { request in
+      let count = requests.withValue { value in value += 1; return value }
+      return try count == 1 ? rateLimit(request) : success(request)
+    }
+    let coordinator = makeCoordinator(authService: makeSignedInAuthService(),
+      credentialStore: try makeValidatedCredentialStore())
+
+    await coordinator.sync(reason: .manual)
+    XCTAssertEqual(requests.value, 1, "Rate limits must not start an automatic retry loop")
+    guard case .failed(let failure) = coordinator.operationState else {
+      return XCTFail("Expected a recoverable rate limit")
+    }
+    XCTAssertEqual(failure.recovery, .waitAndRetry)
+
+    coordinator.retry()
+    await waitUntil { !coordinator.isSyncing }
+    XCTAssertEqual(requests.value, 2)
+    guard case .succeeded = coordinator.operationState else {
+      return XCTFail("The advertised manual retry action must start a new attempt")
+    }
+  }
+
   func testBackgroundSuccessReturnsToIdleWithoutPublishingCompletion() async throws {
     URLProtocolStub.requestHandler = syncResponseHandler(
       samples: [],
@@ -1480,6 +1519,9 @@ final class SyncCoordinatorTests: XCTestCase {
     if repeatedDenial {
       guard case .failed(let failure) = coordinator.operationState else { return XCTFail("Expected a terminal subscription warning") }
       XCTAssertEqual(failure.recovery, .openSubscription)
+      XCTAssertTrue(authService.isSignedIn)
+      XCTAssertFalse(authService.requiresSubscriptionAction,
+                     "A replacement session does not prove the protected sync request succeeded")
     } else {
       XCTAssertEqual(coordinator.operationState, .idle)
     }
@@ -1549,6 +1591,7 @@ final class SyncCoordinatorTests: XCTestCase {
     guard case .failed = coordinator.operationState else { return XCTFail("Unavailable bootstrap auth must end its owner") }
     XCTAssertEqual(count.value, 0)
     var finishedTransactions = 0
+    auth.setUnsolicitedEnrollmentForegroundActive(true)
     await auth.handleActiveSubscriptionTransactionUpdate(signedTransactionInfo: "verified-fixture", diagnosticSummary: "fixture-active") {
       finishedTransactions += 1
     }
@@ -2181,18 +2224,29 @@ final class SyncCoordinatorTests: XCTestCase {
       effectiveMaxDate: Date(timeIntervalSince1970: 1_100_000)
     )
 
+    let metadata = makeSyncMetadataStore()
     let coordinator = makeCoordinator(
       authService: makeSignedInAuthService(),
       credentialStore: try makeValidatedCredentialStore(),
       healthKitService: fakeHealthKit,
-      importedSampleLedger: importedSampleLedger
+      importedSampleLedger: importedSampleLedger,
+      syncMetadataStore: metadata
     )
 
     await coordinator.sync(reason: .manual)
 
-    XCTAssertEqual(coordinator.lastMessage, "Imported 1 new samples.")
+    XCTAssertTrue(coordinator.lastMessage?.contains("not saved because Health write access") == true)
+    XCTAssertLessThanOrEqual(try XCTUnwrap(metadata.metadata.syncWatermark), Date(timeIntervalSince1970: 1_000_000))
     XCTAssertEqual(try importedSampleLedger.filterUnseen([written]).count, 0, "the written sample should be ledgered")
     XCTAssertEqual(try importedSampleLedger.filterUnseen([dropped]).count, 1, "the dropped sample must remain importable")
+    XCTAssertEqual(coordinator.attemptStore.history.first?.returnedCount, 2)
+    XCTAssertEqual(coordinator.attemptStore.history.first?.permissionSkippedCount, 1)
+    fakeHealthKit.droppedExternalIds = []
+    await coordinator.sync(reason: .manual)
+    XCTAssertEqual(fakeHealthKit.savedSamples.map(\.externalId), ["carb-1"])
+    XCTAssertEqual(try importedSampleLedger.filterUnseen([dropped]).count, 0)
+    XCTAssertEqual(metadata.metadata.lastPermissionSkippedCount, 0)
+    XCTAssertEqual(metadata.metadata.syncWatermark, Date(timeIntervalSince1970: 1_100_000).addingTimeInterval(-24 * 60 * 60))
   }
 
   func testTandemCredentialRejectionInvalidatesValidationAndSurfacesBackendMessage() async throws {
@@ -2261,6 +2315,8 @@ final class SyncCoordinatorTests: XCTestCase {
       coordinator.lastMessage?.contains("no longer available") == true,
       "expected a data-gap notice, got: \(coordinator.lastMessage ?? "nil")"
     )
+    guard case .succeeded(let completion) = coordinator.operationState else { return XCTFail("Expected successful sync with a data-gap notice") }
+    XCTAssertTrue(completion.notice?.contains("no longer available") == true)
   }
 
   func testSyncRequestCarriesDeviceTimeZone() async throws {

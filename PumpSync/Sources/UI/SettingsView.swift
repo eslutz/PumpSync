@@ -1,732 +1,218 @@
-import StoreKit
 import SwiftUI
-import UIKit
+
+private enum SettingsDestination: Hashable {
+  case subscription
+}
 
 struct SettingsView: View {
   @Environment(AppServices.self) private var services
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var isShowingSubscriptionStore = false
-  @State private var connectionAlert: ConnectionAlert?
-  @State private var selfHostedURLDraft = ""
-  @State private var hasLoadedSelfHostedURLDraft = false
+  @Environment(\.editingScreenDepartureID) private var editingScreenDepartureID
+  @State private var connectionTask: Task<Void, Never>?
+
+  private var connectionFeedback: String {
+    let connection = services.connectionSettings
+    return connection.isConnecting || connection.feedback != nil
+      ? connection.connectionDescription : ""
+  }
 
   var body: some View {
-    PumpSyncScreen(spacing: 10) {
-      GlassSection("Connection") {
-        connectionModeSelector
+    Form {
+      ConnectionConfigurationSection(
+        mode: Binding(get: { services.connectionSettings.mode }, set: { services.connectionSettings.mode = $0 }),
+        serverURL: Binding(get: { services.connectionSettings.serverURL }, set: { services.connectionSettings.serverURL = $0 }),
+        subscriptionStatus: services.authService.subscriptionAccessStatus,
+        isConnecting: services.connectionSettings.isConnecting,
+        canConnect: services.connectionSettings.canConnect,
+        feedback: connectionFeedback,
+        connect: { connectionTask = Task { await services.connectionSettings.connect() } }
+      )
 
-        switch services.backendConfigurationStore.mode {
-        case .hosted:
-          Text("Subscribe to PumpSync to securely sync pump data to Apple Health without managing your own server. Pump account details are sent when validating your account, syncing or previewing real pump data.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-
-          Button {
-            isShowingSubscriptionStore = true
-          } label: {
-            GlassPrimaryLabel(
-              title: "Subscribe",
-              systemImage: "creditcard"
-            )
-          }
-          .buttonStyle(GroupedRowActionButtonStyle())
-          .disabled(subscriptionActionsDisabled)
-          .accessibilityHint("Opens the PumpSync subscription options")
-
-          Button {
-            Task {
-              await services.authService.connectUsingCurrentSubscription()
-              connectionAlert = restoreConnectionAlert
-            }
-          } label: {
-            GlassPrimaryLabel(
-              title: "Restore Subscription",
-              systemImage: "arrow.clockwise"
-            )
-          }
-          .buttonStyle(GroupedInlineButtonStyle())
-          .disabled(subscriptionActionsDisabled)
-          .accessibilityHint("Checks your current App Store subscription and reconnects to PumpSync")
-
-        case .selfHosted:
-          Text("Use your own PumpSync-compatible server to sync pump data to Apple Health. You manage hosting, security, and maintenance.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-
-          TextField("Server URL", text: $selfHostedURLDraft)
-            .textInputAutocapitalization(.never)
-            .keyboardType(.URL)
-            .autocorrectionDisabled()
-            .frame(minHeight: 44)
-            .accessibilityLabel("Server URL")
-            .accessibilityHint("Enter the base API URL for your self-hosted PumpSync server")
-            .onSubmit {
-              commitSelfHostedURL()
-            }
-
-          Button {
-            commitSelfHostedURL()
-            Task {
-              await services.authService.connectSelfHosted()
-              UIAccessibility.post(notification: .announcement, argument: services.authService.errorMessage ?? services.authService.statusMessage)
-            }
-          } label: {
-            GlassPrimaryLabel(
-              title: services.authService.isConnecting ? "Connecting" : "Connect",
-              systemImage: "link"
-            )
-          }
-          .buttonStyle(GroupedRowActionButtonStyle())
-          .disabled(services.authService.isConnecting)
-          .accessibilityHint("Connects to the self-hosted server URL")
-        }
-
-        if services.backendConfigurationStore.mode == .selfHosted && !services.authService.isConnecting {
-          Text(services.authService.errorMessage ?? (
-            services.authService.isSignedIn
-              ? services.authService.statusMessage
-              : "Enter the API URL, then tap Connect."
-          ))
-            .font(.footnote)
-            .foregroundStyle(services.authService.errorMessage == nil ? Color.secondary : Color.primary)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("SelfHostedConnectionFeedback")
-            .accessibilityAddTraits(.updatesFrequently)
-          Text(verbatim: "Use the base API URL, including /api (for example, https://your-server.example/api).")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-
-        if services.authService.isConnecting {
-          HStack(spacing: 14) {
-            if reduceMotion {
-              Image(systemName: "hourglass")
-                .font(.title3)
-                .fixedSize()
-                .accessibilityHidden(true)
-            } else {
-              ProgressView()
-                .fixedSize()
-                .accessibilityHidden(true)
-            }
-            Text(services.authService.statusMessage)
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          }
-          .padding(.vertical, 6)
-          .accessibilityElement(children: .combine)
-        }
-      }
-
-      GlassSection("PumpSync") {
+      Section {
         NavigationLink {
           TandemCredentialForm()
         } label: {
-          GlassNavigationRow("Tandem Account", subtitle: tandemAccountStatus, systemImage: "key")
+          LabeledContent {
+            Text(services.credentialStore.redactedUsername ?? "Not configured")
+              .foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          } label: {
+            Label("Tandem Account", systemImage: "key")
+              .fixedSize(horizontal: false, vertical: true)
+          }
         }
-        .buttonStyle(.plain)
         .accessibilityIdentifier("TandemAccountLink")
 
-        GlassDivider()
-
-        NavigationLink {
-          HealthAccessView()
-        } label: {
-          GlassNavigationRow("Apple Health", subtitle: "Insulin and carbohydrates", systemImage: "heart")
+        NavigationLink { HealthAccessView() } label: {
+          Label("Apple Health", systemImage: "heart").fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("AppleHealthLink")
-
-        GlassDivider()
+          .accessibilityIdentifier("AppleHealthLink")
 
         NavigationLink {
           InsulinConcentrationView()
         } label: {
-          GlassNavigationRow(
-            "Insulin Concentration",
-            subtitle: services.insulinConcentrationStore.concentration.title,
-            systemImage: "drop.fill"
-          )
+          LabeledContent {
+            Text(services.insulinConcentrationStore.concentration.title)
+              .foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          } label: {
+            Label("Insulin Concentration", systemImage: "drop.fill")
+              .fixedSize(horizontal: false, vertical: true)
+          }
         }
-        .buttonStyle(.plain)
         .accessibilityIdentifier("InsulinConcentrationLink")
 
-        GlassDivider()
-
-        NavigationLink {
-          DataHandlingView()
-        } label: {
-          GlassNavigationRow(
-            "Data Handling",
-            subtitle: "Privacy, retention, and Health data flow",
-            systemImage: "lock.shield"
-          )
+        NavigationLink { DataHandlingView() } label: {
+          Label("Data Handling", systemImage: "lock.shield").fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("DataHandlingLink")
-
-        GlassDivider()
-
-        NavigationLink {
-          AboutPumpSyncView()
-        } label: {
-          GlassNavigationRow("About PumpSync", subtitle: "How syncing works", systemImage: "info.circle")
+          .accessibilityIdentifier("DataHandlingLink")
+        NavigationLink { AboutPumpSyncView() } label: {
+          Label("About PumpSync", systemImage: "info.circle").fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("AboutPumpSyncLink")
-
-        GlassDivider()
-
-        NavigationLink {
-          DeveloperView()
-        } label: {
-          GlassNavigationRow("Developer", subtitle: "Diagnostics, build, and sync details", systemImage: "hammer")
+          .accessibilityIdentifier("AboutPumpSyncLink")
+        NavigationLink { DeveloperView() } label: {
+          Label("Developer", systemImage: "hammer").fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("DeveloperLink")
+          .accessibilityIdentifier("DeveloperLink")
+      } header: {
+        Text("App").foregroundStyle(Color.primary)
       }
+      .headerProminence(.increased)
+    }
+    .font(.body)
+    .scrollDismissesKeyboard(.interactively)
+    .navigationTitle("Settings")
+    .navigationDestination(for: SettingsDestination.self) { destination in
+      switch destination {
+      case .subscription: SubscriptionSettingsView()
+      }
+    }
+    .onAppear(perform: discardDraft)
+    .onDisappear(perform: discardDraft)
+    .onChange(of: editingScreenDepartureID) { _, _ in discardDraft() }
+    .task {
+      if !AppLaunchEnvironment.isScreenshotMode {
+        await services.authService.refreshSubscriptionStatus()
+      }
+    }
+  }
+
+  private func discardDraft() {
+    connectionTask?.cancel()
+    connectionTask = nil
+    services.connectionSettings.cancel()
+  }
+}
+
+/// This feature section composes platform controls; the Form owns all row styling.
+private struct ConnectionConfigurationSection: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Binding var mode: BackendAccessMode
+  @Binding var serverURL: String
+  let subscriptionStatus: SubscriptionAccessStatus
+  let isConnecting: Bool
+  let canConnect: Bool
+  let feedback: String
+  let connect: () -> Void
+  @FocusState private var isServerURLFocused: Bool
+
+  var body: some View {
+    Section {
+      if dynamicTypeSize.isAccessibilitySize {
+        modePicker.pickerStyle(.menu)
+      } else {
+        modePicker.pickerStyle(.segmented)
+      }
+
+      if mode == .selfHosted {
+        TextField("Server URL", text: $serverURL, prompt: Text("https://your-server.example/api"))
+          .textInputAutocapitalization(.never)
+          .keyboardType(.URL)
+          .autocorrectionDisabled()
+          .accessibilityLabel("Server URL")
+          .accessibilityIdentifier("ServerURLField")
+          .disabled(isConnecting)
+          .focused($isServerURLFocused)
+          .submitLabel(.done)
+          .onSubmit { isServerURLFocused = false }
+        Button {
+          isServerURLFocused = false
+          connect()
+        } label: {
+          Label {
+            Text("Connect")
+          } icon: {
+            Image(systemName: "link")
+              .opacity(isConnecting ? 0 : 1)
+              .overlay {
+                if isConnecting { ProgressView().controlSize(.small) }
+              }
+              .accessibilityHidden(true)
+          }
+        }
+        .accessibilityValue(isConnecting ? Text("Connecting") : Text(""))
+        .disabled(!canConnect || serverURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      }
+
+      if mode == .hosted {
+        NavigationLink(value: SettingsDestination.subscription) {
+          LabeledContent("Subscription") {
+            Text(subscriptionStatus.title).foregroundStyle(Color.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+        .accessibilityIdentifier("SubscriptionSettingsLink")
+      }
+
+      if !isConnecting && !feedback.isEmpty {
+        Text(feedback)
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("SelfHostedConnectionFeedback")
+      }
+
+      if mode == .hosted {
+        Text("Your subscription configures the PumpSync service. Changing connection mode does not cancel your subscription.")
+          .foregroundStyle(Color.primary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+    } header: {
+      Text("Connection Configuration").foregroundStyle(Color.primary)
+    }
+    .headerProminence(.increased)
+    .font(.body)
+  }
+
+  private var modePicker: some View {
+    Picker("Connection mode", selection: $mode) {
+      ForEach(BackendAccessMode.allCases) { mode in Text(mode.title).tag(mode) }
+    }
+    .accessibilityIdentifier("ConnectionModePicker")
+    .disabled(isConnecting)
+    .onChange(of: mode) { _, _ in isServerURLFocused = false }
+  }
+}
+
+#if DEBUG
+#Preview("Hosted subscription") {
+  NavigationStack {
+    Form {
+      ConnectionConfigurationSection(mode: .constant(.hosted), serverURL: .constant(""),
+        subscriptionStatus: .active,
+        isConnecting: false, canConnect: true, feedback: "", connect: {})
     }
     .navigationTitle("Settings")
-    .onAppear {
-      // Seed the draft only once: onAppear fires again when popping back
-      // from any pushed child screen, and re-seeding there would wipe a URL
-      // the user typed but had not yet committed via Connect/submit.
-      guard !hasLoadedSelfHostedURLDraft else {
-        return
-      }
+  }
+}
 
-      hasLoadedSelfHostedURLDraft = true
-      selfHostedURLDraft = services.backendConfigurationStore.selfHostedBaseURLString
+#Preview("Self-hosted draft at large text") {
+  NavigationStack {
+    Form {
+      ConnectionConfigurationSection(mode: .constant(.selfHosted), serverURL: .constant("https://example.com/api"),
+        subscriptionStatus: .active,
+        isConnecting: false, canConnect: true, feedback: "", connect: {})
     }
-
-    .sheet(isPresented: $isShowingSubscriptionStore) {
-#if DEBUG
-      if AppLaunchEnvironment.isScreenshotMode {
-        SubscriptionScreenshotView()
-      } else {
-        PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
-      }
-#else
-      PumpSyncSubscriptionStoreView(isPresented: $isShowingSubscriptionStore)
+    .navigationTitle("Settings")
+    .dynamicTypeSize(.accessibility3)
+  }
+}
 #endif
-    }
-    .alert(
-      connectionAlert?.title ?? "",
-      isPresented: Binding(
-        get: { connectionAlert != nil },
-        set: { isPresented in
-          if !isPresented {
-            connectionAlert = nil
-          }
-        }
-      ),
-      presenting: connectionAlert
-    ) { _ in
-      Button("OK", role: .cancel) {}
-    } message: { alert in
-      Text(alert.message)
-    }
-  }
-
-  @ViewBuilder
-  private var connectionModeSelector: some View {
-    if dynamicTypeSize.isAccessibilitySize {
-      VStack(alignment: .leading, spacing: 8) {
-        Text("Connection mode")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.secondary)
-
-        ForEach(BackendAccessMode.allCases) { mode in
-          let isSelected = services.backendConfigurationStore.mode == mode
-
-          Button {
-            backendModeBinding.wrappedValue = mode
-          } label: {
-            ConnectionModeButtonLabel(mode: mode, isSelected: isSelected)
-          }
-          .buttonStyle(.plain)
-          .accessibilityLabel(mode.title)
-          .accessibilityValue(isSelected ? "Selected" : "Not selected")
-          .accessibilityHint("Sets the connection mode to \(mode.title)")
-        }
-      }
-      .padding(.bottom, 4)
-    } else {
-      Picker("Connection mode", selection: backendModeBinding) {
-        ForEach(BackendAccessMode.allCases) { mode in
-          Text(mode.title).tag(mode)
-        }
-      }
-      .pickerStyle(.segmented)
-      .frame(minHeight: 44)
-      .accessibilityLabel("Connection mode")
-      .accessibilityValue(services.backendConfigurationStore.mode.title)
-    }
-  }
-
-  private var backendModeBinding: Binding<BackendAccessMode> {
-    Binding(
-      get: {
-        services.backendConfigurationStore.mode
-      },
-      set: { mode in
-        services.backendConfigurationStore.mode = mode
-        services.authService.clearSessionForConnectionChange()
-        _ = services.backendConfigurationStore.apply(to: services.apiClient)
-      }
-    )
-  }
-
-  private func commitSelfHostedURL() {
-    guard services.backendConfigurationStore.selfHostedBaseURLString != selfHostedURLDraft else {
-      return
-    }
-
-    services.backendConfigurationStore.selfHostedBaseURLString = selfHostedURLDraft
-    if services.backendConfigurationStore.mode == .selfHosted {
-      services.authService.clearSessionForConnectionChange()
-      _ = services.backendConfigurationStore.apply(to: services.apiClient)
-    }
-  }
-
-  private var restoreConnectionAlert: ConnectionAlert {
-    if services.authService.isSignedIn {
-      return ConnectionAlert(
-        title: "Subscription Restored",
-        message: "PumpSync Subscription is connected. You can now save your Tandem account."
-      )
-    }
-
-    return ConnectionAlert(
-      title: "Restore Failed",
-      message: services.authService.connectionRequiredMessage
-    )
-  }
-
-  private var subscriptionActionsDisabled: Bool {
-    services.authService.isConnecting
-  }
-
-  private var tandemCredentialStatus: String {
-    if services.credentialStore.hasValidatedCredentials {
-      return "Validated"
-    }
-
-    if services.credentialStore.hasStoredCredentials {
-      return "Needs validation"
-    }
-
-    return "Not configured"
-  }
-
-  private var tandemAccountStatus: String {
-    guard let redactedUsername = services.credentialStore.redactedUsername else {
-      return tandemCredentialStatus
-    }
-
-    return redactedUsername
-  }
-
-}
-
-private struct InsulinConcentrationView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @Environment(AppServices.self) private var services
-
-  var body: some View {
-    PumpSyncScreen(spacing: 16) {
-      GlassSection("Current Setting") {
-        concentrationMenu
-      }
-
-      GlassSection("Details") {
-        InsulinConcentrationDetailRow(
-          title: "Match your insulin",
-          detail: "Most rapid-acting insulin is U-100. Some people use more concentrated insulin, such as U-200 or U-500, where each pump-reported unit represents more insulin.",
-          systemImage: "drop"
-        )
-
-        GlassDivider()
-
-        InsulinConcentrationDetailRow(
-          title: "Conversion only",
-          detail: "This changes how PumpSync converts pump-reported insulin amounts before saving them to Apple Health. It does not change your pump data, pump account, or pump settings.",
-          systemImage: "arrow.triangle.2.circlepath"
-        )
-
-        GlassDivider()
-
-        InsulinConcentrationDetailRow(
-          title: "Apple Health only",
-          detail: "Changes apply to the next sync. A sync already running keeps its starting setting. Previously imported Apple Health data is not changed.",
-          systemImage: "heart"
-        )
-
-        GlassDivider()
-
-        InsulinConcentrationDetailRow(
-          title: "Not sure?",
-          detail: "Leave this set to U-100 until you confirm with your insulin prescription, pump settings, or care team.",
-          systemImage: "exclamationmark.triangle.fill",
-          tint: .orange
-        )
-      }
-    }
-    .navigationTitle("Insulin Concentration")
-  }
-
-  private var concentrationMenu: some View {
-    LabeledMenuPickerRow(title: "Insulin Concentration", systemImage: "drop.fill") {
-        NativeMenuPicker("Insulin Concentration", selection: Binding(
-          get: { services.insulinConcentrationStore.concentration },
-          set: { services.insulinConcentrationStore.concentration = $0 }
-        )) {
-          ForEach(InsulinConcentration.allCases) { concentration in
-            Text(concentration.title).tag(concentration)
-          }
-        }
-        .accessibilityIdentifier("InsulinConcentrationPicker")
-    }
-  }
-
-}
-
-private struct InsulinConcentrationDetailRow: View {
-  let title: String
-  let detail: String
-  let systemImage: String
-  var tint: Color = .accentColor
-
-  var body: some View {
-    HStack(alignment: .top, spacing: 14) {
-      Image(systemName: systemImage)
-        .rowIconColumn()
-        .foregroundStyle(tint)
-        .accessibilityHidden(true)
-
-      VStack(alignment: .leading, spacing: 4) {
-        Text(title)
-          .foregroundStyle(.primary)
-
-        Text(detail)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      .layoutPriority(1)
-
-      Spacer(minLength: 0)
-    }
-    .padding(.vertical, 6)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(title)
-    .accessibilityValue(detail)
-  }
-}
-
-private struct ConnectionAlert: Identifiable {
-  let id = UUID()
-  let title: String
-  let message: String
-  var action: ConnectionAlertAction?
-}
-
-private enum ConnectionAlertAction {
-  case manageSubscription
-}
-
-enum SubscriptionPresentation {
-  static func shouldDismissAfterManageSubscriptions(isSignedIn: Bool) -> Bool {
-    isSignedIn
-  }
-}
-
-private extension UIApplication {
-  var foregroundWindowScene: UIWindowScene? {
-    let scenes = connectedScenes.compactMap { $0 as? UIWindowScene }
-    return scenes.first { $0.activationState == .foregroundActive }
-      ?? scenes.first { $0.activationState == .foregroundInactive }
-  }
-}
-
-private struct ConnectionModeButtonLabel: View {
-  let mode: BackendAccessMode
-  let isSelected: Bool
-
-  var body: some View {
-    HStack(spacing: 12) {
-      Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-        .accessibilityHidden(true)
-
-      Text(mode.title)
-        .foregroundStyle(.primary)
-
-      Spacer(minLength: 0)
-    }
-    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-  }
-}
-
-struct SubscriptionScreenshotView: View {
-  var body: some View {
-    VStack(alignment: .leading, spacing: 24) {
-      VStack(alignment: .leading, spacing: 8) {
-        Text("PumpSync Subscription")
-          .font(.largeTitle.weight(.bold))
-          .foregroundStyle(.primary)
-
-        Text("Securely sync pump data to Apple Health without managing your own server.")
-          .font(.title3)
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-
-      VStack(alignment: .leading, spacing: 16) {
-        SubscriptionBenefitRow(
-          title: "Managed connection",
-          detail: "PumpSync operates and maintains the service for you.",
-          systemImage: "server.rack"
-        )
-
-        SubscriptionBenefitRow(
-          title: "Secure Health sync",
-          detail: "Downloaded pump data is processed for sync and preview requests and is not kept on PumpSync servers.",
-          systemImage: "heart.text.square"
-        )
-
-        SubscriptionBenefitRow(
-          title: "No server setup",
-          detail: "Sync without setting up or maintaining your own server.",
-          systemImage: "checkmark.shield"
-        )
-      }
-
-      Spacer(minLength: 24)
-
-      Button {} label: {
-        Text("Subscribe")
-          .font(.headline)
-          .frame(maxWidth: .infinity, minHeight: 44)
-      }
-      .buttonStyle(.borderedProminent)
-    }
-    .padding(32)
-    .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
-    .presentationDetents([.large])
-  }
-}
-
-struct PumpSyncSubscriptionStoreView: View {
-  @Environment(AppServices.self) private var services
-  @Binding var isPresented: Bool
-  @State private var purchaseAlert: ConnectionAlert?
-
-  var body: some View {
-    SubscriptionStoreView(productIDs: [AppConstants.subscriptionProductId]) {
-      VStack(alignment: .leading, spacing: 20) {
-        VStack(alignment: .leading, spacing: 8) {
-          Text("PumpSync Subscription")
-            .font(.largeTitle.weight(.bold))
-            .foregroundStyle(.primary)
-
-          Text("Subscribe to securely sync pump data to Apple Health without managing your own server.")
-            .font(.title3)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-
-        VStack(alignment: .leading, spacing: 12) {
-          SubscriptionBenefitRow(
-            title: "Managed connection",
-            detail: "PumpSync operates and maintains the service for you.",
-            systemImage: "server.rack"
-          )
-
-          SubscriptionBenefitRow(
-            title: "Secure Health sync",
-            detail: "Downloaded pump data is processed for sync and preview requests and is not kept on PumpSync servers.",
-            systemImage: "heart.text.square"
-          )
-
-          SubscriptionBenefitRow(
-            title: "No server setup",
-            detail: "Sync without setting up or maintaining your own server.",
-            systemImage: "checkmark.shield"
-          )
-        }
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 24)
-      .padding(.top, 24)
-    }
-    .subscriptionStoreButtonLabel(.action)
-    // App Review guideline 3.1.2 requires functional Terms of Use and Privacy
-    // Policy links on the purchase screen for auto-renewable subscriptions.
-    .subscriptionStorePolicyDestination(url: AppConstants.termsOfUseURL, for: .termsOfService)
-    .subscriptionStorePolicyDestination(url: AppConstants.privacyPolicyURL, for: .privacyPolicy)
-    .onInAppPurchaseCompletion { _, result in
-      await handlePurchaseCompletion(result)
-    }
-    .alert(
-      purchaseAlert?.title ?? "",
-      isPresented: Binding(
-        get: { purchaseAlert != nil },
-        set: { isPresented in
-          if !isPresented {
-            purchaseAlert = nil
-          }
-        }
-      ),
-      presenting: purchaseAlert
-    ) { alert in
-      switch alert.action {
-      case .manageSubscription:
-        Button("Manage Subscription") {
-          Task {
-            await presentManageSubscriptions()
-          }
-        }
-        Button("OK", role: .cancel) {}
-      case nil:
-        Button("OK", role: .cancel) {}
-      }
-    } message: { alert in
-      Text(alert.message)
-    }
-  }
-
-  private func handlePurchaseCompletion(_ result: Result<Product.PurchaseResult, Error>) async {
-    switch result {
-    case .success(.success(let verificationResult)):
-      do {
-        let transaction = try verified(verificationResult)
-        guard transaction.isActiveSubscriptionEntitlement else {
-          services.diagnosticsLogStore.record(
-            source: .auth,
-            severity: .warning,
-            title: "Inactive subscription transaction returned",
-            message: transaction.diagnosticSummary(active: false)
-          )
-          await transaction.finish()
-          purchaseAlert = ConnectionAlert(
-            title: "Subscription Inactive",
-            message: "This subscription is inactive. Manage your Apple subscription, then return to PumpSync and tap Restore Subscription.",
-            action: .manageSubscription
-          )
-          return
-        }
-
-        services.diagnosticsLogStore.record(
-          source: .auth,
-          title: "Active subscription transaction returned",
-          message: transaction.diagnosticSummary(active: true)
-        )
-        await transaction.finish()
-        await services.authService.activateSubscription(entitlement: try VerifiedSubscriptionEntitlement.verified(verificationResult))
-        if services.authService.isSignedIn {
-          isPresented = false
-        } else {
-          purchaseAlert = ConnectionAlert(
-            title: "Subscription Verification Failed",
-            message: services.authService.connectionRequiredMessage
-          )
-        }
-      } catch {
-        services.authService.recordSubscriptionPurchaseFailed(error)
-        purchaseAlert = ConnectionAlert(
-          title: "Subscription Verification Failed",
-          message: services.authService.connectionRequiredMessage
-        )
-      }
-    case .success(.userCancelled):
-      services.authService.recordSubscriptionPurchaseCancelled()
-    case .success(.pending):
-      services.authService.recordSubscriptionPurchasePending()
-      purchaseAlert = ConnectionAlert(
-        title: "Subscription Pending",
-        message: services.authService.statusMessage
-      )
-    case .failure(let error):
-      services.authService.recordSubscriptionPurchaseFailed(error)
-      purchaseAlert = ConnectionAlert(
-        title: "Subscription Failed",
-        message: services.authService.connectionRequiredMessage
-      )
-    @unknown default:
-      services.authService.recordSubscriptionPurchaseFailed(StoreKitSubscriptionError.unverifiedTransaction)
-      purchaseAlert = ConnectionAlert(
-        title: "Subscription Failed",
-        message: services.authService.connectionRequiredMessage
-      )
-    }
-  }
-
-  private func verified<T>(_ result: VerificationResult<T>) throws -> T {
-    switch result {
-    case .verified(let value):
-      return value
-    case .unverified:
-      throw StoreKitSubscriptionError.unverifiedTransaction
-    }
-  }
-
-  private func presentManageSubscriptions() async {
-    guard let scene = UIApplication.shared.foregroundWindowScene else {
-      let error = StoreKitSubscriptionError.subscriptionManagementUnavailable
-      services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
-      purchaseAlert = ConnectionAlert(
-        title: "Manage Subscription Unavailable",
-        message: "PumpSync could not open Apple subscription management. Try again from the Settings app."
-      )
-      return
-    }
-
-    do {
-      try await AppStore.showManageSubscriptions(in: scene, subscriptionGroupID: AppConstants.subscriptionGroupId)
-      await services.authService.recoverSessionIfNeeded()
-      if SubscriptionPresentation.shouldDismissAfterManageSubscriptions(isSignedIn: services.authService.isSignedIn) {
-        isPresented = false
-      }
-    } catch {
-      services.diagnosticsLogStore.record(error: error, source: .auth, title: "Manage subscription failed")
-      purchaseAlert = ConnectionAlert(
-        title: "Manage Subscription Failed",
-        message: "PumpSync could not open Apple subscription management. Try again from the Settings app."
-      )
-    }
-  }
-}
-
-private struct SubscriptionBenefitRow: View {
-  let title: String
-  let detail: String
-  let systemImage: String
-
-  var body: some View {
-    HStack(alignment: .top, spacing: 12) {
-      Image(systemName: systemImage)
-        .font(.title3)
-        .foregroundStyle(.blue)
-        .fixedSize()
-        .accessibilityHidden(true)
-
-      VStack(alignment: .leading, spacing: 3) {
-        Text(title)
-          .font(.headline)
-          .foregroundStyle(.primary)
-
-        Text(detail)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-    }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(title)
-    .accessibilityValue(detail)
-  }
-}

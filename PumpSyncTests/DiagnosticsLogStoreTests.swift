@@ -3,6 +3,69 @@ import XCTest
 
 @MainActor
 final class DiagnosticsLogStoreTests: XCTestCase {
+  func testStructuredPreviewMetadataSurvivesRelaunch() {
+    let suite = "PreviewMetadata.\(UUID())"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let store = DiagnosticsLogStore(defaults: defaults)
+    let preview = ImportPreviewDiagnostic(status: .ready, source: .tandemSource, recordCount: 233)
+    store.record(source: .sync, title: "Import preview", message: "purpose=real state=ready source=tandemSource count=233", importPreview: preview)
+    XCTAssertEqual(DiagnosticsLogStore(defaults: defaults).entries.first?.importPreview, preview)
+  }
+
+  func testLegacyAndFuturePreviewMetadataDoNotDiscardRetainedEntries() throws {
+    let suite = "LegacyPreviewMetadata.\(UUID())"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let legacy = #"{"id":"11111111-1111-1111-1111-111111111111","timestamp":0,"source":"Sync","severity":"Info","title":"Import preview","message":"purpose=real state=loading"}"#
+    let future = #"{"id":"22222222-2222-2222-2222-222222222222","timestamp":1,"source":"Sync","severity":"Info","title":"Import preview","message":"password=private-marker","importPreview":{"status":"futureState"}}"#
+    defaults.set(Data("[\(legacy),\(future)]".utf8), forKey: "diagnostics-log")
+    let entries = DiagnosticsLogStore(defaults: defaults).entries
+    XCTAssertEqual(entries.count, 2)
+    XCTAssertNil(entries.first?.importPreview)
+    XCTAssertEqual(DiagnosticPresentation.importPreview(for: try XCTUnwrap(entries.first))?.status, .loading)
+    XCTAssertNil(entries.last?.importPreview)
+    XCTAssertFalse(try XCTUnwrap(entries.last?.message).contains("private-marker"))
+  }
+
+  func testDecodedPreviewMetadataDoesNotInventNegativeOrPrematureCounts() throws {
+    let ready = try JSONDecoder().decode(ImportPreviewDiagnostic.self,
+      from: Data(#"{"status":"ready","source":"tandemSource","recordCount":-1}"#.utf8))
+    XCTAssertNil(ready.recordCount)
+    let loading = try JSONDecoder().decode(ImportPreviewDiagnostic.self,
+      from: Data(#"{"status":"loading","source":"tandemSource","recordCount":10}"#.utf8))
+    XCTAssertNil(loading.source)
+    XCTAssertNil(loading.recordCount)
+  }
+
+  func testSecretRedactionIsIdempotentAcrossRepeatedExportBoundaries() {
+    let value = #"password="a multiword secret" accessToken=unquoted-token user@example.com"#
+    let once = DiagnosticsLogStore.redacted(value)
+    XCTAssertEqual(DiagnosticsLogStore.redacted(once), once)
+  }
+
+  func testQuotedSecretsAreFullyRemovedFromPersistenceAndExports() throws {
+    let suite = "QuotedSecrets.\(UUID())"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let store = DiagnosticsLogStore(defaults: defaults)
+    store.record(source: .auth, title: "Failure", message: #"password="correct horse,battery;staple" accessToken='escaped secret phrase'"#)
+    let entry = try XCTUnwrap(DiagnosticsLogStore(defaults: defaults).entries.first)
+    for output in [entry.message ?? "", DiagnosticPresentation.export(entry), String(decoding: defaults.data(forKey: "diagnostics-log")!, as: UTF8.self)] {
+      for secret in ["correct", "horse", "battery", "staple", "escaped", "phrase"] { XCTAssertFalse(output.contains(secret), secret) }
+    }
+  }
+
+  func testRedactsNamedSecretsAndTitlesBeforePersistence() {
+    let store = makeStore()
+    store.record(source: .auth, title: "Failure for private@example.com", message: "password=secret-marker accessToken=access-marker authorization=Basic-secret")
+    let entry = store.entries[0]
+    XCTAssertFalse(entry.title.contains("private@example.com"))
+    XCTAssertFalse(entry.message?.contains("secret-marker") ?? true)
+    XCTAssertFalse(entry.message?.contains("access-marker") ?? true)
+    XCTAssertFalse(entry.message?.contains("Basic-secret") ?? true)
+  }
+
   func testRedactsRenewableSessionCredentialsAndChallenges() {
     let redacted = DiagnosticsLogStore.redacted(
       "refresh=psrt1.019c1234567890abcdef1234567890ab.aVeryLongRefreshSecretValue123456789 challenge=psc1.payloadPayloadPayloadPayload.signatureSignatureSignature"

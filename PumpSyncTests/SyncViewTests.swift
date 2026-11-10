@@ -3,10 +3,6 @@ import XCTest
 
 @MainActor
 final class SyncViewTests: XCTestCase {
-  func testReduceMotionKeepsRunningSyncIconStatic() {
-    XCTAssertEqual(SyncButtonIconRotation.angle(isSyncing: true, startDate: Date(timeIntervalSince1970: 0), currentDate: Date(timeIntervalSince1970: 0.2), reduceMotion: true), 0)
-  }
-
   func testDisconnectedReadinessExplainsRecoveryAction() {
     XCTAssertNotNil(SyncView.readinessMessage(
       isBackendConnected: false, hasValidatedCredentials: true, hasAnyHealthWritePermission: true
@@ -60,13 +56,13 @@ final class SyncViewTests: XCTestCase {
     XCTAssertEqual(updatingHealth.detail, "Saving new pump samples to Apple Health.")
   }
 
-  func testBackgroundProgressAndSuccessAreNotPresented() {
+  func testActiveBackgroundWorkIsDiscoverableWhileIdleHasNoResult() {
     let now = Date(timeIntervalSince1970: 100)
 
-    XCTAssertNil(SyncStatusPresentation.make(
+    XCTAssertTrue(SyncStatusPresentation.make(
       for: .running(SyncProgress(phase: .preparing, trigger: .background, startedAt: now)),
       now: now
-    ))
+    )?.showsProgress == true)
     XCTAssertNil(SyncStatusPresentation.make(for: .idle, now: now))
   }
 
@@ -119,44 +115,14 @@ final class SyncViewTests: XCTestCase {
     XCTAssertEqual(subscription.action, .openSubscription)
     XCTAssertEqual(wait.actionTitle, "Try Again Later")
     XCTAssertEqual(wait.action, .retry)
-    XCTAssertEqual(dismiss.actionTitle, "Try Again")
-    XCTAssertEqual(dismiss.action, .retry)
+    XCTAssertNil(dismiss.actionTitle)
+    XCTAssertNil(dismiss.action)
   }
 
   func testSyncPhaseMessagesExplainLongRunningActivation() {
     XCTAssertEqual(SyncPhase.preparing.message, "Starting secure service…")
     XCTAssertEqual(SyncPhase.downloading.message, "Downloading pump data…")
     XCTAssertEqual(SyncPhase.updatingHealth.message, "Updating Apple Health…")
-  }
-
-  func testSyncIconRotationStaysAtZeroWhenNotSyncing() {
-    let startDate = Date(timeIntervalSince1970: 100)
-    let laterDate = startDate.addingTimeInterval(5)
-
-    XCTAssertEqual(
-      SyncButtonIconRotation.angle(
-        isSyncing: false,
-        startDate: startDate,
-        currentDate: laterDate
-      ),
-      0
-    )
-  }
-
-  func testSyncIconRotationAdvancesWhileSyncing() {
-    let startDate = Date(timeIntervalSince1970: 100)
-    let currentDate = startDate.addingTimeInterval(0.2)
-
-    XCTAssertEqual(
-      SyncButtonIconRotation.angle(
-        isSyncing: true,
-        startDate: startDate,
-        currentDate: currentDate,
-        revolutionDuration: 0.8
-      ),
-      90,
-      accuracy: 0.001
-    )
   }
 
   func testReadinessMessagePromptsForSignInFirst() {

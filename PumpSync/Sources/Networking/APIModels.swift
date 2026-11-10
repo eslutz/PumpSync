@@ -17,7 +17,7 @@ struct SessionChallengeRequest: Encodable {
   let requestHash: String?
 }
 
-struct SessionChallengeResponse: Decodable, Equatable {
+struct SessionChallengeResponse: Decodable, Equatable, Sendable {
   let protocolVersion: Int
   let proofKind: String
   let challengeToken: String
@@ -66,7 +66,7 @@ struct SessionRefreshRequest: Encodable, Equatable {
   let proof: String
 }
 
-struct BackendSessionResponse: Codable, Equatable {
+struct BackendSessionResponse: Codable, Equatable, Sendable {
   let accessToken: String
   let expiresAt: Date
   let serviceMode: String
@@ -122,11 +122,11 @@ struct TandemCredentialValidationRequest: Encodable {
   let timeZoneIdentifier: String?
 }
 
-struct TandemCredentialValidationResponse: Decodable, Equatable {
+struct TandemCredentialValidationResponse: Decodable, Equatable, Sendable {
   let validated: Bool
 }
 
-struct TandemSyncResponse: Decodable {
+struct TandemSyncResponse: Decodable, Sendable {
   // HTTP metadata only; never trusted from response JSON.
   var backendCorrelationID: String? = nil
   let samples: [SampleDTO]
@@ -151,7 +151,7 @@ struct TandemSyncResponse: Decodable {
   }
 }
 
-struct SampleDTO: Codable, Equatable {
+struct SampleDTO: Codable, Equatable, Sendable {
   let externalId: String
   let type: String
   let value: Decimal
@@ -219,7 +219,7 @@ struct SampleDTO: Codable, Equatable {
   }
 }
 
-struct SourceDTO: Codable, Equatable {
+struct SourceDTO: Codable, Equatable, Sendable {
   let deviceId: String
   let eventIds: [String]
 

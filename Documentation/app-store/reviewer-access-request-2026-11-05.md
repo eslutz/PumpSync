@@ -1,10 +1,10 @@
 # Reviewer-access inquiry
 
-Prepared November 5, 2026. **Draft only: not sent; no Apple approval or case number exists.**
+Prepared November 5, 2026; submitted November 6. **Apple confirmed case 30000007388462. No approval has been received.**
 
 Canonical process: [App Review access plan](https://github.com/eslutz/PumpSync/wiki/App-Review-Access-Plan).
 
-## Proposed message to Apple
+## Message submitted to Apple
 
 Please route this pre-submission reviewer-access request to App Review. We request prior approval under guideline 2.1(a) for an integrated demonstration arrangement for PumpSync 1.0.0, bundle ID `dev.ericslutz.PumpSync`, Apple ID `6781908162`, on iPhone and iPad.
 
@@ -31,4 +31,6 @@ Please confirm whether the proposed arrangement is acceptable under 2.1(a), what
 
 ## Contact preparation
 
-The signed-in [App Review contact form](https://developer.apple.com/contact/app-store/) was filled with this draft on November 5, without clicking Send. The available general App Store Connect topic asks for routing to App Review; the form has no dedicated prior-demonstration-approval topic. A filled browser form is not a durable submitted support case. Preserve this file as the source if the form expires.
+The initial November 5 form was a draft only. On November 6, the contact service first redirected to maintenance. After sign-in was restored, Apple's supported contact route was App Review → Other App Review questions → Email. The app name, Apple ID, iOS platform, and message above were submitted; Apple displayed “Thanks for contacting us” and case 30000007388462. Wait for the written reply and its conditions before implementing or submitting the proposed arrangement.
+
+Further Apple correspondence requires Eric's review and explicit approval before sending.

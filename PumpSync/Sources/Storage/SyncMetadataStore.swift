@@ -31,6 +31,8 @@ struct SyncMetadata: Codable, Equatable {
   var syncWatermark: Date?
   var owner: TandemSyncOwner?
   var cursorResetReason: SyncCursorResetReason?
+  var historyScopeID: UUID = UUID()
+  var lastPermissionSkippedCount: Int? = nil
 
   private enum CodingKeys: String, CodingKey {
     case lastAttemptAt
@@ -41,7 +43,7 @@ struct SyncMetadata: Codable, Equatable {
     case initialImportRange
     case syncWatermark
     case owner
-    case cursorResetReason
+    case cursorResetReason, historyScopeID, lastPermissionSkippedCount
   }
 
   init(
@@ -77,6 +79,8 @@ struct SyncMetadata: Codable, Equatable {
     syncWatermark = try container.decodeIfPresent(Date.self, forKey: .syncWatermark) ?? lastSuccessfulSyncAt
     owner = try container.decodeIfPresent(TandemSyncOwner.self, forKey: .owner)
     cursorResetReason = try container.decodeIfPresent(SyncCursorResetReason.self, forKey: .cursorResetReason)
+    historyScopeID = try container.decodeIfPresent(UUID.self, forKey: .historyScopeID) ?? UUID()
+    lastPermissionSkippedCount = try container.decodeIfPresent(Int.self, forKey: .lastPermissionSkippedCount)
   }
 }
 
@@ -91,9 +95,9 @@ final class SyncMetadataStore {
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
     self.metadata = Self.load(defaults: defaults)
-    if metadata.owner == nil, hasAccountHistory {
-      resetHistory(reason: .legacyUnbound)
-    }
+    if metadata.owner == nil, hasAccountHistory { resetHistory(reason: .legacyUnbound) }
+    let stored = defaults.data(forKey: Self.defaultsKey).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    if stored?["historyScopeID"] == nil { save() }
   }
 
   /// Reconcile only a durably known account and the selected real backend.
@@ -106,6 +110,8 @@ final class SyncMetadataStore {
       resetHistory(reason: reason)
     } else if hasAccountHistory {
       resetHistory(reason: .legacyUnbound)
+    } else {
+      metadata.historyScopeID = UUID()
     }
     metadata.owner = owner
     save()
@@ -117,6 +123,8 @@ final class SyncMetadataStore {
   }
 
   private func resetHistory(reason: SyncCursorResetReason) {
+    metadata.historyScopeID = UUID()
+    metadata.lastPermissionSkippedCount = nil
     metadata.syncWatermark = nil
     metadata.lastSuccessfulSyncAt = nil
     metadata.lastSampleCount = 0
@@ -143,12 +151,13 @@ final class SyncMetadataStore {
   ///   a later, locally-captured timestamp here would create a permanent gap
   ///   between what was actually requested and what the next sync resumes
   ///   from.
-  func recordSuccess(sampleCount: Int, importedCount: Int, completedAt: Date, watermark: Date, owner: TandemSyncOwner) {
+  func recordSuccess(sampleCount: Int, importedCount: Int, completedAt: Date, watermark: Date, owner: TandemSyncOwner, permissionSkippedCount: Int = 0) {
     metadata.owner = owner
     metadata.lastSuccessfulSyncAt = completedAt
     metadata.syncWatermark = watermark
     metadata.lastSampleCount = sampleCount
     metadata.lastImportedCount = importedCount
+    metadata.lastPermissionSkippedCount = permissionSkippedCount
     metadata.lastErrorMessage = nil
     save()
   }
