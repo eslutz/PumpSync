@@ -1288,6 +1288,9 @@ final class AuthService {
       statusMessage = session.map(Self.connectedStatusMessage(for:)) ?? "Connection needs attention."
     }
     isReplacingConnection = false
+    // Reconcile the newly active connection only after releasing the fence.
+    // Failed restoration or a canceled owner must not start fresh sync work.
+    if activated, isSignedIn, !Task.isCancelled { sessionEstablished?() }
   }
 
   func clearSessionForConnectionChange() {

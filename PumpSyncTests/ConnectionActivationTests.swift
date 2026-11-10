@@ -109,6 +109,13 @@ final class ConnectionActivationTests: XCTestCase {
     live.applyScreenshotSession(serviceMode: "hosted")
     let original = try XCTUnwrap(live.authenticatedConnection)
     try store.save(original)
+    var recoverySignals = 0
+    live.setSessionEstablishedHandler {
+      recoverySignals += 1
+      XCTAssertFalse(live.isReplacingConnection, "Release the replacement fence before recovery")
+      XCTAssertEqual(live.accessToken, "candidate")
+      XCTAssertEqual(configuration.mode, .selfHosted)
+    }
     var pause = true
     var continuation: CheckedContinuation<Void, Never>?
     var requests = 0
@@ -142,12 +149,14 @@ final class ConnectionActivationTests: XCTestCase {
     XCTAssertTrue(controller.canConnect)
     XCTAssertEqual(configuration.mode, .hosted)
     XCTAssertEqual(live.authenticatedConnection, original)
+    XCTAssertEqual(recoverySignals, 0, "Canceled candidates must not start recovery")
     pause = false
     controller.mode = .selfHosted
     controller.serverURL = "https://candidate.example/api"
     await controller.connect()
     XCTAssertEqual(configuration.mode, .selfHosted)
     XCTAssertEqual(live.accessToken, "candidate")
+    XCTAssertEqual(recoverySignals, 1)
     XCTAssertFalse(live.isReplacingConnection)
     XCTAssertEqual(try store.loadConnection(binding: XCTUnwrap(live.connectionBinding))?.session.accessToken, "candidate")
   }
@@ -209,6 +218,76 @@ final class ConnectionActivationTests: XCTestCase {
     await controller.connect()
     XCTAssertTrue(live.isSignedIn)
     XCTAssertEqual(live.accessToken, "replacement")
+  }
+
+  func testReplacementWithoutRestorableSessionDoesNotNotifyRecovery() {
+    let services = AppServices.screenshotFixture()
+    let live = AuthService(apiClient: services.apiClient,
+      configurationStore: services.backendConfigurationStore,
+      sessionStore: BackendSessionStore(keychain: Persistence()),
+      proofProvider: ConnectionProof())
+    var signals = 0
+    live.setSessionEstablishedHandler { signals += 1 }
+    XCTAssertTrue(live.beginConnectionReplacement())
+    live.endConnectionReplacement(activated: true)
+    XCTAssertFalse(live.isReplacingConnection)
+    XCTAssertFalse(live.isSignedIn)
+    XCTAssertEqual(signals, 0)
+  }
+
+  func testCanceledReplacementOwnerDoesNotNotifyRecoveryAfterRestoringSession() async throws {
+    let services = AppServices.screenshotFixture()
+    let store = BackendSessionStore(keychain: Persistence())
+    let live = AuthService(apiClient: services.apiClient,
+      configurationStore: services.backendConfigurationStore,
+      sessionStore: store, proofProvider: ConnectionProof())
+    live.applyScreenshotSession(serviceMode: "hosted")
+    try store.save(XCTUnwrap(live.authenticatedConnection))
+    var signals = 0
+    live.setSessionEstablishedHandler { signals += 1 }
+    XCTAssertTrue(live.beginConnectionReplacement())
+    await Task { @MainActor in
+      withUnsafeCurrentTask { $0?.cancel() }
+      live.endConnectionReplacement(activated: true)
+    }.value
+    XCTAssertTrue(live.isSignedIn)
+    XCTAssertFalse(live.isReplacingConnection)
+    XCTAssertEqual(signals, 0)
+  }
+
+  func testFailedReplacementDoesNotNotifyRecovery() async throws {
+    for failureDuringActivation in [false, true] {
+      let services = AppServices.screenshotFixture()
+      let root = Persistence()
+      let storage = ConnectionActivationStorage(root: root)
+      let configuration = services.backendConfigurationStore
+      var signals = 0
+      services.authService.setSessionEstablishedHandler { signals += 1 }
+      let original = services.authService.authenticatedConnection
+      let controller = ConnectionSettingsController(configuration: configuration, auth: services.authService,
+        api: services.apiClient, sync: services.syncCoordinator, storage: storage,
+        diagnostics: services.diagnosticsLogStore) { api, candidate, persistence, _ in
+          let auth = AuthService(apiClient: api, configurationStore: candidate,
+            sessionStore: BackendSessionStore(keychain: persistence),
+            currentEntitlementJWS: { "fixture" },
+            createSubscriptionSession: { _ in throw APIClientError.invalidResponse },
+            createSelfHostedSession: { _ in
+              guard failureDuringActivation else { throw APIClientError.invalidResponse }
+              return BackendSessionResponse(accessToken: "candidate", expiresAt: .distantFuture,
+                serviceMode: "selfHosted", dataSourceMode: "tandemSource")
+            }, proofProvider: ConnectionProof())
+          // The candidate credential commits, but activation of its namespace fails.
+          if failureDuringActivation { auth.setSessionEstablishedHandler { root.failsWrites = true } }
+          return auth
+        }
+      controller.mode = .selfHosted
+      controller.serverURL = "https://failed.example/api"
+      await controller.connect()
+      XCTAssertEqual(signals, 0)
+      XCTAssertFalse(services.authService.isReplacingConnection)
+      XCTAssertEqual(services.authService.authenticatedConnection, original)
+      XCTAssertEqual(configuration.mode, .hosted)
+    }
   }
 
   func testURLValidationAcceptsRootAndCustomHTTPSBasePathsWithoutAddingAPI() {
@@ -288,6 +367,13 @@ final class ConnectionActivationTests: XCTestCase {
     live.applyScreenshotSession(serviceMode: "selfHosted")
     let original = try XCTUnwrap(live.authenticatedConnection)
     try store.save(original)
+    var recoverySignals = 0
+    live.setSessionEstablishedHandler {
+      recoverySignals += 1
+      XCTAssertFalse(live.isReplacingConnection)
+      XCTAssertEqual(live.accessToken, "hosted-replacement")
+      XCTAssertEqual(configuration.mode, .hosted)
+    }
     var reads = 0
     var posts = 0
     let controller = ConnectionSettingsController(configuration: configuration, auth: live, api: services.apiClient,
@@ -306,6 +392,7 @@ final class ConnectionActivationTests: XCTestCase {
       }
     controller.mode = .hosted
     await controller.connect(restorePurchases: false)
+    XCTAssertEqual(recoverySignals, 1)
     XCTAssertEqual(reads, 1)
     XCTAssertEqual(posts, 1)
     XCTAssertEqual(configuration.mode, .hosted)
