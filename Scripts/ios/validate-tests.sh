@@ -4,15 +4,15 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 log_path="${PUMPSYNC_TEST_LOG:-$(mktemp /tmp/pumpsync-test-validation.XXXXXX)}"
 destination="${PUMPSYNC_TEST_DESTINATION:-platform=iOS Simulator,name=iPhone 17,OS=latest}"
-build_options=()
 if [[ -n "${PUMPSYNC_DERIVED_DATA_PATH:-}" ]]; then
-  build_options+=(-derivedDataPath "$PUMPSYNC_DERIVED_DATA_PATH")
+  # Positional arguments safely support an empty list under macOS Bash 3.2 nounset.
+  set -- -derivedDataPath "$PUMPSYNC_DERIVED_DATA_PATH" "$@"
 fi
 bash Scripts/ios/prepare-session-contract.sh
 xcodegen generate
 set +e
 xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync \
-  -destination "$destination" "${build_options[@]}" "$@" 2>&1 | tee "$log_path"
+  -destination "$destination" "$@" 2>&1 | tee "$log_path"
 pipeline_status=("${PIPESTATUS[@]}")
 set -e
 echo "Build and test log: $log_path"
