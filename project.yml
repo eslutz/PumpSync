@@ -39,6 +39,25 @@ schemes:
       config: Debug
     archive:
       config: Release
+  PumpSync Cloud Smoke:
+    build:
+      targets:
+        PumpSync: all
+        PumpSyncTests: [test]
+        PumpSyncUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      debugEnabled: false
+      environmentVariables:
+        PUMPSYNC_SCREENSHOT_MODE: "1"
+      targets:
+        - PumpSyncTests
+        - name: PumpSyncUITests
+          selectedTests:
+            - PumpSyncUITests/testAppLaunches()
+            - PumpSyncUITests/testConnectionRecoveryOpensSettingsTab()
   PumpSync Beta:
     build:
       targets:

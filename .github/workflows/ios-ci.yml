@@ -22,6 +22,7 @@ on:
       - "Scripts/tests/validate-version-tests.sh"
       - "Scripts/tests/validate-ci-workflow-tests.rb"
       - "Scripts/tests/validate-test-runner-tests.py"
+      - "Scripts/tests/validate-test-allocation.py"
       - ".github/workflows/ios-ci.yml"
   pull_request:
     paths:
@@ -40,6 +41,7 @@ on:
       - "Scripts/tests/validate-version-tests.sh"
       - "Scripts/tests/validate-ci-workflow-tests.rb"
       - "Scripts/tests/validate-test-runner-tests.py"
+      - "Scripts/tests/validate-test-allocation.py"
       - ".github/workflows/ios-ci.yml"
 
 permissions:
@@ -57,7 +59,9 @@ jobs:
         run: ruby Scripts/tests/validate-ci-workflow-tests.rb
 
       - name: Validate test runner arguments and failure handling
-        run: python3 Scripts/tests/validate-test-runner-tests.py
+        run: |
+          python3 Scripts/tests/validate-test-runner-tests.py
+          python3 Scripts/tests/validate-test-allocation.py
 
       - name: Validate release version
         run: |

@@ -1,5 +1,15 @@
 # Xcode Cloud workflow configuration
 
+## Lean internal release allocation (November 10)
+
+The owner requested reduced Cloud quota use. The `PumpSync` scheme remains the full, unfiltered unit and UI suite used locally and in GitHub CI. The required local preflight still includes the full suite and standard/maximum accessibility-text checks. No accessibility checks are waived.
+
+The separate `PumpSync Cloud Smoke` scheme runs all unit tests plus two UI smoke checks: app launch and connection-recovery navigation. The Internal Beta test action should use this scheme, remain required, and retain Latest Release Xcode/runtime. The existing required `PumpSync Beta` internal-only archive and automatic Internal Testers distribution must remain unchanged. Verify the live saved workflow before starting a run.
+
+Release requires the full local gate and exact-head GitHub CI to pass before starting Apple Cloud. Expensive accessibility/UI coverage remains local/GitHub, not the Apple release job. GitHub and the mandatory compact local gate use iOS 27.0; this is not equivalent to exhaustive coverage of Apple's latest runtime. Verify any known latest-runtime failure locally before release; physical-device acceptance remains separate.
+
+Cloud run 57's test action elapsed 60m54s, versus 2m33s for its failed archive action. These are action wall-clock durations, not measured billed quota. Its core-screen accessibility test stalled waiting for app idle after a Developer-screen swipe and timed out at 600s; the root cause is not proven. Its archive also reused already-uploaded build 57. Neither failure is waived by this allocation change.
+
 ## November 8 Internal Beta repair
 
 PumpSync Internal Beta is repaired and saved through App Store Connect's web editor.
