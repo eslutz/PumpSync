@@ -5,52 +5,13 @@ enum AppConstants {
   /// App-open synchronization uses this freshness target. A system-granted
   /// background task always syncs because another opportunity is not assured.
   static let staleSyncInterval: TimeInterval = 4 * 60 * 60
-  static let subscriptionProductId =
-    Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_PRODUCT_ID") as? String
-      ?? "dev.ericslutz.PumpSync.subscription.monthly"
-  static let subscriptionGroupId =
-    Bundle.main.object(forInfoDictionaryKey: "SUBSCRIPTION_GROUP_ID") as? String
-      ?? "22168040"
-  // Published policy pages on the public website. App Review guideline 3.1.2
-  // requires functional Terms of Use and Privacy Policy links on the
-  // subscription purchase screen; these back the paywall's policy
-  // destinations. The website is the canonical source for this text, so the
-  // app links out rather than carrying a copy (see AGENTS.md).
   static let termsOfUseURL = URL(string: "https://pumpsync.ericslutz.dev/terms/")!
   static let privacyPolicyURL = URL(string: "https://pumpsync.ericslutz.dev/privacy/")!
   static let dataDeletionURL = URL(string: "https://pumpsync.ericslutz.dev/privacy/data-deletion/")!
-  // Fail fast rather than fall back: a silent default here could point a
-  // misconfigured Release build at the wrong backend environment. The key is
-  // injected per configuration from project.yml, so any build missing it is
-  // broken at build-configuration level and should crash immediately in
-  // development/CI, not limp along against a hardcoded URL.
-  static let defaultAPIBaseURL: URL = {
-    guard
-      let value = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
-      let url = URL(string: value),
-      url.scheme != nil
-    else {
-      fatalError("API_BASE_URL is missing or invalid in Info.plist — regenerate the project from project.yml.")
-    }
 
-    return url
-  }()
-
-  static let defaultHostedEnvironment: HostedSubscriptionEnvironment = {
-    guard let raw = Bundle.main.object(forInfoDictionaryKey: "HOSTED_ENVIRONMENT") as? String,
-          let environment = HostedSubscriptionEnvironment(rawValue: raw) else {
-      fatalError("HOSTED_ENVIRONMENT is missing or invalid — regenerate the project.")
-    }
-    return environment
-  }()
-
-  static func hostedAPIBaseURL(for environment: HostedSubscriptionEnvironment) -> URL {
-    let key = environment == .sandbox ? "SANDBOX_API_BASE_URL" : "PRODUCTION_API_BASE_URL"
-    guard let raw = Bundle.main.object(forInfoDictionaryKey: key) as? String,
-          let url = URL(string: raw), url.scheme == "https", url.host != nil else {
-      fatalError("Hosted backend URL is missing or invalid — regenerate the project.")
-    }
-    return url
+  /// Only upgrades can have an identifier associated with legacy hosted metadata.
+  static func legacyInstallationID(defaults: UserDefaults = .standard) -> String? {
+    guard let value = defaults.string(forKey: InstallStateReconciler.legacyInstallationIdKey), UUID(uuidString: value) != nil else { return nil }
+    return value
   }
-
 }

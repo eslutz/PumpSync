@@ -27,7 +27,8 @@ final class SyncHistoryOwnershipTests: XCTestCase {
     persistence.failWriteAccount = nil
     let migrated = TandemCredentialStore(keychain: persistence)
     XCTAssertTrue(migrated.ownershipAvailable)
-    XCTAssertTrue(migrated.hasValidatedCredentials)
+    XCTAssertFalse(migrated.hasValidatedCredentials)
+    XCTAssertTrue(migrated.needsDirectReconnect)
     XCTAssertEqual(migrated.accountId, accountId)
     metadata.reconcileOwner(TandemSyncOwner(accountId: try XCTUnwrap(migrated.accountId), backendIdentity: owner.backendIdentity))
     XCTAssertEqual(metadata.metadata, previous)
@@ -80,13 +81,37 @@ final class SyncHistoryOwnershipTests: XCTestCase {
     XCTAssertEqual(defaults.data(forKey: "sync-metadata"), persisted)
   }
 
+  func testLegacyCursorAdoptedOnlyForSameAccountFromKnownHostedService() throws {
+    for endpoint in ["https://api.pumpsync.ericslutz.dev/api", "https://custom.example/api"] {
+      for sameAccount in [true, false] {
+        let defaults = UserDefaults(suiteName: "DirectUpgrade.\(UUID())")!
+        let store = SyncMetadataStore(defaults: defaults)
+        let account = UUID()
+        let cursor = Date(timeIntervalSince1970: 100)
+        let previous = TandemSyncOwner(accountId: account, backendIdentity: endpoint)
+        store.recordSuccess(sampleCount: 10, importedCount: 4, completedAt: cursor, watermark: cursor, owner: previous)
+        store.setInitialImportRange(.pastTwoDays)
+        let owner = TandemSyncOwner(accountId: sameAccount ? account : UUID())
+        store.reconcileOwner(owner)
+        let expectCursor = sameAccount && endpoint == "https://api.pumpsync.ericslutz.dev/api"
+        XCTAssertEqual(store.metadata.syncWatermark, expectCursor ? cursor : nil)
+        XCTAssertEqual(store.metadata.initialImportRange, .pastTwoDays)
+        let migrated = store.metadata
+        let restarted = SyncMetadataStore(defaults: defaults)
+        restarted.reconcileOwner(owner)
+        XCTAssertEqual(restarted.metadata, migrated)
+      }
+    }
+  }
+
   func testLegacyValidationMigrationPersistsAccountIdentityWithoutBlessingLegacyCursor() throws {
     let keychain = SecureKeychainStore(service: "LegacyValidation.\(UUID().uuidString)")
     defer { try? keychain.deleteAll() }
     try keychain.writeData(JSONEncoder().encode(TandemCredentials(username: "legacy", password: "fixture", region: "us")), account: "tandem-source-credentials")
     try keychain.writeData(Data(#"{"username":"legacy","region":"us","validatedAt":100}"#.utf8), account: "tandem-source-credential-validation")
     let migrated = TandemCredentialStore(keychain: keychain)
-    XCTAssertTrue(migrated.hasValidatedCredentials)
+    XCTAssertFalse(migrated.hasValidatedCredentials)
+    XCTAssertTrue(migrated.needsDirectReconnect)
     let owner = try XCTUnwrap(migrated.accountId)
     XCTAssertEqual(TandemCredentialStore(keychain: keychain).accountId, owner)
     migrated.invalidateValidation()

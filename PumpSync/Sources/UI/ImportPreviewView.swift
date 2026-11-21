@@ -168,7 +168,11 @@ struct RealImportPreviewView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     init(services: AppServices) {
-        _session = State(initialValue: RealImportPreviewSession(apiClient: services.apiClient, authService: services.authService, credentialStore: services.credentialStore, metadataStore: services.syncMetadataStore, concentrationStore: services.insulinConcentrationStore, diagnostics: services.diagnosticsLogStore))
+        _session = State(initialValue: RealImportPreviewSession(
+            dataSource: services.dataSource, credentialStore: services.credentialStore,
+            metadataStore: services.syncMetadataStore, concentrationStore: services.insulinConcentrationStore,
+            diagnostics: services.diagnosticsLogStore, previewSource: services.previewSource
+        ))
     }
 
     var body: some View {

@@ -14,10 +14,6 @@ on:
       - "Scripts/validate-version.sh"
       - "Scripts/ios/validate-tests.sh"
       - "Scripts/ios/validate-cloud-tests.sh"
-      - "Scripts/ios/validate-session-contract.sh"
-      - "Scripts/ios/prepare-session-contract.sh"
-      - "Scripts/ios/update-session-contract-snapshots.sh"
-      - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "Scripts/tests/validate-version-tests.sh"
       - "Scripts/tests/validate-ci-workflow-tests.rb"
@@ -33,10 +29,6 @@ on:
       - "Scripts/validate-version.sh"
       - "Scripts/ios/validate-tests.sh"
       - "Scripts/ios/validate-cloud-tests.sh"
-      - "Scripts/ios/validate-session-contract.sh"
-      - "Scripts/ios/prepare-session-contract.sh"
-      - "Scripts/ios/update-session-contract-snapshots.sh"
-      - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "Scripts/tests/validate-version-tests.sh"
       - "Scripts/tests/validate-ci-workflow-tests.rb"
@@ -67,9 +59,6 @@ jobs:
         run: |
           Scripts/tests/validate-version-tests.sh
           Scripts/validate-version.sh
-
-      - name: Validate committed contract snapshots
-        run: bash Scripts/tests/validate-session-contract-snapshots-tests.sh
 
       - name: Select latest stable Xcode
         run: |

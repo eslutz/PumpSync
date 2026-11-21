@@ -7,14 +7,8 @@ struct AppView: View {
   @State private var settingsNavigationID = UUID()
   @State private var syncNavigationID = UUID()
   @State private var editingScreenDepartureID = UUID()
-  @State private var sheet: AppSheet?
   @State private var syncMessage: SyncMessage?
   @State private var initializedMessages = false
-
-  private enum AppSheet: String, Identifiable {
-    case subscription
-    var id: String { rawValue }
-  }
 
   var body: some View {
     // A single TabView hierarchy adapts between a tab bar (iPhone/compact) and
@@ -33,28 +27,10 @@ struct AppView: View {
         }
       }
     }
-    .environment(\.openConnectionSettings, {
-      editingScreenDepartureID = UUID()
-      settingsNavigationID = UUID()
-      selectedTab = .settings
-    })
     .environment(\.editingScreenDepartureID, editingScreenDepartureID)
     .environment(\.recoverSync, recoverSync)
     .tabViewStyle(.sidebarAdaptable)
     .onChange(of: selectedTab) { _, _ in editingScreenDepartureID = UUID() }
-    .sheet(item: $sheet) { destination in
-      NavigationStack {
-        switch destination {
-        case .subscription:
-          SubscriptionSettingsView()
-            .toolbar {
-              ToolbarItem(placement: .confirmationAction) {
-                Button("Done") { sheet = nil }
-              }
-            }
-        }
-      }
-    }
     .overlay(alignment: .top) {
       GeometryReader { geometry in
         if let syncMessage {
@@ -95,7 +71,6 @@ struct AppView: View {
       }
       if let announcement { UIAccessibility.post(notification: .announcement, argument: announcement) }
     }
-
   }
 
   private func recoverSync(_ action: SyncStatusAction) {
@@ -107,9 +82,6 @@ struct AppView: View {
       editingScreenDepartureID = UUID()
       settingsNavigationID = UUID()
       selectedTab = .settings
-    case .openSubscription:
-      editingScreenDepartureID = UUID()
-      sheet = .subscription
     }
   }
 }
@@ -150,10 +122,6 @@ enum AppTab: String, CaseIterable, Identifiable {
   }
 }
 
-private struct OpenConnectionSettingsKey: EnvironmentKey {
-  static let defaultValue: @MainActor () -> Void = {}
-}
-
 private struct RecoverSyncKey: EnvironmentKey {
   static let defaultValue: @MainActor (SyncStatusAction) -> Void = { _ in }
 }
@@ -171,10 +139,5 @@ extension EnvironmentValues {
   var recoverSync: @MainActor (SyncStatusAction) -> Void {
     get { self[RecoverSyncKey.self] }
     set { self[RecoverSyncKey.self] = newValue }
-  }
-
-  var openConnectionSettings: @MainActor () -> Void {
-    get { self[OpenConnectionSettingsKey.self] }
-    set { self[OpenConnectionSettingsKey.self] = newValue }
   }
 }

@@ -3,13 +3,7 @@ import XCTest
 
 @MainActor
 final class SyncViewTests: XCTestCase {
-  func testDisconnectedReadinessExplainsRecoveryAction() {
-    XCTAssertNotNil(SyncView.readinessMessage(
-      isBackendConnected: false, hasValidatedCredentials: true, hasAnyHealthWritePermission: true
-    ))
-  }
-
-  func testPreparingPresentationExplainsMeasuredColdStartAfterThreeSeconds() throws {
+  func testPreparingPresentationExplainsDirectConnectionAfterThreeSeconds() throws {
     let startedAt = Date(timeIntervalSince1970: 100)
     let state = SyncOperationState.running(
       SyncProgress(phase: .preparing, trigger: .manual, startedAt: startedAt)
@@ -19,8 +13,8 @@ final class SyncViewTests: XCTestCase {
       SyncStatusPresentation.make(for: state, now: startedAt.addingTimeInterval(3))
     )
 
-    XCTAssertEqual(presentation.title, "Starting secure service…")
-    XCTAssertEqual(presentation.detail, "This can take about 30 seconds after inactivity. Keep PumpSync open.")
+    XCTAssertEqual(presentation.title, "Preparing sync…")
+    XCTAssertEqual(presentation.detail, "Keep PumpSync open while it connects to Tandem.")
     XCTAssertNil(presentation.action)
     XCTAssertNil(presentation.actionTitle)
     XCTAssertTrue(presentation.showsProgress)
@@ -36,7 +30,7 @@ final class SyncViewTests: XCTestCase {
       SyncStatusPresentation.make(for: state, now: startedAt.addingTimeInterval(2.9))
     )
 
-    XCTAssertEqual(presentation.detail, "Connecting securely…")
+    XCTAssertEqual(presentation.detail, "Connecting to Tandem…")
   }
 
   func testRunningPresentationsDescribeDownloadingAndHealthUpdate() throws {
@@ -89,13 +83,6 @@ final class SyncViewTests: XCTestCase {
       for: .failed(SyncFailure(message: "Fix settings.", recovery: .openSettings)),
       now: now
     ))
-    let subscription = try XCTUnwrap(SyncStatusPresentation.make(
-      for: .failed(SyncFailure(
-        message: "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
-        recovery: .openSubscription
-      )),
-      now: now
-    ))
     let wait = try XCTUnwrap(SyncStatusPresentation.make(
       for: .failed(SyncFailure(message: "Wait.", recovery: .waitAndRetry)),
       now: now
@@ -107,12 +94,8 @@ final class SyncViewTests: XCTestCase {
 
     XCTAssertEqual(retry.actionTitle, "Try Again")
     XCTAssertEqual(retry.action, .retry)
-    XCTAssertEqual(settings.actionTitle, "Connection Settings")
+    XCTAssertEqual(settings.actionTitle, "Open Settings")
     XCTAssertEqual(settings.action, .openSettings)
-    XCTAssertEqual(subscription.title, "Subscription required")
-    XCTAssertEqual(subscription.detail, "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.")
-    XCTAssertEqual(subscription.actionTitle, "View Subscription")
-    XCTAssertEqual(subscription.action, .openSubscription)
     XCTAssertEqual(wait.actionTitle, "Try Again Later")
     XCTAssertEqual(wait.action, .retry)
     XCTAssertNil(dismiss.actionTitle)
@@ -120,59 +103,26 @@ final class SyncViewTests: XCTestCase {
   }
 
   func testSyncPhaseMessagesExplainLongRunningActivation() {
-    XCTAssertEqual(SyncPhase.preparing.message, "Starting secure service…")
+    XCTAssertEqual(SyncPhase.preparing.message, "Preparing sync…")
     XCTAssertEqual(SyncPhase.downloading.message, "Downloading pump data…")
     XCTAssertEqual(SyncPhase.updatingHealth.message, "Updating Apple Health…")
   }
 
-  func testReadinessMessagePromptsForSignInFirst() {
-    XCTAssertNotNil(SyncView.readinessMessage(
-      isBackendConnected: false,
-      hasValidatedCredentials: false,
-      hasAnyHealthWritePermission: false
-    ))
-  }
-
-  func testConnectionPresentationExplainsSessionRecovery() {
-    XCTAssertEqual(
-      SyncView.connectionStatus(isSignedIn: false, isConnecting: true),
-      "Connecting to PumpSync…"
-    )
+  func testReadinessMessagePromptsForTandemAccount() {
     XCTAssertEqual(
       SyncView.readinessMessage(
-        isBackendConnected: false,
-        isConnecting: true,
-        hasValidatedCredentials: true,
-        hasAnyHealthWritePermission: true
-      ),
-      "Restoring your secure connection. Sync will start automatically when ready."
-    )
-    XCTAssertEqual(
-      SyncView.syncButtonTitle(
-        isSyncing: false,
-        isConnecting: true,
-        hasCompletedInitialSync: true,
-        initialImportRange: .pastTwoDays
-      ),
-      "Sync Now"
-    )
-  }
-
-  func testReadinessMessagePromptsForSavedCredentialsAfterSignIn() {
-    XCTAssertEqual(
-      SyncView.readinessMessage(
-        isBackendConnected: true,
+        needsReconnect: false,
         hasValidatedCredentials: false,
         hasAnyHealthWritePermission: false
       ),
-      "Save your pump account credentials in Settings before syncing."
+      "Sign in to your Tandem account to sync your pump history."
     )
   }
 
   func testReadinessMessagePromptsForHealthWriteAccessAfterCredentialsAreValidated() {
     XCTAssertEqual(
       SyncView.readinessMessage(
-        isBackendConnected: true,
+        needsReconnect: false,
         hasValidatedCredentials: true,
         hasAnyHealthWritePermission: false
       ),
@@ -180,9 +130,15 @@ final class SyncViewTests: XCTestCase {
     )
   }
 
+  func testLegacyAccountRequiresExplicitReconnectBeforeHealthSetup() {
+    XCTAssertEqual(SyncView.readinessMessage(
+      needsReconnect: true, hasValidatedCredentials: false, hasAnyHealthWritePermission: false
+    ), "Reconnect your saved account to sync directly with Tandem.")
+  }
+
   func testReadinessMessageIsNilWhenReady() {
     XCTAssertNil(SyncView.readinessMessage(
-      isBackendConnected: true,
+      needsReconnect: false,
       hasValidatedCredentials: true,
       hasAnyHealthWritePermission: true
     ))

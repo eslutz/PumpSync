@@ -3,12 +3,12 @@ import XCTest
 
 final class SupportBundleBuilderTests: XCTestCase {
   func testAttemptHistoryExplainsEarlyFailuresEvenWhenLogTailIsEmpty() {
-    let attempt = SyncAttempt(operationID: UUID(), trigger: .background, startedAt: Date(timeIntervalSince1970: 0), stage: .recovering, outcome: .blocked, reason: .recovery(.deviceProofRejected), durationSeconds: 2, backendCorrelationID: nil)
-    let context = SupportBundleContext(bundleInfo: AppBundleInfo(version: "1.0.0", build: "37"), systemVersion: "27", deviceModel: "iPhone", backendMode: "PumpSync", syncMetadata: SyncMetadata(lastAttemptAt: nil, lastSuccessfulSyncAt: nil, lastSampleCount: 0, lastImportedCount: 0, lastErrorMessage: nil), appDiagnostics: [], nativeDiagnostics: [], syncAttempts: [attempt])
+    let attempt = SyncAttempt(operationID: UUID(), trigger: .background, startedAt: Date(timeIntervalSince1970: 0), stage: .validating, outcome: .blocked, reason: .credentials, durationSeconds: 2, backendCorrelationID: nil)
+    let context = SupportBundleContext(bundleInfo: AppBundleInfo(version: "1.0.0", build: "37"), systemVersion: "27", deviceModel: "iPhone", syncMetadata: SyncMetadata(lastAttemptAt: nil, lastSuccessfulSyncAt: nil, lastSampleCount: 0, lastImportedCount: 0, lastErrorMessage: nil), appDiagnostics: [], nativeDiagnostics: [], syncAttempts: [attempt])
     let bundle = SupportBundleBuilder.build(context: context)
     XCTAssertTrue(bundle.contains("## Owned Sync Attempts"))
     XCTAssertTrue(bundle.contains("startedAt=1970-01-01T00:00:00Z"))
-    XCTAssertTrue(bundle.contains("trigger=background stage=recovering outcome=blocked reason=deviceProofRejected"))
+    XCTAssertTrue(bundle.contains("trigger=background stage=validating outcome=blocked reason=credentials"))
     XCTAssertTrue(bundle.contains("Last Error: See owned attempt history"))
     XCTAssertFalse(bundle.contains("Last Error: None"))
   }
@@ -18,7 +18,6 @@ final class SupportBundleBuilderTests: XCTestCase {
       bundleInfo: AppBundleInfo(version: "1.0.0", build: "42"),
       systemVersion: "26.0",
       deviceModel: "iPhone",
-      backendMode: "PumpSync",
       syncMetadata: SyncMetadata(
         lastAttemptAt: Date(timeIntervalSince1970: 10),
         lastSuccessfulSyncAt: Date(timeIntervalSince1970: 20),
@@ -45,11 +44,7 @@ final class SupportBundleBuilderTests: XCTestCase {
           appVersion: "1.0.0",
           buildNumber: "42"
         )
-      ],
-      sessionProtocolVersion: 2,
-      deviceProofKind: "App Attest",
-      refreshCredentialExpiresAt: Date(timeIntervalSince1970: 60),
-      refreshCredentialAbsoluteExpiresAt: Date(timeIntervalSince1970: 70)
+      ]
     )
 
     let bundle = SupportBundleBuilder.build(context: context, generatedAt: Date(timeIntervalSince1970: 50))
@@ -61,8 +56,8 @@ final class SupportBundleBuilderTests: XCTestCase {
     XCTAssertFalse(bundle.contains("api.example.com"))
     XCTAssertTrue(bundle.contains("Last Returned Count: 12"))
     XCTAssertTrue(bundle.contains("Performance metrics"))
-    XCTAssertTrue(bundle.contains("Session Protocol: 2"))
-    XCTAssertTrue(bundle.contains("Device Proof: App Attest"))
+    XCTAssertTrue(bundle.contains("Tandem Source (direct)"))
+    XCTAssertFalse(bundle.contains("Device Proof:"))
     XCTAssertFalse(bundle.contains("user@example.com"))
     XCTAssertFalse(bundle.contains("fake-token-value"))
     XCTAssertFalse(bundle.contains("eyJaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))

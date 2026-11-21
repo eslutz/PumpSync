@@ -2,16 +2,7 @@
 
 PumpSync is the iOS app that syncs Tandem Source insulin and carbohydrate data into Apple Health.
 
-This repository is frontend-only. Backend API code, infrastructure, backend workflows, data-deletion tooling, Docker images, and Azure operations live in [eslutz/PumpSync-Backend](https://github.com/eslutz/PumpSync-Backend).
-
-## Associated Repositories
-
-| Repository | Owns | Notes |
-| --- | --- | --- |
-| [eslutz/PumpSync](https://github.com/eslutz/PumpSync) | iOS app, App Store/TestFlight metadata, iOS CI, screenshots, app legal docs | This repo. Do not add backend code, backend infrastructure, or backend deploy workflows here. |
-| [eslutz/PumpSync-Backend](https://github.com/eslutz/PumpSync-Backend) | ASP.NET Core backend, Docker/Compose self-hosting, Azure Container Apps infrastructure, backend deploy workflows, data deletion tooling | Canonical backend for hosted service, real self-hosting, and synthetic demo/App Review mode. |
-
-Hosted production/nonprod backend images are private GitHub Container Registry images pulled by Azure Container Apps with a backend Key Vault-stored read-only package token. Public self-host/demo images are also published from the backend repo to GitHub Container Registry so users can run the backend without Azure access. The iOS app does not build, publish, or select container images; it only points at a backend base URL.
+The direct-client candidate connects the iPhone to Tandem Source. The app handles authentication, reads pump logs, and converts them to HealthKit samples. Existing service-backed builds use the [legacy backend](https://github.com/eslutz/PumpSync-Backend).
 
 ## Repository Layout
 
@@ -24,37 +15,13 @@ Hosted production/nonprod backend images are private GitHub Container Registry i
 - `Documentation/legal/`: pointers to the website's Privacy Policy, Terms of Use, and Account/Data Deletion pages, plus repo-local App Store privacy notes.
 - `Scripts/ios/`: iOS screenshot capture scripts.
 
-## Access Model
+## Direct sync
 
-PumpSync supports two backend access paths:
+Connect a US or European Tandem account in Settings, choose the insulin concentration and initial import range, and allow PumpSync to write insulin and dietary carbohydrates to Apple Health. An upgrade with saved credentials offers a one-time reconnect. Sync Now, app-open catch-up and iOS background refresh use the same importer.
 
-- Hosted: the user buys or restores the PumpSync auto-renewable subscription through StoreKit. The app sends the signed App Store transaction JWS plus an App Attest proof and receives a renewable device-bound session.
-- Self-hosted: the user enters their own backend base URL. A backend deployed in `SelfHosted` mode verifies a Secure Enclave P-256 signature and issues a renewable session without App Store or Apple authentication.
+The app keeps credentials in device-only Keychain. Only the regional Tandem service receives them. Tandem sessions and downloaded records are processed in memory. HealthKit stores the permitted samples. A device-local ledger of keyed identifiers prevents repeats.
 
-Sign in with Apple is intentionally not part of this flow.
-
-## Privacy Model
-
-- Tandem credentials are stored only by the iOS app in Keychain with device-only accessibility.
-- Renewable session credentials and device-key references are also stored in device-only Keychain items; private proof keys never leave App Attest or the Secure Enclave.
-- Tandem credentials are sent to the configured backend only inside an active HTTPS sync request.
-- The app writes Tandem insulin and carbohydrate samples to Apple Health and then discards the returned payload.
-- Duplicate prevention uses a local rolling HMAC external-ID ledger.
-- Tandem credentials are not synced through iCloud in v1; each device must be configured separately.
-
-## Backend URL Routing
-
-`project.yml` defines the hosted API base URL per configuration (the `API_BASE_URL` build setting, injected into Info.plist). Public docs intentionally avoid repeating live hosted endpoint values — `project.yml` is the source of truth:
-
-| Purpose | Scheme | Configuration | Backend environment |
-| --- | --- | --- | --- |
-| Local Xcode install | `PumpSync` | `Debug` | Nonprod hosted API |
-| TestFlight upload | `PumpSync Beta` | `Beta` | Nonprod hosted API |
-| App Store release | `PumpSync` | `Release` | Production hosted API (custom domain) |
-
-The `/api` path segment is part of the base URL for hosted builds. The app appends `/v1/...` endpoint paths. A build whose Info.plist is missing `API_BASE_URL` fails fast at launch rather than falling back to a hardcoded environment.
-
-Self-hosted users enter their own backend base URL in app settings. They should include `/api` unless their reverse proxy intentionally maps the backend API at the domain root.
+See the [internal beta acceptance instructions](Documentation/app-store/direct-beta.md) for validation and release evidence.
 
 ## Generate Project
 
@@ -81,18 +48,6 @@ bash Scripts/ios/validate-cloud-tests.sh
 
 Use the latest stable Xcode (currently 27.2, build `27B52`; minimum 27.2). GitHub CI selects the newest stable installed Xcode and fails if it is older than 27.2. The local preflight retains iPhone SE (3rd generation) / iOS 27.0 for compact-device coverage, runs the full suite and standard/maximum accessibility-text recovery checks, and rejects build-tool warnings. Additional checks use the latest available iOS runtime on a supported modern iPhone; the locally installed latest runtime is iOS 27.1, while the Xcode 27.2 SDK is iOS 27.2. Neither an SDK nor a simulator pass establishes physical-device, Xcode Cloud, or distribution acceptance. Cloud workflow settings must be read back separately when changing hosted validation. Raw evidence is retained under ignored `TestResults/`.
 
-## App Store Routing
-
-| Purpose | Scheme | Configuration | StoreKit environment |
-| --- | --- | --- | --- |
-| Local Xcode install | `PumpSync` | `Debug` | Sandbox |
-| TestFlight upload | `PumpSync Beta` | `Beta` archive | Sandbox |
-| App Store release | `PumpSync` | `Release` archive | Production |
-
-TestFlight and development-signed purchases use Apple's sandbox and do not charge real money. App Store release builds use the production App Store transaction environment.
-
 ## License
 
-PumpSync source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md). Noncommercial use — including running your own self-hosted backend for personal use — is permitted. Commercial use is reserved by the copyright holder.
-
-Automated local, GitHub CI and Xcode Cloud tests consume committed test-only snapshots in `PumpSyncTests/SessionContractSnapshots/`. Their backend revision and SHA-256 checksums are recorded in `session-contract-manifest.json`; preparation validates the snapshots without backend access or a .NET SDK. Missing resources fail the tests. Backend CI regenerates deterministic exports and rejects drift against its own committed copies. After a reviewed backend contract change is committed, use `bash Scripts/ios/update-session-contract-snapshots.sh --backend-path <clean checkout>` to update frontend snapshots and provenance. A pass proves compatibility with that recorded revision, not an arbitrary later deployed backend.
+PumpSync source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).

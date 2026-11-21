@@ -1,134 +1,15 @@
 import Foundation
 
-struct SubscriptionSessionRequest: Encodable {
-  let signedTransactionInfo: String
-  let installationId: String
-  let deviceEnrollment: HostedDeviceEnrollment
-}
-
-struct SelfHostedSessionRequest: Encodable {
-  let installationId: String
-  let deviceEnrollment: SelfHostedDeviceEnrollment
-}
-
-struct SessionChallengeRequest: Encodable {
-  let installationId: String
-  let purpose: String
-  let requestHash: String?
-}
-
-struct SessionChallengeResponse: Decodable, Equatable, Sendable {
-  let protocolVersion: Int
-  let proofKind: String
-  let challengeToken: String
-  let expiresAt: Date
-}
-
-enum HostedDeviceProofPreparation: String, Equatable {
-  case generated
-  case reconciliation
-  case reused
-}
-
-struct HostedDeviceEnrollment: Codable, Equatable {
-  let requestId: String
-  let issuedAt: Date
-  let challengeToken: String
-  let keyId: String
-  let proofKind: String
-  let proof: String
-  var preparation: HostedDeviceProofPreparation = .generated
-  var clientDataFingerprint: String = ""
-
-  private enum CodingKeys: String, CodingKey {
-    case requestId
-    case issuedAt
-    case challengeToken
-    case keyId
-    case proofKind
-    case proof
-  }
-}
-
-struct SelfHostedDeviceEnrollment: Encodable, Equatable {
-  let requestId: String
-  let issuedAt: Date
-  let challengeToken: String
-  let publicKey: String
-  let signature: String
-}
-
-struct SessionRefreshRequest: Encodable, Equatable {
-  let installationId: String
-  let refreshToken: String
-  let requestId: String
-  let issuedAt: Date
-  let proof: String
-}
-
-struct BackendSessionResponse: Codable, Equatable, Sendable {
-  let accessToken: String
-  let expiresAt: Date
-  let serviceMode: String
-  let dataSourceMode: String
-  let protocolVersion: Int
-  let sessionFamilyId: String
-  let refreshToken: String
-  let refreshTokenExpiresAt: Date
-  let refreshTokenAbsoluteExpiresAt: Date
-
-  var isSyntheticDemo: Bool {
-    dataSourceMode == "syntheticDemo"
-  }
-
-  var hasRenewableCredential: Bool {
-    protocolVersion == 3 &&
-      !refreshToken.isEmpty &&
-      refreshTokenExpiresAt > Date() &&
-      refreshTokenAbsoluteExpiresAt > Date()
-  }
-}
-
-#if DEBUG
-extension BackendSessionResponse {
-  init(accessToken: String, expiresAt: Date, serviceMode: String, dataSourceMode: String) {
-    self.init(
-      accessToken: accessToken,
-      expiresAt: expiresAt,
-      serviceMode: serviceMode,
-      dataSourceMode: dataSourceMode,
-      protocolVersion: 3,
-      sessionFamilyId: "debug-session-family",
-      refreshToken: "debug-refresh-token",
-      refreshTokenExpiresAt: .distantFuture,
-      refreshTokenAbsoluteExpiresAt: .distantFuture
-    )
-  }
-}
-#endif
-
 struct TandemSyncRequest: Encodable {
   let tandem: TandemCredentials
   let minDate: Date?
   let maxDate: Date?
   /// IANA identifier of the device's time zone. Tandem reports pump-local
-  /// wall-clock timestamps; without this the backend assumes UTC and every
-  /// sample lands hours off in Apple Health.
+  /// wall-clock timestamps, which must be anchored before importing.
   let timeZoneIdentifier: String?
-}
-
-struct TandemCredentialValidationRequest: Encodable {
-  let tandem: TandemCredentials
-  let timeZoneIdentifier: String?
-}
-
-struct TandemCredentialValidationResponse: Decodable, Equatable, Sendable {
-  let validated: Bool
 }
 
 struct TandemSyncResponse: Decodable, Sendable {
-  // HTTP metadata only; never trusted from response JSON.
-  var backendCorrelationID: String? = nil
   let samples: [SampleDTO]
   let effectiveMinDate: Date
   let effectiveMaxDate: Date

@@ -22,22 +22,14 @@ final class SyncExecutionLease: Sendable {
   func revoke() { revoked.withLock { $0 = true } }
 }
 
-/// Immutable guards and trigger belong to the execution, including its single
-/// replacement attempt. A replacement always captures a new import snapshot.
 struct SyncIntent {
   let operationID: UUID
   let trigger: SyncTriggerReason
-  let configuration: ImportConfigurationSnapshot
-  let credentialRevision: Int
+  let context: ImportSessionSnapshot?
   let concentration: InsulinConcentration
-  let initialContext: ImportSessionSnapshot?
-  let lease: SyncExecutionLease
-  let recoveryPolicy: SessionRecoveryPolicy
-  let reevaluatesFreshnessAfterRecovery: Bool
 }
 
 enum SyncBlockReason: Equatable {
-  case session(SessionRecoveryReason)
   case credentials
   case healthPermission
   case unverifiedSource
@@ -45,7 +37,6 @@ enum SyncBlockReason: Equatable {
 
 enum SyncDeferralReason: Equatable {
   case executionLeaseExpired
-  case recovery(SessionRecoveryReason)
 }
 
 enum SyncRunOutcome: Equatable {

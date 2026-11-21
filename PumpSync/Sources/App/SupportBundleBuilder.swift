@@ -20,16 +20,11 @@ struct SupportBundleContext {
   let bundleInfo: AppBundleInfo
   let systemVersion: String
   let deviceModel: String
-  let backendMode: String
   let syncMetadata: SyncMetadata
   let appDiagnostics: [DiagnosticEntry]
   let nativeDiagnostics: [NativeDiagnosticEntry]
   var syncAttempts: [SyncAttempt] = []
   var activeSyncAttempt: SyncAttempt? = nil
-  var sessionProtocolVersion: Int? = nil
-  var deviceProofKind: String? = nil
-  var refreshCredentialExpiresAt: Date? = nil
-  var refreshCredentialAbsoluteExpiresAt: Date? = nil
 }
 
 enum SupportBundleBuilder {
@@ -43,22 +38,16 @@ enum SupportBundleBuilder {
       "App Version: \(context.bundleInfo.version) (\(context.bundleInfo.build))",
       "iOS Version: \(context.systemVersion)",
       "Device Model: \(context.deviceModel)",
-      "Connection Mode: \(context.backendMode)",
+      "Source: Tandem Source (direct)",
       "",
-      "## Authentication",
-      "Session Protocol: \(context.sessionProtocolVersion.map(String.init) ?? "None")",
-      "Device Proof: \(context.deviceProofKind ?? "None")",
-      "Refresh Credential Idle Expiry: \(format(context.refreshCredentialExpiresAt))",
-      "Refresh Credential Absolute Expiry: \(format(context.refreshCredentialAbsoluteExpiresAt))",
-      "",
-      "## Sync — current pump account and server",
+      "## Sync — current pump account",
       "Last Attempt: \(format(history.lastAttempt))",
       "Last Success: \(format(context.syncMetadata.lastSuccessfulSyncAt))",
       "Last Returned Count: \(history.returned.map(String.init) ?? "Not recorded")",
       "Last Imported Count: \(history.imported.map(String.init) ?? "Not recorded")",
       "Last Error: \(redacted(context.syncMetadata.lastErrorMessage ?? ((context.activeSyncAttempt != nil || !context.syncAttempts.isEmpty) ? "See owned attempt history" : "None")))",
       "Initial Import Range: \(context.syncMetadata.initialImportRange.rawValue)",
-      "Counts describe the last successful sync for this account and server.",
+      "Counts describe the last successful sync for this account.",
       "Permission-skipped records: \(history.permissionSkipped.map(String.init) ?? "Not recorded")",
       history.resetDescription ?? "",
       "",
@@ -82,18 +71,11 @@ enum SupportBundleBuilder {
         bundleInfo: AppBundleInfo(),
         systemVersion: UIDevice.current.systemVersion,
         deviceModel: UIDevice.current.model,
-        backendMode: services.backendConfigurationStore.mode.title,
         syncMetadata: services.syncMetadataStore.metadata,
         appDiagnostics: Array(services.diagnosticsLogStore.entries.prefix(50)),
         nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50)),
         syncAttempts: services.syncCoordinator.attemptStore.history,
-        activeSyncAttempt: services.syncCoordinator.attemptStore.active,
-        sessionProtocolVersion: services.authService.session?.protocolVersion,
-        deviceProofKind: services.authService.session?.protocolVersion == 3
-          ? (services.backendConfigurationStore.mode == .hosted ? "App Attest" : "Secure Enclave P-256")
-          : nil,
-        refreshCredentialExpiresAt: services.authService.session?.refreshTokenExpiresAt,
-        refreshCredentialAbsoluteExpiresAt: services.authService.session?.refreshTokenAbsoluteExpiresAt
+        activeSyncAttempt: services.syncCoordinator.attemptStore.active
       ),
       generatedAt: generatedAt
     )

@@ -24,8 +24,8 @@ struct SyncInlineStatus: View {
             .frame(width: 24, height: 24)
             .accessibilityHidden(true)
           ZStack(alignment: .topLeading) {
-            ForEach(["No sync in progress", "Starting secure service…", "Downloading pump data…",
-                     "Updating Apple Health…", "Sync complete", "Subscription required", "Sync needs attention"], id: \.self) {
+            ForEach(["No sync in progress", "Preparing sync…", "Downloading pump data…",
+                     "Updating Apple Health…", "Sync complete", "Sync needs attention"], id: \.self) {
               Text($0).hidden().accessibilityHidden(true)
             }
           }
@@ -37,7 +37,7 @@ struct SyncInlineStatus: View {
           .fixedSize(horizontal: false, vertical: true)
         }
         ZStack(alignment: .topLeading) {
-          ForEach(["This can take about 30 seconds after inactivity. Keep PumpSync open.",
+          ForEach(["Keep PumpSync open while it connects to Tandem.",
                    "Saving new pump samples to Apple Health.",
                    "Retrieving available pump history.",
                    "Keep PumpSync open while syncing. You can move between screens."], id: \.self) {
@@ -47,7 +47,7 @@ struct SyncInlineStatus: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(.bottom, 44)
         .overlay(alignment: .topLeading) {
-          // Long server failures remain readable without moving neighboring
+          // Long error messages remain readable without moving neighboring
           // controls. Most messages fit and don't need scrolling.
           VStack(alignment: .leading, spacing: 0) {
             ScrollView {

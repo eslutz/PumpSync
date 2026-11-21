@@ -26,6 +26,7 @@ final class TandemCredentialStore {
   private(set) var ownershipAvailable = false
   private(set) var hasStoredCredentials = false
   private(set) var hasValidatedCredentials = false
+  private(set) var needsDirectReconnect = false
   private(set) var validatedAt: Date?
   private(set) var redactedUsername: String?
 
@@ -46,6 +47,7 @@ final class TandemCredentialStore {
   func load() throws -> TandemCredentials? {
     guard let data = try keychain.readData(account: Self.account) else {
       ownershipAvailable = true
+      needsDirectReconnect = false
       accountId = nil
       hasStoredCredentials = false
       hasValidatedCredentials = false
@@ -57,6 +59,7 @@ final class TandemCredentialStore {
 
     let stored = try JSONDecoder().decode(TandemStoredCredentialRecord.self, from: data)
     let credentials = stored.credentials
+    needsDirectReconnect = stored.directConnection != true
     hasStoredCredentials = true
     redactedUsername = credentials.redactedUsername
     if stored.accountId != nil || stored.status != nil {
@@ -78,12 +81,12 @@ final class TandemCredentialStore {
     defer { refreshStatus() }
     // Credentials, validation, and ownership commit in one Keychain upsert.
     // A failure or termination before this commit preserves the previous account.
-    try persist(credentials, validation: validated)
+    try persist(credentials, validation: validated, directConnection: true)
     validationInvalidatedInMemory = false
   }
 
-  private func persist(_ credentials: TandemCredentials, validation: TandemCredentialValidationRecord) throws {
-    try keychain.writeData(try JSONEncoder().encode(TandemStoredCredentialRecord(credentials: credentials, validation: validation)), account: Self.account)
+  private func persist(_ credentials: TandemCredentials, validation: TandemCredentialValidationRecord, directConnection: Bool) throws {
+    try keychain.writeData(try JSONEncoder().encode(TandemStoredCredentialRecord(credentials: credentials, validation: validation, directConnection: directConnection)), account: Self.account)
     // This legacy mirror supports older readers but is never authoritative for
     // the new format. Failure cannot undo the complete atomic credential record.
     try? keychain.writeData(try JSONEncoder().encode(validation), account: Self.validationAccount)
@@ -112,16 +115,13 @@ final class TandemCredentialStore {
     }
   }
 
-  /// Called when the backend reports Tandem rejected the stored credentials
-  /// (a sync-time 424): the credentials stay stored, but they must be
-  /// re-validated before the next sync so the UI directs the user to the
-  /// credential form instead of looping on a failing sync.
+  /// Preserve ownership after a rejected login and require a successful foreground validation.
   func invalidateValidation() {
     validationInvalidatedInMemory = true
     do {
       if let credentials = observedCredentials, let accountId {
         let record = TandemCredentialValidationRecord(username: credentials.username, region: credentials.region, accountId: accountId, status: .unvalidated, validatedAt: nil)
-        try persist(credentials, validation: record)
+        try persist(credentials, validation: record, directConnection: !needsDirectReconnect)
       }
     } catch {
       // Keep this process blocked even if durable invalidation is unavailable.
@@ -138,6 +138,7 @@ final class TandemCredentialStore {
       _ = try load()
     } catch {
       ownershipAvailable = false
+      needsDirectReconnect = false
       hasStoredCredentials = false
       hasValidatedCredentials = false
       validatedAt = nil
@@ -166,10 +167,11 @@ final class TandemCredentialStore {
       // Upgrade both legacy items into one durable record before publishing
       // ownership. A failed migration keeps legacy proof intact and unavailable.
       if record.accountId == nil { record.accountId = UUID() }
-      try persist(credentials, validation: record)
+      try persist(credentials, validation: record, directConnection: false)
       applyValidation(record)
     } catch {
       ownershipAvailable = false
+      needsDirectReconnect = false
       hasValidatedCredentials = false
       validatedAt = nil
     }
@@ -178,7 +180,7 @@ final class TandemCredentialStore {
   private func applyValidation(_ record: TandemCredentialValidationRecord) {
     ownershipAvailable = true
     accountId = record.accountId
-    hasValidatedCredentials = record.status == .validated && record.validatedAt != nil && !validationInvalidatedInMemory
+    hasValidatedCredentials = !needsDirectReconnect && record.status == .validated && record.validatedAt != nil && !validationInvalidatedInMemory
     validatedAt = hasValidatedCredentials ? record.validatedAt : nil
   }
 }
@@ -189,6 +191,7 @@ private struct TandemStoredCredentialRecord: Codable {
   let username: String
   let password: String
   let region: String
+  let directConnection: Bool?
   let accountId: UUID?
   let status: TandemCredentialValidationRecord.Status?
   let validatedAt: Date?
@@ -199,7 +202,8 @@ private struct TandemStoredCredentialRecord: Codable {
     return .init(username: username, region: region, accountId: accountId, status: status, validatedAt: validatedAt)
   }
 
-  init(credentials: TandemCredentials, validation: TandemCredentialValidationRecord) {
+  init(credentials: TandemCredentials, validation: TandemCredentialValidationRecord, directConnection: Bool) {
+    self.directConnection = directConnection
     username = credentials.username
     password = credentials.password
     region = credentials.region

@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>API_BASE_URL</key>
-	<string>$(API_BASE_URL)</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>dev.ericslutz.PumpSync.daily-sync</string>
@@ -26,8 +24,6 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>HOSTED_ENVIRONMENT</key>
-	<string>$(HOSTED_ENVIRONMENT)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
@@ -36,16 +32,6 @@
 	<string>PumpSync checks authorization status for insulin and carbohydrate samples before syncing Tandem data.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>PumpSync writes Tandem insulin and carbohydrate samples to Apple Health after you start a sync.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>PumpSync connects to the self-hosted HTTPS server you configure on your local network.</string>
-	<key>PRODUCTION_API_BASE_URL</key>
-	<string>https://api.pumpsync.ericslutz.dev/api</string>
-	<key>SANDBOX_API_BASE_URL</key>
-	<string>https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api</string>
-	<key>SUBSCRIPTION_GROUP_ID</key>
-	<string>22168040</string>
-	<key>SUBSCRIPTION_PRODUCT_ID</key>
-	<string>dev.ericslutz.PumpSync.subscription.monthly</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

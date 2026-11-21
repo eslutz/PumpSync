@@ -84,7 +84,4 @@ final class ForegroundRecoveryControllerTests: XCTestCase {
     while !predicate(), Date() < deadline { await Task.yield() }
     XCTAssertTrue(predicate())
   }
-
-
-
 }

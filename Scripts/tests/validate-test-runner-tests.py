@@ -13,7 +13,6 @@ with tempfile.TemporaryDirectory(prefix='pumpsync-test-runner-') as temporary:
     scripts = root / 'Scripts/ios'
     scripts.mkdir(parents=True)
     shutil.copyfile(source, scripts / 'validate-tests.sh')
-    (scripts / 'prepare-session-contract.sh').write_text('#!/bin/bash\nexit 0\n')
     tools = root / 'bin'
     tools.mkdir()
     (tools / 'xcodegen').write_text('#!/bin/bash\nexit 0\n')

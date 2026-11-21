@@ -15,10 +15,9 @@ struct DataHandlingView: View {
           systemImage: "key"
         )
 
-
         DataHandlingRow(
           title: "Sent for validation, sync and preview",
-          detail: "Your sign-in is sent securely when validating your pump account, syncing or previewing real pump data.",
+          detail: "PumpSync sends your sign-in directly to Tandem when you connect your account, sync, or inspect records.",
           systemImage: "lock.shield"
         )
       }
@@ -27,10 +26,9 @@ struct DataHandlingView: View {
       Section("Pump Data") {
         DataHandlingRow(
           title: "Temporary processing",
-          detail: "Sync payloads are processed in memory and released when the attempt ends, including failure or cancellation. Source inspection clears its in-memory records when closed or backgrounded. Apple Health keeps confirmed imports.",
+          detail: "Sync payloads are processed in memory and released when the attempt ends, including failure or cancellation. Source inspection keeps records in memory while its screen is open. Apple Health keeps confirmed imports.",
           systemImage: "externaldrive.badge.checkmark"
         )
-
 
         DataHandlingRow(
           title: "Duplicate prevention",
@@ -50,80 +48,38 @@ struct DataHandlingView: View {
       .headerProminence(.increased)
 
       Section {
-        Text(services.backendConfigurationStore.mode == .hosted
-          ? "Request deletion of hosted metadata linked to this installation."
-          : "Contact your self-hosted server operator to delete server metadata.")
-          .fixedSize(horizontal: false, vertical: true)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-          .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
-        Button {
-          if services.backendConfigurationStore.mode == .hosted {
-            openURL(dataDeletionRequestURL) { accepted in emailUnavailable = !accepted }
-          } else { openURL(AppConstants.dataDeletionURL) }
-        } label: {
-          Label(
-            services.backendConfigurationStore.mode == .hosted ? "Email Deletion Request" : "Deletion Instructions",
-            systemImage: services.backendConfigurationStore.mode == .hosted ? "envelope" : "doc.text"
-          )
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityHint(services.backendConfigurationStore.mode == .hosted
-          ? "Opens an email to request deletion of server metadata"
-          : "Opens instructions for deleting data from your server")
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-        .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
-        if emailUnavailable {
-          Text("Email could not open. Contact support@ericslutz.dev with your installation ID from Developer settings. No request has been sent.")
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
-          Button("Copy Installation ID") { DiagnosticsClipboard.copy(services.backendConfigurationStore.installationId) }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
-        }
-        Link("Privacy and Deletion Details", destination: AppConstants.dataDeletionURL)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-          .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions.width }
-      } header: {
-        Text("Data Deletion")
-      } footer: {
-        Text("Deleting server metadata does not remove Apple Health samples or cancel a subscription. Manage these separately in Health and Apple subscription settings.")
-          .font(.body)
-          .foregroundStyle(Color.primary)
-          .fixedSize(horizontal: false, vertical: true)
+        Link("Privacy Policy", destination: AppConstants.privacyPolicyURL)
       }
-      .headerProminence(.increased)
+
+      if let installationID = services.legacyInstallationID {
+        Section("Earlier PumpSync Versions") {
+          Text("If you used the hosted service, include this installation ID when requesting deletion of its operational records. For a server you operated, contact its administrator.")
+          Button("Email Deletion Request", systemImage: "envelope") {
+            openURL(deletionRequestURL(installationID: installationID)) { accepted in emailUnavailable = !accepted }
+          }
+          if emailUnavailable {
+            Text("Email support@ericslutz.dev and include your installation ID.")
+          }
+          Button("Copy Installation ID") { DiagnosticsClipboard.copy(installationID) }
+          Link("Privacy and Deletion Details", destination: AppConstants.dataDeletionURL)
+        }
+        .headerProminence(.increased)
+      }
     }
     .navigationTitle("Data Handling")
     .navigationBarTitleDisplayMode(.inline)
   }
 
-  private var dataDeletionRequestURL: URL {
+  private func deletionRequestURL(installationID: String) -> URL {
     var components = URLComponents()
     components.scheme = "mailto"
     components.path = "support@ericslutz.dev"
     components.queryItems = [
       URLQueryItem(name: "subject", value: "DELETION REQUEST - PumpSync Support"),
-      URLQueryItem(name: "body", value: dataDeletionRequestBody)
+      URLQueryItem(name: "body", value: "Please delete legacy hosted metadata for PumpSync installation \(installationID).")
     ]
 
     return components.url ?? URL(string: "mailto:support@ericslutz.dev")!
-  }
-
-  private var dataDeletionRequestBody: String {
-    """
-    Please delete metadata stored by the PumpSync-hosted backend for this installation.
-
-    PumpSync installation ID:
-    \(services.backendConfigurationStore.installationId)
-
-    Do not include pump account passwords or tokens, screenshots containing health data, or other sensitive medical details in this request.
-    """
   }
 }
 

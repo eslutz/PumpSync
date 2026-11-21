@@ -21,7 +21,7 @@ Before pushing or starting Xcode Cloud, run `bash Scripts/ios/validate-cloud-tes
 
 ## Coding Style & Naming Conventions
 
-Use four-space indentation and standard Swift naming: `UpperCamelCase` types, `lowerCamelCase` properties/functions, and filenames matching their primary type. Keep SwiftUI views small, move side effects into services or coordinators, and preserve existing dependency-injection patterns. Hosted base URLs include `/api`; clients append `/v1/...`.
+Use four-space indentation and standard Swift naming: `UpperCamelCase` types, `lowerCamelCase` properties/functions, and filenames matching their primary type. Keep SwiftUI views small, move side effects into services or coordinators, and preserve existing dependency-injection patterns. The direct importer uses regional Tandem Source endpoints.
 
 ## Testing Guidelines
 
@@ -33,12 +33,10 @@ Use concise imperative subjects, optionally prefixed with `fix:`, `docs:`, or `r
 
 ## Security & Configuration
 
-Never commit credentials, service tokens, signing material, or live user health data. Preserve device-only Keychain storage and the Debug/Beta/Release backend and StoreKit environment mapping. Do not add subscription bypasses or an In-App Purchase entitlement key.
+Never commit credentials, service tokens, signing material, or live user health data. Keep Tandem credentials device-only in Keychain. Use synthetic Tandem responses for automated tests, including the HealthKit write-boundary checks.
 
 ## Related Project Guides
 
 - [Backend](../PumpSync.backend/AGENTS.md)
 - [Website](../PumpSync.website/AGENTS.md)
 - [Wiki](../PumpSync.wiki/AGENTS.md)
-
-Automated local, GitHub CI and Xcode Cloud tests consume committed test-only snapshots in `PumpSyncTests/SessionContractSnapshots/`. Their backend revision and SHA-256 checksums are recorded in `session-contract-manifest.json`; preparation validates the snapshots without backend access or a .NET SDK. Missing resources fail the tests. Backend CI regenerates deterministic exports and rejects drift against its own committed copies. After a reviewed backend contract change is committed, use `bash Scripts/ios/update-session-contract-snapshots.sh --backend-path <clean checkout>` to update frontend snapshots and provenance. A pass proves compatibility with that recorded revision, not an arbitrary later deployed backend.
