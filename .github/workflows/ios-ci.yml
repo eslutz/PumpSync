@@ -81,7 +81,18 @@ jobs:
           xcodebuild -version
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          set -euo pipefail
+          # Match the generator used for the committed project and schemes.
+          version=2.48.0
+          archive="$RUNNER_TEMP/xcodegen.zip"
+          curl --fail --silent --show-error --location \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/$version/xcodegen.zip" \
+            --output "$archive"
+          echo "620c9f0dc10849f94728ab5df52d225ebab8187439dd6fee1925e59e80dff892  $archive" | shasum -a 256 -c
+          unzip -q "$archive" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
 
       - name: Generate Xcode project
         run: xcodegen generate

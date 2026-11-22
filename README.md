@@ -25,6 +25,8 @@ See the [internal beta acceptance instructions](Documentation/app-store/direct-b
 
 ## Generate Project
 
+Use XcodeGen 2.48.0 to match the version pinned in iOS CI.
+
 ```sh
 xcodegen generate
 ```
