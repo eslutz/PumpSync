@@ -105,6 +105,11 @@ final class NativeRefactorUITests: XCTestCase {
         let edit = app.buttons["Change Account Details"].firstMatch
         revealEnd(of: edit, in: app, minimumVisibleHeight: bodyLineHeight)
         XCTAssertEqual(edit.label, "Change Account Details")
+        XCTAssertGreaterThanOrEqual(edit.frame.height, 44)
+        if category.isAccessibilityCategory {
+            XCTAssertGreaterThan(edit.frame.height, 44 * 1.5,
+                "The account action must grow with the system text size.")
+        }
         XCTAssertTrue(edit.isEnabled)
         XCTAssertTrue(edit.isHittable)
         capture("native-typography-tandem-edit", app: app)

@@ -327,15 +327,7 @@ private struct SavedTandemAccountSections: View {
           .fixedSize(horizontal: false, vertical: true)
       }
       .font(.body)
-      Button(action: edit) {
-        Text("Change Account Details")
-          .font(.body)
-          .multilineTextAlignment(.leading)
-          .fixedSize(horizontal: false, vertical: true)
-          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-          .contentShape(Rectangle())
-      }
-      .disabled(!canEdit)
+      EditAccountButton(isEnabled: canEdit, edit: edit)
     } header: {
       Text("Saved Account")
         .foregroundStyle(Color.primary)
@@ -355,6 +347,35 @@ private struct SavedTandemAccountSections: View {
       }
       .disabled(!canRemove)
     }
+  }
+}
+
+/// Lets the native control expose the same Dynamic Type font used to draw its title.
+private struct EditAccountButton: UIViewRepresentable {
+  let isEnabled: Bool
+  let edit: () -> Void
+
+  func makeUIView(context: Context) -> UIButton {
+    let button = UIButton(type: .system)
+    button.contentHorizontalAlignment = .leading
+    button.setTitle("Change Account Details", for: .normal)
+    button.titleLabel?.font = .preferredFont(forTextStyle: .body)
+    button.titleLabel?.adjustsFontForContentSizeCategory = true
+    button.titleLabel?.numberOfLines = 0
+    button.titleLabel?.lineBreakMode = .byWordWrapping
+    return button
+  }
+
+  func updateUIView(_ button: UIButton, context: Context) {
+    button.isEnabled = isEnabled
+    // A constant identifier replaces the previous action when SwiftUI updates the view.
+    button.addAction(UIAction(identifier: .init("editAccount")) { _ in edit() }, for: .touchUpInside)
+  }
+
+  func sizeThatFits(_ proposal: ProposedViewSize, uiView button: UIButton, context: Context) -> CGSize? {
+    guard let width = proposal.width, let title = button.titleLabel else { return nil }
+    let titleSize = title.sizeThatFits(.init(width: width, height: .greatestFiniteMagnitude))
+    return .init(width: width, height: max(44, ceil(titleSize.height)))
   }
 }
 
