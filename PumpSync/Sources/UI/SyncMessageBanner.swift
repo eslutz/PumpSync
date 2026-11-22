@@ -28,15 +28,30 @@ struct SyncMessage: Identifiable, Equatable {
   }
 }
 
-/// Intended for `.overlay`, so appearing or dismissing never changes page layout.
+/// Interactive sync feedback shared by the floating and large-text Settings presentations.
 struct SyncMessageBanner: View {
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
   let message: SyncMessage
   let onDismiss: () -> Void
   let onRecover: (SyncStatusAction) -> Void
   var maxHeight: CGFloat = 320
+  var alignment: Alignment = .top
 
   var body: some View {
+    let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+    Group {
+      if reduceTransparency {
+        bannerContent.background(Color(uiColor: .secondarySystemBackground), in: shape)
+      } else {
+        bannerContent.glassEffect(.regular, in: shape)
+      }
+    }
+    .frame(maxHeight: maxHeight, alignment: alignment)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("SyncMessageBanner")
+  }
+
+  private var bannerContent: some View {
     HStack(alignment: .top, spacing: 8) {
       ViewThatFits(in: .vertical) {
         messageContent
@@ -60,19 +75,6 @@ struct SyncMessageBanner: View {
     }
     .padding(16)
     .frame(maxWidth: 560, alignment: .leading)
-    .background {
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-        .fill(reduceTransparency ? AnyShapeStyle(Color(uiColor: .secondarySystemBackground)) : AnyShapeStyle(.regularMaterial))
-    }
-    .overlay {
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-        .allowsHitTesting(false)
-    }
-    .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-    .frame(maxHeight: maxHeight, alignment: .top)
-    .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("SyncMessageBanner")
   }
 
   private var messageContent: some View {

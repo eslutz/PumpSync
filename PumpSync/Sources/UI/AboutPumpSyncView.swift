@@ -3,39 +3,35 @@ import SwiftUI
 struct AboutPumpSyncView: View {
     var body: some View {
         List {
-            Text("Your pump history, in Apple Health.")
-                .font(.title3)
-                .fixedSize(horizontal: false, vertical: true)
-
             Section("Imports") {
-              AboutGuideRow(
-                title: "Insulin and carbohydrates",
-                detail: "Imports available basal insulin, bolus insulin, and carbohydrate records with your Apple Health permissions.",
-                systemImage: "heart"
-            )
+                AboutGuideRow(
+                    title: "Insulin and carbohydrates",
+                    detail: "Imports available basal insulin, bolus insulin, and carbohydrate records with your Apple Health permissions.",
+                    systemImage: "heart"
+                )
             }
             .headerProminence(.increased)
             Section("How Sync Works") {
-              AboutGuideRow(
-                title: "Manual sync",
-                detail: "Opening the app also attempts a sync if the last success was at least four hours ago.",
-                systemImage: "arrow.triangle.2.circlepath"
-            )
-              AboutGuideRow(
-                title: "Updates in the background",
-                detail: "PumpSync requests background updates. iOS decides when they run, so timing isn’t guaranteed.",
-                systemImage: "clock"
-            )
-              AboutGuideRow(
-                title: "While syncing",
-                detail: "Keep PumpSync open until a foreground sync finishes. You can move between screens.",
-                systemImage: "iphone"
-            )
-              AboutGuideRow(
-                title: "Last successful sync",
-                detail: "Shows the last completed sync, even when there were no new records.",
-                systemImage: "checkmark.circle"
-            )
+                AboutGuideRow(
+                    title: "Manual sync",
+                    detail: "Start an import from the Sync tab. For your first import, choose how much history to include.",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+                AboutGuideRow(
+                    title: "Automatic updates",
+                    detail: "When you open PumpSync, it checks for new records if the last successful sync was at least four hours ago. iOS decides when background updates run.",
+                    systemImage: "clock"
+                )
+                AboutGuideRow(
+                    title: "While syncing",
+                    detail: "Keep PumpSync open until a foreground sync finishes. You can move between screens.",
+                    systemImage: "iphone"
+                )
+                AboutGuideRow(
+                    title: "Last successful sync",
+                    detail: "Shows the last completed sync, even when there were no new records.",
+                    systemImage: "checkmark.circle"
+                )
             }
             .headerProminence(.increased)
         }

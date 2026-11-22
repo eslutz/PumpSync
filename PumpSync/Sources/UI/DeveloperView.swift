@@ -8,25 +8,6 @@ struct DeveloperView: View {
 
   var body: some View {
     Form {
-      Section("Build") {
-        LabeledContent("Version") {
-          Text(appVersion).foregroundStyle(.primary)
-        }
-        if let installationID = services.legacyInstallationID {
-          LabeledContent("Installation ID") {
-            Text(installationID)
-              .foregroundStyle(.primary)
-              .fixedSize(horizontal: false, vertical: true)
-          }
-          .accessibilityIdentifier("InstallationIDRow")
-          .contextMenu { Button("Copy Installation ID", systemImage: "doc.on.doc", action: copyInstallationID) }
-          .accessibilityAction(named: "Copy", copyInstallationID)
-          Button(copiedInstallationID ? "Installation ID Copied" : "Copy Installation ID", systemImage: copiedInstallationID ? "checkmark" : "doc.on.doc", action: copyInstallationID)
-            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-            .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
-        }
-      }
-      .headerProminence(.increased)
       Section {
         NavigationLink { RealImportPreviewView(services: services) } label: {
           Label("Inspect source data", systemImage: "doc.text.magnifyingglass")
@@ -53,6 +34,26 @@ struct DeveloperView: View {
           .font(.body)
           .foregroundStyle(Color.primary)
           .fixedSize(horizontal: false, vertical: true)
+      }
+      .headerProminence(.increased)
+
+      Section("Build") {
+        LabeledContent("Version") {
+          Text(appVersion).foregroundStyle(.primary)
+        }
+        if let installationID = services.legacyInstallationID {
+          LabeledContent("Installation ID") {
+            Text(installationID)
+              .foregroundStyle(.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+          .accessibilityIdentifier("InstallationIDRow")
+          .contextMenu { Button("Copy Installation ID", systemImage: "doc.on.doc", action: copyInstallationID) }
+          .accessibilityAction(named: "Copy", copyInstallationID)
+          Button(copiedInstallationID ? "Installation ID Copied" : "Copy Installation ID", systemImage: copiedInstallationID ? "checkmark" : "doc.on.doc", action: copyInstallationID)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+            .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
+        }
       }
       .headerProminence(.increased)
     }

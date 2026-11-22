@@ -36,6 +36,13 @@ final class PumpSyncUITests: XCTestCase {
       }
       XCTAssertTrue(record.isHittable)
       attachScreenshot(named: "review-source-" + state + "-records", from: app)
+      let range = app.buttons["Time range"]
+      revealFormControl(range, in: app)
+      range.tap()
+      XCTAssertTrue(app.staticTexts["Newest"].waitForExistence(timeout: 5))
+      XCTAssertTrue(app.staticTexts["Oldest"].exists)
+      XCTAssertTrue(app.staticTexts["Time zone"].exists)
+      attachScreenshot(named: "review-source-" + state + "-range", from: app)
       tapBack(in: app)
       XCTAssertTrue(app.navigationBars["Developer"].exists)
       if state == "populated" {
@@ -259,7 +266,7 @@ final class PumpSyncUITests: XCTestCase {
       try voiceOver.disable()
       app.buttons["DiagnosticsLogActions"].tap()
       XCTAssertFalse(app.buttons["CopyDiagnosticsLog"].isEnabled)
-      app.tap()
+      dismissLogActions(in: app)
       tapBack(in: app)
     }
     let inspect = app.buttons["Inspect source data"]
@@ -479,13 +486,13 @@ final class PumpSyncUITests: XCTestCase {
     let action = app.buttons["SyncNowButton"]
     let before = action.frame
     let navigationFrame = app.navigationBars.firstMatch.frame
-    let tabFrame = app.tabBars.firstMatch.frame
+    let tabFrame = tabNavigation(in: app).frame
     attachScreenshot(named: "sync-important-completion-message", from: app)
     dismiss.tap()
     XCTAssertTrue(dismiss.waitForNonExistence(timeout: 3))
     XCTAssertEqual(action.frame, before)
     XCTAssertEqual(app.navigationBars.firstMatch.frame, navigationFrame)
-    XCTAssertEqual(app.tabBars.firstMatch.frame, tabFrame)
+    XCTAssertEqual(tabNavigation(in: app).frame, tabFrame)
     let summary = app.staticTexts["SyncSamplesSaved"]
     revealFormControl(summary, in: app)
     XCTAssertEqual(summary.label, "Samples saved, 4")
@@ -593,13 +600,13 @@ final class PumpSyncUITests: XCTestCase {
     attachScreenshot(named: "feedback-large-text-inline-recovery", from: app)
 
     // Keep the current scroll position: appearance/dismissal may not snap the Form.
-    let before = [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame, sync.frame]
+    let before = [app.navigationBars.firstMatch.frame, tabNavigation(in: app).frame, sync.frame]
     advanceFeedback(to: 5, title: nil, in: app)
     advanceFeedback(to: 6, title: nil, in: app)
     XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
-    assertSameFrames(before, [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame, sync.frame])
+    assertSameFrames(before, [app.navigationBars.firstMatch.frame, tabNavigation(in: app).frame, sync.frame])
     dismissSyncMessage(in: app)
-    assertSameFrames(before, [app.navigationBars.firstMatch.frame, app.tabBars.firstMatch.frame, sync.frame])
+    assertSameFrames(before, [app.navigationBars.firstMatch.frame, tabNavigation(in: app).frame, sync.frame])
 
     advanceFeedback(to: 7, title: nil, in: app)
     XCTAssertTrue(dismiss.wait(for: \.isHittable, toEqual: true, timeout: 5))
@@ -663,7 +670,7 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertGreaterThan(statusCell.frame.height, 0)
     var frames: [String: CGRect] = [
       "navigation": app.navigationBars.firstMatch.frame,
-      "tabs": app.tabBars.firstMatch.frame,
+      "tabs": tabNavigation(in: app).frame,
       "statusCell": statusCell.frame
     ]
     // At larger text sizes the Form can virtualize offscreen rows. Include
@@ -784,7 +791,7 @@ final class PumpSyncUITests: XCTestCase {
       XCTAssertTrue(heading.waitForExistence(timeout: 5))
       XCTAssertTrue(action.waitForExistence(timeout: 5))
       XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
-      let tabFrame = app.tabBars.firstMatch.exists ? app.tabBars.firstMatch.frame : .zero
+      let tabFrame = tabNavigation(in: app).frame
       let frames = [app.navigationBars.firstMatch.frame, tabFrame, heading.frame, action.frame]
       if let baseline {
         for (expected, actual) in zip(baseline, frames) {
@@ -834,13 +841,20 @@ final class PumpSyncUITests: XCTestCase {
     let heading = app.staticTexts["Last Successful Sync"]
     let headingFrame = heading.frame
     let navigationFrame = app.navigationBars.firstMatch.frame
-    let tabFrame = app.tabBars.firstMatch.frame
+    let tabFrame = tabNavigation(in: app).frame
+    if app.frame.width >= 900, app.frame.height >= 560 {
+      let status = app.descendants(matching: .any).matching(identifier: "SyncInlineStatus").firstMatch
+      let message = app.staticTexts["SyncMessageDetail"]
+      XCTAssertTrue(status.exists)
+      XCTAssertTrue(message.exists)
+      XCTAssertLessThan(status.frame.maxY, message.frame.minY, "The floating notice must leave the inline status readable on iPad")
+    }
     attachScreenshot(named: "sync-floating-error", from: app)
     dismiss.tap()
     XCTAssertTrue(dismiss.waitForNonExistence(timeout: 3))
     XCTAssertEqual(heading.frame, headingFrame)
     XCTAssertEqual(app.navigationBars.firstMatch.frame, navigationFrame)
-    XCTAssertEqual(app.tabBars.firstMatch.frame, tabFrame)
+    XCTAssertEqual(tabNavigation(in: app).frame, tabFrame)
     let retry = app.buttons["SyncRecoveryButton"]
     revealFormControl(retry, in: app)
     XCTAssertTrue(retry.isHittable)
@@ -986,8 +1000,12 @@ final class PumpSyncUITests: XCTestCase {
       for _ in 0..<8 { if link.isHittable { break }; app.swipeUp() }
       XCTAssertTrue(link.isHittable)
       link.tap()
+      let title = identifier == "appEvents" ? "App Event Log" : "Performance"
+      XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5))
+      let actions = app.buttons["DiagnosticsLogActions"]
+      XCTAssertTrue(actions.wait(for: \.isHittable, toEqual: true, timeout: 5))
       attachScreenshot(named: identifier + "-summary", from: app)
-      app.buttons["DiagnosticsLogActions"].tap()
+      actions.tap()
       let copy = app.buttons["CopyDiagnosticsLog"]
       XCTAssertTrue(copy.waitForExistence(timeout: 3))
       XCTAssertTrue(copy.isEnabled)
@@ -1007,7 +1025,7 @@ final class PumpSyncUITests: XCTestCase {
       XCTAssertTrue(app.descendants(matching: .any)["EmptyDiagnosticsLog"].firstMatch.waitForExistence(timeout: 5))
       app.buttons["DiagnosticsLogActions"].tap()
       XCTAssertFalse(app.buttons["CopyDiagnosticsLog"].isEnabled)
-      app.tap()
+      dismissLogActions(in: app)
       tapBack(in: app)
       XCTAssertTrue(link.waitForExistence(timeout: 5))
     }
@@ -1039,8 +1057,20 @@ final class PumpSyncUITests: XCTestCase {
   func testFailureBannerRemainsDismissibleOnPushedSettingsDestinations() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-failure"])
     navigate(to: "Settings", in: app)
+    let health = app.buttons["AppleHealthLink"]
+    let close = app.buttons["DismissSyncMessageButton"]
+    let recovery = app.buttons["SyncMessageActionButton"]
+    XCTAssertTrue(health.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    XCTAssertTrue(close.isHittable)
+    XCTAssertTrue(recovery.isHittable)
+    let tabs = app.tabBars.firstMatch
+    if tabs.exists, tabs.frame.midY > app.frame.midY {
+      XCTAssertLessThan(health.frame.maxY, close.frame.minY)
+      XCTAssertLessThan(recovery.frame.maxY, tabs.buttons["Settings"].frame.minY)
+    }
+    attachScreenshot(named: "recovery-settings-navigation", from: app)
     tapNavigationLink("Apple Health", in: app)
-    XCTAssertTrue(app.staticTexts["Write Permissions"].exists)
+    XCTAssertTrue(app.staticTexts["Write Permissions"].waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["SyncStatusButton"].exists)
     let permissionsFrame = app.staticTexts["Write Permissions"].frame
     let backFrame = app.navigationBars.firstMatch.frame
@@ -1055,6 +1085,10 @@ final class PumpSyncUITests: XCTestCase {
 
   func testFreshInstallConnectsDirectlyFromSync() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-new-account"])
+    let account = app.buttons["Connect to Tandem"]
+    XCTAssertTrue(account.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    XCTAssertFalse(app.buttons["SyncNowButton"].exists)
+    attachScreenshot(named: "setup", from: app)
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.buttons["TandemAccountLink"].exists)
     XCTAssertFalse(app.buttons["SubscriptionSettingsLink"].exists)
@@ -1062,8 +1096,6 @@ final class PumpSyncUITests: XCTestCase {
     tapNavigationLink("Data Handling", in: app)
     XCTAssertFalse(app.buttons["Email Deletion Request"].exists)
     navigate(to: "Sync", in: app)
-    let account = app.buttons["Tandem Account"]
-    revealFormControl(account, in: app)
     account.tap()
     let username = app.textFields["Tandem username"]
     username.tap()
@@ -1084,8 +1116,9 @@ final class PumpSyncUITests: XCTestCase {
   func testUpgradedAccountRequiresExplicitReconnect() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-legacy-account"])
     let reconnect = app.buttons["Reconnect to Tandem"]
-    XCTAssertFalse(app.buttons["Sync Past 14 Days"].isEnabled)
-    revealFormControl(reconnect, in: app)
+    XCTAssertFalse(app.buttons["SyncNowButton"].exists)
+    XCTAssertTrue(reconnect.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    attachScreenshot(named: "setup-reconnect", from: app)
     reconnect.tap()
     XCTAssertTrue(app.navigationBars["Tandem"].waitForExistence(timeout: 5))
     reconnect.tap()
@@ -1095,6 +1128,16 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertFalse(reconnect.exists)
     tapBack(in: app)
     XCTAssertTrue(app.buttons["Sync Past 14 Days"].isEnabled)
+  }
+
+  func testSyncShowsHealthSetupBeforeAnUnavailableImport() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-health-setup", "--pumpsync-screenshot-initial-sync"])
+    let health = app.buttons["Set Up Apple Health"]
+    XCTAssertTrue(health.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    XCTAssertFalse(app.buttons["SyncNowButton"].exists)
+    attachScreenshot(named: "setup-health", from: app)
+    health.tap()
+    XCTAssertTrue(app.buttons["Allow Access to Health"].waitForExistence(timeout: 5))
   }
 
   func testTandemDraftClearsAllUnsavedFieldsOnBackAndTabExit() {
@@ -1392,17 +1435,26 @@ final class PumpSyncUITests: XCTestCase {
     let app = launchScreenshotFixture(launchArguments: ["-AppleInterfaceStyle", "Dark"])
 
     XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "appearance-sync", from: app)
 
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.buttons["TandemAccountLink"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "appearance-settings", from: app)
 
     tapNavigationLink("Apple Health", in: app)
     XCTAssertTrue(app.staticTexts["Write Permissions"].waitForExistence(timeout: 5))
+    attachScreenshot(named: "appearance-health", from: app)
   }
 
   func testIPadAppStoreScreenshots() {
     let initialApp = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-initial-sync"])
     XCTAssertTrue(initialApp.buttons["Sync Past 14 Days"].waitForExistence(timeout: 5))
+    let list = initialApp.collectionViews.containing(.button, identifier: "SyncNowButton").firstMatch
+    if list.exists, list.frame.width >= 900, UIApplication.shared.preferredContentSizeCategory == .large {
+      let action = initialApp.buttons["SyncNowButton"].frame
+      XCTAssertLessThan(action.width, list.frame.width * 0.85, "Wide windows should keep a readable form width")
+      XCTAssertEqual(action.midX, list.frame.midX, accuracy: 2)
+    }
     attachScreenshot(named: "ipad-pro-13-app-store-listing-01-status-overview.png", from: initialApp)
     initialApp.terminate()
 
@@ -1584,6 +1636,19 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(decline.wait(for: \.isHittable, toEqual: true, timeout: 5))
     decline.tap()
     XCTAssertTrue(app.staticTexts["Save Password?"].waitForNonExistence(timeout: 5))
+  }
+
+  private func tabNavigation(in app: XCUIApplication) -> XCUIElement {
+    let compactTabs = app.tabBars.firstMatch
+    return compactTabs.exists ? compactTabs : app.buttons["Settings"].firstMatch
+  }
+
+  private func dismissLogActions(in app: XCUIApplication) {
+    // An untargeted tap on iPad can land inside the anchored menu.
+    let copy = app.buttons["CopyDiagnosticsLog"]
+    XCTAssertTrue(copy.exists)
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.75)).tap()
+    XCTAssertTrue(copy.waitForNonExistence(timeout: 5))
   }
 
   private func tapBack(in app: XCUIApplication) {

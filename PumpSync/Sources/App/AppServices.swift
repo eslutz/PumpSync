@@ -105,7 +105,7 @@ final class AppServices {
     let services = AppServices(dataSource: ScreenshotDataSource(state: AppLaunchEnvironment.screenshotPreviewState),
                                keychain: keychain, credentialStore: store, defaults: defaults,
                                fixturePersistence: ScreenshotHealthPersistence())
-    services.healthKitService.applyScreenshotAuthorization()
+    services.healthKitService.applyScreenshotAuthorization(granted: !arguments.contains("--pumpsync-screenshot-health-setup"))
     var metadata = SyncMetadata(lastAttemptAt: nil, lastSuccessfulSyncAt: nil, lastSampleCount: 0,
                                 lastImportedCount: 0, lastErrorMessage: nil, initialImportRange: .pastTwoWeeks)
     metadata.owner = store.accountId.map { TandemSyncOwner(accountId: $0) }

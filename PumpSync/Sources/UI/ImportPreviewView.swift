@@ -9,34 +9,29 @@ struct ImportPreviewView: View {
     var body: some View {
         List {
             Section {
-                Text("Viewing or refreshing these records doesn’t change Apple Health.")
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("PreviewSafetyNotice")
-            }
-            switch controller.state {
+                switch controller.state {
                 case .idle:
-                  Section {
                     Text("Load records from your connected Tandem account to inspect them here.")
                     Button("Load Records") { Task { await retry() } }
-                        .frame(minHeight: 44)
-                  }
                 case .loading:
-                  Section {
                     ProgressView("Loading records from Tandem…")
                     Button("Cancel") { controller.cancel() }
-                        .frame(minHeight: 44)
-                  }
                 case .failed(let message):
-                  Section {
-                    Text(message).foregroundStyle(.secondary)
+                    Text(message)
                     Button("Try Again") { Task { await retry() } }
-                        .frame(minHeight: 44)
-                  }
                 case .ready(let plan):
-                  Section {
                     summary(plan)
-                  }
-                  Section("Records") {
+                }
+            } footer: {
+                Text("Viewing or refreshing these records doesn’t change Apple Health.")
+                    .font(.body)
+                    .foregroundStyle(Color.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("PreviewSafetyNotice")
+            }
+
+            if case .ready(let plan) = controller.state {
+                Section {
                     if plan.samples.isEmpty {
                         Text("No records in this time range")
                     }
@@ -53,13 +48,14 @@ struct ImportPreviewView: View {
                             )
                         )
                     }
-                  }
+                } header: {
+                    Text(plan.samples.count > 1 ? "Records · Newest first" : "Records")
                 }
+            }
         }
         .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Inspect Source Data")
+        .navigationTitle("Source Data")
+        .navigationBarTitleDisplayMode(.inline)
         .onDisappear { controller.suspend() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { controller.suspend() }
@@ -67,43 +63,38 @@ struct ImportPreviewView: View {
         }
     }
 
+    @ViewBuilder
     private func summary(_ plan: ImportPlan) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("\(plan.samples.count) records · Newest first")
+        VStack(alignment: .leading, spacing: 6) {
+            Text("^[\(plan.samples.count) record](inflect: true)")
                 .font(.headline)
             if let loadedAt = controller.loadedAt {
                 Text("Loaded \(loadedAt.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.subheadline).foregroundStyle(.secondary)
             }
             Text("Insulin equivalents: \(plan.concentration.title)")
-                .font(.subheadline).foregroundStyle(.secondary)
+        }
+        .font(.subheadline)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Time range").font(.subheadline.weight(.semibold))
-                Text("Newest: \(plan.effectiveMaxDate.formatted(date: .abbreviated, time: .shortened))")
-                Text("Oldest: \(plan.effectiveMinDate.formatted(date: .abbreviated, time: .shortened))")
-                Text("Time zone: \(TimeZone.current.identifier)").foregroundStyle(.secondary)
+        DisclosureGroup("Time range") {
+            LabeledContent("Newest") {
+                Text(plan.effectiveMaxDate.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.primary)
             }
-            .font(.subheadline)
+            LabeledContent("Oldest") {
+                Text(plan.effectiveMinDate.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.primary)
+            }
+            LabeledContent("Time zone") {
+                Text(TimeZone.current.identifier).foregroundStyle(Color.primary)
+            }
+        }
 
-            if controller.isRefreshing {
-                ProgressView("Refreshing records…")
-                Button { controller.suspend() } label: {
-                    Text("Cancel Refresh")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-            } else {
-                if let error = controller.refreshError {
-                    Text("\(error) Showing the records loaded earlier.")
-                        .foregroundStyle(.secondary)
-                }
-                Button { Task { await retry() } } label: {
-                    Text("Refresh Records")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
+        if controller.isRefreshing {
+            ProgressView("Refreshing records…")
+            Button("Cancel Refresh") { controller.suspend() }
+        } else {
+            if let error = controller.refreshError {
+                Text("\(error) Showing the records loaded earlier.")
             }
+            Button("Refresh Records") { Task { await retry() } }
         }
     }
 }

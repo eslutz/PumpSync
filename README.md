@@ -17,7 +17,7 @@ The direct-client candidate connects the iPhone to Tandem Source. The app handle
 
 ## Direct sync
 
-Connect a US or European Tandem account in Settings, choose the insulin concentration and initial import range, and allow PumpSync to write insulin and dietary carbohydrates to Apple Health. An upgrade with saved credentials offers a one-time reconnect. Sync Now, app-open catch-up and iOS background refresh use the same importer.
+On the Sync tab, choose **Connect to Tandem** to sign in to a US or European account. An upgrade with saved credentials offers **Reconnect to Tandem**. The Sync tab also links to Apple Health setup when write access is needed. Set the insulin concentration in Settings and choose the history range on Sync before the first import. Later manual syncs, app-open catch-up and iOS background refresh use the same importer.
 
 The app keeps credentials in device-only Keychain. Only the regional Tandem service receives them. Tandem sessions and downloaded records are processed in memory. HealthKit stores the permitted samples. A device-local ledger of keyed identifiers prevents repeats.
 

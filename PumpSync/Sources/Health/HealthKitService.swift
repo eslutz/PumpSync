@@ -410,14 +410,14 @@ enum HealthKitError: LocalizedError {
 
 #if DEBUG
 extension HealthKitService {
-  func applyScreenshotAuthorization() {
+  func applyScreenshotAuthorization(granted: Bool = true) {
     usesScreenshotFixture = true
     writePermissions = HealthWritePermission.defaultWritePermissions(
       statuses: Dictionary(
-        uniqueKeysWithValues: HealthWriteSampleKind.allCases.map { ($0, .sharingAuthorized) }
+        uniqueKeysWithValues: HealthWriteSampleKind.allCases.map { ($0, granted ? .sharingAuthorized : .notDetermined) }
       )
     )
-    isAuthorized = true
+    isAuthorized = granted
     errorMessage = nil
     managementMessage = nil
   }

@@ -24,13 +24,13 @@ struct SyncInlineStatus: View {
             .frame(width: 24, height: 24)
             .accessibilityHidden(true)
           ZStack(alignment: .topLeading) {
-            ForEach(["No sync in progress", "Preparing sync…", "Downloading pump data…",
+            ForEach(["Ready to sync", "Preparing sync…", "Downloading pump data…",
                      "Updating Apple Health…", "Sync complete", "Sync needs attention"], id: \.self) {
               Text($0).hidden().accessibilityHidden(true)
             }
           }
           .overlay(alignment: .topLeading) {
-            Text(presentation?.title ?? "No sync in progress")
+            Text(presentation?.title ?? "Ready to sync")
               .accessibilityIdentifier("SyncProgressTitle")
           }
           .font(.headline)
@@ -61,6 +61,8 @@ struct SyncInlineStatus: View {
               .frame(maxWidth: .infinity, alignment: .leading)
               .fixedSize(horizontal: false, vertical: true)
             }
+            // The surrounding form already supplies the wide-window margins.
+            .contentMargins(.horizontal, 0, for: .scrollContent)
             .scrollBounceBehavior(.basedOnSize)
             if let title = presentation?.actionTitle, let action = presentation?.action {
               Button { recoverSync(action) } label: {

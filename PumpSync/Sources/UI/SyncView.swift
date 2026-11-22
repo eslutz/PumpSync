@@ -7,14 +7,41 @@ struct SyncView: View {
   private enum SetupDestination: Hashable { case account, health }
 
   var body: some View {
+    let setupMessage = Self.readinessMessage(
+      needsReconnect: services.credentialStore.needsDirectReconnect,
+      hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
+      hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
+    )
     Form {
-      Section {
-        SyncInlineStatus(state: services.syncCoordinator.operationState)
+      if let setupMessage {
+        Section {
+          if services.credentialStore.hasValidatedCredentials {
+            NavigationLink(value: SetupDestination.health) {
+              Label("Set Up Apple Health", systemImage: "heart")
+            }
+          } else {
+            NavigationLink(value: SetupDestination.account) {
+              Label(services.credentialStore.needsDirectReconnect ? "Reconnect to Tandem" : "Connect to Tandem",
+                    systemImage: "key")
+            }
+          }
+        } footer: {
+          Text(setupMessage)
+            .font(.body)
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
       }
-      Section {
-        SyncActionButton(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing,
-                         isEnabled: canSync, action: startSync)
-        .listRowBackground(Color.clear)
+      if setupMessage == nil || services.syncCoordinator.operationState != .idle {
+        Section {
+          SyncInlineStatus(state: services.syncCoordinator.operationState)
+        }
+        Section {
+          SyncActionButton(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing,
+                           isEnabled: canSync, action: startSync)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+        }
       }
       if let lastSuccess = history.lastSuccess {
         SyncSummarySection(history: history, lastSuccess: lastSuccess)
@@ -36,44 +63,33 @@ struct SyncView: View {
           if let reset = history.resetDescription {
             Text(reset).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
           }
-          Text("Choose how much pump history to import the first time. Future syncs import new data only. Keep PumpSync open while a sync is running. You can move between screens.")
-            .foregroundStyle(Color.primary)
-            .fixedSize(horizontal: false, vertical: true)
         } header: {
           Text("Initial Import").foregroundStyle(Color.primary)
+        } footer: {
+          Text("Choose how much history to import the first time. Future syncs import new data only.")
+            .font(.body)
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .headerProminence(.increased)
       }
 
-      if let message = Self.readinessMessage(
-        needsReconnect: services.credentialStore.needsDirectReconnect,
-        hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
-        hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
-      ) {
+      if setupMessage == nil || history.lastAttempt != nil {
         Section {
-          Text(message).fixedSize(horizontal: false, vertical: true)
-          if services.credentialStore.hasValidatedCredentials {
-            NavigationLink("Apple Health", value: SetupDestination.health)
-          } else {
-            NavigationLink(services.credentialStore.needsDirectReconnect ? "Reconnect to Tandem" : "Tandem Account", value: SetupDestination.account)
+          LabeledContent("Tandem account") {
+            Text(tandemStatus).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
           }
-        }
-      }
-
-      Section {
-        LabeledContent("Tandem account") {
-          Text(tandemStatus).fixedSize(horizontal: false, vertical: true)
-        }
-        if let lastAttempt = history.lastAttempt {
-          LabeledContent("Last checked") {
-            Text(lastAttempt.formatted(date: .abbreviated, time: .shortened))
-              .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+          if let lastAttempt = history.lastAttempt {
+            LabeledContent("Last checked") {
+              Text(lastAttempt.formatted(date: .abbreviated, time: .shortened))
+                .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+            }
           }
+        } header: {
+          Text("Connection").foregroundStyle(Color.primary)
         }
-      } header: {
-        Text("Connection").foregroundStyle(Color.primary)
+        .headerProminence(.increased)
       }
-      .headerProminence(.increased)
     }
     .font(.body)
     .navigationDestination(for: SetupDestination.self) { destination in
@@ -227,11 +243,11 @@ private struct SyncActionButton: View {
             stableTitle
           } icon: {
             Group {
-              if isSyncing { ProgressView().controlSize(.small).tint(.white) }
+              if isSyncing { ProgressView().controlSize(.small) }
               else {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                  .font(.system(size: 20))
-                  .foregroundStyle(.white)
+                  .font(.title3)
+                  .foregroundStyle(isEnabled ? Color.white : Color.secondary)
               }
             }
             .frame(width: 24, height: 24)
@@ -239,12 +255,13 @@ private struct SyncActionButton: View {
           }
         }
       }
-      .frame(maxWidth: .infinity, minHeight: 44)
+      .frame(maxWidth: .infinity)
     }
     .buttonStyle(.glassProminent)
     .tint(Color("ProminentActionColor"))
     .font(.body)
     .controlSize(.large)
+    .frame(minHeight: 44)
     .disabled(!isEnabled)
     .accessibilityLabel(isSyncing ? "Syncing" : title)
     .accessibilityIdentifier("SyncNowButton")

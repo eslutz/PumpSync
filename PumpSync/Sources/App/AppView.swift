@@ -3,6 +3,9 @@ import UIKit
 
 struct AppView: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @ScaledMetric(relativeTo: .body) private var maximumFormWidth: CGFloat = 680
   @State private var selectedTab: AppTab = .sync
   @State private var settingsNavigationID = UUID()
   @State private var syncNavigationID = UUID()
@@ -20,10 +23,22 @@ struct AppView: View {
     TabView(selection: $selectedTab) {
       ForEach(AppTab.allCases) { tab in
         Tab(tab.title, systemImage: tab.systemImage, value: tab) {
-          NavigationStack {
-            tab.content
+          GeometryReader { column in
+            let margin = (column.size.width - maximumFormWidth) / 2
+            VStack(spacing: 0) {
+              NavigationStack {
+                tab.content
+                  .toolbarTitleDisplayMode(margin > 20 ? .inline : .automatic)
+              }
+              .id(tab == .settings ? settingsNavigationID : syncNavigationID)
+              .contentMargins(.horizontal, margin > 20 ? margin : nil, for: .scrollContent)
+              if tab == .settings, usesSettingsMessageInset, let syncMessage {
+                // Give both the large-text form and the message their own scrollable area.
+                messageBanner(syncMessage, height: max(140, column.size.height * 0.36), alignment: .bottom)
+                  .padding(.bottom, 8)
+              }
+            }
           }
-          .id(tab == .settings ? settingsNavigationID : syncNavigationID)
         }
       }
     }
@@ -31,21 +46,9 @@ struct AppView: View {
     .environment(\.recoverSync, recoverSync)
     .tabViewStyle(.sidebarAdaptable)
     .onChange(of: selectedTab) { _, _ in editingScreenDepartureID = UUID() }
-    .overlay(alignment: .top) {
+    .overlay {
       GeometryReader { geometry in
-        if let syncMessage {
-          SyncMessageBanner(
-            message: syncMessage,
-            onDismiss: { self.syncMessage = nil },
-            onRecover: recoverSync,
-            maxHeight: max(140, geometry.size.height * 0.45)
-          )
-          .id(syncMessage.id)
-          .frame(maxWidth: 520)
-          .padding(.horizontal, 16)
-          .padding(.top, 60)
-          .frame(maxWidth: .infinity, alignment: .top)
-        }
+        syncMessageOverlay(size: geometry.size)
       }
     }
     #if DEBUG
@@ -71,6 +74,32 @@ struct AppView: View {
       }
       if let announcement { UIAccessibility.post(notification: .announcement, argument: announcement) }
     }
+  }
+
+  private var usesSettingsMessageInset: Bool {
+    selectedTab == .settings && horizontalSizeClass == .compact && dynamicTypeSize.isAccessibilitySize
+  }
+
+  @ViewBuilder
+  private func syncMessageOverlay(size: CGSize) -> some View {
+    if let syncMessage, !usesSettingsMessageInset {
+      let wideWindow = horizontalSizeClass == .regular && size.height >= 560
+      let useBottomEdge = selectedTab == .settings || wideWindow
+      let alignment: Alignment = useBottomEdge ? .bottom : .top
+      // On compact Settings screens leave room for the floating system tab bar.
+      let bottomInset: CGFloat = wideWindow ? 20 : 76
+      messageBanner(syncMessage, height: max(140, size.height * 0.45), alignment: alignment)
+        .padding(useBottomEdge ? .bottom : .top, useBottomEdge ? bottomInset : 60)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+    }
+  }
+
+  private func messageBanner(_ message: SyncMessage, height: CGFloat, alignment: Alignment) -> some View {
+    SyncMessageBanner(message: message, onDismiss: { syncMessage = nil }, onRecover: recoverSync,
+                      maxHeight: height, alignment: alignment)
+      .id(message.id)
+      .frame(maxWidth: 520)
+      .padding(.horizontal, 16)
   }
 
   private func recoverSync(_ action: SyncStatusAction) {

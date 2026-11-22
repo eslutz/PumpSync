@@ -38,7 +38,11 @@ struct SettingsView: View {
           }
         }
         .accessibilityIdentifier("InsulinConcentrationLink")
-
+      } header: {
+        Text("Account and Imports").foregroundStyle(.primary)
+      }
+      .headerProminence(.increased)
+      Section {
         NavigationLink { DataHandlingView() } label: {
           Label("Data Handling", systemImage: "lock.shield").fixedSize(horizontal: false, vertical: true)
         }
@@ -52,7 +56,7 @@ struct SettingsView: View {
         }
         .accessibilityIdentifier("DeveloperLink")
       } header: {
-        Text("PumpSync").foregroundStyle(Color.primary)
+        Text("Information and Support").foregroundStyle(.primary)
       }
       .headerProminence(.increased)
     }
