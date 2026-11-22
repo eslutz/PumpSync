@@ -1,8 +1,14 @@
 # App Store Privacy Answers
 
+## Direct-client internal beta candidate
+
+The candidate sends sign-in and report requests from the tester’s device to the selected Tandem region. Credentials are device-only Keychain items. Tokens, raw events and normalized samples are processed in memory. The device stores import history and keyed hashes for duplicate prevention, and HealthKit stores permitted samples. A tester can choose to share a redacted local support bundle. The candidate does not purchase subscriptions, enroll devices with a PumpSync service or upload diagnostics to that service. Reassess the privacy answers against the actual distributed binary and the applicable Tandem data handling before public submission.
+
+## Service-backed builds
+
 Effective date: 2026-08-15
 
-These answers are the intended App Store Connect privacy nutrition label inputs for the current PumpSync MVP. Re-check this file before every App Store or TestFlight submission if dependencies, telemetry, subscriptions, analytics, crash reporting, or backend retention change.
+These answers are the intended App Store Connect privacy nutrition label inputs for the service-backed PumpSync builds. Re-check this file before every App Store or TestFlight submission if dependencies, telemetry, subscriptions, analytics, crash reporting, or backend retention change.
 
 Apple requires developers to disclose collected data in App Store Connect, including data collected by integrated third-party partners. Apple also treats data transmitted off device and retained beyond real-time request servicing as collected data.
 

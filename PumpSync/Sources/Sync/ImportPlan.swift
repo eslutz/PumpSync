@@ -12,31 +12,17 @@ enum DataSourceMode: String, Codable, Equatable, Sendable {
     }
 }
 
-struct ImportConfigurationSnapshot: Equatable {
-    let backendIdentity: String?
-    let revision: Int
-}
-
 struct ImportSessionSnapshot: Equatable {
-    let backendIdentity: String
-    let configurationRevision: Int
+    let accountId: UUID
     let credentialRevision: Int
-    let connectionId: UUID
-    let dataSourceMode: DataSourceMode
-
-    static func canonicalBackendIdentity(_ url: URL) -> String {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url.absoluteString }
-        components.scheme = components.scheme?.lowercased()
-        components.host = components.host?.lowercased()
-        if (components.scheme == "https" && components.port == 443) || (components.scheme == "http" && components.port == 80) { components.port = nil }
-        while components.path.hasSuffix("/") { components.path.removeLast() }
-        return components.string ?? url.absoluteString
-    }
+    var dataSourceMode: DataSourceMode = .tandemSource
 }
 
-@MainActor
-protocol ImportContextProvider {
-    func currentSnapshot() -> ImportSessionSnapshot?
+extension TandemCredentialStore {
+    var currentImportSnapshot: ImportSessionSnapshot? {
+        guard ownershipAvailable, hasValidatedCredentials, let accountId else { return nil }
+        return ImportSessionSnapshot(accountId: accountId, credentialRevision: revision)
+    }
 }
 
 struct PlannedImportSample: Equatable, Identifiable {

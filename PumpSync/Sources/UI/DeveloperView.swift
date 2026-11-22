@@ -8,23 +8,6 @@ struct DeveloperView: View {
 
   var body: some View {
     Form {
-      Section("Build") {
-        LabeledContent("Version") {
-          Text(appVersion).foregroundStyle(.primary)
-        }
-        LabeledContent("Installation ID") {
-          Text(services.backendConfigurationStore.installationId)
-            .foregroundStyle(.primary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityIdentifier("InstallationIDRow")
-        .contextMenu { Button("Copy Installation ID", systemImage: "doc.on.doc", action: copyInstallationID) }
-        .accessibilityAction(named: "Copy", copyInstallationID)
-        Button(copiedInstallationID ? "Installation ID Copied" : "Copy Installation ID", systemImage: copiedInstallationID ? "checkmark" : "doc.on.doc", action: copyInstallationID)
-          .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-          .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
-      }
-      .headerProminence(.increased)
       Section {
         NavigationLink { RealImportPreviewView(services: services) } label: {
           Label("Inspect source data", systemImage: "doc.text.magnifyingglass")
@@ -53,15 +36,33 @@ struct DeveloperView: View {
           .fixedSize(horizontal: false, vertical: true)
       }
       .headerProminence(.increased)
+
+      Section("Build") {
+        LabeledContent("Version") {
+          Text(appVersion).foregroundStyle(.primary)
+        }
+        if let installationID = services.legacyInstallationID {
+          LabeledContent("Installation ID") {
+            Text(installationID)
+              .foregroundStyle(.primary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+          .accessibilityIdentifier("InstallationIDRow")
+          .contextMenu { Button("Copy Installation ID", systemImage: "doc.on.doc", action: copyInstallationID) }
+          .accessibilityAction(named: "Copy", copyInstallationID)
+          Button(copiedInstallationID ? "Installation ID Copied" : "Copy Installation ID", systemImage: copiedInstallationID ? "checkmark" : "doc.on.doc", action: copyInstallationID)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+            .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
+        }
+      }
+      .headerProminence(.increased)
     }
     .navigationTitle("Developer")
   }
 
   private var inspectUnavailableReason: String? {
     if services.syncCoordinator.hasActiveSyncExecution { return "Wait for the current sync to finish before inspecting source data." }
-    if !services.authService.isSignedIn { return "Connect to a service before inspecting source data." }
     if !services.credentialStore.hasValidatedCredentials { return "Save and validate your Tandem account before inspecting source data." }
-    if services.authService.isReplacingConnection { return "Finish connecting before inspecting source data." }
     return nil
   }
 
@@ -81,7 +82,8 @@ struct DeveloperView: View {
   }
 
   private func copyInstallationID() {
-    DiagnosticsClipboard.copy(services.backendConfigurationStore.installationId)
+    guard let installationID = services.legacyInstallationID else { return }
+    DiagnosticsClipboard.copy(installationID)
     copiedInstallationID = true
     UIAccessibility.post(notification: .announcement, argument: "Installation ID copied")
   }

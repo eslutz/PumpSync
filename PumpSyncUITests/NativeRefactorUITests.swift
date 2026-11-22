@@ -26,16 +26,14 @@ final class NativeRefactorUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Insulin Concentration"].waitForExistence(timeout: 3))
     }
 
-    func testSubscriptionHasOneSettingsEntryAndDiscoverableRestore() {
+    func testSavedTandemAccountIsReachableFromSettings() {
         let app = fixture()
         settings(app)
-        XCTAssertEqual(app.buttons.matching(identifier: "SubscriptionSettingsLink").count, 1)
-        XCTAssertFalse(app.buttons["RestorePurchasesButton"].exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "TandemAccountLink").count, 1)
         capture("native-settings", app: app)
-        open("SubscriptionSettingsLink", app: app)
-        XCTAssertTrue(app.buttons["ManageSubscriptionButton"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["RestorePurchasesButton"].exists)
-        capture("native-subscription", app: app)
+        open("TandemAccountLink", app: app)
+        XCTAssertTrue(app.buttons["Change Account Details"].waitForExistence(timeout: 5))
+        capture("native-tandem", app: app)
     }
 
     func testPerformanceShowsStructuredMeasurementsAndOptionalReportData() {
@@ -107,12 +105,17 @@ final class NativeRefactorUITests: XCTestCase {
         let edit = app.buttons["Change Account Details"].firstMatch
         revealEnd(of: edit, in: app, minimumVisibleHeight: bodyLineHeight)
         XCTAssertEqual(edit.label, "Change Account Details")
+        XCTAssertGreaterThanOrEqual(edit.frame.height, 44)
+        if category.isAccessibilityCategory {
+            XCTAssertGreaterThan(edit.frame.height, 44 * 1.5,
+                "The account action must grow with the system text size.")
+        }
         XCTAssertTrue(edit.isEnabled)
         XCTAssertTrue(edit.isHittable)
         capture("native-typography-tandem-edit", app: app)
         edit.tap()
         XCTAssertTrue(app.secureTextFields["Tandem password"].waitForExistence(timeout: 5))
-        assertReadableText("Enter the password you currently use for Tandem. This updates the login saved in PumpSync; it does not change your Tandem password.",
+        assertReadableText("Enter the password you currently use for Tandem. PumpSync validates the sign-in directly with Tandem and saves it on this device.",
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-tandem-instructions")
         back(app)
 
@@ -127,14 +130,13 @@ final class NativeRefactorUITests: XCTestCase {
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-about-final-paragraph")
     }
 
-    func testAccessibilityAuditsSubscriptionAndPerformance() {
+    func testAccessibilityAuditsTandemAndPerformance() {
         let app = fixture()
         settings(app)
-        open("SubscriptionSettingsLink", app: app)
-        XCTAssertTrue(app.buttons["ManageSubscriptionButton"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["RestorePurchasesButton"].exists)
-        capture("native-subscription-accessibility", app: app)
-        audit(app, screen: "Subscription")
+        open("TandemAccountLink", app: app)
+        XCTAssertTrue(app.buttons["Change Account Details"].waitForExistence(timeout: 5))
+        capture("native-tandem-accessibility", app: app)
+        audit(app, screen: "Tandem")
 
         // Keep the audit diagnostics independent between destinations.
         app.terminate()

@@ -15,6 +15,34 @@ final class FailingTandemPersistence: TandemCredentialPersistence {
 
 @MainActor
 final class CredentialRevisionTests: XCTestCase {
+  func testDirectReconnectCommitsOnlyAfterSuccessfulSaveAndSurvivesRestart() throws {
+    let persistence = FailingTandemPersistence()
+    defer { try? persistence.keychain.deleteAll() }
+    let owner = UUID()
+    let legacy = """
+    {"username":"pilot","password":"fixture","region":"us","accountId":"\(owner.uuidString)","status":"validated","validatedAt":100}
+    """
+    let key = "tandem-source-credentials"
+    try persistence.writeData(Data(legacy.utf8), account: key)
+    let store = TandemCredentialStore(keychain: persistence)
+    XCTAssertEqual(store.accountId, owner)
+    XCTAssertTrue(store.needsDirectReconnect)
+    XCTAssertFalse(store.hasValidatedCredentials)
+    let credentials = try XCTUnwrap(store.load())
+    persistence.failWriteAccount = key
+    XCTAssertThrowsError(try store.saveValidated(credentials))
+    XCTAssertTrue(store.needsDirectReconnect)
+    XCTAssertFalse(store.hasValidatedCredentials)
+    persistence.failWriteAccount = nil
+    try store.saveValidated(credentials)
+    let restarted = TandemCredentialStore(keychain: persistence)
+    XCTAssertEqual(restarted.accountId, owner)
+    XCTAssertFalse(restarted.needsDirectReconnect)
+    XCTAssertTrue(restarted.hasValidatedCredentials)
+    try restarted.delete()
+    XCTAssertFalse(restarted.needsDirectReconnect)
+  }
+
   func testCommittedAtomicRecordSurvivesFailedLegacyMirrorAndSupportsOldCredentialDecoder() throws {
     let persistence = FailingTandemPersistence()
     defer { try? persistence.keychain.deleteAll() }

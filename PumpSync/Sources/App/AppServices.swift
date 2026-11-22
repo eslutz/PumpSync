@@ -1,298 +1,138 @@
 import Foundation
+import HealthKit
 import Observation
 
 @MainActor
 @Observable
 final class AppServices {
-  let apiClient: PumpSyncAPIClient
-  let backendConfigurationStore: BackendConfigurationStore
+  let previewSource: DataSourceMode
+  let dataSource: any TandemDataSource
+  let credentialStore: TandemCredentialStore
+  let legacyInstallationID: String?
   let diagnosticsLogStore: DiagnosticsLogStore
   let nativeDiagnosticsStore: NativeDiagnosticsStore
-  let authService: AuthService
-  let credentialStore: TandemCredentialStore
   let insulinConcentrationStore: InsulinConcentrationStore
   let healthKitService: HealthKitService
   let importedSampleLedger: ImportedSampleLedger
   let syncMetadataStore: SyncMetadataStore
   let syncCoordinator: SyncCoordinator
   let backgroundSyncScheduler: BackgroundSyncScheduler
-  let connectionSettings: ConnectionSettingsController
   let foregroundRecovery: ForegroundRecoveryController
   private let metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector
 
-  private init(
-    apiClient: PumpSyncAPIClient,
-    backendConfigurationStore: BackendConfigurationStore,
-    diagnosticsLogStore: DiagnosticsLogStore,
-    nativeDiagnosticsStore: NativeDiagnosticsStore,
-    authService: AuthService,
-    credentialStore: TandemCredentialStore,
-    insulinConcentrationStore: InsulinConcentrationStore,
-    healthKitService: HealthKitService,
-    importedSampleLedger: ImportedSampleLedger,
-    syncMetadataStore: SyncMetadataStore,
-    syncCoordinator: SyncCoordinator,
-    backgroundSyncScheduler: BackgroundSyncScheduler,
-    metricKitDiagnosticsCollector: MetricKitDiagnosticsCollector,
-    connectionStorage: ConnectionActivationStorage? = nil
-  ) {
-    self.apiClient = apiClient
-    self.backendConfigurationStore = backendConfigurationStore
-    self.diagnosticsLogStore = diagnosticsLogStore
-    self.nativeDiagnosticsStore = nativeDiagnosticsStore
-    self.authService = authService
+  private init(dataSource: any TandemDataSource, keychain: SecureKeychainStore,
+               credentialStore: TandemCredentialStore, defaults: UserDefaults,
+               fixturePersistence: HealthSamplePersisting? = nil) {
+    previewSource = fixturePersistence == nil ? .tandemSource : .syntheticDemo
+    self.dataSource = dataSource
     self.credentialStore = credentialStore
-    self.insulinConcentrationStore = insulinConcentrationStore
-    self.healthKitService = healthKitService
-    self.importedSampleLedger = importedSampleLedger
-    self.syncMetadataStore = syncMetadataStore
-    self.syncCoordinator = syncCoordinator
-    self.backgroundSyncScheduler = backgroundSyncScheduler
-    self.metricKitDiagnosticsCollector = metricKitDiagnosticsCollector
-    connectionSettings = ConnectionSettingsController(configuration: backendConfigurationStore, auth: authService, api: apiClient,
-      sync: syncCoordinator, storage: connectionStorage ?? ConnectionActivationStorage(root: SecureKeychainStore(service: "dev.ericslutz.PumpSync.screenshots.connections")), diagnostics: diagnosticsLogStore)
-    foregroundRecovery = ForegroundRecoveryController(
-      setVisible: {
-        authService.setConnectionProgressVisible($0)
-        syncCoordinator.setForegroundActive($0)
-      }
-    ) {
-#if DEBUG
-      // Screenshot sessions are synthetic presentation fixtures, with no
-      // hardware proof enrollment. Keep scene visibility, but do not replace
-      // their state by attempting real foreground authentication recovery.
-      guard !AppLaunchEnvironment.isScreenshotMode else { return }
-#endif
-      do {
-        if try importedSampleLedger.migrateHmacKeyForBackgroundAccess() {
-          diagnosticsLogStore.record(source: .sync, title: "Background sync ledger key migrated")
-        }
-      } catch {
-        diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync ledger migration deferred")
-      }
-      backgroundSyncScheduler.scheduleDailySync(trigger: "appActive")
-      if let connectionStorage, !authService.isReplacingConnection {
-        do { try connectionStorage.restoreConfiguration(backendConfigurationStore, apiClient: apiClient) }
-        catch { return }
-      }
-      nativeDiagnosticsStore.reloadIfUnavailable()
-      healthKitService.refreshAuthorizationStatus()
-      await syncCoordinator.reconcileForegroundRecovery()
+    legacyInstallationID = AppConstants.legacyInstallationID(defaults: defaults)
+    let diagnostics = DiagnosticsLogStore(defaults: defaults)
+    diagnosticsLogStore = diagnostics
+    let nativeDiagnostics = NativeDiagnosticsStore(defaults: defaults)
+    nativeDiagnosticsStore = nativeDiagnostics
+    let concentration = InsulinConcentrationStore(defaults: defaults)
+    insulinConcentrationStore = concentration
+    let context = { @MainActor in credentialStore.currentImportSnapshot }
+    let health: HealthKitService
+    if let fixturePersistence {
+      health = HealthKitService(insulinConcentrationStore: concentration, diagnostics: diagnostics,
+                                currentContext: context, persistence: fixturePersistence)
+    } else {
+      health = HealthKitService(insulinConcentrationStore: concentration, diagnostics: diagnostics, currentContext: context)
     }
-    foregroundRecovery.observeSessionRecovery(authService, syncCoordinator: syncCoordinator)
+    healthKitService = health
+    let ledger = ImportedSampleLedger(keychain: keychain, defaults: defaults)
+    importedSampleLedger = ledger
+    let metadata = SyncMetadataStore(defaults: defaults)
+    syncMetadataStore = metadata
+    let sync = SyncCoordinator(dataSource: dataSource, credentialStore: credentialStore, healthKitService: health,
+                               importedSampleLedger: ledger, syncMetadataStore: metadata, diagnostics: diagnostics,
+                               attemptStore: SyncAttemptStore(defaults: defaults, diagnostics: diagnostics))
+    syncCoordinator = sync
+    let scheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier) { error in
+      Task { @MainActor in diagnostics.record(error: error, source: .sync, title: "Background scheduling failed") }
+    } onEvent: { event, message in
+      Task { @MainActor in diagnostics.record(source: .sync, title: event, message: message) }
+    }
+    backgroundSyncScheduler = scheduler
+    metricKitDiagnosticsCollector = MetricKitDiagnosticsCollector(store: nativeDiagnostics, isEnabled: fixturePersistence == nil)
+    foregroundRecovery = ForegroundRecoveryController(setVisible: sync.setForegroundActive) {
+      guard fixturePersistence == nil else { return }
+      credentialStore.refreshStatus()
+      nativeDiagnostics.reloadIfUnavailable()
+      health.refreshAuthorizationStatus()
+      scheduler.scheduleDailySync(trigger: "appActive")
+      guard credentialStore.hasValidatedCredentials else { return }
+      do { _ = try ledger.migrateHmacKeyForBackgroundAccess() }
+      catch {
+        diagnostics.record(source: .sync, severity: .warning, title: "Ledger key migration deferred")
+        return
+      }
+      _ = await sync.reconcileForegroundRecovery()
+    }
   }
 
   static func live() -> AppServices {
-    let apiClient = PumpSyncAPIClient.live()
     let keychain = SecureKeychainStore(service: "dev.ericslutz.PumpSync")
-    do {
-      _ = try InstallStateReconciler.reconcile {
-        try keychain.deleteAll()
-      }
-    } catch {
-      assertionFailure("Fresh-install Keychain cleanup failed: \(error.localizedDescription)")
-    }
-    let backendConfigurationStore = BackendConfigurationStore()
-    let connectionStorage = ConnectionActivationStorage(root: keychain)
-    // The Keychain activation pointer is authoritative after a crash; replay
-    // preferences before constructing services that capture configuration.
-    do { try connectionStorage.restoreConfiguration(backendConfigurationStore, apiClient: apiClient) }
-    catch { /* Router reads fail closed until the Keychain becomes available. */ }
-    _ = backendConfigurationStore.apply(to: apiClient)
-    let diagnosticsLogStore = DiagnosticsLogStore()
-    let nativeDiagnosticsStore = NativeDiagnosticsStore()
-    let sessionStore = BackendSessionStore(keychain: connectionStorage)
-    let proofProvider = DeviceSessionProofProvider(
-      keychain: connectionStorage,
-      diagnostics: diagnosticsLogStore
-    )
-    let credentialStore = TandemCredentialStore(keychain: keychain)
-    let authService = AuthService(
-      apiClient: apiClient,
-      configurationStore: backendConfigurationStore,
-      sessionStore: sessionStore,
-      proofProvider: proofProvider,
-      diagnostics: diagnosticsLogStore
-    )
-    authService.configurationDidCommit = { try connectionStorage.updateConfiguration(backendConfigurationStore) }
-    let insulinConcentrationStore = InsulinConcentrationStore()
-    let healthKitService = HealthKitService(
-      insulinConcentrationStore: insulinConcentrationStore,
-      diagnostics: diagnosticsLogStore,
-      currentContext: { authService.currentImportSnapshot(credentialRevision: credentialStore.revision) }
-    )
-    let importedSampleLedger = ImportedSampleLedger(keychain: keychain)
-    let syncMetadataStore = SyncMetadataStore()
-    let syncCoordinator = SyncCoordinator(
-      apiClient: apiClient,
-      authService: authService,
-      credentialStore: credentialStore,
-      healthKitService: healthKitService,
-      importedSampleLedger: importedSampleLedger,
-      syncMetadataStore: syncMetadataStore,
-      diagnostics: diagnosticsLogStore,
-      attemptStore: SyncAttemptStore(diagnostics: diagnosticsLogStore)
-    )
-    let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier) { error in
-      Task { @MainActor in
-        diagnosticsLogStore.record(error: error, source: .sync, title: "Background sync scheduling failed")
-      }
-    } onEvent: { event, message in
-      Task { @MainActor in
-        diagnosticsLogStore.record(source: .sync, title: event, message: message)
-      }
-    }
-    let metricKitDiagnosticsCollector = MetricKitDiagnosticsCollector(store: nativeDiagnosticsStore)
-
-    return AppServices(
-      apiClient: apiClient,
-      backendConfigurationStore: backendConfigurationStore,
-      diagnosticsLogStore: diagnosticsLogStore,
-      nativeDiagnosticsStore: nativeDiagnosticsStore,
-      authService: authService,
-      credentialStore: credentialStore,
-      insulinConcentrationStore: insulinConcentrationStore,
-      healthKitService: healthKitService,
-      importedSampleLedger: importedSampleLedger,
-      syncMetadataStore: syncMetadataStore,
-      syncCoordinator: syncCoordinator,
-      backgroundSyncScheduler: backgroundSyncScheduler,
-      metricKitDiagnosticsCollector: metricKitDiagnosticsCollector,
-      connectionStorage: connectionStorage
-    )
+    let credentials = TandemCredentialStore(keychain: InstallScopedCredentialStorage(keychain: keychain))
+    return AppServices(dataSource: DirectTandemDataSource(), keychain: keychain,
+                       credentialStore: credentials, defaults: .standard)
   }
 
 #if DEBUG
   static func screenshotFixture() -> AppServices {
-    let defaultsSuiteName = "dev.ericslutz.PumpSync.screenshots"
-    let defaults = UserDefaults(suiteName: defaultsSuiteName) ?? .standard
-    defaults.removePersistentDomain(forName: defaultsSuiteName)
-
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [ScreenshotPreviewURLProtocol.self]
-    let apiClient = PumpSyncAPIClient(baseURL: AppConstants.defaultAPIBaseURL, urlSession: URLSession(configuration: configuration), maxRetryCount: 0)
-    let backendConfigurationStore = BackendConfigurationStore(defaults: defaults)
-    let diagnosticsLogStore = DiagnosticsLogStore(defaults: defaults)
-    let nativeDiagnosticsStore = NativeDiagnosticsStore(defaults: defaults)
-    let keychain = SecureKeychainStore(service: AppLaunchEnvironment.screenshotPreviewState == nil
-      ? "dev.ericslutz.PumpSync.screenshots" : "dev.ericslutz.PumpSync.screenshots.preview")
-    let sessionStore = BackendSessionStore(keychain: keychain)
-    let credentialStore = TandemCredentialStore(keychain: keychain)
-    let insulinConcentrationStore = InsulinConcentrationStore(defaults: defaults)
-    let healthKitService = HealthKitService(
-      insulinConcentrationStore: insulinConcentrationStore,
-      diagnostics: diagnosticsLogStore
-    )
-    let importedSampleLedger = ImportedSampleLedger(keychain: keychain)
-    let syncMetadataStore = SyncMetadataStore(defaults: defaults)
-    let authService = AuthService(
-      apiClient: apiClient,
-      configurationStore: backendConfigurationStore,
-      sessionStore: sessionStore,
-      currentEntitlementJWS: { "screenshot-transaction-jws" },
-      createSubscriptionSession: { _ in
-        BackendSessionResponse(
-          accessToken: "screenshot-access-token",
-          expiresAt: Date().addingTimeInterval(60 * 60),
-          serviceMode: "hosted",
-          dataSourceMode: "tandemSource"
-        )
-      },
-      createSelfHostedSession: { _ in
-        BackendSessionResponse(
-          accessToken: "screenshot-self-hosted-token",
-          expiresAt: Date().addingTimeInterval(60 * 60),
-          serviceMode: "selfHosted",
-          dataSourceMode: "tandemSource"
-        )
-      },
-      diagnostics: diagnosticsLogStore,
-      proofProvider: DeviceSessionProofProvider(
-        keychain: keychain,
-        diagnostics: diagnosticsLogStore
-      )
-    )
-    let syncCoordinator = SyncCoordinator(
-      apiClient: apiClient,
-      authService: authService,
-      credentialStore: credentialStore,
-      healthKitService: healthKitService,
-      importedSampleLedger: importedSampleLedger,
-      syncMetadataStore: syncMetadataStore,
-      diagnostics: diagnosticsLogStore
-    )
-    let backgroundSyncScheduler = BackgroundSyncScheduler(identifier: AppConstants.backgroundTaskIdentifier)
-
-    backendConfigurationStore.mode = .hosted
-    backendConfigurationStore.selfHostedBaseURLString = ""
-    if AppLaunchEnvironment.screenshotPreviewState != nil {
-      backendConfigurationStore.selfHostedBaseURLString = "https://example.com/api"
-      backendConfigurationStore.mode = .selfHosted
-      _ = backendConfigurationStore.apply(to: apiClient)
-      authService.applyScreenshotSession(serviceMode: "selfHosted")
-    } else {
-      authService.applyScreenshotSession(serviceMode: "hosted")
-    }
-    credentialStore.applyScreenshotStatus(
-      redactedUsername: "demo@pumpsync.app",
-      validatedAt: Date().addingTimeInterval(-60 * 60)
-    )
+    let suite = "dev.ericslutz.PumpSync.screenshots"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    let keychain = SecureKeychainStore(service: suite)
+    let store = TandemCredentialStore(keychain: keychain)
+    let arguments = ProcessInfo.processInfo.arguments
     do {
-      try credentialStore.saveValidated(.init(username: "demo@pumpsync.app", password: "synthetic-only", region: "us"))
-    } catch {
-      assertionFailure("Could not prepare synthetic screenshot credentials")
+      try store.delete()
+      if !arguments.contains("--pumpsync-screenshot-new-account") {
+        defaults.set("B9871802-191D-40DA-A8F0-28432FA23762", forKey: InstallStateReconciler.legacyInstallationIdKey)
+        let credentials = TandemCredentials(username: "demo@pumpsync.app", password: "synthetic-only", region: "us")
+        if arguments.contains("--pumpsync-screenshot-legacy-account") {
+          // Older installations saved this payload before direct validation existed.
+          try keychain.writeData(try JSONEncoder().encode(credentials), account: "tandem-source-credentials")
+          store.refreshStatus()
+        } else {
+          try store.saveValidated(credentials)
+        }
+      }
+    } catch { preconditionFailure("Could not prepare the isolated test account") }
+    let services = AppServices(dataSource: ScreenshotDataSource(state: AppLaunchEnvironment.screenshotPreviewState),
+                               keychain: keychain, credentialStore: store, defaults: defaults,
+                               fixturePersistence: ScreenshotHealthPersistence())
+    services.healthKitService.applyScreenshotAuthorization(granted: !arguments.contains("--pumpsync-screenshot-health-setup"))
+    var metadata = SyncMetadata(lastAttemptAt: nil, lastSuccessfulSyncAt: nil, lastSampleCount: 0,
+                                lastImportedCount: 0, lastErrorMessage: nil, initialImportRange: .pastTwoWeeks)
+    metadata.owner = store.accountId.map { TandemSyncOwner(accountId: $0) }
+    if !AppLaunchEnvironment.isScreenshotInitialSync && store.hasValidatedCredentials {
+      let recent = Date().addingTimeInterval(-45 * 60)
+      metadata.lastAttemptAt = recent
+      metadata.lastSuccessfulSyncAt = recent
+      metadata.syncWatermark = recent.addingTimeInterval(-24 * 60 * 60)
+      metadata.lastSampleCount = 48
+      metadata.lastImportedCount = AppLaunchEnvironment.isScreenshotSyncSuccess ? 4 : 48
+      metadata.lastPermissionSkippedCount = 0
     }
-    healthKitService.applyScreenshotAuthorization()
-    var screenshotMetadata = if AppLaunchEnvironment.isScreenshotInitialSync {
-      SyncMetadata(
-        lastAttemptAt: nil,
-        lastSuccessfulSyncAt: nil,
-        lastSampleCount: 0,
-        lastImportedCount: 0,
-        lastErrorMessage: nil,
-        initialImportRange: .pastTwoWeeks
-      )
-    } else {
-      SyncMetadata(
-        lastAttemptAt: Date().addingTimeInterval(-45 * 60),
-        lastSuccessfulSyncAt: Date().addingTimeInterval(-45 * 60),
-        lastSampleCount: 48,
-        lastImportedCount: 48,
-        lastErrorMessage: nil,
-        initialImportRange: .pastWeek
-      )
-    }
-    screenshotMetadata.owner = credentialStore.accountId.flatMap { accountId in
-      backendConfigurationStore.selectedBaseURL.map { TandemSyncOwner(accountId: accountId, backendIdentity: ImportSessionSnapshot.canonicalBackendIdentity($0)) }
-    }
-    let screenshotCompletionDate = Date()
-    if AppLaunchEnvironment.isScreenshotSyncSuccess {
-      screenshotMetadata.lastAttemptAt = screenshotCompletionDate.addingTimeInterval(-5)
-      screenshotMetadata.lastSuccessfulSyncAt = screenshotCompletionDate
-      screenshotMetadata.lastSampleCount = 48
-      screenshotMetadata.lastImportedCount = 4
-      screenshotMetadata.lastPermissionSkippedCount = 0
-      screenshotMetadata.lastErrorMessage = nil
-    }
-    syncMetadataStore.applyScreenshotMetadata(screenshotMetadata)
+    services.syncMetadataStore.applyScreenshotMetadata(metadata)
     if AppLaunchEnvironment.isScreenshotSyncing {
-      syncCoordinator.applyScreenshotSyncing()
+      services.syncCoordinator.applyScreenshotSyncing()
     } else if AppLaunchEnvironment.isScreenshotSyncSuccess {
-      let notice = ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-sync-notice")
+      let notice = arguments.contains("--pumpsync-screenshot-sync-notice")
         ? "Some records need Apple Health write access. Enable it in Settings before syncing again." : nil
-      syncCoordinator.applyScreenshotSuccess(completedAt: screenshotCompletionDate, notice: notice)
+      services.syncCoordinator.applyScreenshotSuccess(completedAt: Date(), notice: notice)
     } else if AppLaunchEnvironment.isScreenshotSyncFailure {
-      syncCoordinator.applyScreenshotFailure()
-    } else if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-subscription-failure") {
-      // A valid replacement session can still be denied by the protected API.
-      syncCoordinator.applyScreenshotFailure(recovery: .openSubscription)
-    } else if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-settings-failure") {
-      syncCoordinator.applyScreenshotFailure(recovery: .openSettings)
-    } else if ProcessInfo.processInfo.arguments.contains("--pumpsync-screenshot-connection-failure") {
-      authService.clearSessionForConnectionChange()
-      syncCoordinator.applyScreenshotFailure(recovery: .openSettings)
+      services.syncCoordinator.applyScreenshotFailure()
+    } else if arguments.contains("--pumpsync-screenshot-settings-failure") || arguments.contains("--pumpsync-screenshot-connection-failure") {
+      services.syncCoordinator.applyScreenshotFailure(recovery: .openSettings)
     }
-    diagnosticsLogStore.record(source: .auth, title: "PumpSync subscription active")
+    let diagnosticsLogStore = services.diagnosticsLogStore
+    let nativeDiagnosticsStore = services.nativeDiagnosticsStore
+    diagnosticsLogStore.record(source: .credential, title: "Tandem account validated")
     diagnosticsLogStore.record(source: .sync, title: "Sync completed", message: "Returned 48, imported 48.")
     nativeDiagnosticsStore.applyScreenshotEntries([
       NativeDiagnosticEntry(
@@ -330,23 +170,65 @@ final class AppServices {
       attempt.durationSeconds = 5
       diagnosticsLogStore.record(source: .sync, title: "Owned sync attempt", syncAttempt: attempt)
     }
-    let metricKitDiagnosticsCollector = MetricKitDiagnosticsCollector(store: nativeDiagnosticsStore, isEnabled: false)
-
-    return AppServices(
-      apiClient: apiClient,
-      backendConfigurationStore: backendConfigurationStore,
-      diagnosticsLogStore: diagnosticsLogStore,
-      nativeDiagnosticsStore: nativeDiagnosticsStore,
-      authService: authService,
-      credentialStore: credentialStore,
-      insulinConcentrationStore: insulinConcentrationStore,
-      healthKitService: healthKitService,
-      importedSampleLedger: importedSampleLedger,
-      syncMetadataStore: syncMetadataStore,
-      syncCoordinator: syncCoordinator,
-      backgroundSyncScheduler: backgroundSyncScheduler,
-      metricKitDiagnosticsCollector: metricKitDiagnosticsCollector
-    )
+    return services
   }
 #endif
 }
+
+/// Recheck the install marker before credential access. If iOS protects Keychain at launch,
+/// the later unlocked read must complete fresh-install cleanup before it can return credentials.
+@MainActor
+private struct InstallScopedCredentialStorage: TandemCredentialPersistence {
+  let keychain: SecureKeychainStore
+
+  private func prepare() throws {
+    _ = try InstallStateReconciler.reconcile { try keychain.deleteAll() }
+    try LegacyConnectionCleanup.run(in: keychain, defaults: .standard)
+  }
+
+  func readData(account: String) throws -> Data? {
+    try prepare()
+    return try keychain.readData(account: account)
+  }
+
+  func writeData(_ data: Data, account: String) throws {
+    try prepare()
+    try keychain.writeData(data, account: account)
+  }
+
+  func delete(account: String) throws {
+    try prepare()
+    try keychain.delete(account: account)
+  }
+}
+
+#if DEBUG
+private struct ScreenshotDataSource: TandemDataSource {
+  let state: String?
+
+  func load(_ request: TandemSyncRequest) async throws -> TandemSyncResponse {
+    if state == "loading" { try await Task.sleep(for: .seconds(120)) }
+    let start = Date(timeIntervalSince1970: 1_791_158_400)
+    let end = start.addingTimeInterval(30 * 60)
+    let source = SourceDTO(deviceId: "Synthetic pump", eventIds: [])
+    let samples: [SampleDTO] = state == "empty" ? [] : [
+      .init(externalId: "fixture-basal", type: "insulin.basal", value: 0.25, unit: "IU",
+            startAt: start, endAt: end, metadata: [:], source: source),
+      .init(externalId: "fixture-bolus", type: "insulin.bolus", value: 1.2, unit: "IU",
+            startAt: end, endAt: end, metadata: [:], source: source),
+      .init(externalId: "fixture-carbs", type: "nutrition.carbohydrates", value: 24, unit: "g",
+            startAt: end, endAt: end, metadata: [:], source: source)
+    ]
+    return .init(samples: samples, effectiveMinDate: start, effectiveMaxDate: start.addingTimeInterval(86400),
+                 dataSourceMode: .syntheticDemo)
+  }
+}
+
+@MainActor
+private struct ScreenshotHealthPersistence: HealthSamplePersisting {
+  func authorizationStatus(for type: HKObjectType) -> HKAuthorizationStatus { .notDetermined }
+  func save(_ samples: [HKQuantitySample], completion: @escaping @Sendable (Bool, Error?) -> Void) {
+    completion(false, HealthKitError.writeFailed)
+  }
+}
+#endif

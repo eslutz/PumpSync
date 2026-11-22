@@ -15,7 +15,7 @@ enum SyncPhase: String, Equatable {
   var message: String {
     switch self {
     case .preparing:
-      return "Starting secure service…"
+      return "Preparing sync…"
     case .downloading:
       return "Downloading pump data…"
     case .updatingHealth:
@@ -26,7 +26,6 @@ enum SyncPhase: String, Equatable {
 
 enum SyncRecovery: Equatable {
   case retry
-  case openSubscription
   case openSettings
   case waitAndRetry
   case none
@@ -87,20 +86,16 @@ extension ImportedSampleLedger: SyncSampleLedger {}
 @MainActor
 @Observable
 final class SyncCoordinator {
-  /// Subtracted from the server-reported effective sync window's end before
+  /// Subtracted from the effective import window's end before
   /// recording the watermark, so a slow request or a late-arriving Tandem
   /// upload near the boundary is still covered by the next sync. Re-fetched
   /// samples are deduplicated by ImportedSampleLedger, so this is safe.
   private static let watermarkOverlap: TimeInterval = 24 * 60 * 60
 
-  /// How far the server may clamp the requested window start forward before
-  /// the sync surfaces a data-gap notice. Small clock differences between
-  /// device and server are expected; an hour of slack keeps routine syncs
-  /// quiet while a real multi-day gap is always far larger.
+  /// Surface gaps exceeding an hour when an old cursor falls outside the lookback.
   private static let lookbackGapTolerance: TimeInterval = 60 * 60
 
-  private let apiClient: PumpSyncAPIClient
-  private let authService: AuthService
+  private let dataSource: any TandemDataSource
   private let credentialStore: TandemCredentialStore
   private let healthKitService: SyncHealthWriting
   private let importedSampleLedger: any SyncSampleLedger
@@ -110,12 +105,7 @@ final class SyncCoordinator {
   private var syncTask: Task<SyncRunOutcome, Never>?
   private var syncOperationID: UUID?
   private var syncPreparation: SyncProgress?
-  private struct Waiter {
-    let lease: SyncExecutionLease
-    let trigger: SyncTriggerReason
-    let recoveryPolicy: SessionRecoveryPolicy
-  }
-  private var syncWaiters: [UUID: [UUID: Waiter]] = [:]
+  private var syncWaiters: [UUID: [UUID: SyncExecutionLease]] = [:]
   private var foregroundActive = false
   // Results remain available in the Sync screen until another operation or explicit recovery.
   private(set) var operationState: SyncOperationState = .idle
@@ -169,8 +159,7 @@ final class SyncCoordinator {
 #endif
 
   init(
-    apiClient: PumpSyncAPIClient,
-    authService: AuthService,
+    dataSource: any TandemDataSource,
     credentialStore: TandemCredentialStore,
     healthKitService: SyncHealthWriting,
     importedSampleLedger: any SyncSampleLedger,
@@ -178,8 +167,7 @@ final class SyncCoordinator {
     diagnostics: DiagnosticsLogStore? = nil,
     attemptStore: SyncAttemptStore? = nil
   ) {
-    self.apiClient = apiClient
-    self.authService = authService
+    self.dataSource = dataSource
     self.credentialStore = credentialStore
     self.healthKitService = healthKitService
     self.importedSampleLedger = importedSampleLedger
@@ -192,12 +180,11 @@ final class SyncCoordinator {
 
   private func reconcileHistoryOwner() {
     guard credentialStore.ownershipAvailable else { return }
-    let backendIdentity = authService.importConfigurationSnapshot.backendIdentity
-    let owner = credentialStore.accountId.flatMap { accountId in
-      backendIdentity.map { TandemSyncOwner(accountId: accountId, backendIdentity: $0) }
-    }
+    // Wait for foreground confirmation before adopting legacy account history.
+    if credentialStore.needsDirectReconnect { return }
+    let owner = credentialStore.accountId.map { TandemSyncOwner(accountId: $0) }
     let previous = syncMetadataStore.metadata.owner
-    syncMetadataStore.reconcileOwner(owner, resetReason: backendIdentity == nil ? .backendChanged : nil)
+    syncMetadataStore.reconcileOwner(owner)
     if previous != owner, case .succeeded = operationState { operationState = .idle }
   }
 
@@ -205,7 +192,8 @@ final class SyncCoordinator {
     withObservationTracking {
       _ = credentialStore.accountId
       _ = credentialStore.ownershipAvailable
-      _ = authService.importConfigurationSnapshot.backendIdentity
+      _ = credentialStore.needsDirectReconnect
+      _ = credentialStore.hasValidatedCredentials
     } onChange: { [weak self] in
       Task { @MainActor [weak self] in
         self?.reconcileHistoryOwner()
@@ -233,11 +221,10 @@ final class SyncCoordinator {
     return await run(reason: reason, lease: lease)
   }
 
-  /// Foreground bootstrap and late committed-auth signals enter the same owner.
-  /// Capture guards before auth and reevaluate freshness after it completes.
+  /// Check freshness when the foreground scene can perform an import.
   @discardableResult
   func reconcileForegroundRecovery() async -> SyncRunOutcome {
-    await run(reason: .appOpen, recoveryPolicy: .foreground, reevaluatesFreshnessAfterRecovery: true)
+    await refreshIfStale(reason: .appOpen)
   }
 
   private func shouldRefresh(reason: SyncTriggerReason) -> Bool {
@@ -263,24 +250,24 @@ final class SyncCoordinator {
     let lease = SyncExecutionLease(kind: .foreground)
     let task: Task<SyncRunOutcome, Never>
     if let existing = syncTask {
-      guard !existing.isCancelled, !isSyncing else { return }
+      guard !existing.isCancelled else { return }
       task = existing
     } else {
-      guard let created = makeSyncTask(reason: .manual, lease: lease) else { return }
+      guard let created = makeSyncTask(reason: .manual) else { return }
       task = created
     }
     guard let operationID = syncOperationID else { return }
     let waiterID = UUID()
-    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: .manual, recoveryPolicy: .foreground)
+    syncWaiters[operationID, default: [:]][waiterID] = lease
     showSyncProgress()
-    Task { _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID, lease: lease, trigger: .manual, recoveryPolicy: .foreground) }
+    Task { _ = await awaitSyncTask(task, operationID: operationID, waiterID: waiterID, lease: lease, trigger: .manual) }
   }
 
   func setForegroundActive(_ active: Bool) {
     foregroundActive = active
     guard !active, let operationID = syncOperationID else { return }
     if let waiters = syncWaiters[operationID] {
-      for waiter in waiters.values where waiter.lease.kind == .foreground { waiter.lease.revoke() }
+      for lease in waiters.values where lease.kind == .foreground { lease.revoke() }
     }
     if !hasExecutionLease(operationID) { syncTask?.cancel() }
   }
@@ -309,27 +296,26 @@ final class SyncCoordinator {
 
   /// All triggers share one execution and retain their individual leases.
   /// Canceling one caller cannot cancel work still owned by another caller.
-  func run(reason: SyncTriggerReason, lease: SyncExecutionLease? = nil, recoveryPolicy: SessionRecoveryPolicy? = nil, reevaluatesFreshnessAfterRecovery: Bool = false) async -> SyncRunOutcome {
+  func run(reason: SyncTriggerReason, lease: SyncExecutionLease? = nil) async -> SyncRunOutcome {
     guard !Task.isCancelled else { return .canceled }
     guard reason != .background || lease?.kind == .background else { return .deferred(.executionLeaseExpired) }
     let lease = lease ?? SyncExecutionLease(kind: .foreground)
-    let recoveryPolicy = recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background))
     guard lease.isValid, lease.kind != .foreground || foregroundActive else { return .deferred(.executionLeaseExpired) }
     if let previous = syncTask, previous.isCancelled {
       _ = await previous.value
       guard !Task.isCancelled else { return .canceled }
       guard lease.isValid, lease.kind != .foreground || foregroundActive else { return .deferred(.executionLeaseExpired) }
     }
-    if let syncTask { return await awaitSyncTask(syncTask, lease: lease, trigger: reason, recoveryPolicy: recoveryPolicy) }
-    guard let task = makeSyncTask(reason: reason, lease: lease, recoveryPolicy: recoveryPolicy, reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery) else { return .failed }
-    return await awaitSyncTask(task, lease: lease, trigger: reason, recoveryPolicy: recoveryPolicy)
+    if let syncTask { return await awaitSyncTask(syncTask, lease: lease, trigger: reason) }
+    guard let task = makeSyncTask(reason: reason) else { return .failed }
+    return await awaitSyncTask(task, lease: lease, trigger: reason)
   }
 
   private func awaitSyncTask(
-    _ task: Task<SyncRunOutcome, Never>, operationID: UUID? = nil, waiterID: UUID = UUID(), lease: SyncExecutionLease, trigger: SyncTriggerReason, recoveryPolicy: SessionRecoveryPolicy
+    _ task: Task<SyncRunOutcome, Never>, operationID: UUID? = nil, waiterID: UUID = UUID(), lease: SyncExecutionLease, trigger: SyncTriggerReason
   ) async -> SyncRunOutcome {
     guard let operationID = operationID ?? syncOperationID else { return .contextReplaced }
-    syncWaiters[operationID, default: [:]][waiterID] = Waiter(lease: lease, trigger: trigger, recoveryPolicy: recoveryPolicy)
+    syncWaiters[operationID, default: [:]][waiterID] = lease
     if trigger == .manual { showSyncProgress() }
     defer { removeSyncWaiter(waiterID, operationID: operationID) }
     return await withTaskCancellationHandler(operation: {
@@ -348,20 +334,7 @@ final class SyncCoordinator {
   }
 
   private func hasExecutionLease(_ operationID: UUID) -> Bool {
-    syncWaiters[operationID]?.values.contains(where: { $0.lease.isValid }) == true
-  }
-
-  private func hasForcedSyncWaiter(_ operationID: UUID) -> Bool {
-    syncWaiters[operationID]?.values.contains(where: { $0.lease.isValid && $0.trigger != .appOpen }) == true
-  }
-
-  private func recoveryPolicy(for intent: SyncIntent) -> SessionRecoveryPolicy {
-    let owners = syncWaiters[intent.operationID]?.values.filter { $0.lease.isValid } ?? []
-    if foregroundActive, owners.contains(where: { $0.lease.kind == .foreground && $0.recoveryPolicy.allowsInteractiveRecovery }) {
-      return .foreground
-    }
-    if owners.contains(where: { $0.lease.kind == .background }) { return .backgroundWithReenrollment }
-    return .background
+    syncWaiters[operationID]?.values.contains(where: { $0.isValid }) == true
   }
 
   private func removeSyncWaiter(_ waiterID: UUID, operationID: UUID) {
@@ -369,29 +342,18 @@ final class SyncCoordinator {
     if syncWaiters[operationID]?.isEmpty == true { syncWaiters[operationID] = nil }
   }
 
-  private func makeSyncTask(reason: SyncTriggerReason, lease: SyncExecutionLease, recoveryPolicy: SessionRecoveryPolicy? = nil, reevaluatesFreshnessAfterRecovery: Bool = false) -> Task<SyncRunOutcome, Never>? {
-    guard syncTask == nil, !isSyncing, !authService.isReplacingConnection else { return nil }
+  private func makeSyncTask(reason: SyncTriggerReason) -> Task<SyncRunOutcome, Never>? {
+    guard syncTask == nil, !isSyncing else { return nil }
     reconcileHistoryOwner()
     syncPreparation = SyncProgress(phase: .preparing, trigger: reason, startedAt: Date())
-    if !reevaluatesFreshnessAfterRecovery { showSyncProgress() }
+    showSyncProgress()
     let operationID = UUID()
     let intent = SyncIntent(operationID: operationID, trigger: reason,
-      configuration: authService.importConfigurationSnapshot, credentialRevision: credentialStore.revision,
-      concentration: healthKitService.concentration,
-      initialContext: authService.operationImportSnapshot(credentialRevision: credentialStore.revision), lease: lease,
-      recoveryPolicy: recoveryPolicy ?? (reason == .manual ? .foreground : (reason == .background ? .backgroundWithReenrollment : .background)),
-      reevaluatesFreshnessAfterRecovery: reevaluatesFreshnessAfterRecovery)
+      context: credentialStore.currentImportSnapshot, concentration: healthKitService.concentration)
     attemptStore.begin(operationID: operationID, trigger: reason, historyScopeID: syncMetadataStore.metadata.historyScopeID)
-    let diagnosticContext = SyncDiagnosticContext(operationID: operationID, trigger: reason, record: { [weak self] link in
-      self?.attemptStore.recordRequestLink(operationID: operationID, link: link)
-    }, recordDropped: { [weak self] count in
-      self?.attemptStore.recordDroppedRequestLinks(operationID: operationID, count: count)
-    })
     let task = Task { @MainActor [weak self] in
       guard let self else { return SyncRunOutcome.canceled }
-      let result = await SyncDiagnosticContext.$current.withValue(diagnosticContext) {
-        await self.performSync(intent: intent, capturedContext: intent.initialContext)
-      }
+      let result = await self.performSync(intent: intent)
       self.attemptStore.finish(operationID: operationID, result: result)
       if self.syncOperationID == operationID {
         self.syncTask = nil
@@ -410,14 +372,8 @@ final class SyncCoordinator {
     operationState = .running(syncPreparation)
   }
 
-  private func performSync(
-    intent: SyncIntent,
-    capturedContext: ImportSessionSnapshot? = nil,
-    replacementAttemptUsed: Bool = false
-  ) async -> SyncRunOutcome {
+  private func performSync(intent: SyncIntent) async -> SyncRunOutcome {
     let reason = intent.trigger
-    let configuration = intent.configuration
-    let credentialRevision = intent.credentialRevision
     let concentration = intent.concentration
     guard let startedAt = syncPreparation?.startedAt else { return .failed }
 
@@ -427,73 +383,15 @@ final class SyncCoordinator {
     // so refresh it here rather than relying on a view's .task/.onAppear.
     healthKitService.refreshAuthorizationStatus()
 
-    let policyProvider: SessionRecoveryPolicyProvider = { [weak self] in
-      self?.recoveryPolicy(for: intent) ?? .background
-    }
-    attemptStore.advance(operationID: intent.operationID, stage: .recovering)
-    let recoveryInterval = NativePerformance.begin("Session recovery")
-    let recovery = await authService.recoverSessionIfNeeded(policy: policyProvider(), policyProvider: policyProvider, backendCorrelation: { [weak self] value in
-      self?.attemptStore.correlate(operationID: intent.operationID, value: value)
-    })
-    NativePerformance.end("Session recovery", recoveryInterval)
-    let recoveredAccessToken: String?
-    if case .ready(let connection, _) = recovery { recoveredAccessToken = connection.session.accessToken }
-    else { recoveredAccessToken = nil }
-    if let stopped = stoppedOutcome(intent) { recordCancellation(reason: reason); return stopped }
-
-    guard configuration == authService.importConfigurationSnapshot else {
-      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return .contextReplaced
-    }
-
-    if recovery == .rejected(.connectionReplaced) {
-      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return .contextReplaced
-    }
-    guard let accessToken = recoveredAccessToken else {
-      if authService.requiresSubscriptionAction {
-        fail(
-          "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
-          recovery: .openSubscription
-        )
-      } else {
-        fail("Connect PumpSync before syncing.", recovery: .openSettings)
-      }
-      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing connection session.")
-      switch recovery {
-      case .deferred(let reason): return .deferred(.recovery(reason))
-      case .requiresUserAction(let reason), .rejected(let reason): return .blocked(.session(reason))
-      case .canceled: return .canceled
-      case .ready: return .failed
-      }
-    }
-
     attemptStore.advance(operationID: intent.operationID, stage: .validating)
-    guard credentialRevision == credentialStore.revision else {
+    guard let credentials = try? credentialStore.load(), let context = intent.context,
+          let current = credentialStore.currentImportSnapshot else {
+      fail("Validate your Tandem account before syncing.", recovery: .openSettings)
+      return .blocked(.credentials)
+    }
+    guard context == current else {
       fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
       return .contextReplaced
-    }
-    if intent.reevaluatesFreshnessAfterRecovery, !hasForcedSyncWaiter(intent.operationID), !shouldRefresh(reason: reason) {
-      return .skippedFresh
-    }
-    showSyncProgress()
-
-    reconcileHistoryOwner()
-    guard credentialStore.hasValidatedCredentials else {
-      fail("Save your pump account credentials before syncing.", recovery: .openSettings)
-      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Pump account credentials are not validated.")
-      return .blocked(.credentials)
-    }
-
-    guard let credentials = try? credentialStore.load() else {
-      fail("Add your pump account before syncing.", recovery: .openSettings)
-      diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "Missing pump account credentials.")
-      return .blocked(.credentials)
-    }
-
-    guard let accountId = credentialStore.accountId else {
-      fail("Validate your pump account before syncing.", recovery: .openSettings)
-      return .blocked(.credentials)
     }
     guard healthKitService.hasAnyWritePermission else {
       fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
@@ -501,38 +399,13 @@ final class SyncCoordinator {
       return .blocked(.healthPermission)
     }
 
-    // Cancellation can arrive while validating local prerequisites after auth
-    // recovery. Do not issue a new request after the BGTask budget has expired.
+    // Honor expiration even when authorization checks ran synchronously.
     if let stopped = stoppedOutcome(intent) {
       recordCancellation(reason: reason)
       return stopped
     }
 
-    guard credentialStore.revision == credentialRevision,
-          let currentContext = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else {
-      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return .contextReplaced
-    }
-    if let capturedContext, capturedContext != currentContext,
-       case .ready(_, transition: .reenrolled) = recovery, !replacementAttemptUsed {
-      return await performSync(intent: intent, capturedContext: currentContext, replacementAttemptUsed: true)
-    }
-    let context = capturedContext ?? currentContext
-    guard context.dataSourceMode == .tandemSource else {
-      let error: HealthImportError = context.dataSourceMode == .syntheticDemo ? .previewOnly : .unverifiedSource
-      fail(error.localizedDescription, recovery: .openSettings)
-      return .blocked(.unverifiedSource)
-    }
-    let historyOwner = TandemSyncOwner(accountId: accountId, backendIdentity: context.backendIdentity)
-    guard context == currentContext else {
-      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return .contextReplaced
-    }
-    guard let submittedConnection = authService.authenticatedConnection,
-          submittedConnection.session.accessToken == accessToken else {
-      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-      return .contextReplaced
-    }
+    let historyOwner = TandemSyncOwner(accountId: context.accountId)
     diagnostics?.record(source: .sync, title: "Sync started", message: "Reason: \(reason.rawValue)")
     recordBackgroundStage(.preparing, startedAt: startedAt, reason: reason)
 
@@ -544,7 +417,7 @@ final class SyncCoordinator {
         tandem: credentials,
         minDate: requestMinDate,
         maxDate: now,
-        // Tandem reports pump-local wall-clock timestamps; the backend needs
+        // Tandem reports pump-local wall-clock timestamps; use
         // the device's zone to anchor them, or every sample lands hours off.
         timeZoneIdentifier: TimeZone.current.identifier
       )
@@ -555,29 +428,26 @@ final class SyncCoordinator {
         recordCancellation(reason: reason)
         return stopped
       }
-      let response = try await apiClient.syncTandem(request, accessToken: accessToken, backendCorrelation: { [weak self] value in
-        self?.attemptStore.correlate(operationID: intent.operationID, value: value)
-      })
+      let response = try await dataSource.load(request)
       try checkExecution(intent)
-      guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
+      guard let current = credentialStore.currentImportSnapshot else { throw HealthImportError.staleContext }
       let plan = try NativePerformance.measure("Import conversion") {
         try ImportPlanner.makePlan(response: response, context: context, concentration: concentration)
       }
       _ = try HealthImportPolicy.authorize(plan: plan, current: current)
       syncMetadataStore.recordAttempt()
-      authService.markHostedSubscriptionAccessRestored()
       let unseenSamples = try importedSampleLedger.filterUnseen(plan.samples.map(\.original))
       attemptStore.recordCounts(operationID: intent.operationID, returned: response.samples.count, imported: nil, permissionSkipped: nil)
       // Record only what Apple Health confirmed: save() drops samples whose
       // per-type permission is missing, and marking those imported would
-      // permanently lose them — the backend retains nothing to replay, so a
+      // permanently lose them because a
       // later permission grant could never backfill an already-ledgered
       // sample.
       operationState = .running(SyncProgress(phase: .updatingHealth, trigger: reason, startedAt: startedAt))
       attemptStore.advance(operationID: intent.operationID, stage: .updatingHealth)
       recordBackgroundStage(.updatingHealth, startedAt: startedAt, reason: reason)
       try checkExecution(intent)
-      guard let current = authService.currentImportSnapshot(credentialRevision: credentialStore.revision) else { throw HealthImportError.staleContext }
+      guard let current = credentialStore.currentImportSnapshot else { throw HealthImportError.staleContext }
       let batch = try HealthImportPolicy.authorize(plan: plan.selectingSamples(unseenSamples), current: current, executionIsValid: { [weak self] in
         self?.syncOperationID == intent.operationID && self?.hasExecutionLease(intent.operationID) == true
       })
@@ -593,10 +463,10 @@ final class SyncCoordinator {
       // An already-submitted HealthKit save cannot be recalled. Ledger confirmed
       // writes for deduplication, but never publish success for abandoned work.
       try checkExecution(intent)
-      try HealthImportPolicy.validate(batch: batch, current: authService.currentImportSnapshot(credentialRevision: credentialStore.revision))
+      try HealthImportPolicy.validate(batch: batch, current: credentialStore.currentImportSnapshot)
       let watermark = permissionSkippedCount > 0
         ? min(syncMetadataStore.metadata.syncWatermark ?? response.effectiveMinDate, response.effectiveMinDate)
-        : response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap)
+        : max(response.effectiveMinDate, response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap))
       syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark, owner: historyOwner, permissionSkippedCount: permissionSkippedCount)
       attemptStore.checkpoint(operationID: intent.operationID, checkpoint: .metadataCommitted)
       var completionMessage = permissionSkippedCount > 0
@@ -607,20 +477,17 @@ final class SyncCoordinator {
         ? "Enable the missing Health write access and sync again while the records remain available from Tandem."
         : nil
 
-      // Tandem Source only retains ~14 days of history. If the requested
-      // window start was clamped forward, data between the watermark and the
-      // effective start is unrecoverable — say so once instead of reporting
-      // an unqualified success.
+      // The device's direct provider limits imports to a 14-day lookback.
       if response.effectiveMinDate.timeIntervalSince(requestMinDate) > Self.lookbackGapTolerance {
         let gapEnd = response.effectiveMinDate.formatted(date: .abbreviated, time: .omitted)
-        let gapNotice = "Pump data before \(gapEnd) is no longer available from Tandem Source and could not be imported."
+        let gapNotice = "Pump data before \(gapEnd) fell outside PumpSync’s 14-day import window and was not imported."
         completionMessage += " " + gapNotice
         completionNotice = [completionNotice, gapNotice].compactMap { $0 }.joined(separator: " ")
         diagnostics?.record(
           source: .sync,
           severity: .warning,
           title: "Sync window clamped",
-          message: "Requested history from \(requestMinDate.formatted()) but Tandem Source data begins \(response.effectiveMinDate.formatted())."
+          message: "The requested history predates the available import window."
         )
       }
 
@@ -636,94 +503,36 @@ final class SyncCoordinator {
       }
       return .completed
     } catch {
-      let apiError = error as? APIClientError
-      attemptStore.correlate(operationID: intent.operationID, value: apiError?.correlationId)
       if let stopped = stoppedOutcome(intent) {
         recordCancellation(reason: reason)
         return stopped
       }
       if error is CancellationError { recordCancellation(reason: reason); return .canceled }
-      // A response belongs to the captured operation, not to replacement
-      // credentials or a new connection established during the download.
-      // Refuse stale failures before any session/validation/metadata mutation.
-      guard configuration == authService.importConfigurationSnapshot,
-            credentialRevision == credentialStore.revision,
-            authService.operationImportSnapshot(credentialRevision: credentialStore.revision) == context else {
+      guard credentialStore.currentImportSnapshot == context else {
         fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-        diagnostics?.record(source: .sync, severity: .warning, title: "Stale sync response discarded")
         return .contextReplaced
       }
-      // Same-family refresh keeps successful downloads eligible. A rejection
-      // of the old request token does not invalidate the fresh token, though.
-      // Its import context still matches: report the obsolete request's failure
-      // rather than claiming that the connection/account context was replaced.
-      if case .httpStatus(401, _, _, _)? = apiError,
-         authService.session?.accessToken != accessToken {
-        fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-        diagnostics?.record(source: .sync, severity: .warning, title: "Superseded authentication failure discarded")
-        return .failed
-      }
-      let subscriptionRequired = authService.isHostedMode && apiError?.isActiveSubscriptionRequired == true
-      if apiError?.isAuthenticationFailure == true && !subscriptionRequired {
-        authService.clearSessionForAuthenticationFailure(expectedSource: submittedConnection)
-      }
-      if apiError?.isTandemCredentialFailure == true {
-        // Tandem rejected the stored pump credentials — retrying cannot
-        // succeed. Drop the validated flag so the UI routes the user to the
-        // credential form, and show the backend's remediation message.
-        credentialStore.invalidateValidation()
-      }
-      if !(error is HealthImportError) {
-        syncMetadataStore.recordFailure(error)
-      }
-      if let importError = error as? HealthImportError {
-        fail(importError.localizedDescription, recovery: .openSettings)
-      } else if apiError?.isTandemCredentialFailure == true {
-        fail(
-          apiError?.errorDescription
-            ?? "Tandem Source did not accept your pump account credentials. Re-save your Tandem account.",
-          recovery: .openSettings
-        )
-      } else if subscriptionRequired,
-                !replacementAttemptUsed,
-                await authService.recoverHostedSubscriptionAfterAccessDenied(policy: policyProvider(), policyProvider: policyProvider) {
-        diagnostics?.record(
-          source: .sync,
-          title: "Subscription access recovered",
-          message: "retry=sync reason=\(reason.rawValue)"
-        )
-        if let stopped = stoppedOutcome(intent) { recordCancellation(reason: reason); return stopped }
-        guard configuration == authService.importConfigurationSnapshot,
-              credentialRevision == credentialStore.revision,
-              let freshContext = authService.currentImportSnapshot(credentialRevision: credentialRevision) else {
-          fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
-          return .contextReplaced
+      let failure: SyncFailure
+      if let providerError = error as? DirectTandemError {
+        let recovery: SyncRecovery
+        switch providerError {
+        case .credentialsRejected:
+          credentialStore.invalidateValidation()
+          recovery = .openSettings
+        case .rateLimited: recovery = .waitAndRetry
+        default: recovery = .retry
         }
-        return await performSync(intent: intent, capturedContext: freshContext, replacementAttemptUsed: true)
-      } else if subscriptionRequired {
-        fail(
-          "Your PumpSync subscription isn’t active. Subscribe or renew to resume syncing.",
-          recovery: .openSubscription
-        )
-      } else if apiError?.isAuthenticationFailure == true {
-        fail("Sync could not be completed. Try again.", recovery: .openSettings)
-      } else if apiError?.isRateLimited == true {
-        fail("Sync limit reached. Wait a while before trying again.", recovery: .waitAndRetry)
+        failure = SyncFailure(message: providerError.localizedDescription, recovery: recovery)
+      } else if let importError = error as? HealthImportError {
+        failure = SyncFailure(message: importError.localizedDescription, recovery: .openSettings)
       } else if isHealthAuthorizationFailure(error) {
-        fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
-      } else if apiError?.backendCode == "tandem_source_request_rejected"
-                  || apiError?.backendCode == "tandem_source_error"
-                  || apiError?.backendCode == "tandem_source_access_denied" {
-        fail(
-          apiError?.errorDescription ?? "Tandem Source could not provide your pump data. Try again later.",
-          recovery: .waitAndRetry
-        )
-      } else if apiError?.isTransient == true || isTransientNetworkFailure(error) {
-        fail("Sync could not be completed. Try again.", recovery: .retry)
+        failure = SyncFailure(message: "Enable Apple Health write access before syncing.", recovery: .openSettings)
       } else {
-        fail("Sync could not be completed. Try again.", recovery: .none)
+        failure = SyncFailure(message: "Sync could not be completed. Try again.", recovery: .retry)
       }
-      diagnostics?.record(error: error, source: .sync, title: "Sync failed")
+      syncMetadataStore.recordFailure(message: failure.message)
+      operationState = .failed(failure)
+      diagnostics?.record(source: .sync, severity: .error, title: "Sync failed", message: failure.message)
       return .failed
     }
   }
@@ -775,21 +584,6 @@ final class SyncCoordinator {
       return true
     }
     return false
-  }
-
-  private func isTransientNetworkFailure(_ error: Error) -> Bool {
-    let error = error as NSError
-    guard error.domain == NSURLErrorDomain else {
-      return false
-    }
-    return [
-      NSURLErrorTimedOut,
-      NSURLErrorCannotFindHost,
-      NSURLErrorCannotConnectToHost,
-      NSURLErrorNetworkConnectionLost,
-      NSURLErrorDNSLookupFailed,
-      NSURLErrorNotConnectedToInternet
-    ].contains(error.code)
   }
 
   func performBackgroundSync(lease: SyncExecutionLease) async -> Bool {

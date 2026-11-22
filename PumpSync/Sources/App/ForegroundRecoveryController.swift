@@ -36,17 +36,6 @@ final class ForegroundRecoveryController {
     startRecovery()
   }
 
-  func observeSessionRecovery(_ authService: AuthService, syncCoordinator: SyncCoordinator) {
-    authService.setSessionEstablishedHandler { [weak self, weak syncCoordinator] in
-      // An owned sync consumes its own recovery transition and replacement
-      // budget. The signal must not create another retry behind that owner.
-      guard syncCoordinator?.hasActiveSyncExecution == false else { return }
-      self?.reconcileRecovery()
-    }
-  }
-
-  /// Auth can finish after bootstrap (for example StoreKit’s update stream).
-  /// Reconcile only in a visible scene and merge with its existing work.
   func reconcileRecovery() {
     guard task == nil else { return }
     pendingReconciliation = true

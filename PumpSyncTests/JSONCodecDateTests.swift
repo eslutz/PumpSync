@@ -52,7 +52,7 @@ final class JSONCodecDateTests: XCTestCase {
     let data = Data(#"{"date":"2026-06-17T14:30:00.1234567+02:30"}"#.utf8)
     let results = try await withThrowingTaskGroup(of: Date.self) { group in
       for _ in 0..<50 {
-        group.addTask { try await APIResponseDecoder.decode(Payload.self, from: data).date }
+        group.addTask { try JSONCodec.decoder.decode(Payload.self, from: data).date }
       }
       var dates: [Date] = []
       for try await date in group { dates.append(date) }
@@ -60,17 +60,5 @@ final class JSONCodecDateTests: XCTestCase {
     }
     XCTAssertEqual(results.count, 50)
     XCTAssertTrue(results.allSatisfy { abs($0.timeIntervalSince1970 - 1_781_697_600.123) < 0.000001 })
-  }
-
-  func testCanceledDecodingDoesNotReturnAResponse() async {
-    let task = Task {
-      withUnsafeCurrentTask { $0?.cancel() }
-      return try await APIResponseDecoder.decode(Payload.self, from: Data(#"{"date":"2026-06-17T12:00:00Z"}"#.utf8))
-    }
-    do {
-      _ = try await task.value
-      XCTFail("Expected cancellation")
-    } catch is CancellationError {
-    } catch { XCTFail("Unexpected error: \(error)") }
   }
 }

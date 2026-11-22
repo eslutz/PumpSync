@@ -43,7 +43,6 @@ if [[ -z "$device_id" ]]; then
   device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
 fi
 xcrun simctl bootstatus "$device_id" -b
-bash Scripts/ios/prepare-session-contract.sh
 xcodegen generate
 cleanup() {
   xcrun simctl ui "$device_id" content_size "$original_content_size" >/dev/null 2>&1 || true

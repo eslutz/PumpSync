@@ -3,18 +3,45 @@ import UIKit
 
 struct SyncView: View {
   @Environment(AppServices.self) private var services
-  @State private var showsSubscription = false
-  @Environment(\.openConnectionSettings) private var openConnectionSettings
+
+  private enum SetupDestination: Hashable { case account, health }
 
   var body: some View {
+    let setupMessage = Self.readinessMessage(
+      needsReconnect: services.credentialStore.needsDirectReconnect,
+      hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
+      hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
+    )
     Form {
-      Section {
-        SyncInlineStatus(state: services.syncCoordinator.operationState)
+      if let setupMessage {
+        Section {
+          if services.credentialStore.hasValidatedCredentials {
+            NavigationLink(value: SetupDestination.health) {
+              Label("Set Up Apple Health", systemImage: "heart")
+            }
+          } else {
+            NavigationLink(value: SetupDestination.account) {
+              Label(services.credentialStore.needsDirectReconnect ? "Reconnect to Tandem" : "Connect to Tandem",
+                    systemImage: "key")
+            }
+          }
+        } footer: {
+          Text(setupMessage)
+            .font(.body)
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
       }
-      Section {
-        SyncActionButton(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing,
-                         isEnabled: canSync, action: startSync)
-        .listRowBackground(Color.clear)
+      if setupMessage == nil || services.syncCoordinator.operationState != .idle {
+        Section {
+          SyncInlineStatus(state: services.syncCoordinator.operationState)
+        }
+        Section {
+          SyncActionButton(title: syncButtonTitle, isSyncing: services.syncCoordinator.isSyncing,
+                           isEnabled: canSync, action: startSync)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+        }
       }
       if let lastSuccess = history.lastSuccess {
         SyncSummarySection(history: history, lastSuccess: lastSuccess)
@@ -36,72 +63,42 @@ struct SyncView: View {
           if let reset = history.resetDescription {
             Text(reset).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
           }
-          Text("Choose how much pump history to import the first time. Future syncs import new data only. Keep PumpSync open while a sync is running; you can move around within PumpSync.")
-            .foregroundStyle(Color.primary)
-            .fixedSize(horizontal: false, vertical: true)
         } header: {
           Text("Initial Import").foregroundStyle(Color.primary)
+        } footer: {
+          Text("Choose how much history to import the first time. Future syncs import new data only.")
+            .font(.body)
+            .foregroundStyle(Color.primary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .headerProminence(.increased)
       }
 
-      if services.authService.isSignedIn, let message = Self.readinessMessage(
-        isBackendConnected: true,
-        isConnecting: services.authService.isConnecting,
-        hasValidatedCredentials: services.credentialStore.hasValidatedCredentials,
-        hasAnyHealthWritePermission: services.healthKitService.hasAnyWritePermission
-      ) {
+      if setupMessage == nil || history.lastAttempt != nil {
         Section {
-          Text(message).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
-          Button("Open Settings", systemImage: "gearshape", action: openConnectionSettings)
-        }
-      }
-
-      Section {
-        LabeledContent {
-          if services.authService.isConnecting {
-            ProgressView(connectionStatus)
-          } else {
-            Text(connectionStatus)
-              .foregroundStyle(Color.primary)
-              .fixedSize(horizontal: false, vertical: true)
+          LabeledContent("Tandem account") {
+            Text(tandemStatus).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
           }
-        } label: {
-          Text(services.backendConfigurationStore.mode == .hosted ? "PumpSync service" : "Self-hosted service")
-        }
-        LabeledContent("Tandem account") {
-          Text(tandemStatus).foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
-        }
-        if let lastAttempt = history.lastAttempt {
-          LabeledContent("Last checked") {
-            Text(lastAttempt.formatted(date: .abbreviated, time: .shortened))
-              .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
-          }
-        }
-        if !services.authService.isSignedIn && !services.authService.isConnecting && syncFailure == nil {
-          Text(services.authService.errorMessage ?? "Connect before syncing pump data to Apple Health.")
-            .foregroundStyle(Color.primary)
-            .fixedSize(horizontal: false, vertical: true)
-          Button(services.authService.requiresSubscriptionAction ? "View Subscription" : "Retry Connection", action: retryConnection)
-          Button("Connection Settings", systemImage: "gearshape", action: openConnectionSettings)
-        }
-      } header: {
-        Text("Connection").foregroundStyle(Color.primary)
-      }
-      .headerProminence(.increased)
-    }
-    .font(.body)
-    .navigationTitle("Sync")
-    .sheet(isPresented: $showsSubscription) {
-      NavigationStack {
-        SubscriptionSettingsView()
-          .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-              Button("Done") { showsSubscription = false }
+          if let lastAttempt = history.lastAttempt {
+            LabeledContent("Last checked") {
+              Text(lastAttempt.formatted(date: .abbreviated, time: .shortened))
+                .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
             }
           }
+        } header: {
+          Text("Connection").foregroundStyle(Color.primary)
+        }
+        .headerProminence(.increased)
       }
     }
+    .font(.body)
+    .navigationDestination(for: SetupDestination.self) { destination in
+      switch destination {
+      case .account: TandemCredentialForm()
+      case .health: HealthAccessView()
+      }
+    }
+    .navigationTitle("Sync")
     .onAppear(perform: refreshReadiness)
   }
 
@@ -109,18 +106,8 @@ struct SyncView: View {
     if canSync { services.syncCoordinator.startManualSync() }
   }
 
-  private func retryConnection() {
-    if services.authService.requiresSubscriptionAction { showsSubscription = true }
-    else { services.foregroundRecovery.retryConnection() }
-  }
-
   private func refreshReadiness() {
     services.healthKitService.refreshAuthorizationStatus()
-  }
-
-  private var syncFailure: SyncFailure? {
-    if case .failed(let failure) = services.syncCoordinator.operationState { return failure }
-    return nil
   }
 
   private var history: SyncHistoryPresentation {
@@ -129,18 +116,8 @@ struct SyncView: View {
   }
 
   private var canSync: Bool {
-    services.authService.isSignedIn
-      && services.credentialStore.hasValidatedCredentials
-      && services.healthKitService.hasAnyWritePermission
+    services.credentialStore.hasValidatedCredentials && services.healthKitService.hasAnyWritePermission
       && !services.syncCoordinator.isSyncing
-      && !services.authService.isReplacingConnection
-  }
-
-  private var connectionStatus: String {
-    Self.connectionStatus(
-      isSignedIn: services.authService.isSignedIn,
-      isConnecting: services.authService.isConnecting
-    )
   }
 
   private var tandemStatus: String {
@@ -158,23 +135,13 @@ struct SyncView: View {
   private var syncButtonTitle: String {
     Self.syncButtonTitle(
       isSyncing: false,
-      isConnecting: services.authService.isConnecting,
       hasCompletedInitialSync: services.syncMetadataStore.metadata.lastSuccessfulSyncAt != nil,
       initialImportRange: services.syncMetadataStore.metadata.initialImportRange
     )
   }
 
-  static func connectionStatus(isSignedIn: Bool, isConnecting: Bool) -> String {
-    if isSignedIn {
-      return "Connected"
-    }
-
-    return isConnecting ? "Connecting to PumpSync…" : "Not connected"
-  }
-
   static func syncButtonTitle(
     isSyncing: Bool,
-    isConnecting: Bool,
     hasCompletedInitialSync: Bool,
     initialImportRange: InitialImportRange
   ) -> String {
@@ -186,19 +153,16 @@ struct SyncView: View {
   }
 
   static func readinessMessage(
-    isBackendConnected: Bool,
-    isConnecting: Bool = false,
+    needsReconnect: Bool,
     hasValidatedCredentials: Bool,
     hasAnyHealthWritePermission: Bool
   ) -> String? {
-    if !isBackendConnected {
-      return isConnecting
-        ? "Restoring your secure connection. Sync will start automatically when ready."
-        : "PumpSync is not connected. Retry the secure connection, or review your connection settings."
+    if needsReconnect {
+      return "Reconnect your saved account to sync directly with Tandem."
     }
 
     if !hasValidatedCredentials {
-      return "Save your pump account credentials in Settings before syncing."
+      return "Sign in to your Tandem account to sync your pump history."
     }
 
     if !hasAnyHealthWritePermission {
@@ -279,11 +243,11 @@ private struct SyncActionButton: View {
             stableTitle
           } icon: {
             Group {
-              if isSyncing { ProgressView().controlSize(.small).tint(.white) }
+              if isSyncing { ProgressView().controlSize(.small) }
               else {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                  .font(.system(size: 20))
-                  .foregroundStyle(.white)
+                  .font(.title3)
+                  .foregroundStyle(isEnabled ? Color.white : Color.secondary)
               }
             }
             .frame(width: 24, height: 24)
@@ -291,12 +255,13 @@ private struct SyncActionButton: View {
           }
         }
       }
-      .frame(maxWidth: .infinity, minHeight: 44)
+      .frame(maxWidth: .infinity)
     }
     .buttonStyle(.glassProminent)
     .tint(Color("ProminentActionColor"))
     .font(.body)
     .controlSize(.large)
+    .frame(minHeight: 44)
     .disabled(!isEnabled)
     .accessibilityLabel(isSyncing ? "Syncing" : title)
     .accessibilityIdentifier("SyncNowButton")

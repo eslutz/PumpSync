@@ -5,124 +5,7 @@ import UIKit
 
 @MainActor
 final class ImportPreviewTests: XCTestCase {
-    override func tearDown() {
-        URLProtocolStub.requestHandler = nil
-        super.tearDown()
-    }
-
-    func testMissingCapabilityDoesNotEnablePreview() throws {
-        let capabilities = try JSONCodec.decoder.decode(BackendCapabilitiesResponse.self, from: Data(#"{"dataSourceMode":"tandemSource"}"#.utf8))
-        XCTAssertFalse(capabilities.supportsImportPreview)
-    }
-
-    func testProtectedPreviewUsesOnlyPreviewEndpoint() async throws {
-        let path = PreviewLocked<String?>(nil)
-        let authorization = PreviewLocked<String?>(nil)
-        URLProtocolStub.requestHandler = { request in
-            path.set(request.url?.path)
-            authorization.set(request.value(forHTTPHeaderField: "Authorization"))
-            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"tandemSource"}"#.utf8))
-        }
-        let client = PumpSyncAPIClient(baseURL: URL(string: "https://example.com/api")!, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
-        let response = try await client.previewTandem(TandemSyncRequest(tandem: .init(username: "fixture", password: "fixture", region: "us"), minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC"), accessToken: "fixture")
-        XCTAssertEqual(path.value, "/api/v1/preview/tandem")
-        XCTAssertEqual(authorization.value, "Bearer fixture")
-        XCTAssertEqual(response.dataSourceMode, .tandemSource)
-    }
-    func testUnsupportedServiceNeverCallsImportOrPreviewRoute() async throws {
-        let calls = PreviewLocked<[String]>([])
-        URLProtocolStub.requestHandler = { request in
-            calls.append(request.url!.path)
-            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"tandemSource"}"#.utf8))
-        }
-        let (client, auth) = makeContext()
-        let context = snapshot()
-        let controller = ImportPreviewController(apiClient: client, authService: auth, currentContext: { context })
-        await controller.load(request: request(), context: context, concentration: .u500)
-        guard case .failed(let message) = controller.state else { return XCTFail("Expected upgrade message") }
-        XCTAssertTrue(message.contains("update"))
-        XCTAssertEqual(calls.value, ["/api/v1/capabilities"])
-    }
-
-    func testContextChangeDuringCapabilitiesClearsLoadingState() async {
-        URLProtocolStub.requestHandler = { request in
-            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8))
-        }
-        let (client, auth) = makeContext()
-        let controller = ImportPreviewController(apiClient: client, authService: auth, currentContext: { nil })
-        await controller.load(request: request(), context: snapshot(), concentration: .u100)
-        guard case .failed(let message) = controller.state else { return XCTFail("Stale work must clear loading state with actionable feedback") }
-        XCTAssertTrue(message.contains("Reconnect"))
-    }
-
-    func testRedirectDelegateRejectsCrossOriginBeforeForwarding() async {
-        let delegate = SensitiveRequestRedirectGuard()
-        let response = HTTPURLResponse(url: URL(string: "https://example.com/api/v1/preview/tandem")!, statusCode: 307, httpVersion: nil, headerFields: ["Location": "https://elsewhere.com"])!
-        let redirected = await delegate.urlSession(URLSession.shared, task: URLSession.shared.dataTask(with: response.url!), willPerformHTTPRedirection: response, newRequest: URLRequest(url: URL(string: "https://elsewhere.com")!))
-        XCTAssertNil(redirected)
-    }
-
-    func testAuthenticatedEmptyPreviewRetainsCapturedConcentrationAndClearsOnCancel() async throws {
-        URLProtocolStub.requestHandler = { request in
-            let body = request.url!.path.hasSuffix("capabilities")
-                ? #"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#
-                : #"{"samples":[],"effectiveMinDate":"2026-10-01T00:00:00Z","effectiveMaxDate":"2026-10-01T01:00:00Z","dataSourceMode":"tandemSource"}"#
-            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(body.utf8))
-        }
-        let keychain = SecureKeychainStore(service: "preview-authenticated-\(UUID().uuidString)")
-        defer { try? keychain.deleteAll() }
-        let store = BackendSessionStore(keychain: keychain)
-        try store.save(.init(accessToken: "fixture", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource"))
-        let url = URL(string: "https://example.com/api")!
-        let client = PumpSyncAPIClient(baseURL: url, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
-        let auth = AuthService(apiClient: client, configurationStore: .ephemeral(selfHostedBaseURL: url, installationId: "fixture"), sessionStore: store, purpose: .liveImport, proofProvider: DeviceSessionProofProvider(keychain: keychain))
-        let context = try XCTUnwrap(auth.currentImportSnapshot(credentialRevision: 0))
-        let controller = ImportPreviewController(apiClient: client, authService: auth, currentContext: { context })
-        await controller.load(request: request(), context: context, concentration: .u500)
-        guard case .ready(let plan) = controller.state else { return XCTFail("Expected a genuine empty preview") }
-        XCTAssertTrue(plan.samples.isEmpty)
-        XCTAssertEqual(plan.downloadedRecordCount, 0)
-        XCTAssertEqual(plan.concentration, .u500)
-        XCTAssertEqual(plan.effectiveMaxDate.timeIntervalSince(plan.effectiveMinDate), 3600)
-        controller.cancel()
-        guard case .idle = controller.state else { return XCTFail("Payload must clear on close/background") }
-    }
-
-    func testPreviewFailuresPreserveHTTPStatusWithoutFallback() async {
-        for status in [401, 409, 429] {
-            let calls = PreviewLocked<[String]>([])
-            URLProtocolStub.requestHandler = { request in
-                calls.append(request.url!.path)
-                return (HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!, Data(#"{"code":"preview_error","message":"Fixture"}"#.utf8))
-            }
-            let (client, _) = makeContext()
-            do {
-                _ = try await client.previewTandem(request(), accessToken: "fixture")
-                XCTFail("Expected HTTP rejection")
-            } catch APIClientError.httpStatus(let received, _, _, _) {
-                XCTAssertEqual(received, status)
-            } catch { XCTFail("Unexpected error: \(error)") }
-            XCTAssertEqual(calls.value, ["/api/v1/preview/tandem"])
-        }
-    }
-
-    func testPreviewTimeoutIsNotRetriedAndMalformedPayloadIsRejected() async {
-        let calls = PreviewLocked<[String]>([])
-        URLProtocolStub.requestHandler = { request in
-            calls.append(request.url!.path)
-            throw URLError(.timedOut)
-        }
-        let (client, _) = makeContext()
-        client.maxRetryCount = 2
-        do { _ = try await client.previewTandem(request(), accessToken: "fixture"); XCTFail("Expected timeout") }
-        catch { XCTAssertEqual((error as NSError).code, NSURLErrorTimedOut) }
-        XCTAssertEqual(calls.value.count, 1)
-        URLProtocolStub.requestHandler = { request in
-            (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("not-json".utf8))
-        }
-        do { _ = try await client.previewTandem(request(), accessToken: "fixture"); XCTFail("Expected malformed payload rejection") }
-        catch { XCTAssertTrue(error is DecodingError) }
-    }
+    private var source: DirectImportTestSource?
 
     func testLoadedRecordsSurviveSceneBackgroundAndResume() async throws {
         let date = Date(timeIntervalSince1970: 1_791_158_400)
@@ -168,7 +51,7 @@ final class ImportPreviewTests: XCTestCase {
         let controller = try await rendererController(samples: [], date: date)
         guard case .ready(let original) = controller.state else { return XCTFail("Expected initial snapshot") }
         let loadedAt = try XCTUnwrap(controller.loadedAt)
-        URLProtocolStub.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
+        await source?.setResult(.failure(.unavailable))
         await controller.load(request: request(), context: original.context, concentration: .u500)
         guard case .ready(let retained) = controller.state else { return XCTFail("Refresh failure must keep the loaded snapshot") }
         XCTAssertEqual(retained, original)
@@ -198,46 +81,27 @@ final class ImportPreviewTests: XCTestCase {
         let largeController = try await rendererController(samples: large, date: date)
         try await capture(largeController, name: "test-target-large-1000", size: CGSize(width: 393, height: 852), text: .large, color: .light)
         try await capture(try await rendererController(samples: samples, date: date), name: "test-target-ready-AX5-light", size: CGSize(width: 402, height: 874), text: .accessibility5, color: .light)
-        ready.fail("Your connection or pump credentials changed. Reconnect and validate your pump account in Settings.")
+        ready.fail("Your Tandem account changed. Load the records again.")
         try await capture(ready, name: "test-target-failure-light", size: CGSize(width: 402, height: 874), text: .large, color: .light, requiresReady: false)
-        let (client, auth) = makeContext()
         let context = snapshot()
-        let loading = ImportPreviewController(apiClient: client, authService: auth, currentContext: { context })
-        URLProtocolStub.requestHandler = { request in
-            Thread.sleep(forTimeInterval: 2)
-            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8))
-        }
+        let dataSource = DirectImportTestSource(.failure(.unavailable), held: true)
+        let loading = ImportPreviewController(dataSource: dataSource, currentContext: { context })
         let loadingTask = Task { await loading.load(request: request(), context: context, concentration: .u100) }
         await Task.yield()
         guard case .loading = loading.state else { return XCTFail("Expected loading fixture") }
         try await capture(loading, name: "test-target-loading-light", size: CGSize(width: 402, height: 874), text: .large, color: .light, requiresReady: false)
         loading.cancel()
+        await dataSource.release()
         await loadingTask.value
     }
 
     private func rendererController(samples: [SampleDTO], date: Date) async throws -> ImportPreviewController {
-        struct RendererResponse: Encodable {
-            let samples: [SampleDTO]
-            let effectiveMinDate: Date
-            let effectiveMaxDate: Date
-            let dataSourceMode = "tandemSource"
-        }
-        let data = try JSONCodec.encoder.encode(RendererResponse(samples: samples, effectiveMinDate: date, effectiveMaxDate: date.addingTimeInterval(86400)))
-        URLProtocolStub.requestHandler = { request in
-            let body = request.url!.path.hasSuffix("capabilities") ? Data(#"{"dataSourceMode":"tandemSource","supportsImportPreview":true}"#.utf8) : data
-            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, body)
-        }
-        let keychain = SecureKeychainStore(service: "preview-renderer-\(UUID().uuidString)")
-        defer { try? keychain.deleteAll() }
-        let store = BackendSessionStore(keychain: keychain)
-        try store.save(.init(accessToken: "test-target", expiresAt: .distantFuture, serviceMode: "selfHosted", dataSourceMode: "tandemSource"))
-        let url = URL(string: "https://example.com/api")!
-        let client = PumpSyncAPIClient(baseURL: url, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
-        let auth = AuthService(apiClient: client, configurationStore: .ephemeral(selfHostedBaseURL: url, installationId: "test-target"), sessionStore: store, purpose: .liveImport, proofProvider: DeviceSessionProofProvider(keychain: keychain))
-        let context = try XCTUnwrap(auth.currentImportSnapshot(credentialRevision: 0))
-        let controller = ImportPreviewController(apiClient: client, authService: auth, currentContext: { context })
+        let context = snapshot()
+        let source = DirectImportTestSource(.success(.init(samples: samples, effectiveMinDate: date, effectiveMaxDate: date.addingTimeInterval(7200), dataSourceMode: .tandemSource)))
+        self.source = source
+        let controller = ImportPreviewController(dataSource: source, currentContext: { context })
         await controller.load(request: request(), context: context, concentration: .u200)
-        guard case .ready = controller.state else { throw PreviewError.connectionRequired }
+        guard case .ready = controller.state else { throw DirectTandemError.invalidResponse }
         return controller
     }
 
@@ -280,30 +144,11 @@ final class ImportPreviewTests: XCTestCase {
         return nil
     }
 
-    private func makeContext() -> (PumpSyncAPIClient, AuthService) {
-        let url = URL(string: "https://example.com/api")!
-        let client = PumpSyncAPIClient(baseURL: url, urlSession: URLProtocolStub.makeSession(), maxRetryCount: 0)
-        let configuration = BackendConfigurationStore.ephemeral(selfHostedBaseURL: url, installationId: "preview-fixture")
-        let auth = AuthService(apiClient: client, configurationStore: configuration, purpose: .liveImport, proofProvider: DeviceSessionProofProvider(keychain: SecureKeychainStore(service: "preview-fixture")))
-        return (client, auth)
-    }
     private func snapshot() -> ImportSessionSnapshot {
-        .init(backendIdentity: "https://example.com/api", configurationRevision: 0, credentialRevision: 0, connectionId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, dataSourceMode: .tandemSource)
+        .init(accountId: UUID(), credentialRevision: 0)
     }
     private func request() -> TandemSyncRequest {
         .init(tandem: .init(username: "fixture", password: "fixture", region: "us"), minDate: nil, maxDate: nil, timeZoneIdentifier: "UTC")
     }
 
-}
-
-private final class PreviewLocked<Value>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored: Value
-    init(_ value: Value) { stored = value }
-    var value: Value { lock.withLock { stored } }
-    func set(_ value: Value) { lock.withLock { stored = value } }
-}
-
-private extension PreviewLocked where Value == [String] {
-    func append(_ value: String) { var current = self.value; current.append(value); set(current) }
 }

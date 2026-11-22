@@ -27,13 +27,13 @@ enum HealthImportError: LocalizedError {
     case previewOnly, unverifiedSource, sourceMismatch, staleContext, invalidWindow, invalidSample, conflictingDuplicate
     var errorDescription: String? {
         switch self {
-        case .previewOnly: "This service supplies sample data and cannot import into Apple Health."
-        case .unverifiedSource: "The service could not verify the data source. Upgrade the backend before importing."
-        case .sourceMismatch: "The service data source changed. Reconnect before importing."
-        case .staleContext: "Your connection or pump credentials changed. Start a new sync."
-        case .invalidWindow: "The service returned an invalid date range. Update the backend and try again."
-        case .invalidSample: "The service returned unsupported or invalid records. Update the backend before importing."
-        case .conflictingDuplicate: "The service returned conflicting records for one source identifier. No records were imported."
+        case .previewOnly: "Sample data cannot be imported into Apple Health."
+        case .unverifiedSource: "PumpSync could not verify the data source."
+        case .sourceMismatch: "The data source changed. Start a new sync."
+        case .staleContext: "Your Tandem account changed. Start a new sync."
+        case .invalidWindow: "Tandem returned an invalid date range."
+        case .invalidSample: "Tandem returned unsupported or invalid records."
+        case .conflictingDuplicate: "Tandem returned conflicting records for one source identifier. No records were imported."
         }
     }
 }

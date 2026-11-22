@@ -1,5 +1,8 @@
 # PumpSync Release Preparation Checklist
 
+For the direct-to-Tandem internal beta, use [direct beta acceptance](direct-beta.md). The service-backed release checklist follows.
+
+
 Use this document as the release gate for PumpSync 1.0.0. Complete the sections in order. If a release-blocking fix changes the app, backend, subscription configuration, or data-handling behavior, repeat every affected check before advancing.
 
 See [November 5 preparation status](release-status-2026-11-05.md) for verified live changes and unresolved gates. A prepared workflow or refreshed screenshot does not establish release-candidate acceptance.

@@ -2,7 +2,6 @@ import Foundation
 
 enum SyncStatusAction: Equatable {
   case retry
-  case openSubscription
   case openSettings
 }
 
@@ -35,15 +34,13 @@ struct SyncStatusPresentation: Equatable {
         ("Try Again", .retry)
       case .none:
         nil
-      case .openSubscription:
-        ("View Subscription", .openSubscription)
       case .openSettings:
-        ("Connection Settings", .openSettings)
+        ("Open Settings", .openSettings)
       case .waitAndRetry:
         ("Try Again Later", .retry)
       }
       return SyncStatusPresentation(
-        title: failure.recovery == .openSubscription ? "Subscription required" : "Sync needs attention",
+        title: "Sync needs attention",
         detail: failure.message,
         systemImage: "exclamationmark.triangle.fill",
         actionTitle: action?.0,
@@ -56,9 +53,9 @@ struct SyncStatusPresentation: Equatable {
   private static func running(_ progress: SyncProgress, now: Date) -> SyncStatusPresentation {
     let detail = switch progress.phase {
     case .preparing where now.timeIntervalSince(progress.startedAt) >= 3:
-      "This can take about 30 seconds after inactivity. Keep PumpSync open."
+      "Keep PumpSync open while it connects to Tandem."
     case .preparing:
-      "Connecting securely…"
+      "Connecting to Tandem…"
     case .downloading:
       "Retrieving available pump history."
     case .updatingHealth:

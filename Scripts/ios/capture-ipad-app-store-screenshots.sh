@@ -11,8 +11,6 @@ SCREENSHOTS=(
   "ipad-pro-13-app-store-listing-01-status-overview.png"
   "ipad-pro-13-app-store-listing-02-sync-workflow.png"
   "ipad-pro-13-app-store-listing-03-settings-pumpsync.png"
-  "ipad-pro-13-app-store-listing-04-subscription-benefits.png"
-  "ipad-pro-13-app-store-listing-05-settings-self-hosted-connection.png"
   "ipad-pro-13-app-store-listing-06-tandem-account.png"
   "ipad-pro-13-app-store-listing-07-apple-health.png"
   "ipad-pro-13-app-store-listing-08-data-handling.png"

@@ -8,7 +8,6 @@ if [[ -n "${PUMPSYNC_DERIVED_DATA_PATH:-}" ]]; then
   # Positional arguments safely support an empty list under macOS Bash 3.2 nounset.
   set -- -derivedDataPath "$PUMPSYNC_DERIVED_DATA_PATH" "$@"
 fi
-bash Scripts/ios/prepare-session-contract.sh
 xcodegen generate
 set +e
 xcodebuild test -project PumpSync.xcodeproj -scheme PumpSync \

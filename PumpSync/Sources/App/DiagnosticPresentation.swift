@@ -60,23 +60,8 @@ enum DiagnosticPresentation {
     case .requestFailed: return String(localized: "The request failed. Open Log Details for the retained record.")
     case .proofUnavailable: return String(localized: "Device verification was unavailable. Open PumpSync to reconnect.")
     case .processInterrupted: return String(localized: "The app stopped before it recorded an outcome. The actual end time is unknown.")
-    case .recovery(let reason):
-      switch reason {
-      case .networkUnavailable: return String(localized: "The network was unavailable. Try again when connected.")
-      case .missingEntitlement: return String(localized: "No active PumpSync subscription was found.")
-      case .storageUnavailable: return String(localized: "Secure storage was unavailable. Unlock the device and open PumpSync.")
-      case .configurationInvalid: return String(localized: "Review the connection configuration in Settings.")
-      case .connectionReplaced: return String(localized: "The connection changed while access was being restored.")
-      case .interactiveRecoveryRequired: return String(localized: "Open PumpSync to finish reconnecting.")
-      case .uncertainSubmission, .commitPending, .invalidationIncomplete:
-        return String(localized: "A previous connection change still needs to be reconciled.")
-      case .appAttestUnavailable, .appAttestTimedOut, .proofOperationInProgress, .deviceProofRejected, .invalidDeviceKey:
-        return String(localized: "Device verification could not complete. Open PumpSync to reconnect.")
-      case .authenticationRejected, .backendRejected:
-        return String(localized: "The service did not accept this connection. Review Settings.")
-      case .unverifiedSource: return String(localized: "The service could not verify the pump data source.")
-      case .unavailable: return String(localized: "The secure connection could not be restored.")
-      }
+    case .recovery:
+      return String(localized: "An earlier version recorded a connection recovery issue.")
     }
   }
 
@@ -165,7 +150,7 @@ struct SyncHistoryPresentation {
     permissionSkipped = metadata.lastPermissionSkippedCount
     resetDescription = metadata.cursorResetReason.map {
       switch $0 {
-      case .legacyUnbound: "Earlier history could not be bound to this account and server."
+      case .legacyUnbound: "Earlier history could not be matched to this Tandem account."
       case .accountChanged: "History restarted when the Tandem account changed."
       case .backendChanged: "History restarted when the server changed."
       case .credentialsDeleted: "History restarted when saved credentials were removed."

@@ -40,13 +40,15 @@ final class InstallStateReconcilerTests: XCTestCase {
 
     XCTAssertEqual(result, .freshInstall)
     XCTAssertEqual(cleanupCount, 1)
+    XCTAssertEqual(InstallStateReconciler.reconcile(defaults: defaults) { XCTFail("Relaunch cleared the Keychain") }, .existingInstall)
+    XCTAssertNil(defaults.string(forKey: InstallStateReconciler.legacyInstallationIdKey))
   }
 
   func testUpgradePreservesKeychainWhenInstallationIdExists() throws {
     let suiteName = "InstallStateReconcilerTests-\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName)!
     defer { defaults.removePersistentDomain(forName: suiteName) }
-    defaults.set("existing-installation", forKey: BackendConfigurationStore.installationIdDefaultsKey)
+    defaults.set("existing-installation", forKey: InstallStateReconciler.legacyInstallationIdKey)
     var cleanupCount = 0
 
     let result = InstallStateReconciler.reconcile(defaults: defaults) {

@@ -26,4 +26,4 @@ assert {t.get('Identifier') for t in lean['PumpSyncUITests'].findall('./Selected
     'PumpSyncUITests/testAppLaunches()',
     'PumpSyncUITests/testConnectionRecoveryOpensSettingsTab()',
 }
-print('Full local/GitHub coverage and lean Apple release allocation verified.')
+print('Full local simulator coverage and lean Apple release allocation verified.')

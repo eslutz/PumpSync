@@ -30,7 +30,7 @@ final class SyncMessageTests: XCTestCase {
     let eventID = UUID()
     let first = try XCTUnwrap(SyncMessage.make(for: state, id: eventID))
     XCTAssertEqual(first.action, .openSettings)
-    XCTAssertEqual(first.actionTitle, "Connection Settings")
+    XCTAssertEqual(first.actionTitle, "Open Settings")
     XCTAssertEqual(first, SyncMessage.make(for: state, id: eventID))
     let repeatedFailure = try XCTUnwrap(SyncMessage.make(for: state, id: UUID()))
     XCTAssertNotEqual(first.id, repeatedFailure.id, "Dismissing one occurrence must not hide a later identical error.")

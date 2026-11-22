@@ -1,5 +1,7 @@
 # App Store Listing Screenshots
 
+The direct Tandem app produces seven screenshots per platform. The November 5 listing assets document the earlier hosted release.
+
 Each capture script archives the existing screenshots for its platform before replacing them. Archives are written to `archive/` in this directory with timestamped names.
 
 The iPhone screenshots are captured in light mode from the iPhone 18 Pro Max simulator using the screenshot UI-test fixture at its native `1320 x 2868` resolution. Set the selected simulator's appearance to light before capture and verify the output; the script does not change the simulator's appearance. Captures are not cropped or stretched. The historical `iphone-6-7` filename prefix is retained for upload continuity. Run:
@@ -10,9 +12,7 @@ Scripts/ios/capture-iphone-app-store-screenshots.sh
 
 - `iphone-6-7-app-store-listing-01-status-overview.png`: App Store listing screenshot for the initial Sync screen.
 - `iphone-6-7-app-store-listing-02-sync-workflow.png`: App Store listing screenshot for the Sync tab workflow.
-- `iphone-6-7-app-store-listing-03-settings-pumpsync.png`: App Store listing screenshot for PumpSync connection settings.
-- `iphone-6-7-app-store-listing-04-subscription-benefits.png`: App Store listing screenshot for the subscription benefits screen.
-- `iphone-6-7-app-store-listing-05-settings-self-hosted-connection.png`: App Store listing screenshot for self-hosted connection settings.
+- `iphone-6-7-app-store-listing-03-settings-pumpsync.png`: App Store listing screenshot for account, Apple Health and import settings.
 - `iphone-6-7-app-store-listing-06-tandem-account.png`: App Store listing screenshot for Tandem account setup.
 - `iphone-6-7-app-store-listing-07-apple-health.png`: App Store listing screenshot for Apple Health access.
 - `iphone-6-7-app-store-listing-08-data-handling.png`: App Store listing screenshot for data handling.
@@ -26,9 +26,7 @@ Scripts/ios/capture-ipad-app-store-screenshots.sh
 
 - `ipad-pro-13-app-store-listing-01-status-overview.png`: App Store listing screenshot for the initial Sync screen on iPad.
 - `ipad-pro-13-app-store-listing-02-sync-workflow.png`: App Store listing screenshot for the Sync workflow.
-- `ipad-pro-13-app-store-listing-03-settings-pumpsync.png`: App Store listing screenshot for PumpSync connection settings.
-- `ipad-pro-13-app-store-listing-04-subscription-benefits.png`: App Store listing screenshot for the subscription benefits screen.
-- `ipad-pro-13-app-store-listing-05-settings-self-hosted-connection.png`: App Store listing screenshot for self-hosted connection settings.
+- `ipad-pro-13-app-store-listing-03-settings-pumpsync.png`: App Store listing screenshot for account, Apple Health and import settings.
 - `ipad-pro-13-app-store-listing-06-tandem-account.png`: App Store listing screenshot for Tandem account setup.
 - `ipad-pro-13-app-store-listing-07-apple-health.png`: App Store listing screenshot for Apple Health access.
 - `ipad-pro-13-app-store-listing-08-data-handling.png`: App Store listing screenshot for data handling.

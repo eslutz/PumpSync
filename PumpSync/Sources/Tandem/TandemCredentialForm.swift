@@ -12,7 +12,6 @@ struct TandemCredentialForm: View {
   @State private var alert: CredentialAlert?
   @State private var isShowingPassword = false
   private var isValidating: Bool { validation.isRunning }
-  @State private var lastValidatedCredentials: TandemCredentials?
   @State private var baselineUsername = ""
   @State private var baselineRegion = TandemRegion.us
   @State private var isConfirmingRemoval = false
@@ -24,10 +23,23 @@ struct TandemCredentialForm: View {
   var body: some View {
     Form {
       if services.credentialStore.hasStoredCredentials && !isEditing {
+        if services.credentialStore.needsDirectReconnect {
+          Section {
+            Button {
+              validation.start { await reconnectSavedAccount() }
+            } label: {
+              if isValidating { ProgressView("Connecting to Tandem…") }
+              else { Label("Reconnect to Tandem", systemImage: "key.fill") }
+            }
+            .disabled(isValidating || services.syncCoordinator.hasActiveSyncExecution)
+          } footer: {
+            Text("Use the sign-in saved on this device to connect directly to Tandem.")
+          }
+        }
         SavedTandemAccountSections(
           username: baselineUsername, region: baselineRegion,
-          canEdit: !services.syncCoordinator.hasActiveSyncExecution && !services.authService.isReplacingConnection,
-          canRemove: !services.syncCoordinator.hasActiveSyncExecution,
+          canEdit: !isValidating && !services.syncCoordinator.hasActiveSyncExecution,
+          canRemove: !isValidating && !services.syncCoordinator.hasActiveSyncExecution,
           edit: { isEditing = true }, remove: { isConfirmingRemoval = true }
         )
       } else {
@@ -77,7 +89,7 @@ struct TandemCredentialForm: View {
 
           Button {
             focusedField = nil
-            validation.start { await validateAndSave() }
+            validation.start { await validateAndSave(currentCredentials) }
           } label: {
             if isValidating {
               HStack {
@@ -100,7 +112,7 @@ struct TandemCredentialForm: View {
           Text("Tandem Source")
             .foregroundStyle(Color.primary)
         } footer: {
-          Text("Enter the password you currently use for Tandem. This updates the login saved in PumpSync; it does not change your Tandem password.")
+          Text("Enter the password you currently use for Tandem. PumpSync validates the sign-in directly with Tandem and saves it on this device.")
             .font(.body)
             .foregroundStyle(Color.primary)
             .fixedSize(horizontal: false, vertical: true)
@@ -117,12 +129,6 @@ struct TandemCredentialForm: View {
     .onAppear(perform: load)
     .onDisappear(perform: discardDraft)
     .onChange(of: editingScreenDepartureID) { _, _ in discardDraft() }
-    .onChange(of: services.backendConfigurationStore.revision) { _, _ in
-      validation.cancel()
-      password = ""
-      isShowingPassword = false
-      lastValidatedCredentials = nil
-    }
     .onChange(of: scenePhase) { _, newPhase in
       // A revealed password must not survive backgrounding: the plain
       // TextField (unlike SecureField) would otherwise be captured in the
@@ -130,7 +136,6 @@ struct TandemCredentialForm: View {
       if newPhase != .active {
         isShowingPassword = false
         password = ""
-        lastValidatedCredentials = nil
         validation.cancel()
       }
     }
@@ -138,7 +143,7 @@ struct TandemCredentialForm: View {
       Button("Remove Credentials", role: .destructive, action: delete)
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Removes the Tandem sign-in from this device and stops pump sync until you save an account again. Current-account sync history resets. Existing Apple Health samples, duplicate-prevention records, backend metadata, and your subscription remain.")
+      Text("Removes the Tandem sign-in from this device and stops pump sync until you save an account again. The next account will start with a new sync history. You can manage previous imports in Apple Health.")
     }
     .alert(
       alert?.title ?? "",
@@ -178,18 +183,12 @@ struct TandemCredentialForm: View {
   private var canUsePrimaryAction: Bool {
     Self.actionState(username: username, password: password) == .save
       && !isValidating
-      && !services.authService.isConnecting
-      && !services.authService.isReplacingConnection
       && !services.syncCoordinator.hasActiveSyncExecution
   }
 
   private var primaryActionTitle: String {
     if isValidating {
       return "Saving"
-    }
-
-    if services.authService.isConnecting {
-      return "Connecting"
     }
 
     return "Save Credentials"
@@ -199,20 +198,11 @@ struct TandemCredentialForm: View {
     "Validates your current Tandem login, then saves it on this device"
   }
 
-  static func shouldSkipRevalidation(current: TandemCredentials, lastValidated: TandemCredentials?) -> Bool {
-    guard let lastValidated else {
-      return false
-    }
-
-    return current == lastValidated
-  }
-
   private func discardDraft() {
     validation.cancel()
     focusedField = nil
     password = ""
     isShowingPassword = false
-    lastValidatedCredentials = nil
     load()
     isEditing = false
     alert = nil
@@ -242,90 +232,37 @@ struct TandemCredentialForm: View {
     }
   }
 
-  private func validateAndSave() async {
-    guard !Task.isCancelled else { return }
-    let credentials = currentCredentials
-    let configurationRevision = services.backendConfigurationStore.revision
-
-    // Region determines a different Tandem login endpoint (see the backend's
-    // TandemSourceOptions Us/Eu configs), so a region change always needs a
-    // fresh validation call, and the stored password is intentionally never
-    // loaded into view state (see load()), so there's no way to detect an
-    // unchanged password against the persisted baseline without holding
-    // that plaintext again. The one case that's safe to skip without either
-    // of those: an exact repeat of the form state that was just
-    // successfully validated and saved in this same screen session, e.g.
-    // tapping Save again after dismissing the confirmation.
-    guard !Self.shouldSkipRevalidation(current: credentials, lastValidated: lastValidatedCredentials) else {
-      alert = CredentialAlert(
-        title: "Credentials Saved",
-        message: "Credentials validated and saved to this device."
-      )
-      services.diagnosticsLogStore.record(source: .credential, title: "Credentials save skipped", message: "Form matches the last successfully validated save; no Tandem revalidation was needed.")
-      return
-    }
-
-    guard let accessToken = await accessTokenForValidation(configurationRevision: configurationRevision),
-          !Task.isCancelled,
-          configurationRevision == services.backendConfigurationStore.revision,
-          let submittedConnection = services.authService.authenticatedConnection,
-          submittedConnection.session.accessToken == accessToken else {
-      return
-    }
-
+  private func reconnectSavedAccount() async {
     do {
-      let response = try await services.apiClient.validateTandemCredentials(
-        TandemCredentialValidationRequest(tandem: credentials, timeZoneIdentifier: TimeZone.current.identifier),
-        accessToken: accessToken
-      )
+      guard services.credentialStore.needsDirectReconnect,
+            let credentials = try services.credentialStore.load() else { return }
+      await validateAndSave(credentials)
+    } catch {
+      alert = CredentialAlert(title: "Account Unavailable", message: "Unlock your device and try again.")
+    }
+  }
 
+  private func validateAndSave(_ credentials: TandemCredentials) async {
+    guard !Task.isCancelled else { return }
+    let revision = services.credentialStore.revision
+    do {
+      try await services.dataSource.validate(credentials, timeZone: .current)
       try Task.checkCancellation()
-      guard configurationRevision == services.backendConfigurationStore.revision else { return }
-      guard response.validated else {
-        alert = CredentialAlert(
-          title: "Save Failed",
-          message: "Account details could not be validated. Check them and try again."
-        )
-        services.diagnosticsLogStore.record(source: .credential, severity: .warning, title: "Credentials validation rejected")
-        return
-      }
-
+      guard revision == services.credentialStore.revision else { return }
       try services.credentialStore.saveValidated(credentials)
-      lastValidatedCredentials = nil
       isEditing = false
       baselineUsername = credentials.username
       baselineRegion = TandemRegion(rawValue: credentials.region) ?? .us
       password = ""
       isShowingPassword = false
-      alert = CredentialAlert(
-        title: "Credentials Saved",
-        message: "Credentials validated and saved to this device."
-      )
-      services.diagnosticsLogStore.record(source: .credential, title: "Credentials saved")
+      alert = CredentialAlert(title: "Account Connected", message: "Your Tandem sign-in is saved on this device.")
+      services.diagnosticsLogStore.record(source: .credential, title: "Tandem account validated")
     } catch {
-      guard !Task.isCancelled, configurationRevision == services.backendConfigurationStore.revision else { return }
-      if (error as? APIClientError)?.isAuthenticationFailure == true {
-        services.authService.clearSessionForAuthenticationFailure(expectedSource: submittedConnection)
-      }
-      services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials save failed")
-      alert = CredentialAlert(
-        title: "Save Failed",
-        message: "Credentials could not be validated or saved. Check them and try again."
-      )
+      guard !Task.isCancelled, revision == services.credentialStore.revision else { return }
+      let message = (error as? DirectTandemError)?.localizedDescription ?? "The sign-in could not be saved on this device. Try again."
+      services.diagnosticsLogStore.record(source: .credential, severity: .warning, title: "Tandem account setup failed")
+      alert = CredentialAlert(title: "Account Setup Failed", message: message)
     }
-  }
-
-  private func accessTokenForValidation(configurationRevision: Int) async -> String? {
-    if let accessToken = await services.authService.accessTokenRecoveringIfNeeded() {
-      return accessToken
-    }
-
-    guard !Task.isCancelled, configurationRevision == services.backendConfigurationStore.revision else { return nil }
-    alert = CredentialAlert(
-      title: "Connection Needed",
-      message: services.authService.connectionRequiredMessage
-    )
-    return nil
   }
 
   private func delete() {
@@ -336,7 +273,6 @@ struct TandemCredentialForm: View {
       baselineUsername = ""
       baselineRegion = .us
       region = .us
-      lastValidatedCredentials = nil
       alert = CredentialAlert(
         title: "Credentials Removed",
         message: "Credentials removed from this device."
@@ -391,18 +327,7 @@ private struct SavedTandemAccountSections: View {
           .fixedSize(horizontal: false, vertical: true)
       }
       .font(.body)
-      Button(action: edit) {
-        Label {
-          Text("Change Account Details")
-            .font(.body)
-            .lineLimit(nil)
-            .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-          Image(systemName: "pencil")
-        }
-        .fixedSize(horizontal: false, vertical: true)
-      }
-      .disabled(!canEdit)
+      EditAccountButton(isEnabled: canEdit, edit: edit)
     } header: {
       Text("Saved Account")
         .foregroundStyle(Color.primary)
@@ -422,6 +347,35 @@ private struct SavedTandemAccountSections: View {
       }
       .disabled(!canRemove)
     }
+  }
+}
+
+/// Lets the native control expose the same Dynamic Type font used to draw its title.
+private struct EditAccountButton: UIViewRepresentable {
+  let isEnabled: Bool
+  let edit: () -> Void
+
+  func makeUIView(context: Context) -> UIButton {
+    let button = UIButton(type: .system)
+    button.contentHorizontalAlignment = .leading
+    button.setTitle("Change Account Details", for: .normal)
+    button.titleLabel?.font = .preferredFont(forTextStyle: .body)
+    button.titleLabel?.adjustsFontForContentSizeCategory = true
+    button.titleLabel?.numberOfLines = 0
+    button.titleLabel?.lineBreakMode = .byWordWrapping
+    return button
+  }
+
+  func updateUIView(_ button: UIButton, context: Context) {
+    button.isEnabled = isEnabled
+    // A constant identifier replaces the previous action when SwiftUI updates the view.
+    button.addAction(UIAction(identifier: .init("editAccount")) { _ in edit() }, for: .touchUpInside)
+  }
+
+  func sizeThatFits(_ proposal: ProposedViewSize, uiView button: UIButton, context: Context) -> CGSize? {
+    guard let width = proposal.width, let title = button.titleLabel else { return nil }
+    let titleSize = title.sizeThatFits(.init(width: width, height: .greatestFiniteMagnitude))
+    return .init(width: width, height: max(44, ceil(titleSize.height)))
   }
 }
 

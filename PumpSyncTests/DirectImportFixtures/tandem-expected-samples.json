@@ -1,0 +1,114 @@
+[
+  {
+    "externalId": "tandem-basal-3-2-1-639291059991234567-639291105007654321",
+    "type": "insulin.basal",
+    "value": 1.563070,
+    "unit": "IU",
+    "startAt": "2026-11-01T00:59:59.1234567-04:00",
+    "endAt": "2026-11-01T01:15:00.7654321-05:00",
+    "metadata": {
+      "deliveryReason": "basal",
+      "rateIUPerHour": "1.25",
+      "sourceKind": "BasalRateChange"
+    },
+    "source": {
+      "deviceId": "fixture-pump",
+      "eventIds": [
+        "3-2-1"
+      ]
+    }
+  },
+  {
+    "externalId": "tandem-carb-9-64-2-2",
+    "type": "nutrition.carbohydrates",
+    "value": 26,
+    "unit": "g",
+    "startAt": "2026-11-01T01:10:00-05:00",
+    "endAt": "2026-11-01T01:10:00-05:00",
+    "metadata": {
+      "bolusId": "9"
+    },
+    "source": {
+      "deviceId": "fixture-pump",
+      "eventIds": [
+        "64-2-2"
+      ]
+    }
+  },
+  {
+    "externalId": "tandem-bolus-9-20-2-3",
+    "type": "insulin.bolus",
+    "value": 1.05,
+    "unit": "IU",
+    "startAt": "2026-11-01T01:12:00-05:00",
+    "endAt": "2026-11-01T01:12:00-05:00",
+    "metadata": {
+      "deliveryReason": "bolus",
+      "bolusId": "9",
+      "completionStatusRaw": "2",
+      "isExtended": "False"
+    },
+    "source": {
+      "deviceId": "fixture-pump",
+      "eventIds": [
+        "20-2-3"
+      ]
+    }
+  },
+  {
+    "externalId": "tandem-bolus-9-21-2-4",
+    "type": "insulin.bolus",
+    "value": 0.73,
+    "unit": "IU",
+    "startAt": "2026-11-01T01:13:00-05:00",
+    "endAt": "2026-11-01T01:13:00-05:00",
+    "metadata": {
+      "deliveryReason": "bolus",
+      "bolusId": "9",
+      "completionStatusRaw": "0",
+      "isExtended": "True"
+    },
+    "source": {
+      "deviceId": "fixture-pump",
+      "eventIds": [
+        "21-2-4"
+      ]
+    }
+  },
+  {
+    "externalId": "tandem-basal-279-2-5-639291105007654321-639291168000000000",
+    "type": "insulin.basal",
+    "value": 1.013127,
+    "unit": "IU",
+    "startAt": "2026-11-01T01:15:00.7654321-05:00",
+    "endAt": "2026-11-01T03:00:00-05:00",
+    "metadata": {
+      "deliveryReason": "basal",
+      "rateIUPerHour": "0.579",
+      "sourceKind": "BasalDelivery"
+    },
+    "source": {
+      "deviceId": "fixture-pump",
+      "eventIds": [
+        "279-2-5"
+      ]
+    }
+  },
+  {
+    "externalId": "tandem-carb-9-64-2-6",
+    "type": "nutrition.carbohydrates",
+    "value": 13,
+    "unit": "g",
+    "startAt": "2026-11-01T01:20:00-05:00",
+    "endAt": "2026-11-01T01:20:00-05:00",
+    "metadata": {
+      "bolusId": "9"
+    },
+    "source": {
+      "deviceId": "fixture-pump",
+      "eventIds": [
+        "64-2-6"
+      ]
+    }
+  }
+]

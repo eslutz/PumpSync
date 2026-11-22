@@ -3,7 +3,21 @@ import Observation
 
 struct TandemSyncOwner: Codable, Equatable {
   let accountId: UUID
-  let backendIdentity: String
+  // Older installs scoped their cursor to a service URL. New records omit this field.
+  let backendIdentity: String?
+  init(accountId: UUID, backendIdentity: String? = nil) {
+    self.accountId = accountId
+    self.backendIdentity = backendIdentity
+  }
+
+  fileprivate var permitsDirectMigration: Bool {
+    switch backendIdentity {
+    case "https://api.pumpsync.ericslutz.dev/api",
+         "https://ca-pumpsync-nonprod-api.gentlesea-b1e8a783.eastus2.azurecontainerapps.io/api":
+      return true
+    default: return false
+    }
+  }
 }
 
 enum SyncCursorResetReason: String, Codable {
@@ -24,7 +38,7 @@ struct SyncMetadata: Codable, Equatable {
   var lastErrorMessage: String?
   var initialImportRange: InitialImportRange
   /// The point up to which data is known to be imported, used as the next
-  /// sync's `minDate`. Set from the server's effective sync window end minus
+  /// sync's `minDate`. Set from the effective sync window end minus
   /// a safety overlap (see `SyncCoordinator.watermarkOverlap`), not from
   /// `lastSuccessfulSyncAt` — the two serve different purposes and must not
   /// share a value.
@@ -95,15 +109,23 @@ final class SyncMetadataStore {
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
     self.metadata = Self.load(defaults: defaults)
-    if metadata.owner == nil, hasAccountHistory { resetHistory(reason: .legacyUnbound) }
+    if metadata.owner == nil, hasAccountHistory {
+      resetHistory(reason: .legacyUnbound)
+      save()
+    }
     let stored = defaults.data(forKey: Self.defaultsKey).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
     if stored?["historyScopeID"] == nil { save() }
   }
 
-  /// Reconcile only a durably known account and the selected real backend.
-  /// Auth connection/token rotation deliberately has no role in cursor ownership.
+  /// Called after direct validation, or after an explicit account removal.
   func reconcileOwner(_ owner: TandemSyncOwner?, resetReason: SyncCursorResetReason? = nil) {
     guard metadata.owner != owner else { return }
+    if let previous = metadata.owner, previous.accountId == owner?.accountId,
+       previous.permitsDirectMigration, owner?.backendIdentity == nil {
+      metadata.owner = owner
+      save()
+      return
+    }
     if let previous = metadata.owner {
       let reason = resetReason ?? (owner == nil ? SyncCursorResetReason.credentialsDeleted
         : (previous.accountId == owner?.accountId ? .backendChanged : .accountChanged))
@@ -132,7 +154,6 @@ final class SyncMetadataStore {
     metadata.lastAttemptAt = nil
     metadata.lastErrorMessage = nil
     metadata.cursorResetReason = reason
-    save()
   }
 
   func recordAttempt() {
@@ -146,7 +167,7 @@ final class SyncMetadataStore {
   ///   pass a real `Date()`, not the watermark.
   /// - Parameter watermark: The point up to which data is now known to be
   ///   imported, used as the next sync's `minDate`. Callers should pass the
-  ///   server-reported effective sync window's end (minus a safety overlap),
+  ///   effective sync window's end (minus a safety overlap),
   ///   not a client-side `Date()` taken after the request completes — using
   ///   a later, locally-captured timestamp here would create a permanent gap
   ///   between what was actually requested and what the next sync resumes
@@ -162,11 +183,8 @@ final class SyncMetadataStore {
     save()
   }
 
-  func recordFailure(_ error: Error) {
-    // Redact at persist time, matching the discipline of every other
-    // persisted diagnostics path — the message can contain server-supplied
-    // text, and this copy lands unencrypted in UserDefaults and backups.
-    metadata.lastErrorMessage = DiagnosticsLogStore.redacted(error.localizedDescription)
+  func recordFailure(message: String) {
+    metadata.lastErrorMessage = message
     save()
   }
 

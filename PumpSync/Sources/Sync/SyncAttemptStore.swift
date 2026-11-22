@@ -8,10 +8,18 @@ enum SyncImportCheckpoint: String, Codable {
 }
 
 enum SyncAttemptOutcome: String, Codable { case completed, skipped, blocked, deferred, canceled, contextReplaced, failed, interrupted }
+/// The associated value in a persisted recovery reason was a string enum.
+enum LegacyRecoveryReason: String, Codable {
+  case uncertainSubmission, commitPending, invalidationIncomplete, storageUnavailable, networkUnavailable
+  case appAttestUnavailable, appAttestTimedOut, proofOperationInProgress, missingEntitlement
+  case interactiveRecoveryRequired, configurationInvalid, connectionReplaced, authenticationRejected
+  case deviceProofRejected, backendRejected, invalidDeviceKey, unverifiedSource, unavailable
+}
+
 enum SyncAttemptReason: Codable, Equatable {
   case completed, fresh, credentials, healthPermission, unverifiedSource, executionLeaseExpired
   case canceled, contextReplaced, requestFailed, proofUnavailable, processInterrupted
-  case recovery(SessionRecoveryReason)
+  case recovery(LegacyRecoveryReason)
 
   var description: String {
     switch self {
@@ -78,8 +86,15 @@ extension SyncAttempt {
     outcome = try values.decodeIfPresent(SyncAttemptOutcome.self, forKey: .outcome)
     reason = try values.decodeIfPresent(SyncAttemptReason.self, forKey: .reason)
     durationSeconds = try values.decodeIfPresent(TimeInterval.self, forKey: .durationSeconds)
-    backendCorrelationID = try values.decodeIfPresent(String.self, forKey: .backendCorrelationID)
-    requestLinks = Array((try values.decodeIfPresent([SyncRequestLink].self, forKey: .requestLinks) ?? []).prefix(32))
+    backendCorrelationID = SyncRequestLink.safeReference(try values.decodeIfPresent(String.self, forKey: .backendCorrelationID))
+    let legacyLinks = try values.decodeIfPresent([SyncRequestLink].self, forKey: .requestLinks) ?? []
+    requestLinks = legacyLinks.prefix(32).compactMap { legacy in
+      guard UUID(uuidString: legacy.requestID) != nil else { return nil }
+      var link = legacy
+      link.backendCorrelationID = SyncRequestLink.safeReference(legacy.backendCorrelationID)
+      link.traceID = SyncRequestLink.safeTrace(legacy.traceID)
+      return link
+    }
     droppedRequestLinkCount = max(0, try values.decodeIfPresent(Int.self, forKey: .droppedRequestLinkCount) ?? 0)
   }
 }
@@ -107,7 +122,7 @@ final class SyncAttemptStore {
 
   func begin(operationID: UUID, trigger: SyncTriggerReason, at: Date = Date(), historyScopeID: UUID? = nil) {
     guard active == nil else { return }
-    active = SyncAttempt(operationID: operationID, trigger: trigger, startedAt: at, stage: .recovering)
+    active = SyncAttempt(operationID: operationID, trigger: trigger, startedAt: at, stage: .validating)
     active?.lastObservedAt = at
     active?.historyScopeID = historyScopeID
     persistAndLog()
@@ -133,33 +148,6 @@ final class SyncAttemptStore {
     active?.returnedCount = returned
     active?.importedCount = imported
     active?.permissionSkippedCount = permissionSkipped
-    persist()
-  }
-
-  func correlate(operationID: UUID, value: String?) {
-    guard active?.operationID == operationID, let reference = SyncRequestLink.safeReference(value) else { return }
-    active?.backendCorrelationID = reference
-    persist()
-  }
-
-  func recordRequestLink(operationID: UUID, link: SyncRequestLink) {
-    guard active?.operationID == operationID, UUID(uuidString: link.requestID) != nil else { return }
-    var safe = link
-    safe.backendCorrelationID = SyncRequestLink.safeReference(link.backendCorrelationID)
-    safe.traceID = SyncRequestLink.safeTrace(link.traceID)
-    if let index = active?.requestLinks.firstIndex(where: { $0.requestID == link.requestID }) {
-      active?.requestLinks[index] = safe
-    } else if (active?.requestLinks.count ?? 0) < 32 {
-      active?.requestLinks.append(safe)
-    } else if !link.responseReceived {
-      active?.droppedRequestLinkCount += 1
-    }
-    persist()
-  }
-
-  func recordDroppedRequestLinks(operationID: UUID, count: Int) {
-    guard active?.operationID == operationID, count > 0 else { return }
-    active?.droppedRequestLinkCount += count
     persist()
   }
 
@@ -190,7 +178,6 @@ final class SyncAttemptStore {
     case .skippedFresh: finish(operationID: operationID, outcome: .skipped, reason: .fresh)
     case .blocked(let reason):
       switch reason {
-      case .session(let reason): finish(operationID: operationID, outcome: .blocked, reason: .recovery(reason))
       case .credentials: finish(operationID: operationID, outcome: .blocked, reason: .credentials)
       case .healthPermission: finish(operationID: operationID, outcome: .blocked, reason: .healthPermission)
       case .unverifiedSource: finish(operationID: operationID, outcome: .blocked, reason: .unverifiedSource)
@@ -198,7 +185,6 @@ final class SyncAttemptStore {
     case .deferred(let reason):
       switch reason {
       case .executionLeaseExpired: finish(operationID: operationID, outcome: .deferred, reason: .executionLeaseExpired)
-      case .recovery(let reason): finish(operationID: operationID, outcome: .deferred, reason: .recovery(reason))
       }
     case .canceled: finish(operationID: operationID, outcome: .canceled, reason: .canceled)
     case .contextReplaced: finish(operationID: operationID, outcome: .contextReplaced, reason: .contextReplaced)
@@ -217,6 +203,10 @@ final class SyncAttemptStore {
     let links = attempt.requestLinks.map {
       "request=\($0.requestID),endpoint=\($0.endpoint.rawValue),backend=\($0.backendCorrelationID ?? "unavailable"),trace=\($0.traceID ?? "unavailable")"
     }.joined(separator: ";")
-    return "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? (attempt.outcome == .interrupted ? "unknown" : "pending")) protectedDataAvailable=\(attempt.protectedDataAvailable.map(String.init) ?? "unavailable") checkpoint=\(attempt.importCheckpoint?.rawValue ?? "unavailable") lastObservedAt=\(attempt.lastObservedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") interruptionDetectedAt=\(attempt.interruptionDetectedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") correlation=\(attempt.backendCorrelationID ?? "unavailable") requestLinks=[\(links)] droppedRequestLinks=\(attempt.droppedRequestLinkCount) completedAt=\(attempt.completedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") scope=\(attempt.historyScopeID?.uuidString ?? "unrecorded") returned=\(attempt.returnedCount.map(String.init) ?? "unavailable") imported=\(attempt.importedCount.map(String.init) ?? "unavailable") permissionSkipped=\(attempt.permissionSkippedCount.map(String.init) ?? "unavailable")"
+    var description = "operation=\(attempt.operationID) startedAt=\(ISO8601DateFormatter().string(from: attempt.startedAt)) trigger=\(attempt.trigger.rawValue) stage=\(attempt.stage.rawValue) outcome=\(attempt.outcome?.rawValue ?? "active") reason=\(attempt.reason?.description ?? "inProgress") durationSeconds=\(attempt.durationSeconds.map { String(Int($0)) } ?? (attempt.outcome == .interrupted ? "unknown" : "pending")) protectedDataAvailable=\(attempt.protectedDataAvailable.map(String.init) ?? "unavailable") checkpoint=\(attempt.importCheckpoint?.rawValue ?? "unavailable") lastObservedAt=\(attempt.lastObservedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") interruptionDetectedAt=\(attempt.interruptionDetectedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") completedAt=\(attempt.completedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "unavailable") scope=\(attempt.historyScopeID?.uuidString ?? "unrecorded") returned=\(attempt.returnedCount.map(String.init) ?? "unavailable") imported=\(attempt.importedCount.map(String.init) ?? "unavailable") permissionSkipped=\(attempt.permissionSkippedCount.map(String.init) ?? "unavailable")"
+    if let reference = attempt.backendCorrelationID { description += " correlation=\(reference)" }
+    if !links.isEmpty { description += " requestLinks=[\(links)]" }
+    if attempt.droppedRequestLinkCount > 0 { description += " droppedRequestLinks=\(attempt.droppedRequestLinkCount)" }
+    return description
   }
 }

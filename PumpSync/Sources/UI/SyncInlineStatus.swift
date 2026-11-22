@@ -24,20 +24,20 @@ struct SyncInlineStatus: View {
             .frame(width: 24, height: 24)
             .accessibilityHidden(true)
           ZStack(alignment: .topLeading) {
-            ForEach(["No sync in progress", "Starting secure service…", "Downloading pump data…",
-                     "Updating Apple Health…", "Sync complete", "Subscription required", "Sync needs attention"], id: \.self) {
+            ForEach(["Ready to sync", "Preparing sync…", "Downloading pump data…",
+                     "Updating Apple Health…", "Sync complete", "Sync needs attention"], id: \.self) {
               Text($0).hidden().accessibilityHidden(true)
             }
           }
           .overlay(alignment: .topLeading) {
-            Text(presentation?.title ?? "No sync in progress")
+            Text(presentation?.title ?? "Ready to sync")
               .accessibilityIdentifier("SyncProgressTitle")
           }
           .font(.headline)
           .fixedSize(horizontal: false, vertical: true)
         }
         ZStack(alignment: .topLeading) {
-          ForEach(["This can take about 30 seconds after inactivity. Keep PumpSync open.",
+          ForEach(["Keep PumpSync open while it connects to Tandem.",
                    "Saving new pump samples to Apple Health.",
                    "Retrieving available pump history.",
                    "Keep PumpSync open while syncing. You can move between screens."], id: \.self) {
@@ -47,7 +47,7 @@ struct SyncInlineStatus: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(.bottom, 44)
         .overlay(alignment: .topLeading) {
-          // Long server failures remain readable without moving neighboring
+          // Long error messages remain readable without moving neighboring
           // controls. Most messages fit and don't need scrolling.
           VStack(alignment: .leading, spacing: 0) {
             ScrollView {
@@ -61,6 +61,8 @@ struct SyncInlineStatus: View {
               .frame(maxWidth: .infinity, alignment: .leading)
               .fixedSize(horizontal: false, vertical: true)
             }
+            // The surrounding form already supplies the wide-window margins.
+            .contentMargins(.horizontal, 0, for: .scrollContent)
             .scrollBounceBehavior(.basedOnSize)
             if let title = presentation?.actionTitle, let action = presentation?.action {
               Button { recoverSync(action) } label: {

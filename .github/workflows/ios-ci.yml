@@ -11,13 +11,11 @@ on:
       - "PumpSyncTests/**"
       - "PumpSyncUITests/**"
       - "project.yml"
+      - ".swiftlint.yml"
+      - "Scripts/tests/test-host-unit.sh"
       - "Scripts/validate-version.sh"
       - "Scripts/ios/validate-tests.sh"
       - "Scripts/ios/validate-cloud-tests.sh"
-      - "Scripts/ios/validate-session-contract.sh"
-      - "Scripts/ios/prepare-session-contract.sh"
-      - "Scripts/ios/update-session-contract-snapshots.sh"
-      - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "Scripts/tests/validate-version-tests.sh"
       - "Scripts/tests/validate-ci-workflow-tests.rb"
@@ -30,13 +28,11 @@ on:
       - "PumpSyncTests/**"
       - "PumpSyncUITests/**"
       - "project.yml"
+      - ".swiftlint.yml"
+      - "Scripts/tests/test-host-unit.sh"
       - "Scripts/validate-version.sh"
       - "Scripts/ios/validate-tests.sh"
       - "Scripts/ios/validate-cloud-tests.sh"
-      - "Scripts/ios/validate-session-contract.sh"
-      - "Scripts/ios/prepare-session-contract.sh"
-      - "Scripts/ios/update-session-contract-snapshots.sh"
-      - "Scripts/tests/validate-session-contract-snapshots-tests.sh"
       - "ci_scripts/**"
       - "Scripts/tests/validate-version-tests.sh"
       - "Scripts/tests/validate-ci-workflow-tests.rb"
@@ -49,11 +45,11 @@ permissions:
 
 jobs:
   ios:
-    name: Generate, build, and test iOS
+    name: Build, lint, test, and analyze iOS
     runs-on: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate workflow shell syntax
         run: ruby Scripts/tests/validate-ci-workflow-tests.rb
@@ -67,9 +63,6 @@ jobs:
         run: |
           Scripts/tests/validate-version-tests.sh
           Scripts/validate-version.sh
-
-      - name: Validate committed contract snapshots
-        run: bash Scripts/tests/validate-session-contract-snapshots-tests.sh
 
       - name: Select latest stable Xcode
         run: |
@@ -92,7 +85,18 @@ jobs:
           xcodebuild -version
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          set -euo pipefail
+          # Match the generator used for the committed project and schemes.
+          version=2.48.0
+          archive="$RUNNER_TEMP/xcodegen.zip"
+          curl --fail --silent --show-error --location \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/$version/xcodegen.zip" \
+            --output "$archive"
+          echo "620c9f0dc10849f94728ab5df52d225ebab8187439dd6fee1925e59e80dff892  $archive" | shasum -a 256 -c
+          unzip -q "$archive" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -100,52 +104,30 @@ jobs:
       - name: Verify generated Xcode project is current
         run: git diff --exit-code -- PumpSync.xcodeproj
 
-      - name: Create simulator
-        id: simulator
+      - name: Lint Swift
+        run: |
+          brew install swiftlint
+          swiftlint lint --strict --no-cache
+
+      - name: Run simulator-free macOS unit tests
+        run: bash Scripts/tests/test-host-unit.sh
+
+      - name: Build and analyze iOS without signing
         run: |
           set -euo pipefail
-          runtime="$(xcrun simctl list runtimes available --json | python3 -c '
-          import json, re, sys
-          runtimes = [
-              runtime for runtime in json.load(sys.stdin)["runtimes"]
-              if runtime.get("isAvailable") and runtime.get("identifier") == "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
-          ]
-          if not runtimes:
-              raise SystemExit("Required iOS 27.0 simulator runtime is unavailable")
-          runtimes.sort(key=lambda runtime: [int(part) for part in re.findall(r"\d+", runtime.get("version", ""))])
-          print(runtimes[-1]["identifier"])
-          ')"
-          device_type="$(xcrun simctl list devicetypes --json | python3 -c '
-          import json, sys
-          device_types = json.load(sys.stdin)["devicetypes"]
-          by_identifier = {device_type["identifier"]: device_type for device_type in device_types}
-          # Keep small-screen coverage for this project.
-          preferred = [
-              "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
-              "com.apple.CoreSimulator.SimDeviceType.iPhone-16",
-              "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
-              "com.apple.CoreSimulator.SimDeviceType.iPhone-15",
-              "com.apple.CoreSimulator.SimDeviceType.iPhone-15-Pro",
-          ]
-          for identifier in preferred:
-              if identifier in by_identifier:
-                  print(identifier)
-                  break
-          else:
-              for device_type in device_types:
-                  if "iPhone" in device_type.get("name", ""):
-                      print(device_type["identifier"])
-                      break
-              else:
-                  raise SystemExit("No iPhone simulator device types found")
-          ')"
-          device_id="$(xcrun simctl create PumpSync-CI "$device_type" "$runtime")"
-          xcrun simctl boot "$device_id" || true
-          xcrun simctl bootstatus "$device_id" -b
-          echo "destination=platform=iOS Simulator,id=$device_id,arch=$(uname -m)" >> "$GITHUB_OUTPUT"
+          xcodebuild build analyze -project PumpSync.xcodeproj -scheme PumpSync \
+            -configuration Debug -destination 'generic/platform=iOS' \
+            -derivedDataPath .DerivedData -jobs 2 CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$RUNNER_TEMP/pumpsync-build.log"
+          if grep -Ei '(^|[[:space:]])warning:' "$RUNNER_TEMP/pumpsync-build.log"; then
+            exit 1
+          fi
 
-      - name: Validate tests and reject warnings
-        env:
-          PUMPSYNC_TEST_DESTINATION: ${{ steps.simulator.outputs.destination }}
-        run: |
-          bash Scripts/ios/validate-tests.sh -jobs 1 -parallel-testing-enabled NO -derivedDataPath .DerivedData
+  security:
+    name: Scan Swift for security issues
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep:1.179.0
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run Semgrep Swift rules
+        run: semgrep scan --config p/swift --disable-version-check --metrics off --error PumpSync/Sources
