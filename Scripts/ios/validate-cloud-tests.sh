@@ -12,7 +12,7 @@ fi
 minimum_xcode_version="27.2"
 runtime="com.apple.CoreSimulator.SimRuntime.iOS-27-0"
 device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation"
-device_name="PumpSync iOS 27 SE Validation"
+device_name="iPhone SE (3rd generation)"
 results_dir="${PUMPSYNC_CLOUD_RESULTS_DIR:-TestResults/cloud-$(date -u +%Y%m%dT%H%M%SZ)}"
 mkdir -p "$results_dir"
 results_dir="$(cd "$results_dir" && pwd)"
@@ -36,8 +36,13 @@ print("Runtime:", runtime["name"], "build", runtime["buildversion"])
 
 device_id="$(xcrun simctl list devices available --json | python3 -c '
 import json, sys
-devices = json.load(sys.stdin)["devices"].get(sys.argv[1], [])
-print(next((d["udid"] for d in devices if d["name"] == sys.argv[2] and d.get("deviceTypeIdentifier") == sys.argv[3]), ""))
+runtime, stock_name, device_type = sys.argv[1:]
+matches = [d for d in json.load(sys.stdin)["devices"].get(runtime, [])
+           if d.get("isAvailable") and d.get("deviceTypeIdentifier") == device_type]
+# Prefer the reusable stock device. A renamed simulator is equally capable
+# of exercising the required model and runtime when it is the only match.
+matches.sort(key=lambda d: (d["name"] != stock_name, d["state"] != "Booted", d["udid"]))
+print(matches[0]["udid"] if matches else "")
 ' "$runtime" "$device_name" "$device_type")"
 if [[ -z "$device_id" ]]; then
   device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
@@ -77,8 +82,8 @@ for text_size in large accessibility-extra-extra-extra-large; do
   esac
   PUMPSYNC_TEST_LOG="$results_dir/recovery-$text_size.log" bash Scripts/ios/validate-tests.sh \
     -jobs 1 -parallel-testing-enabled NO \
-    -only-testing:PumpSyncUITests/PumpSyncUITests/testConnectionRecoveryOpensSettingsTab \
-    -only-testing:PumpSyncUITests/PumpSyncUITests/testFeedbackTransitionsKeepLayoutStableInOneSession \
+    -only-testing:PumpSyncUITests/PumpSyncUITests/testConnectionRecoveryOpensTandemAccount \
+    -only-testing:PumpSyncUITests/PumpSyncUITests/testFeedbackTransitionsKeepOnePrimaryAction \
     -only-testing:PumpSyncUITests/PumpSyncUITests/testFeedbackTextAndActionsRemainReachableAtSystemTextSize \
     -only-testing:PumpSyncUITests/NativeRefactorUITests/testNativeTypographyAndFinalContentFollowSystemTextSize \
     -resultBundlePath "$results_dir/recovery-$text_size.xcresult"

@@ -27,6 +27,7 @@ struct SyncIntent {
   let trigger: SyncTriggerReason
   let context: ImportSessionSnapshot?
   let concentration: InsulinConcentration
+  let initialRange: InitialImportRange
 }
 
 enum SyncBlockReason: Equatable {
@@ -37,6 +38,7 @@ enum SyncBlockReason: Equatable {
 
 enum SyncDeferralReason: Equatable {
   case executionLeaseExpired
+  case rateLimited
 }
 
 enum SyncRunOutcome: Equatable {

@@ -18,7 +18,7 @@ enum LegacyRecoveryReason: String, Codable {
 
 enum SyncAttemptReason: Codable, Equatable {
   case completed, fresh, credentials, healthPermission, unverifiedSource, executionLeaseExpired
-  case canceled, contextReplaced, requestFailed, proofUnavailable, processInterrupted
+  case rateLimited, canceled, contextReplaced, requestFailed, proofUnavailable, processInterrupted
   case recovery(LegacyRecoveryReason)
 
   var description: String {
@@ -33,6 +33,7 @@ enum SyncAttemptReason: Codable, Equatable {
     case .canceled: return "canceled"
     case .contextReplaced: return "contextReplaced"
     case .requestFailed: return "requestFailed"
+    case .rateLimited: return "rateLimited"
     case .proofUnavailable: return "proofUnavailable"
     case .processInterrupted: return "processInterrupted"
     }
@@ -184,6 +185,7 @@ final class SyncAttemptStore {
       }
     case .deferred(let reason):
       switch reason {
+      case .rateLimited: finish(operationID: operationID, outcome: .deferred, reason: .rateLimited)
       case .executionLeaseExpired: finish(operationID: operationID, outcome: .deferred, reason: .executionLeaseExpired)
       }
     case .canceled: finish(operationID: operationID, outcome: .canceled, reason: .canceled)

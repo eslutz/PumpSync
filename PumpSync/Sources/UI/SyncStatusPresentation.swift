@@ -1,73 +1,66 @@
 import Foundation
 
-enum SyncStatusAction: Equatable {
-  case retry
-  case openSettings
+extension SyncCompletion {
+  var message: String {
+    if saved > 0 {
+      let text = AttributedString(localized: "^[\(saved, format: .number) sample](inflect: true) saved to Apple Health")
+      return String(text.inflected().characters)
+    }
+    if received == 0 { return String(localized: "No new samples") }
+    if permissionSkipped > 0 { return String(localized: "No samples saved to Apple Health") }
+    return String(localized: "All samples already imported")
+  }
+
+  var notice: String? {
+    var notices: [String] = []
+    if permissionSkipped > 0 {
+      let text = AttributedString(localized: "^[\(permissionSkipped, format: .number) record](inflect: true) awaiting Health write access.")
+      notices.append(String(text.inflected().characters))
+    }
+    if let gapBefore {
+      notices.append(String(localized: "History before \(gapBefore.formatted(date: .abbreviated, time: .omitted)) was outside the 14-day import window."))
+    }
+    return notices.isEmpty ? nil : notices.joined(separator: " ")
+  }
 }
 
 struct SyncStatusPresentation: Equatable {
   let title: String
-  let detail: String
+  var detail: String?
+  var notice: String?
   let systemImage: String
-  let actionTitle: String?
-  let action: SyncStatusAction?
-  let showsProgress: Bool
+  var showsProgress = false
 
-  static func make(for state: SyncOperationState, now: Date) -> SyncStatusPresentation? {
+  var announcement: String {
+    [title, detail, notice].compactMap { $0 }.joined(separator: ". ")
+  }
+
+  static func lastSynced(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    formatter.doesRelativeDateFormatting = true
+    formatter.formattingContext = .middleOfSentence
+    return String(localized: "Last synced \(formatter.string(from: date))")
+  }
+
+  static func make(for state: SyncOperationState, now: Date) -> Self? {
     switch state {
     case .idle:
       return nil
     case .running(let progress):
-      return running(progress, now: now)
-    case .succeeded(let completion):
-      return SyncStatusPresentation(
-        title: "Sync complete",
-        detail: completion.message,
-        systemImage: "checkmark.circle.fill",
-        actionTitle: nil,
-        action: nil,
-        showsProgress: false
-      )
+      let showHint = progress.trigger != .background && now.timeIntervalSince(progress.startedAt) >= 3
+      return Self(title: progress.phase.message, detail: showHint ? String(localized: "Keep PumpSync open while syncing.") : nil,
+                  systemImage: "arrow.triangle.2.circlepath", showsProgress: true)
+    case .succeeded(let result):
+      return Self(title: lastSynced(result.completedAt), detail: result.message, notice: result.notice,
+                  systemImage: result.notice == nil ? "checkmark.circle.fill" : "exclamationmark.circle")
     case .failed(let failure):
-      let action: (String, SyncStatusAction)? = switch failure.recovery {
-      case .retry:
-        ("Try Again", .retry)
-      case .none:
-        nil
-      case .openSettings:
-        ("Open Settings", .openSettings)
-      case .waitAndRetry:
-        ("Try Again Later", .retry)
+      var detail = failure.message
+      if let until = failure.retryAfter, until > now {
+        detail += " " + String(localized: "Try again after \(until.formatted(date: .abbreviated, time: .shortened)).")
       }
-      return SyncStatusPresentation(
-        title: "Sync needs attention",
-        detail: failure.message,
-        systemImage: "exclamationmark.triangle.fill",
-        actionTitle: action?.0,
-        action: action?.1,
-        showsProgress: false
-      )
+      return Self(title: String(localized: "Sync needs attention"), detail: detail, systemImage: "exclamationmark.triangle")
     }
-  }
-
-  private static func running(_ progress: SyncProgress, now: Date) -> SyncStatusPresentation {
-    let detail = switch progress.phase {
-    case .preparing where now.timeIntervalSince(progress.startedAt) >= 3:
-      "Keep PumpSync open while it connects to Tandem."
-    case .preparing:
-      "Connecting to Tandem…"
-    case .downloading:
-      "Retrieving available pump history."
-    case .updatingHealth:
-      "Saving new pump samples to Apple Health."
-    }
-    return SyncStatusPresentation(
-      title: progress.phase.message,
-      detail: detail,
-      systemImage: "arrow.triangle.2.circlepath",
-      actionTitle: nil,
-      action: nil,
-      showsProgress: true
-    )
   }
 }

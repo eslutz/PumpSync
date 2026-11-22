@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 if (( $# != 1 )); then
-  echo "Usage: bash Scripts/ios/validate-design-accessibility.sh <isolated-simulator-id>" >&2
+  echo "Usage: bash Scripts/ios/validate-design-accessibility.sh <booted-simulator-id>" >&2
   exit 2
 fi
 device_id="$1"

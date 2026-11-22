@@ -3,15 +3,22 @@ import UIKit
 
 struct AppView: View {
   @Environment(AppServices.self) private var services
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ScaledMetric(relativeTo: .body) private var maximumFormWidth: CGFloat = 680
   @State private var selectedTab: AppTab = .sync
-  @State private var settingsNavigationID = UUID()
-  @State private var syncNavigationID = UUID()
+  @State private var syncPath: [SyncDestination] = []
   @State private var editingScreenDepartureID = UUID()
   @State private var syncMessage: SyncMessage?
-  @State private var initializedMessages = false
+
+  #if DEBUG
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  private var settingsAuditTabVisibility: Visibility {
+    let version = ProcessInfo.processInfo.operatingSystemVersion
+    let isAffectedLayout = UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
+      && version.majorVersion == 27 && version.minorVersion == 2
+    return isAffectedLayout && AppLaunchEnvironment.isScreenshotMode
+      && ProcessInfo.processInfo.arguments.contains("--pumpsync-audit-without-system-tabs") ? .hidden : .automatic
+  }
+  #endif
 
   var body: some View {
     // A single TabView hierarchy adapts between a tab bar (iPhone/compact) and
@@ -25,92 +32,56 @@ struct AppView: View {
         Tab(tab.title, systemImage: tab.systemImage, value: tab) {
           GeometryReader { column in
             let margin = (column.size.width - maximumFormWidth) / 2
-            VStack(spacing: 0) {
-              NavigationStack {
-                tab.content
-                  .toolbarTitleDisplayMode(margin > 20 ? .inline : .automatic)
-              }
-              .id(tab == .settings ? settingsNavigationID : syncNavigationID)
-              .contentMargins(.horizontal, margin > 20 ? margin : nil, for: .scrollContent)
-              if tab == .settings, usesSettingsMessageInset, let syncMessage {
-                // Give both the large-text form and the message their own scrollable area.
-                messageBanner(syncMessage, height: max(140, column.size.height * 0.36), alignment: .bottom)
-                  .padding(.bottom, 8)
+            Group {
+              if tab == .sync {
+                NavigationStack(path: $syncPath) {
+                  SyncView(navigate: { syncPath.append($0) })
+                    .toolbarTitleDisplayMode(margin > 20 ? .inline : .automatic)
+                }
+              } else {
+                NavigationStack {
+                  SettingsView().toolbarTitleDisplayMode(margin > 20 ? .inline : .automatic)
+                }
+                #if DEBUG
+                .toolbarVisibility(settingsAuditTabVisibility, for: .tabBar)
+                #endif
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                  if let syncMessage {
+                    SyncMessageBanner(message: syncMessage, review: {
+                      syncPath.removeAll()
+                      selectedTab = .sync
+                    }, dismiss: { self.syncMessage = nil })
+                  }
+                }
               }
             }
+            .contentMargins(.horizontal, margin > 20 ? margin : nil, for: .scrollContent)
           }
         }
       }
     }
     .environment(\.editingScreenDepartureID, editingScreenDepartureID)
-    .environment(\.recoverSync, recoverSync)
     .tabViewStyle(.sidebarAdaptable)
-    .onChange(of: selectedTab) { _, _ in editingScreenDepartureID = UUID() }
-    .overlay {
-      GeometryReader { geometry in
-        syncMessageOverlay(size: geometry.size)
-      }
+    .onChange(of: selectedTab) { _, tab in
+      editingScreenDepartureID = UUID()
+      if tab == .sync { syncMessage = nil }
     }
     #if DEBUG
     .modifier(SyncFeedbackSequenceFixture())
     #endif
-    .onAppear {
-      guard !initializedMessages else { return }
-      initializedMessages = true
-      syncMessage = SyncMessage.make(for: services.syncCoordinator.operationState, id: UUID())
-    }
     .onChange(of: services.syncCoordinator.operationState) { oldState, state in
-      syncMessage = SyncMessage.make(for: state, id: UUID())
+      syncMessage = selectedTab == .settings ? SyncMessage(for: state) : nil
       let announcement: String?
       switch state {
-      case .succeeded(let completion): announcement = ["Sync complete.", completion.message, completion.notice].compactMap { $0 }.joined(separator: " ")
-      case .failed(let failure): announcement = failure.message
+      case .succeeded, .failed:
+        announcement = SyncStatusPresentation.make(for: state, now: .now)?.announcement
       case .running(let progress):
-        // Announce the start once; changing every phase must not steal speech
-        // from the screen the person is currently reading.
         if case .running = oldState { announcement = nil }
-        else { announcement = progress.trigger == .background ? nil : "Sync started." }
-      case .idle: announcement = nil
+        else { announcement = progress.trigger == .background ? nil : String(localized: "Sync started.") }
+      case .idle:
+        announcement = nil
       }
       if let announcement { UIAccessibility.post(notification: .announcement, argument: announcement) }
-    }
-  }
-
-  private var usesSettingsMessageInset: Bool {
-    selectedTab == .settings && horizontalSizeClass == .compact && dynamicTypeSize.isAccessibilitySize
-  }
-
-  @ViewBuilder
-  private func syncMessageOverlay(size: CGSize) -> some View {
-    if let syncMessage, !usesSettingsMessageInset {
-      let wideWindow = horizontalSizeClass == .regular && size.height >= 560
-      let useBottomEdge = selectedTab == .settings || wideWindow
-      let alignment: Alignment = useBottomEdge ? .bottom : .top
-      // On compact Settings screens leave room for the floating system tab bar.
-      let bottomInset: CGFloat = wideWindow ? 20 : 76
-      messageBanner(syncMessage, height: max(140, size.height * 0.45), alignment: alignment)
-        .padding(useBottomEdge ? .bottom : .top, useBottomEdge ? bottomInset : 60)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
-    }
-  }
-
-  private func messageBanner(_ message: SyncMessage, height: CGFloat, alignment: Alignment) -> some View {
-    SyncMessageBanner(message: message, onDismiss: { syncMessage = nil }, onRecover: recoverSync,
-                      maxHeight: height, alignment: alignment)
-      .id(message.id)
-      .frame(maxWidth: 520)
-      .padding(.horizontal, 16)
-  }
-
-  private func recoverSync(_ action: SyncStatusAction) {
-    syncMessage = nil
-    switch action {
-    case .retry:
-      services.syncCoordinator.retry()
-    case .openSettings:
-      editingScreenDepartureID = UUID()
-      settingsNavigationID = UUID()
-      selectedTab = .settings
     }
   }
 }
@@ -139,20 +110,6 @@ enum AppTab: String, CaseIterable, Identifiable {
     }
   }
 
-  @ViewBuilder
-  @MainActor
-  var content: some View {
-    switch self {
-    case .sync:
-      SyncView()
-    case .settings:
-      SettingsView()
-    }
-  }
-}
-
-private struct RecoverSyncKey: EnvironmentKey {
-  static let defaultValue: @MainActor (SyncStatusAction) -> Void = { _ in }
 }
 
 private struct EditingScreenDepartureKey: EnvironmentKey {
@@ -165,8 +122,4 @@ extension EnvironmentValues {
     set { self[EditingScreenDepartureKey.self] = newValue }
   }
 
-  var recoverSync: @MainActor (SyncStatusAction) -> Void {
-    get { self[RecoverSyncKey.self] }
-    set { self[RecoverSyncKey.self] = newValue }
-  }
 }

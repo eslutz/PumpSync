@@ -39,7 +39,7 @@ private struct HealthAccessContent: View {
         ForEach(permissions) { permission in
           LabeledContent {
             Text(permission.statusDescription)
-              .foregroundStyle(Color.primary)
+              .foregroundStyle(.primary)
               .fixedSize(horizontal: false, vertical: true)
           } label: {
             Label {
@@ -55,22 +55,21 @@ private struct HealthAccessContent: View {
         Text("Write Permissions")
           .foregroundStyle(Color.primary)
       } footer: {
-        Text("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.")
-          .font(.body)
-          .foregroundStyle(Color.primary)
+        Text("PumpSync requests write access only.")
+          .foregroundStyle(Color(uiColor: .label))
           .fixedSize(horizontal: false, vertical: true)
       }
       .headerProminence(.increased)
 
       if hasAnyWritePermission && !isAuthorized {
         Section {
-          Text("Sync imports only the allowed types. Records missing write access are skipped and retried after access is enabled, while they remain available from Tandem.")
+          Text("Enable the missing permission to import both types while their records are available from Tandem.")
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("PartialHealthAccessNotice")
         }
       }
 
-      if !hasAnyWritePermission {
+      if permissions.contains(where: { $0.status == .notDetermined }) {
         Section {
           Button(action: requestAccess) {
             if isRequestingAccess {
@@ -88,25 +87,25 @@ private struct HealthAccessContent: View {
         Section { Text(message) }
       }
 
-      Section {
-        if let message = managementMessage {
-          Text(message)
-            .fixedSize(horizontal: false, vertical: true)
-        } else {
-          ForEach(Array(HealthAccessCopy.healthAppInstructionSteps.enumerated()), id: \.offset) { index, step in
-            Text("\(index + 1). \(step)")
-              .fixedSize(horizontal: false, vertical: true)
-          }
+      if isAuthorized {
+        Section {
+          DisclosureGroup("How to Change Access") { instructions }
         }
-      } header: {
-        Text("Change Access")
-          .foregroundStyle(Color.primary)
+      } else if permissions.contains(where: { $0.status == .sharingDenied }) || managementMessage != nil {
+        Section("Change Access") { instructions }
+      } else if permissions.allSatisfy({ $0.status == .unavailable }) {
+        Section { Text("Apple Health is unavailable on this device.") }
       }
-      .headerProminence(.increased)
     }
     .navigationTitle("Apple Health")
     .navigationBarTitleDisplayMode(.inline)
   }
+  private var instructions: some View {
+    ForEach(Array(HealthAccessCopy.healthAppInstructionSteps.enumerated()), id: \.offset) { index, step in
+      Text("\(index + 1). \(step)")
+    }
+  }
+
 }
 
 #if DEBUG

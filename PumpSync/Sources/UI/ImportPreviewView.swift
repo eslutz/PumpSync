@@ -7,6 +7,25 @@ struct ImportPreviewView: View {
     @State private var expandedRecords: Set<String> = []
 
     var body: some View {
+        Group {
+            if scenePhase == .active {
+                records
+            } else {
+                Color(uiColor: .systemGroupedBackground)
+                    .ignoresSafeArea()
+                    .accessibilityHidden(true)
+            }
+        }
+        .navigationTitle("Source Data")
+        .navigationBarTitleDisplayMode(.inline)
+        .onDisappear { controller.suspend() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { controller.suspend() }
+            if phase == .active { controller.validateSnapshot() }
+        }
+    }
+
+    private var records: some View {
         List {
             Section {
                 switch controller.state {
@@ -24,17 +43,12 @@ struct ImportPreviewView: View {
                 }
             } footer: {
                 Text("Viewing or refreshing these records doesn’t change Apple Health.")
-                    .font(.body)
-                    .foregroundStyle(Color.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("PreviewSafetyNotice")
             }
 
-            if case .ready(let plan) = controller.state {
+            if case .ready(let plan) = controller.state, !plan.samples.isEmpty {
                 Section {
-                    if plan.samples.isEmpty {
-                        Text("No records in this time range")
-                    }
                     ForEach(controller.recordsNewestFirst) { sample in
                         ImportPreviewRecordRow(
                             sample: sample,
@@ -54,36 +68,35 @@ struct ImportPreviewView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Source Data")
-        .navigationBarTitleDisplayMode(.inline)
-        .onDisappear { controller.suspend() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .background { controller.suspend() }
-            if phase == .active { controller.validateSnapshot() }
-        }
     }
 
     @ViewBuilder
     private func summary(_ plan: ImportPlan) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("^[\(plan.samples.count) record](inflect: true)")
-                .font(.headline)
-            if let loadedAt = controller.loadedAt {
-                Text("Loaded \(loadedAt.formatted(date: .abbreviated, time: .shortened))")
+        if plan.samples.isEmpty {
+            Text("No records in this time range").font(.headline)
+            Text(plan.effectiveMinDate..<plan.effectiveMaxDate, format: .interval)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("^[\(plan.samples.count) record](inflect: true)")
+                    .font(.headline)
+                if let loadedAt = controller.loadedAt {
+                    Text("Loaded \(loadedAt.formatted(date: .abbreviated, time: .shortened))")
+                }
+                Text("Insulin equivalents: \(plan.concentration.title)")
             }
-            Text("Insulin equivalents: \(plan.concentration.title)")
-        }
-        .font(.subheadline)
+            .font(.subheadline)
 
-        DisclosureGroup("Time range") {
-            LabeledContent("Newest") {
-                Text(plan.effectiveMaxDate.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.primary)
-            }
-            LabeledContent("Oldest") {
-                Text(plan.effectiveMinDate.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.primary)
-            }
-            LabeledContent("Time zone") {
-                Text(TimeZone.current.identifier).foregroundStyle(Color.primary)
+            DisclosureGroup("Time range") {
+                LabeledContent("Newest") {
+                    Text(plan.effectiveMaxDate.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.primary)
+                }
+                LabeledContent("Oldest") {
+                    Text(plan.effectiveMinDate.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.primary)
+                }
+                LabeledContent("Time zone") {
+                    Text(TimeZone.current.identifier).foregroundStyle(Color.primary)
+                }
             }
         }
 

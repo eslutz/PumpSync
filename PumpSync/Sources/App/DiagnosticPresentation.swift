@@ -37,7 +37,7 @@ enum DiagnosticPresentation {
       }
       guard let message = entry.message else { return nil }
       if message.range(of: #"\b[A-Za-z][A-Za-z0-9_]*="#, options: .regularExpression) != nil {
-        return String(localized: "Additional information is available in Log Details.")
+        return nil
       }
       return DiagnosticsRedactor.redacted(message)
     }
@@ -54,6 +54,7 @@ enum DiagnosticPresentation {
     case .credentials: return String(localized: "Save and validate your Tandem account in Settings.")
     case .healthPermission: return String(localized: "Allow PumpSync to write to Apple Health, then sync again.")
     case .unverifiedSource: return String(localized: "The source could not be verified. No new samples were submitted.")
+    case .rateLimited: return String(localized: "Tandem asked PumpSync to wait before trying again.")
     case .executionLeaseExpired: return String(localized: "iOS ended the available background time. Open PumpSync to try again.")
     case .canceled: return String(localized: "The sync was canceled.")
     case .contextReplaced: return String(localized: "The account or connection changed during this sync.")

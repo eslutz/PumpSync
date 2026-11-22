@@ -233,8 +233,22 @@ final class DirectTandemDataSourceTests: XCTestCase {
         }
     }
 
+    func testRateLimitPreservesHTTPDateOnLoginFailure() async throws {
+        URLProtocolStub.requestHandler = { request in
+            (try XCTUnwrap(HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 429, httpVersion: nil,
+                headerFields: ["Retry-After": "Wed, 21 Oct 2037 07:28:00 GMT"])), Data())
+        }
+        defer { URLProtocolStub.requestHandler = nil }
+        do {
+            _ = try await dataSource(now: end).load(request())
+            XCTFail("Expected a rate limit")
+        } catch let error as DirectTandemError {
+            XCTAssertEqual(error, .rateLimited(retryAfter: ISO8601DateFormatter().date(from: "2037-10-21T07:28:00Z")))
+        }
+    }
+
     func testLoginFailureCategoriesContainOnlySafeInformation() async {
-        for (status, expected): (Int, DirectTandemError) in [(401, .credentialsRejected), (429, .rateLimited), (503, .unavailable)] {
+        for (status, expected): (Int, DirectTandemError) in [(401, .credentialsRejected), (429, .rateLimited(retryAfter: nil)), (503, .unavailable)] {
             URLProtocolStub.requestHandler = { request in
                 let response = try XCTUnwrap(HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: status, httpVersion: nil, headerFields: nil))
                 return (response, Data("synthetic-sensitive-body".utf8))

@@ -172,7 +172,7 @@ final class SyncCoordinatorTests: XCTestCase {
     let result = await coordinator.run(reason: .manual)
     XCTAssertEqual(result, .completed)
     guard case .succeeded(let completion) = coordinator.operationState else { return XCTFail("Missing sync summary") }
-    XCTAssertTrue(completion.notice?.contains("PumpSync’s 14-day import window") == true)
+    XCTAssertEqual(completion.gapBefore, available)
     XCTAssertEqual(metadata.metadata.syncWatermark, boundary.addingTimeInterval(-86400))
   }
 
@@ -218,7 +218,7 @@ final class SyncCoordinatorTests: XCTestCase {
 
   func testProviderCredentialRejectionIsOnlyErrorThatInvalidatesAccount() async throws {
     try prepare()
-    for error in [DirectTandemError.unavailable, .rateLimited, .accessDenied, .invalidResponse] {
+    for error in [DirectTandemError.unavailable, .rateLimited(retryAfter: nil), .accessDenied, .invalidResponse] {
       await source.setResult(.failure(error))
       let result = await coordinator.run(reason: .manual)
       XCTAssertEqual(result, .failed)
@@ -229,6 +229,67 @@ final class SyncCoordinatorTests: XCTestCase {
     let result = await coordinator.run(reason: .manual)
     XCTAssertEqual(result, .failed)
     XCTAssertFalse(account.hasValidatedCredentials)
+  }
+
+  func testKnownRetryDeadlineBlocksAllSyncEntrypointsAndRestoresAcrossLaunch() async throws {
+    try prepare()
+    let deadline = Date().addingTimeInterval(180)
+    await source.setResult(.failure(.rateLimited(retryAfter: deadline)))
+    let first = await coordinator.run(reason: .manual)
+    XCTAssertEqual(first, .failed)
+    metadata = SyncMetadataStore(defaults: defaults)
+    coordinator = makeCoordinator(health: health, ledger: ledger)
+    guard case .failed(let failure) = coordinator.dashboardState else { return XCTFail("Lost the latest failure") }
+    XCTAssertEqual(failure.retryAfter, deadline)
+    coordinator.startManualSync()
+    coordinator.retry()
+    let foreground = await coordinator.reconcileForegroundRecovery()
+    let background = await coordinator.run(reason: .background, lease: grant())
+    XCTAssertEqual(foreground, .deferred(.rateLimited))
+    XCTAssertEqual(background, .deferred(.rateLimited))
+    let calls = await source.callCount
+    XCTAssertEqual(calls, 1)
+    try account.saveValidated(.init(username: "different", password: "synthetic", region: "us"))
+    XCTAssertEqual(coordinator.dashboardState, .idle)
+    XCTAssertNil(coordinator.dashboardHistory)
+    await source.setResult(.success(.init(samples: [], effectiveMinDate: boundary, effectiveMaxDate: boundary, dataSourceMode: .tandemSource)))
+    let nextAccount = await coordinator.run(reason: .manual)
+    XCTAssertEqual(nextAccount, .completed)
+  }
+
+  func testExpiredRetryDeadlineAllowsAnotherImport() async throws {
+    try prepare()
+    metadata.recordFailure(SyncFailure(message: "Tandem is limiting requests.", recovery: .waitAndRetry, retryAfter: .distantPast))
+    let result = await coordinator.run(reason: .manual)
+    XCTAssertEqual(result, .completed)
+    XCTAssertNil(metadata.metadata.lastRetryAfter)
+  }
+
+  func testInitialRangeCapturedWhenManualImportStarts() async throws {
+    try prepare()
+    metadata.setInitialImportRange(.pastTwoDays)
+    coordinator.startManualSync()
+    metadata.setInitialImportRange(.pastTwoWeeks)
+    try await until { !self.coordinator.hasActiveSyncExecution }
+    let request = await source.requests.first
+    let date = try XCTUnwrap(request?.maxDate)
+    XCTAssertEqual(request?.minDate, InitialImportRange.pastTwoDays.minimumDate(relativeTo: date))
+  }
+
+  func testLaterFailureAndResolutionAfterHealthGrantUseTheCorrectAccountHistory() async throws {
+    try prepare()
+    let success = await coordinator.run(reason: .manual)
+    XCTAssertEqual(success, .completed)
+    health.hasAnyWritePermission = false
+    let blocked = await coordinator.run(reason: .manual)
+    XCTAssertEqual(blocked, .blocked(.healthPermission))
+    coordinator = makeCoordinator(health: health, ledger: ledger)
+    guard case .failed(let failure) = coordinator.dashboardState else { return XCTFail("Expected latest attempt") }
+    XCTAssertEqual(failure.recovery, .health)
+    health.hasAnyWritePermission = true
+    guard case .succeeded(let restored) = coordinator.dashboardState else { return XCTFail("Expected earlier success") }
+    XCTAssertEqual(restored.saved, 0)
+    XCTAssertEqual(restored.received, 0)
   }
 
   func testDirectImportRejectsSyntheticBatchBeforeSubmittingToHealth() async throws {

@@ -95,7 +95,7 @@
                   Identifier = "PumpSyncUITests/testAppLaunches()">
                </Test>
                <Test
-                  Identifier = "PumpSyncUITests/testConnectionRecoveryOpensSettingsTab()">
+                  Identifier = "PumpSyncUITests/testConnectionRecoveryOpensTandemAccount()">
                </Test>
             </SelectedTests>
          </TestableReference>

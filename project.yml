@@ -57,7 +57,7 @@ schemes:
         - name: PumpSyncUITests
           selectedTests:
             - PumpSyncUITests/testAppLaunches()
-            - PumpSyncUITests/testConnectionRecoveryOpensSettingsTab()
+            - PumpSyncUITests/testConnectionRecoveryOpensTandemAccount()
   PumpSync Beta:
     build:
       targets:

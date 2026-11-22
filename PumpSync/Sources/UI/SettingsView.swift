@@ -52,7 +52,7 @@ struct SettingsView: View {
         }
         .accessibilityIdentifier("AboutPumpSyncLink")
         NavigationLink { DeveloperView() } label: {
-          Label("Developer", systemImage: "hammer").fixedSize(horizontal: false, vertical: true)
+          Label("Support & Diagnostics", systemImage: "waveform.path.ecg").fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityIdentifier("DeveloperLink")
       } header: {

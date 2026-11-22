@@ -47,10 +47,9 @@ struct SyncFeedbackSequenceFixture: ViewModifier {
         message: "Sync could not be completed. Check your connection and try again. Your previously saved samples remain available in Apple Health.",
         recovery: .retry))
     case 7:
-      return .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: startedAt,
-        notice: "Some older pump history was unavailable. New records were saved successfully. Review the available history before assuming all older records have been imported."))
+      return .succeeded(SyncCompletion(received: 48, saved: 4, gapBefore: startedAt.addingTimeInterval(-14 * 86400), completedAt: startedAt))
     default:
-      return .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: startedAt))
+      return .succeeded(SyncCompletion(received: 48, saved: 4, completedAt: startedAt))
     }
   }
 }

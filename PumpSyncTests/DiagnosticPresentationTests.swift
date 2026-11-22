@@ -23,7 +23,7 @@ final class DiagnosticPresentationTests: XCTestCase {
     ] {
       let entry = DiagnosticEntry(source: .sync, severity: .info, title: "Import preview", message: message)
       XCTAssertNil(DiagnosticPresentation.importPreview(for: entry), message)
-      XCTAssertEqual(DiagnosticPresentation.summary(for: entry), "Additional information is available in Log Details.")
+      XCTAssertNil(DiagnosticPresentation.summary(for: entry))
       XCTAssertTrue(DiagnosticPresentation.export(entry).contains(message))
     }
     let unrelated = DiagnosticEntry(source: .auth, severity: .info, title: "Import preview",

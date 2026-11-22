@@ -1,5 +1,5 @@
 #!/bin/bash
-# Preflight used locally and by GitHub CI. Preserve the raw log for diagnosis.
+# Local simulator preflight. Preserve the raw log for diagnosis.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 log_path="${PUMPSYNC_TEST_LOG:-$(mktemp /tmp/pumpsync-test-validation.XXXXXX)}"

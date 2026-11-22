@@ -25,6 +25,9 @@ final class ImportPreviewTests: XCTestCase {
         for phase in [ScenePhase.inactive, .background, .active] {
             host.rootView = root(phase)
             try await Task.sleep(for: .milliseconds(150))
+            host.view.layoutIfNeeded()
+            XCTAssertEqual(findScrollView(in: host.view) != nil, phase == .active,
+                           "The list containing pump records must leave the hierarchy before snapshotting")
             guard case .ready(let plan) = controller.state else {
                 return XCTFail("Loaded records disappeared after scene phase \(phase)")
             }

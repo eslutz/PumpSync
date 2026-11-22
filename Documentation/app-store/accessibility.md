@@ -26,7 +26,7 @@ Validate each claimed feature against these common tasks on iPhone compact tab l
 
 ## Manual Validation
 
-Use current iOS and iPadOS simulators or devices, and repeat on a physical iPhone before release.
+Use current iOS and iPadOS simulators or devices, and repeat on a physical iPhone before release. For simulator checks, follow the [local simulator selection policy](../../AGENTS.md#local-simulator-selection).
 
 - VoiceOver: complete the full common task matrix and confirm reading order, labels, values, hints, selected states, and actions are understandable.
 - Voice Control: complete the full common task matrix using voice only. Use visible control names where possible and "Show numbers" for dense forms.

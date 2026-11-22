@@ -112,9 +112,7 @@ struct TandemCredentialForm: View {
           Text("Tandem Source")
             .foregroundStyle(Color.primary)
         } footer: {
-          Text("Enter the password you currently use for Tandem. PumpSync validates the sign-in directly with Tandem and saves it on this device.")
-            .font(.body)
-            .foregroundStyle(Color.primary)
+          Text("PumpSync connects directly to Tandem and saves your sign-in on this device.")
             .fixedSize(horizontal: false, vertical: true)
         }
         .headerProminence(.increased)
@@ -139,8 +137,8 @@ struct TandemCredentialForm: View {
         validation.cancel()
       }
     }
-    .confirmationDialog("Remove saved credentials?", isPresented: $isConfirmingRemoval, titleVisibility: .visible) {
-      Button("Remove Credentials", role: .destructive, action: delete)
+    .confirmationDialog("Remove this account?", isPresented: $isConfirmingRemoval, titleVisibility: .visible) {
+      Button("Remove Account", role: .destructive, action: delete)
       Button("Cancel", role: .cancel) {}
     } message: {
       Text("Removes the Tandem sign-in from this device and stops pump sync until you save an account again. The next account will start with a new sync history. You can manage previous imports in Apple Health.")
@@ -191,7 +189,7 @@ struct TandemCredentialForm: View {
       return "Saving"
     }
 
-    return "Save Credentials"
+    return isEditing ? "Save Changes" : "Connect Account"
   }
 
   private var primaryActionHint: String {
@@ -255,7 +253,7 @@ struct TandemCredentialForm: View {
       baselineRegion = TandemRegion(rawValue: credentials.region) ?? .us
       password = ""
       isShowingPassword = false
-      alert = CredentialAlert(title: "Account Connected", message: "Your Tandem sign-in is saved on this device.")
+      alert = nil
       services.diagnosticsLogStore.record(source: .credential, title: "Tandem account validated")
     } catch {
       guard !Task.isCancelled, revision == services.credentialStore.revision else { return }
@@ -273,10 +271,7 @@ struct TandemCredentialForm: View {
       baselineUsername = ""
       baselineRegion = .us
       region = .us
-      alert = CredentialAlert(
-        title: "Credentials Removed",
-        message: "Credentials removed from this device."
-      )
+      alert = nil
     } catch {
       services.diagnosticsLogStore.record(error: error, source: .credential, title: "Credentials removal failed")
       alert = CredentialAlert(
@@ -336,14 +331,17 @@ private struct SavedTandemAccountSections: View {
     Section {
       Button(role: .destructive, action: remove) {
         Label {
-          Text("Remove Credentials")
+          Text("Remove Account")
             .font(.body)
             .lineLimit(nil)
             .fixedSize(horizontal: false, vertical: true)
         } icon: {
           Image(systemName: "trash")
         }
-        .foregroundStyle(Color.primary)
+        // The default destructive red misses text contrast on a light grouped form.
+        .foregroundStyle(Color(uiColor: UIColor { traits in
+          UIColor.systemRed.resolvedColor(with: traits.modifyingTraits { $0.accessibilityContrast = .high })
+        }))
       }
       .disabled(!canRemove)
     }

@@ -33,7 +33,7 @@ private struct InsulinConcentrationForm: View {
       .headerProminence(.increased)
 
       Section {
-        Text("Applies to the next sync. A running sync keeps its starting setting. It does not change pump settings or previously imported Apple Health records.")
+        Text("Applies to future imports. Existing Apple Health records and pump settings stay the same.")
           .fixedSize(horizontal: false, vertical: true)
         NavigationLink {
           InsulinConversionExplanation()
@@ -108,7 +108,7 @@ private struct InsulinConversionExplanation: View {
 
 enum InsulinConcentrationPresentation {
   static func effect(for concentration: InsulinConcentration) -> String {
-    String(localized: "Current selection: \(concentration.title). PumpSync multiplies insulin amounts from U-100 baseline source data by \(concentration.healthMultiplierFactor) before saving them to Apple Health.")
+    String(localized: "Apple Health imports use \(concentration.healthMultiplierFactor)× the pump-reported insulin amount.")
   }
 }
 
