@@ -11,7 +11,7 @@ struct DataHandlingView: View {
       Section("Credentials") {
         DataHandlingRow(
           title: "Stored on this device",
-          detail: "Your Tandem sign-in stays in device-only Keychain storage until you remove it. It is not synced through iCloud.",
+          detail: "Your sign-in is kept in this device’s Keychain until you remove it. Connect your account separately on each device.",
           systemImage: "key"
         )
 
@@ -34,15 +34,6 @@ struct DataHandlingView: View {
           title: "Duplicate prevention",
           detail: "Hashed sample identifiers and import times remain on this device to prevent repeat imports. This local record is separate from Apple Health and is not shared with another device.",
           systemImage: "checkmark.seal"
-        )
-      }
-      .headerProminence(.increased)
-
-      Section("Other Devices") {
-        DataHandlingRow(
-          title: "Configure each device",
-          detail: "Your pump account sign-in is not synced through iCloud. Set it up separately on each device.",
-          systemImage: "iphone"
         )
       }
       .headerProminence(.increased)

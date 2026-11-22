@@ -24,6 +24,6 @@ assert lean['PumpSyncTests'].find('SelectedTests') is None
 assert lean['PumpSyncTests'].find('SkippedTests') is None
 assert {t.get('Identifier') for t in lean['PumpSyncUITests'].findall('./SelectedTests/Test')} == {
     'PumpSyncUITests/testAppLaunches()',
-    'PumpSyncUITests/testConnectionRecoveryOpensSettingsTab()',
+    'PumpSyncUITests/testConnectionRecoveryOpensTandemAccount()',
 }
 print('Full local simulator coverage and lean Apple release allocation verified.')

@@ -36,6 +36,14 @@ struct SyncMetadata: Codable, Equatable {
   var lastSampleCount: Int
   var lastImportedCount: Int
   var lastErrorMessage: String?
+  var lastRecovery: SyncRecovery?
+  var lastRetryAfter: Date?
+  var lastGapBefore: Date?
+
+  var latestFailure: SyncFailure? {
+    lastErrorMessage.map { SyncFailure(message: $0, recovery: lastRecovery ?? .retry, retryAfter: lastRetryAfter) }
+  }
+
   var initialImportRange: InitialImportRange
   /// The point up to which data is known to be imported, used as the next
   /// sync's `minDate`. Set from the effective sync window end minus
@@ -53,6 +61,7 @@ struct SyncMetadata: Codable, Equatable {
     case lastSuccessfulSyncAt
     case lastSampleCount
     case lastImportedCount
+    case lastRecovery, lastRetryAfter, lastGapBefore
     case lastErrorMessage
     case initialImportRange
     case syncWatermark
@@ -88,6 +97,9 @@ struct SyncMetadata: Codable, Equatable {
     lastSuccessfulSyncAt = try container.decodeIfPresent(Date.self, forKey: .lastSuccessfulSyncAt)
     lastSampleCount = try container.decode(Int.self, forKey: .lastSampleCount)
     lastImportedCount = try container.decode(Int.self, forKey: .lastImportedCount)
+    lastRecovery = try container.decodeIfPresent(SyncRecovery.self, forKey: .lastRecovery)
+    lastRetryAfter = try container.decodeIfPresent(Date.self, forKey: .lastRetryAfter)
+    lastGapBefore = try container.decodeIfPresent(Date.self, forKey: .lastGapBefore)
     lastErrorMessage = try container.decodeIfPresent(String.self, forKey: .lastErrorMessage)
     initialImportRange = try container.decodeIfPresent(InitialImportRange.self, forKey: .initialImportRange) ?? .default
     syncWatermark = try container.decodeIfPresent(Date.self, forKey: .syncWatermark) ?? lastSuccessfulSyncAt
@@ -140,12 +152,15 @@ final class SyncMetadataStore {
   }
 
   private var hasAccountHistory: Bool {
-    metadata.syncWatermark != nil || metadata.lastSuccessfulSyncAt != nil
+    metadata.syncWatermark != nil || metadata.lastSuccessfulSyncAt != nil || metadata.lastErrorMessage != nil
       || metadata.lastSampleCount != 0 || metadata.lastImportedCount != 0
   }
 
   private func resetHistory(reason: SyncCursorResetReason) {
     metadata.historyScopeID = UUID()
+    metadata.lastGapBefore = nil
+    metadata.lastRecovery = nil
+    metadata.lastRetryAfter = nil
     metadata.lastPermissionSkippedCount = nil
     metadata.syncWatermark = nil
     metadata.lastSuccessfulSyncAt = nil
@@ -172,19 +187,24 @@ final class SyncMetadataStore {
   ///   a later, locally-captured timestamp here would create a permanent gap
   ///   between what was actually requested and what the next sync resumes
   ///   from.
-  func recordSuccess(sampleCount: Int, importedCount: Int, completedAt: Date, watermark: Date, owner: TandemSyncOwner, permissionSkippedCount: Int = 0) {
+  func recordSuccess(sampleCount: Int, importedCount: Int, completedAt: Date, watermark: Date, owner: TandemSyncOwner, permissionSkippedCount: Int = 0, gapBefore: Date? = nil) {
     metadata.owner = owner
     metadata.lastSuccessfulSyncAt = completedAt
     metadata.syncWatermark = watermark
     metadata.lastSampleCount = sampleCount
     metadata.lastImportedCount = importedCount
+    metadata.lastGapBefore = gapBefore
+    metadata.lastRetryAfter = nil
+    metadata.lastRecovery = nil
     metadata.lastPermissionSkippedCount = permissionSkippedCount
     metadata.lastErrorMessage = nil
     save()
   }
 
-  func recordFailure(message: String) {
-    metadata.lastErrorMessage = message
+  func recordFailure(_ failure: SyncFailure) {
+    metadata.lastErrorMessage = failure.message
+    metadata.lastRecovery = failure.recovery
+    metadata.lastRetryAfter = failure.retryAfter
     save()
   }
 

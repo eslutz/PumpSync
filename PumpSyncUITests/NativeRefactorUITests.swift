@@ -7,20 +7,21 @@ final class NativeRefactorUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testSyncProgressPrecedesActionAndCountsRemainOrderedWithConcentrationInSettings() {
+    func testSyncSummaryPrecedesActionAndDetailsContainOrderedCounts() {
         let app = fixture()
+        let progress = app.staticTexts["SyncProgressTitle"]
+        let action = app.buttons["SyncNowButton"]
+        XCTAssertTrue(progress.waitForExistence(timeout: 5))
+        XCTAssertLessThan(progress.frame.minY, action.frame.minY)
+        XCTAssertFalse(app.staticTexts["Insulin Concentration"].exists)
+        XCTAssertFalse(app.staticTexts["SyncRecordsReceived"].exists)
+        capture("native-sync", app: app)
+        open("SyncDetailsLink", app: app)
         let received = app.staticTexts["SyncRecordsReceived"]
         let saved = app.staticTexts["SyncSamplesSaved"]
         XCTAssertTrue(received.waitForExistence(timeout: 5))
-        XCTAssertTrue(saved.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 5))
+        XCTAssertTrue(saved.exists)
         XCTAssertLessThan(received.frame.minY, saved.frame.minY)
-        let progress = app.staticTexts["SyncProgressTitle"]
-        XCTAssertTrue(progress.waitForExistence(timeout: 5))
-        XCTAssertLessThan(progress.frame.minY, app.buttons["Sync Now"].frame.minY)
-        XCTAssertLessThan(app.buttons["Sync Now"].frame.minY, received.frame.minY)
-        XCTAssertFalse(app.staticTexts["Insulin Concentration"].exists)
-        capture("native-sync", app: app)
         settings(app)
         open("InsulinConcentrationLink", app: app)
         XCTAssertTrue(app.navigationBars["Insulin Concentration"].waitForExistence(timeout: 3))
@@ -81,9 +82,9 @@ final class NativeRefactorUITests: XCTestCase {
         attachText(environment, named: "native-system-typography")
 
         let app = fixture()
-        let saved = app.staticTexts.matching(NSPredicate(format: "label == %@", "Samples saved")).firstMatch
+        let saved = app.staticTexts["SyncProgressDetail"]
         revealEnd(of: saved, in: app, minimumVisibleHeight: bodyLineHeight)
-        XCTAssertEqual(saved.label, "Samples saved")
+        XCTAssertEqual(saved.label, "48 samples saved to Apple Health")
         // Measure the label itself, not the combined label/value row. A fixed
         // standard-size label cannot satisfy the accessibility-size minimum.
         XCTAssertGreaterThanOrEqual(saved.frame.height, bodyLineHeight * 0.85)
@@ -115,28 +116,44 @@ final class NativeRefactorUITests: XCTestCase {
         capture("native-typography-tandem-edit", app: app)
         edit.tap()
         XCTAssertTrue(app.secureTextFields["Tandem password"].waitForExistence(timeout: 5))
-        assertReadableText("Enter the password you currently use for Tandem. PumpSync validates the sign-in directly with Tandem and saves it on this device.",
+        assertReadableText("PumpSync connects directly to Tandem and saves your sign-in on this device.",
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-tandem-instructions")
         back(app)
 
         open("AppleHealthLink", app: app)
-        assertReadableText("PumpSync writes insulin delivery and carbohydrate samples to Apple Health. It does not read other Health data.",
+        assertReadableText("PumpSync requests write access only.",
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-health-explanation")
         back(app)
         assertReadableText("U-100", app: app, bodyLineHeight: bodyLineHeight,
             evidenceName: "native-typography-settings-concentration")
         open("AboutPumpSyncLink", app: app)
-        assertReadableText("Shows the last completed sync, even when there were no new records.",
+        assertReadableText("Open Sync Details for counts and times. Previously imported records are skipped to prevent duplicates.",
             app: app, bodyLineHeight: bodyLineHeight, evidenceName: "native-typography-about-final-paragraph")
     }
 
     func testAccessibilityAuditsTandemAndPerformance() {
         let app = fixture()
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        let hasAffectedTopTabs = version.majorVersion == 27 && version.minorVersion == 2
+            && UIDevice.current.userInterfaceIdiom == .pad && app.buttons["ToggleSideBar"].firstMatch.exists
+        auditSettingsDetails(app, expectsSystemTabFindings: hasAffectedTopTabs)
+        if hasAffectedTopTabs {
+            // On 27.2 a minimal two-tab SwiftUI app reports two unattributed UILabel
+            // findings with top tabs and zero with those tabs hidden. Audit the real
+            // details again with the same content and no system tab strip.
+            app.terminate()
+            app.launchArguments.append("--pumpsync-audit-without-system-tabs")
+            app.launch()
+            auditSettingsDetails(app, expectsSystemTabFindings: false)
+        }
+    }
+
+    private func auditSettingsDetails(_ app: XCUIApplication, expectsSystemTabFindings: Bool) {
         settings(app)
         open("TandemAccountLink", app: app)
         XCTAssertTrue(app.buttons["Change Account Details"].waitForExistence(timeout: 5))
         capture("native-tandem-accessibility", app: app)
-        audit(app, screen: "Tandem")
+        audit(app, screen: "Tandem", expectsSystemTabFindings: expectsSystemTabFindings)
 
         // Keep the audit diagnostics independent between destinations.
         app.terminate()
@@ -150,14 +167,18 @@ final class NativeRefactorUITests: XCTestCase {
         XCTAssertEqual(cpu.label, "CPU time, 1 sec")
         assertDiagnosticExportActions(app)
         capture("native-performance-accessibility", app: app)
-        audit(app, screen: "Performance")
+        audit(app, screen: "Performance", expectsSystemTabFindings: expectsSystemTabFindings)
     }
 
-    private func audit(_ app: XCUIApplication, screen: String) {
-        // Keep all five audit types. The one measured iOS 26.5 promoted-header
-        // false positive below must still pass a conservative pixel check.
+    private func audit(_ app: XCUIApplication, screen: String, expectsSystemTabFindings: Bool) {
         continueAfterFailure = true
         defer { continueAfterFailure = false }
+        let checkingContentOnly = app.launchArguments.contains("--pumpsync-audit-without-system-tabs")
+        if checkingContentOnly {
+            XCTAssertFalse(app.buttons["arrow.triangle.2.circlepath"].firstMatch.exists,
+                "The second audit must remove the system tab strip.")
+        }
+        var systemTabFindings = 0
         do {
             let auditTypes: [XCUIAccessibilityAuditType] = [.contrast,
                 [.hitRegion, .textClipped, .dynamicType, .sufficientElementDescription]]
@@ -173,6 +194,11 @@ final class NativeRefactorUITests: XCTestCase {
                             named: "native-detail-audit-element-\(screen)")
                     }
                     self.attachText(app.debugDescription, named: "native-detail-audit-hierarchy-\(screen)")
+                    if expectsSystemTabFindings, element == nil, issue.auditType == .dynamicType,
+                        issue.detailedDescription == "User will not be able to change the font size of this UILabel" {
+                        systemTabFindings += 1
+                        return systemTabFindings <= 2
+                    }
                     let version = ProcessInfo.processInfo.operatingSystemVersion
                     if version.majorVersion == 26, version.minorVersion == 5,
                         screen == "Performance", issue.auditType == .contrast,
@@ -207,6 +233,9 @@ final class NativeRefactorUITests: XCTestCase {
                     }
                     return false
                 }
+            }
+            if expectsSystemTabFindings {
+                XCTAssertEqual(systemTabFindings, 2, "Reassess the measured iPadOS 27.2 top-tab behavior if it changes.")
             }
         } catch {
             XCTFail("\(screen) accessibility audit failed: \(error)")

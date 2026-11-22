@@ -29,7 +29,7 @@ struct AboutPumpSyncView: View {
                 )
                 AboutGuideRow(
                     title: "Last successful sync",
-                    detail: "Shows the last completed sync, even when there were no new records.",
+                    detail: "Open Sync Details for counts and times. Previously imported records are skipped to prevent duplicates.",
                     systemImage: "checkmark.circle"
                 )
             }

@@ -1,86 +1,36 @@
 import SwiftUI
 
-/// Reserves the phase copy's natural, Dynamic Type-aware size. Updating status
-/// changes only the overlay, never the Form row's proposed height.
 struct SyncInlineStatus: View {
-  let state: SyncOperationState
-  @Environment(\.recoverSync) private var recoverSync
+  let status: SyncStatusPresentation
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 1)) { context in
-      let presentation = SyncStatusPresentation.make(for: state, now: context.date)
-      VStack(alignment: .leading, spacing: 8) {
-        HStack(alignment: .top, spacing: 12) {
-          Image(systemName: presentation?.systemImage ?? "arrow.triangle.2.circlepath")
-            .font(.system(size: 20))
-            .opacity(presentation?.showsProgress == true && !reduceMotion ? 0 : 1)
-            .overlay {
-              if presentation?.showsProgress == true && !reduceMotion {
-                ProgressView().controlSize(.small)
-              }
-            }
-            .foregroundStyle(Color.accentColor)
-            .frame(width: 24, height: 24)
-            .accessibilityHidden(true)
-          ZStack(alignment: .topLeading) {
-            ForEach(["Ready to sync", "Preparing sync…", "Downloading pump data…",
-                     "Updating Apple Health…", "Sync complete", "Sync needs attention"], id: \.self) {
-              Text($0).hidden().accessibilityHidden(true)
-            }
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        Group {
+          if status.showsProgress && !reduceMotion {
+            ProgressView().controlSize(.small)
+          } else {
+            Image(systemName: status.systemImage).foregroundStyle(.tint)
           }
-          .overlay(alignment: .topLeading) {
-            Text(presentation?.title ?? "Ready to sync")
-              .accessibilityIdentifier("SyncProgressTitle")
-          }
+        }
+        .accessibilityHidden(true)
+        Text(status.title)
           .font(.headline)
-          .fixedSize(horizontal: false, vertical: true)
-        }
-        ZStack(alignment: .topLeading) {
-          ForEach(["Keep PumpSync open while it connects to Tandem.",
-                   "Saving new pump samples to Apple Health.",
-                   "Retrieving available pump history.",
-                   "Keep PumpSync open while syncing. You can move between screens."], id: \.self) {
-            Text($0).hidden().accessibilityHidden(true)
-          }
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.bottom, 44)
-        .overlay(alignment: .topLeading) {
-          // Long error messages remain readable without moving neighboring
-          // controls. Most messages fit and don't need scrolling.
-          VStack(alignment: .leading, spacing: 0) {
-            ScrollView {
-              VStack(alignment: .leading, spacing: 8) {
-                Text(presentation?.detail ?? "Keep PumpSync open while syncing. You can move between screens.")
-                  .accessibilityIdentifier("SyncProgressDetail")
-                if case .succeeded(let completion) = state, let notice = completion.notice {
-                  Text(notice).accessibilityIdentifier("SyncCompletionDetail")
-                }
-              }
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .fixedSize(horizontal: false, vertical: true)
-            }
-            // The surrounding form already supplies the wide-window margins.
-            .contentMargins(.horizontal, 0, for: .scrollContent)
-            .scrollBounceBehavior(.basedOnSize)
-            if let title = presentation?.actionTitle, let action = presentation?.action {
-              Button { recoverSync(action) } label: {
-                Text(title)
-                  .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                  .contentShape(Rectangle())
-              }
-                .buttonStyle(.borderless)
-                .foregroundStyle(Color.accentColor)
-                .accessibilityIdentifier("SyncRecoveryButton")
-            }
-          }
-        }
-        .foregroundStyle(.primary)
+          .accessibilityAddTraits(.isHeader)
+          .accessibilityIdentifier("SyncProgressTitle")
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .accessibilityElement(children: .contain)
-      .accessibilityIdentifier("SyncInlineStatus")
+      if let detail = status.detail {
+        Text(detail).accessibilityIdentifier("SyncProgressDetail")
+      }
+      if let notice = status.notice {
+        Text(notice).accessibilityIdentifier("SyncCompletionDetail")
+      }
     }
+    .fixedSize(horizontal: false, vertical: true)
+    .padding(.vertical, 4)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("SyncInlineStatus")
   }
+
 }

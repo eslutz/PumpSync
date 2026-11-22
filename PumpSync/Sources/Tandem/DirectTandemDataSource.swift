@@ -15,7 +15,8 @@ extension TandemDataSource {
 }
 
 enum DirectTandemError: Error, LocalizedError, Equatable {
-    case credentialsRejected, rateLimited, accessDenied, invalidResponse, unavailable, invalidWindow, noPump
+    case rateLimited(retryAfter: Date?)
+    case credentialsRejected, accessDenied, invalidResponse, unavailable, invalidWindow, noPump
 
     var errorDescription: String? {
         switch self {
@@ -258,10 +259,23 @@ private struct TandemConnection {
         switch response.statusCode {
         case 200..<300: return
         case 401, 403: throw signingIn ? DirectTandemError.credentialsRejected : DirectTandemError.accessDenied
-        case 429: throw DirectTandemError.rateLimited
+        case 429: throw DirectTandemError.rateLimited(retryAfter: retryDeadline(from: response))
         case 500...599: throw DirectTandemError.unavailable
         default: throw DirectTandemError.invalidResponse
         }
+    }
+
+    /// Retry-After can contain a delay in seconds or an absolute HTTP date.
+    private func retryDeadline(from response: HTTPURLResponse) -> Date? {
+        guard let value = response.value(forHTTPHeaderField: "Retry-After")?.trimmingCharacters(in: .whitespaces) else {
+            return nil
+        }
+        if let seconds = Int(value), seconds >= 0 { return Date().addingTimeInterval(TimeInterval(seconds)) }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter.date(from: value)
     }
 
     private func base64URL(_ data: Data) -> String {

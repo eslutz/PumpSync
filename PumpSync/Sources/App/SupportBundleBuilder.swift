@@ -1,3 +1,5 @@
+import CoreTransferable
+import UniformTypeIdentifiers
 import Foundation
 import UIKit
 
@@ -25,6 +27,17 @@ struct SupportBundleContext {
   let nativeDiagnostics: [NativeDiagnosticEntry]
   var syncAttempts: [SyncAttempt] = []
   var activeSyncAttempt: SyncAttempt? = nil
+}
+
+struct SupportBundleExport: Transferable {
+  let services: AppServices
+
+  static var transferRepresentation: some TransferRepresentation {
+    DataRepresentation(exportedContentType: .utf8PlainText) { item in
+      let context = await SupportBundleBuilder.snapshot(services: item.services)
+      return Data(SupportBundleBuilder.build(context: context).utf8)
+    }
+  }
 }
 
 enum SupportBundleBuilder {
@@ -65,19 +78,16 @@ enum SupportBundleBuilder {
   }
 
   @MainActor
-  static func build(services: AppServices, generatedAt: Date = Date()) -> String {
-    build(
-      context: SupportBundleContext(
-        bundleInfo: AppBundleInfo(),
-        systemVersion: UIDevice.current.systemVersion,
-        deviceModel: UIDevice.current.model,
-        syncMetadata: services.syncMetadataStore.metadata,
-        appDiagnostics: Array(services.diagnosticsLogStore.entries.prefix(50)),
-        nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50)),
-        syncAttempts: services.syncCoordinator.attemptStore.history,
-        activeSyncAttempt: services.syncCoordinator.attemptStore.active
-      ),
-      generatedAt: generatedAt
+  static func snapshot(services: AppServices) -> SupportBundleContext {
+    SupportBundleContext(
+      bundleInfo: AppBundleInfo(),
+      systemVersion: UIDevice.current.systemVersion,
+      deviceModel: UIDevice.current.model,
+      syncMetadata: services.syncMetadataStore.metadata,
+      appDiagnostics: Array(services.diagnosticsLogStore.entries.prefix(50)),
+      nativeDiagnostics: Array(services.nativeDiagnosticsStore.entries.prefix(50)),
+      syncAttempts: services.syncCoordinator.attemptStore.history,
+      activeSyncAttempt: services.syncCoordinator.attemptStore.active
     )
   }
 

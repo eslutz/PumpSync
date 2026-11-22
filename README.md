@@ -19,6 +19,8 @@ The direct-client candidate connects the iPhone to Tandem Source. The app handle
 
 On the Sync tab, choose **Connect to Tandem** to sign in to a US or European account. An upgrade with saved credentials offers **Reconnect to Tandem**. The Sync tab also links to Apple Health setup when write access is needed. Set the insulin concentration in Settings and choose the history range on Sync before the first import. Later manual syncs, app-open catch-up and iOS background refresh use the same importer.
 
+Sync shows the most recent result and the next available action. Open **Sync Details** for import counts and timestamps. **Settings → Support & Diagnostics** contains source record inspection, event logs, and the support bundle.
+
 The app keeps credentials in device-only Keychain. Only the regional Tandem service receives them. Tandem sessions and downloaded records are processed in memory. HealthKit stores the permitted samples. A device-local ledger of keyed identifiers prevents repeats.
 
 See the [internal beta acceptance instructions](Documentation/app-store/direct-beta.md) for validation and release evidence.
@@ -48,7 +50,7 @@ Before pushing a candidate or starting Xcode Cloud, run:
 bash Scripts/ios/validate-cloud-tests.sh
 ```
 
-Use the latest stable Xcode, version 27.2 or newer. The local preflight runs the full suite on an iPhone SE (3rd generation) with iOS 27.0, then checks navigation and layout at standard and maximum accessibility text sizes. It rejects build warnings and saves the exact Xcode version, runtime, source hashes and test results under ignored `TestResults/`. Record physical-device, Xcode Cloud and distribution results separately.
+Use the latest stable Xcode, version 27.2 or newer. The local preflight runs the full suite on iPhone SE (3rd generation) with iOS 27.0, then checks navigation and layout at standard and maximum accessibility text sizes. It rejects build warnings and saves the exact Xcode version, runtime, source hashes and test results under ignored `TestResults/`. Record physical-device, Xcode Cloud and distribution results separately. Follow the [local simulator selection policy](AGENTS.md#local-simulator-selection) for all iPhone and iPad test destinations.
 
 ## License
 

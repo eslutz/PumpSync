@@ -3,7 +3,7 @@ import AppIntents
 struct OpenPumpSyncIntent: AppIntent {
   static let title: LocalizedStringResource = "Open PumpSync"
   static let description = IntentDescription("Opens PumpSync.")
-  static let openAppWhenRun = true
+  static let supportedModes: IntentModes = .foreground(.immediate)
 
   @MainActor
   func perform() async throws -> some IntentResult {

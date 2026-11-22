@@ -105,7 +105,9 @@ final class AppServices {
     let services = AppServices(dataSource: ScreenshotDataSource(state: AppLaunchEnvironment.screenshotPreviewState),
                                keychain: keychain, credentialStore: store, defaults: defaults,
                                fixturePersistence: ScreenshotHealthPersistence())
-    services.healthKitService.applyScreenshotAuthorization(granted: !arguments.contains("--pumpsync-screenshot-health-setup"))
+    let limitedHealth = arguments.contains("--pumpsync-screenshot-sync-notice")
+    services.healthKitService.applyScreenshotAuthorization(granted: !arguments.contains("--pumpsync-screenshot-health-setup"),
+                                                           deniedType: limitedHealth ? .dietaryCarbohydrates : nil)
     var metadata = SyncMetadata(lastAttemptAt: nil, lastSuccessfulSyncAt: nil, lastSampleCount: 0,
                                 lastImportedCount: 0, lastErrorMessage: nil, initialImportRange: .pastTwoWeeks)
     metadata.owner = store.accountId.map { TandemSyncOwner(accountId: $0) }
@@ -116,19 +118,19 @@ final class AppServices {
       metadata.syncWatermark = recent.addingTimeInterval(-24 * 60 * 60)
       metadata.lastSampleCount = 48
       metadata.lastImportedCount = AppLaunchEnvironment.isScreenshotSyncSuccess ? 4 : 48
-      metadata.lastPermissionSkippedCount = 0
+      metadata.lastPermissionSkippedCount = limitedHealth ? 2 : 0
     }
     services.syncMetadataStore.applyScreenshotMetadata(metadata)
     if AppLaunchEnvironment.isScreenshotSyncing {
       services.syncCoordinator.applyScreenshotSyncing()
     } else if AppLaunchEnvironment.isScreenshotSyncSuccess {
-      let notice = arguments.contains("--pumpsync-screenshot-sync-notice")
-        ? "Some records need Apple Health write access. Enable it in Settings before syncing again." : nil
-      services.syncCoordinator.applyScreenshotSuccess(completedAt: Date(), notice: notice)
+      services.syncCoordinator.applyScreenshotSuccess(completedAt: metadata.lastSuccessfulSyncAt ?? Date(),
+                                                      permissionSkipped: metadata.lastPermissionSkippedCount ?? 0)
     } else if AppLaunchEnvironment.isScreenshotSyncFailure {
       services.syncCoordinator.applyScreenshotFailure()
     } else if arguments.contains("--pumpsync-screenshot-settings-failure") || arguments.contains("--pumpsync-screenshot-connection-failure") {
-      services.syncCoordinator.applyScreenshotFailure(recovery: .openSettings)
+      store.invalidateValidation()
+      services.syncCoordinator.applyScreenshotFailure(recovery: .account)
     }
     let diagnosticsLogStore = services.diagnosticsLogStore
     let nativeDiagnosticsStore = services.nativeDiagnosticsStore

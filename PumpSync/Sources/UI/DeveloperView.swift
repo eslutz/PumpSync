@@ -22,7 +22,7 @@ struct DeveloperView: View {
         }
         logLink(.appEvents)
         logLink(.devicePerformance)
-        ShareLink(item: SupportBundleBuilder.build(services: services)) {
+        ShareLink(item: SupportBundleExport(services: services), preview: SharePreview("PumpSync Support Bundle")) {
           Label("Share Support Bundle", systemImage: "square.and.arrow.up")
         }
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
@@ -31,8 +31,7 @@ struct DeveloperView: View {
         Text("Diagnostics")
       } footer: {
         Text("Share app and sync diagnostics for troubleshooting. Pump records and sign-in details are excluded.")
-          .font(.body)
-          .foregroundStyle(Color.primary)
+          .foregroundStyle(Color(uiColor: .label))
           .fixedSize(horizontal: false, vertical: true)
       }
       .headerProminence(.increased)
@@ -57,7 +56,7 @@ struct DeveloperView: View {
       }
       .headerProminence(.increased)
     }
-    .navigationTitle("Developer")
+    .navigationTitle("Support & Diagnostics")
   }
 
   private var inspectUnavailableReason: String? {

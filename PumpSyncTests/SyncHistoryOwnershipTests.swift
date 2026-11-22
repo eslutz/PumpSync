@@ -3,6 +3,17 @@ import XCTest
 
 @MainActor
 final class SyncHistoryOwnershipTests: XCTestCase {
+  func testLegacyFailureWithoutOwnershipIsNeverAssignedToANewAccount() {
+    let suite = "UnboundError.\(UUID())"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set(Data(#"{"lastSampleCount":0,"lastImportedCount":0,"lastErrorMessage":"Earlier failure"}"#.utf8), forKey: "sync-metadata")
+    let store = SyncMetadataStore(defaults: defaults)
+    store.reconcileOwner(TandemSyncOwner(accountId: UUID()))
+    XCTAssertNil(store.metadata.latestFailure)
+    XCTAssertEqual(store.metadata.cursorResetReason, .legacyUnbound)
+  }
+
   func testFailedAtomicLegacyMigrationDefersOwnershipWithoutClearingBoundHistory() throws {
     let persistence = FailingTandemPersistence()
     defer { try? persistence.keychain.deleteAll() }

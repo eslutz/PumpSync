@@ -24,9 +24,10 @@ enum SyncPhase: String, Equatable {
   }
 }
 
-enum SyncRecovery: Equatable {
+enum SyncRecovery: String, Codable {
   case retry
-  case openSettings
+  case account
+  case health
   case waitAndRetry
   case none
 }
@@ -38,20 +39,17 @@ struct SyncProgress: Equatable {
 }
 
 struct SyncCompletion: Equatable {
-  let message: String
+  let received: Int
+  let saved: Int
+  var permissionSkipped: Int = 0
+  var gapBefore: Date?
   let completedAt: Date
-  let notice: String?
-
-  init(message: String, completedAt: Date, notice: String? = nil) {
-    self.message = message
-    self.completedAt = completedAt
-    self.notice = notice
-  }
 }
 
 struct SyncFailure: Equatable {
   let message: String
   let recovery: SyncRecovery
+  var retryAfter: Date?
 }
 
 enum SyncOperationState: Equatable {
@@ -110,6 +108,59 @@ final class SyncCoordinator {
   // Results remain available in the Sync screen until another operation or explicit recovery.
   private(set) var operationState: SyncOperationState = .idle
 
+  private var ownsDisplayedHistory: Bool {
+    credentialStore.ownershipAvailable && !credentialStore.needsDirectReconnect
+      && syncMetadataStore.metadata.owner?.accountId == credentialStore.accountId
+  }
+
+  var dashboardHistory: SyncHistoryPresentation? {
+    guard ownsDisplayedHistory else { return nil }
+    return SyncHistoryPresentation(metadata: syncMetadataStore.metadata,
+      attempts: (attemptStore.active.map { [$0] } ?? []) + attemptStore.history)
+  }
+
+  /// Live events drive announcements. The dashboard also displays this account's
+  /// durable result after relaunch or a background completion.
+  var dashboardState: SyncOperationState {
+    let metadata = syncMetadataStore.metadata
+    guard ownsDisplayedHistory else { return .idle }
+    switch operationState {
+    case .running, .succeeded: return operationState
+    case .failed(let failure) where needsRecovery(failure): return operationState
+    default: break
+    }
+    let latest = attemptStore.history.first { $0.historyScopeID == metadata.historyScopeID }
+    if let latest, latest.startedAt > (metadata.lastSuccessfulSyncAt ?? .distantPast) {
+      switch latest.outcome {
+      case .interrupted, .canceled:
+        return .failed(SyncFailure(message: String(localized: "The last sync didn’t finish."), recovery: .retry))
+      case .failed where metadata.latestFailure == nil:
+        return .failed(SyncFailure(message: String(localized: "The last sync failed."), recovery: .retry))
+      case .blocked where latest.reason == .credentials && !credentialStore.hasValidatedCredentials:
+        return .failed(SyncFailure(message: String(localized: "Reconnect to Tandem to sync."), recovery: .account))
+      case .blocked where latest.reason == .healthPermission && !healthKitService.hasAnyWritePermission:
+        return .failed(SyncFailure(message: String(localized: "Allow Apple Health access to sync."), recovery: .health))
+      default: break
+      }
+    }
+    if let failure = metadata.latestFailure, needsRecovery(failure) {
+      return .failed(failure)
+    }
+    guard let success = metadata.lastSuccessfulSyncAt else { return .idle }
+    return .succeeded(SyncCompletion(received: metadata.lastSampleCount, saved: metadata.lastImportedCount,
+      permissionSkipped: metadata.lastPermissionSkippedCount ?? 0, gapBefore: metadata.lastGapBefore, completedAt: success))
+  }
+
+  private func needsRecovery(_ failure: SyncFailure) -> Bool {
+    switch failure.recovery {
+    case .account: !credentialStore.hasValidatedCredentials
+    case .health: !healthKitService.hasAnyWritePermission
+    default: true
+    }
+  }
+
+  private(set) var activeInitialImportRange: InitialImportRange?
+
   /// Includes foreground recovery and freshness evaluation before visible syncing.
   var hasActiveSyncExecution: Bool { syncTask != nil }
 
@@ -118,17 +169,6 @@ final class SyncCoordinator {
       return true
     }
     return false
-  }
-
-  var lastMessage: String? {
-    switch operationState {
-    case .succeeded(let completion):
-      return completion.message
-    case .failed(let failure):
-      return failure.message
-    case .idle, .running:
-      return nil
-    }
   }
 
   var syncPhase: SyncPhase? {
@@ -149,12 +189,12 @@ final class SyncCoordinator {
     operationState = .running(SyncProgress(phase: .preparing, trigger: .manual, startedAt: Date()))
   }
 
-  func applyScreenshotSuccess(completedAt: Date = Date(), notice: String? = nil) {
-    operationState = .succeeded(SyncCompletion(message: "Imported 4 new samples.", completedAt: completedAt, notice: notice))
+  func applyScreenshotSuccess(completedAt: Date = Date(), permissionSkipped: Int = 0) {
+    operationState = .succeeded(SyncCompletion(received: 48, saved: 4, permissionSkipped: permissionSkipped, completedAt: completedAt))
   }
 
   func applyScreenshotFailure(recovery: SyncRecovery = .retry) {
-    operationState = .failed(SyncFailure(message: recovery == .openSettings ? "Check your connection settings before syncing again." : "Sync could not be completed. Try again.", recovery: recovery))
+    operationState = .failed(SyncFailure(message: recovery == .account ? "Check your connection settings before syncing again." : "Sync could not be completed. Try again.", recovery: recovery))
   }
 #endif
 
@@ -185,7 +225,7 @@ final class SyncCoordinator {
     let owner = credentialStore.accountId.map { TandemSyncOwner(accountId: $0) }
     let previous = syncMetadataStore.metadata.owner
     syncMetadataStore.reconcileOwner(owner)
-    if previous != owner, case .succeeded = operationState { operationState = .idle }
+    if previous != owner, !isSyncing { operationState = .idle }
   }
 
   private func observeHistoryOwner() {
@@ -273,7 +313,7 @@ final class SyncCoordinator {
   }
 
   func retry() {
-    guard case .failed(let failure) = operationState,
+    guard case .failed(let failure) = dashboardState,
           failure.recovery == .retry || failure.recovery == .waitAndRetry else {
       return
     }
@@ -307,6 +347,8 @@ final class SyncCoordinator {
       guard lease.isValid, lease.kind != .foreground || foregroundActive else { return .deferred(.executionLeaseExpired) }
     }
     if let syncTask { return await awaitSyncTask(syncTask, lease: lease, trigger: reason) }
+    reconcileHistoryOwner()
+    if isRateLimited { return .deferred(.rateLimited) }
     guard let task = makeSyncTask(reason: reason) else { return .failed }
     return await awaitSyncTask(task, lease: lease, trigger: reason)
   }
@@ -342,14 +384,23 @@ final class SyncCoordinator {
     if syncWaiters[operationID]?.isEmpty == true { syncWaiters[operationID] = nil }
   }
 
+  private var isRateLimited: Bool {
+    guard let deadline = syncMetadataStore.metadata.lastRetryAfter else { return false }
+    return deadline > Date()
+  }
+
   private func makeSyncTask(reason: SyncTriggerReason) -> Task<SyncRunOutcome, Never>? {
     guard syncTask == nil, !isSyncing else { return nil }
     reconcileHistoryOwner()
+    guard !isRateLimited else { return nil }
+    let metadata = syncMetadataStore.metadata
+    let range = metadata.initialImportRange
+    activeInitialImportRange = metadata.lastSuccessfulSyncAt == nil ? range : nil
     syncPreparation = SyncProgress(phase: .preparing, trigger: reason, startedAt: Date())
     showSyncProgress()
     let operationID = UUID()
     let intent = SyncIntent(operationID: operationID, trigger: reason,
-      context: credentialStore.currentImportSnapshot, concentration: healthKitService.concentration)
+      context: credentialStore.currentImportSnapshot, concentration: healthKitService.concentration, initialRange: range)
     attemptStore.begin(operationID: operationID, trigger: reason, historyScopeID: syncMetadataStore.metadata.historyScopeID)
     let task = Task { @MainActor [weak self] in
       guard let self else { return SyncRunOutcome.canceled }
@@ -359,6 +410,7 @@ final class SyncCoordinator {
         self.syncTask = nil
         self.syncOperationID = nil
         self.syncPreparation = nil
+        self.activeInitialImportRange = nil
       }
       return result
     }
@@ -386,15 +438,15 @@ final class SyncCoordinator {
     attemptStore.advance(operationID: intent.operationID, stage: .validating)
     guard let credentials = try? credentialStore.load(), let context = intent.context,
           let current = credentialStore.currentImportSnapshot else {
-      fail("Validate your Tandem account before syncing.", recovery: .openSettings)
+      fail("Validate your Tandem account before syncing.", recovery: .account)
       return .blocked(.credentials)
     }
     guard context == current else {
-      fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+      operationState = .idle
       return .contextReplaced
     }
     guard healthKitService.hasAnyWritePermission else {
-      fail("Enable Apple Health write access before syncing.", recovery: .openSettings)
+      fail("Enable Apple Health write access before syncing.", recovery: .health)
       diagnostics?.record(source: .sync, severity: .warning, title: "Sync blocked", message: "No Apple Health write permissions are enabled.")
       return .blocked(.healthPermission)
     }
@@ -412,7 +464,7 @@ final class SyncCoordinator {
     do {
       let now = Date()
       let requestMinDate = syncMetadataStore.metadata.syncWatermark
-        ?? syncMetadataStore.metadata.initialImportRange.minimumDate(relativeTo: now)
+        ?? intent.initialRange.minimumDate(relativeTo: startedAt)
       let request = TandemSyncRequest(
         tandem: credentials,
         minDate: requestMinDate,
@@ -467,22 +519,15 @@ final class SyncCoordinator {
       let watermark = permissionSkippedCount > 0
         ? min(syncMetadataStore.metadata.syncWatermark ?? response.effectiveMinDate, response.effectiveMinDate)
         : max(response.effectiveMinDate, response.effectiveMaxDate.addingTimeInterval(-Self.watermarkOverlap))
-      syncMetadataStore.recordSuccess(sampleCount: response.samples.count, importedCount: importedCount, completedAt: Date(), watermark: watermark, owner: historyOwner, permissionSkippedCount: permissionSkippedCount)
+      let gapBefore = response.effectiveMinDate.timeIntervalSince(requestMinDate) > Self.lookbackGapTolerance
+        ? response.effectiveMinDate : nil
+      let completion = SyncCompletion(received: response.samples.count, saved: importedCount,
+        permissionSkipped: permissionSkippedCount, gapBefore: gapBefore, completedAt: Date())
+      syncMetadataStore.recordSuccess(sampleCount: completion.received, importedCount: importedCount,
+        completedAt: completion.completedAt, watermark: watermark, owner: historyOwner,
+        permissionSkippedCount: permissionSkippedCount, gapBefore: gapBefore)
       attemptStore.checkpoint(operationID: intent.operationID, checkpoint: .metadataCommitted)
-      var completionMessage = permissionSkippedCount > 0
-        ? "Imported \(importedCount) new samples. \(permissionSkippedCount) not saved because Health write access is limited. Enable the missing permission and sync again while the records are available from Tandem."
-        : message(sampleCount: response.samples.count, importedCount: importedCount, reason: reason)
-
-      var completionNotice: String? = permissionSkippedCount > 0
-        ? "Enable the missing Health write access and sync again while the records remain available from Tandem."
-        : nil
-
-      // The device's direct provider limits imports to a 14-day lookback.
-      if response.effectiveMinDate.timeIntervalSince(requestMinDate) > Self.lookbackGapTolerance {
-        let gapEnd = response.effectiveMinDate.formatted(date: .abbreviated, time: .omitted)
-        let gapNotice = "Pump data before \(gapEnd) fell outside PumpSync’s 14-day import window and was not imported."
-        completionMessage += " " + gapNotice
-        completionNotice = [completionNotice, gapNotice].compactMap { $0 }.joined(separator: " ")
+      if gapBefore != nil {
         diagnostics?.record(
           source: .sync,
           severity: .warning,
@@ -499,7 +544,7 @@ final class SyncCoordinator {
       if reason == .background {
         operationState = .idle
       } else {
-        operationState = .succeeded(SyncCompletion(message: completionMessage, completedAt: Date(), notice: completionNotice))
+        operationState = .succeeded(completion)
       }
       return .completed
     } catch {
@@ -509,28 +554,31 @@ final class SyncCoordinator {
       }
       if error is CancellationError { recordCancellation(reason: reason); return .canceled }
       guard credentialStore.currentImportSnapshot == context else {
-        fail(HealthImportError.staleContext.localizedDescription, recovery: .openSettings)
+        operationState = .idle
         return .contextReplaced
       }
       let failure: SyncFailure
       if let providerError = error as? DirectTandemError {
         let recovery: SyncRecovery
+        var retryAfter: Date?
         switch providerError {
         case .credentialsRejected:
           credentialStore.invalidateValidation()
-          recovery = .openSettings
-        case .rateLimited: recovery = .waitAndRetry
+          recovery = .account
+        case .rateLimited(let deadline):
+          recovery = .waitAndRetry
+          retryAfter = deadline
         default: recovery = .retry
         }
-        failure = SyncFailure(message: providerError.localizedDescription, recovery: recovery)
+        failure = SyncFailure(message: providerError.localizedDescription, recovery: recovery, retryAfter: retryAfter)
       } else if let importError = error as? HealthImportError {
-        failure = SyncFailure(message: importError.localizedDescription, recovery: .openSettings)
+        failure = SyncFailure(message: importError.localizedDescription, recovery: .retry)
       } else if isHealthAuthorizationFailure(error) {
-        failure = SyncFailure(message: "Enable Apple Health write access before syncing.", recovery: .openSettings)
+        failure = SyncFailure(message: "Enable Apple Health write access before syncing.", recovery: .health)
       } else {
         failure = SyncFailure(message: "Sync could not be completed. Try again.", recovery: .retry)
       }
-      syncMetadataStore.recordFailure(message: failure.message)
+      syncMetadataStore.recordFailure(failure)
       operationState = .failed(failure)
       diagnostics?.record(source: .sync, severity: .error, title: "Sync failed", message: failure.message)
       return .failed
@@ -547,7 +595,9 @@ final class SyncCoordinator {
   }
 
   private func fail(_ message: String, recovery: SyncRecovery) {
-    operationState = .failed(SyncFailure(message: message, recovery: recovery))
+    let failure = SyncFailure(message: message, recovery: recovery)
+    if syncMetadataStore.metadata.owner != nil { syncMetadataStore.recordFailure(failure) }
+    operationState = .failed(failure)
   }
 
   private func recordCancellation(reason: SyncTriggerReason) {
@@ -590,15 +640,4 @@ final class SyncCoordinator {
     await refreshIfStale(reason: .background, lease: lease).succeeded
   }
 
-  private func message(sampleCount: Int, importedCount: Int, reason: SyncTriggerReason) -> String {
-    if sampleCount == 0 {
-      return "No new pump samples were returned."
-    }
-
-    if importedCount == 0 {
-      return "All returned pump samples were already imported."
-    }
-
-    return "Imported \(importedCount) new samples."
-  }
 }
