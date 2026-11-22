@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository owns the SwiftUI iOS app, App Store/TestFlight material, and iOS CI. Application code is in `PumpSync/Sources/`, grouped into `App`, `Auth`, `Health`, `Networking`, `Storage`, `Sync`, `Tandem`, and `UI`. Unit tests live in `PumpSyncTests/`; UI and screenshot tests live in `PumpSyncUITests/`. Store submission assets and reference material belong in `Documentation/app-store/`. `project.yml` is the XcodeGen source of truth.
+This repository owns the SwiftUI iOS app, App Store/TestFlight material, and iOS CI. Application code is in `PumpSync/Sources/`, grouped into `App`, `Health`, `Networking`, `Storage`, `Sync`, `Tandem`, and `UI`. Unit tests live in `PumpSyncTests/`. UI and screenshot tests live in `PumpSyncUITests/`. Store submission assets and reference material belong in `Documentation/app-store/`. `project.yml` is the XcodeGen source of truth.
 
 Do not add backend code, Dockerfiles, Bicep, deployment workflows, or backend runbooks here.
 

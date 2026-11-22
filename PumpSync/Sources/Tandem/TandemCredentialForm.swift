@@ -328,15 +328,12 @@ private struct SavedTandemAccountSections: View {
       }
       .font(.body)
       Button(action: edit) {
-        Label {
-          Text("Change Account Details")
-            .font(.body)
-            .lineLimit(nil)
-            .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-          Image(systemName: "pencil")
-        }
-        .fixedSize(horizontal: false, vertical: true)
+        Text("Change Account Details")
+          .font(.body)
+          .multilineTextAlignment(.leading)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+          .contentShape(Rectangle())
       }
       .disabled(!canEdit)
     } header: {
