@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that the local scheme runs the complete iOS XCTest suite."""
+"""Keep exhaustive validation separate from the inexpensive Apple release gate."""
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -17,4 +17,13 @@ for target in full.values():
     assert target.get('skipped') == 'NO'
     assert target.find('SelectedTests') is None
     assert target.find('SkippedTests') is None
-print('Full local iOS XCTest coverage verified.')
+lean = targets('PumpSync Cloud Smoke')
+assert set(lean) == set(full)
+assert all(t.get('skipped') == 'NO' for t in lean.values())
+assert lean['PumpSyncTests'].find('SelectedTests') is None
+assert lean['PumpSyncTests'].find('SkippedTests') is None
+assert {t.get('Identifier') for t in lean['PumpSyncUITests'].findall('./SelectedTests/Test')} == {
+    'PumpSyncUITests/testAppLaunches()',
+    'PumpSyncUITests/testConnectionRecoveryOpensSettingsTab()',
+}
+print('Full local simulator coverage and lean Apple release allocation verified.')
