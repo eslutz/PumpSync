@@ -1,0 +1,7 @@
+included:
+  - PumpSync/Sources
+  - PumpSyncTests
+  - PumpSyncUITests
+only_rules:
+  - duplicate_imports
+  - force_try

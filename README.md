@@ -35,7 +35,7 @@ Do not hand-edit generated Xcode project or scheme files unless XcodeGen cannot 
 
 ## Build And Test
 
-Use raw `xcodebuild` output for validation:
+Run all simulator tests locally to preserve CI compute quotas. GitHub Actions validates project generation, builds and analyzes the iOS app, lints Swift, scans for security issues, and runs Foundation-only unit tests on macOS. Xcode Cloud handles release archives and distribution. Use raw `xcodebuild` output for local validation.
 
 ```sh
 xcodebuild -list -project PumpSync.xcodeproj
