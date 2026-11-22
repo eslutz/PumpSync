@@ -3,6 +3,54 @@ import XCTest
 
 @MainActor
 final class SyncHistoryOwnershipTests: XCTestCase {
+  func testRecentSyncsUseScopedCompletedRunsWithoutDuplicatingTheMetadataResult() throws {
+    let success = Date(timeIntervalSince1970: 120)
+    var metadata = SyncMetadata(lastAttemptAt: nil, lastSuccessfulSyncAt: success, lastSampleCount: 5,
+                                lastImportedCount: 4, lastErrorMessage: nil, initialImportRange: .pastTwoWeeks)
+    let scope = metadata.historyScopeID
+    let latest = SyncAttempt(operationID: UUID(), trigger: .manual, startedAt: success.addingTimeInterval(-2),
+                             stage: .terminal, outcome: .completed, historyScopeID: scope,
+                             completedAt: success.addingTimeInterval(1), returnedCount: 5, importedCount: 4)
+    var earlier = SyncAttempt(operationID: UUID(), trigger: .manual, startedAt: success.addingTimeInterval(-30),
+                              stage: .terminal, outcome: .completed, historyScopeID: scope,
+                              completedAt: success.addingTimeInterval(-20), returnedCount: 0, importedCount: 0)
+    var failed = earlier
+    failed.outcome = .failed
+    var skipped = earlier
+    skipped.outcome = .skipped
+    var differentAccount = earlier
+    differentAccount.historyScopeID = UUID()
+    let attempts = [earlier, failed, skipped, differentAccount, latest]
+    let rows = RecentSync.retained(metadata: metadata, attempts: attempts)
+    XCTAssertEqual(rows.map(\.id), [
+      .attempt(scope: scope, operation: latest.operationID), .attempt(scope: scope, operation: earlier.operationID)
+    ])
+    XCTAssertEqual(rows.map(\.summary), ["4 samples saved to Apple Health", "No new samples"])
+    XCTAssertEqual(RecentSync.retained(metadata: metadata, attempts: [earlier]).first?.id,
+                   .latestSuccess(scope: scope, completedAt: success))
+
+    earlier.importedCount = nil
+    XCTAssertEqual(RecentSync.retained(metadata: metadata, attempts: [earlier]).last?.summary, "Saved count unavailable")
+    metadata.historyScopeID = UUID()
+    metadata.lastSuccessfulSyncAt = nil
+    XCTAssertTrue(RecentSync.retained(metadata: metadata, attempts: attempts).isEmpty)
+  }
+
+  func testRecentSyncDayGroupsUseLocalMidnight() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+    let midnight = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 22)))
+    let now = midnight.addingTimeInterval(60)
+    let scope = UUID()
+    let runs = [now, midnight.addingTimeInterval(-60), midnight.addingTimeInterval(-90)].map {
+      RecentSync(id: .attempt(scope: scope, operation: UUID()), completedAt: $0, returned: 0,
+                 saved: 0, permissionSkipped: 0)
+    }
+    let days = RecentSyncDay.groups(for: runs, calendar: calendar)
+    XCTAssertEqual(days.map { $0.title(now: now, calendar: calendar) }, ["Today", "Yesterday"])
+    XCTAssertEqual(days.map(\.runs), [[runs[0]], [runs[1], runs[2]]])
+  }
+
   func testLegacyFailureWithoutOwnershipIsNeverAssignedToANewAccount() {
     let suite = "UnboundError.\(UUID())"
     let defaults = UserDefaults(suiteName: suite)!

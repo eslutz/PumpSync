@@ -36,6 +36,7 @@
 		4D208B7D49A8858765E583E9 /* BackgroundSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FADD923871FA0EA0E4D631 /* BackgroundSyncScheduler.swift */; };
 		4EB4ECB714A856877ECE28F2 /* BackgroundSyncDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40DE20811BED75BD5394BE44 /* BackgroundSyncDiagnosticsTests.swift */; };
 		562C2A1D6E9BE2F7A5ACFB89 /* MetricKitDiagnosticsCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA953C9736624579EC39C4D5 /* MetricKitDiagnosticsCollector.swift */; };
+		5644511984C43B0262EC7610 /* RecentSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = CADBCE8622C4B86F19FB7883 /* RecentSync.swift */; };
 		5872D4B74B6116004AA80733 /* BackgroundExecutionDeadlineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF76DFD79E505A53681E29A /* BackgroundExecutionDeadlineTests.swift */; };
 		59F4523649C67CC80D72AFBE /* PrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BE8DF10D82A15535948164 /* PrivacyView.swift */; };
 		5DEED1D2EB56D00A74A19A0C /* PolicyURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E86C5E3A2FF717124BE9EE65 /* PolicyURLTests.swift */; };
@@ -195,6 +196,7 @@
 		C465712AC64E1B51AE76585A /* RealImportPreviewSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealImportPreviewSession.swift; sourceTree = "<group>"; };
 		C76434E254C6352CDE2A0DA2 /* PumpSyncShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpSyncShortcuts.swift; sourceTree = "<group>"; };
 		CA8C3047EEF12534A9726255 /* HealthAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAccessTests.swift; sourceTree = "<group>"; };
+		CADBCE8622C4B86F19FB7883 /* RecentSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSync.swift; sourceTree = "<group>"; };
 		CF3AE1D15FAB37619F97ED64 /* SyncFeedbackSequenceFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFeedbackSequenceFixture.swift; sourceTree = "<group>"; };
 		CFE10C4425E732936246A0BB /* SecureKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureKeychainStore.swift; sourceTree = "<group>"; };
 		D1BB705D3998B776D1356880 /* HealthImportPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthImportPolicy.swift; sourceTree = "<group>"; };
@@ -363,6 +365,7 @@
 				F6C01E4C3210E91618ED2FE4 /* ImportPreviewView.swift */,
 				98A7548FDBD1DD018CEAB48D /* InsulinConcentrationView.swift */,
 				E9BE8DF10D82A15535948164 /* PrivacyView.swift */,
+				CADBCE8622C4B86F19FB7883 /* RecentSync.swift */,
 				0981ABD17009F7A4A08958B4 /* SettingsView.swift */,
 				99E45C3092C1B9784FF1FBB0 /* SyncInlineStatus.swift */,
 				341294CBE55B9F0BF94040B6 /* SyncMessageBanner.swift */,
@@ -622,6 +625,7 @@
 				88F96EF33B6403E384A8CC21 /* PumpSyncApp.swift in Sources */,
 				421C997A67F2E8CD8C267776 /* PumpSyncShortcuts.swift in Sources */,
 				F6455F9ADA375CB3009E3254 /* RealImportPreviewSession.swift in Sources */,
+				5644511984C43B0262EC7610 /* RecentSync.swift in Sources */,
 				1803E330015DA083BB1F1454 /* SecureKeychainStore.swift in Sources */,
 				0A860106CE1BB55F05ADBF24 /* SettingsView.swift in Sources */,
 				CED29C776F51918B0EE77A47 /* SupportBundleBuilder.swift in Sources */,

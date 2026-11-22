@@ -120,6 +120,24 @@ final class AppServices {
       metadata.lastImportedCount = AppLaunchEnvironment.isScreenshotSyncSuccess ? 4 : 48
       metadata.lastPermissionSkippedCount = limitedHealth ? 2 : 0
     }
+    if arguments.contains("--pumpsync-screenshot-recent-syncs"), metadata.lastSuccessfulSyncAt != nil {
+      let calendar = Calendar.current
+      let now = Date()
+      let startOfToday = calendar.startOfDay(for: now)
+      let priorToday = startOfToday.addingTimeInterval(now.timeIntervalSince(startOfToday) / 2)
+      let yesterday = calendar.date(byAdding: .day, value: -1, to: now) ?? now.addingTimeInterval(-86_400)
+      let older = calendar.date(byAdding: .day, value: -2, to: now) ?? now.addingTimeInterval(-172_800)
+      let attempts = services.syncCoordinator.attemptStore
+      metadata.lastSuccessfulSyncAt = now
+      metadata.lastImportedCount = 39
+      for (date, returned, saved) in [(older, 8, 7), (yesterday, 19, 18), (priorToday, 0, 0), (now, 48, 39)] {
+        let id = UUID()
+        attempts.begin(operationID: id, trigger: .manual, at: date,
+                       historyScopeID: metadata.historyScopeID)
+        attempts.recordCounts(operationID: id, returned: returned, imported: saved, permissionSkipped: 0)
+        attempts.finish(operationID: id, outcome: .completed, reason: .completed, at: date)
+      }
+    }
     services.syncMetadataStore.applyScreenshotMetadata(metadata)
     if AppLaunchEnvironment.isScreenshotSyncing {
       services.syncCoordinator.applyScreenshotSyncing()

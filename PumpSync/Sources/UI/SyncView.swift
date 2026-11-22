@@ -1,10 +1,13 @@
 import SwiftUI
 
-enum SyncDestination: Hashable { case account, health, details }
+enum SyncDestination: Hashable { case account, health, details(RecentSync.ID) }
 
 struct SyncView: View {
   @Environment(AppServices.self) private var services
+  @Environment(\.calendar) private var calendar
+  @Environment(\.timeZone) private var timeZone
   let navigate: (SyncDestination) -> Void
+  let maximumContentWidth: CGFloat
 
   private var coordinator: SyncCoordinator { services.syncCoordinator }
   private var setupMessage: String? {
@@ -16,23 +19,20 @@ struct SyncView: View {
   var body: some View {
     let state = coordinator.dashboardState
     let history = coordinator.dashboardHistory
-    // Only the keep-open hint, freshness threshold, and retry deadline require time-based updates.
-    let dates = transitionDates(for: state, lastSuccess: history?.lastSuccess)
-    TimelineView(.explicit(dates)) { _ in
-      let now = Date.now
+    let recent = coordinator.recentSyncs
+    TimelineView(.explicit(transitionDates(for: state, lastSuccess: history?.lastSuccess))) { context in
+      let now = max(context.date, .now)
       let action = primaryAction(for: state)
+      let status = status(for: state, now: now)
+      let showsStale = history?.lastSuccess.map { now.timeIntervalSince($0) >= AppConstants.staleSyncInterval } ?? false
+
       Form {
-        if let status = status(for: state, now: now) {
+        if status != nil || showsStale {
           Section {
-            SyncInlineStatus(status: status)
-            if let lastSuccess = history?.lastSuccess {
-              if case .failed = state {
-                Text(SyncStatusPresentation.lastSynced(lastSuccess)).foregroundStyle(.secondary)
-              }
-              if now.timeIntervalSince(lastSuccess) >= AppConstants.staleSyncInterval {
-                Label("Apple Health may be out of date.", systemImage: "clock.badge.exclamationmark")
-                  .accessibilityIdentifier("StaleSyncNotice")
-              }
+            if let status { SyncInlineStatus(status: status) }
+            if showsStale {
+              Label("Apple Health may be out of date.", systemImage: "clock.badge.exclamationmark")
+                .accessibilityIdentifier("StaleSyncNotice")
             }
           }
         }
@@ -41,30 +41,27 @@ struct SyncView: View {
           rangeSection(history: history)
         }
 
-        Section {
-          Button { perform(action) } label: {
-            Text(actionTitle(action))
-              .foregroundStyle(.white)
-              .multilineTextAlignment(.center)
-              .fixedSize(horizontal: false, vertical: true)
-              .frame(maxWidth: .infinity)
-          }
-          .buttonStyle(.glassProminent)
-          .tint(Color("ProminentActionColor"))
-          .controlSize(.large)
-          .frame(minHeight: 44)
-          .disabled(isActionDisabled(state: state, now: now))
-          .accessibilityIdentifier("SyncNowButton")
-          .listRowInsets(EdgeInsets())
-          .listRowBackground(Color.clear)
+        recentSyncSections(recent, now: now)
+      }
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        Button { perform(action) } label: {
+          Text(actionTitle(action))
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
         }
-
-        if history?.lastSuccess != nil || history?.lastAttempt != nil {
-          Section {
-            NavigationLink("Sync Details", value: SyncDestination.details)
-              .accessibilityIdentifier("SyncDetailsLink")
-          }
-        }
+        .buttonStyle(.glassProminent)
+        .tint(Color("ProminentActionColor"))
+        .controlSize(.large)
+        .frame(minHeight: 44)
+        .disabled(isActionDisabled(state: state, now: now))
+        .accessibilityIdentifier("SyncNowButton")
+        .padding(.horizontal, 16)
+        .frame(maxWidth: maximumContentWidth)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity)
       }
     }
     .navigationTitle("Sync")
@@ -72,10 +69,48 @@ struct SyncView: View {
       switch destination {
       case .account: TandemCredentialForm()
       case .health: HealthAccessView()
-      case .details: SyncDetailsView()
+      case .details(let id): SyncDetailsView(id: id)
       }
     }
     .onAppear { services.healthKitService.refreshAuthorizationStatus() }
+  }
+
+  private var localCalendar: Calendar {
+    var calendar = calendar
+    calendar.timeZone = timeZone
+    return calendar
+  }
+
+  private func recentSyncSections(_ runs: [RecentSync], now: Date) -> some View {
+    let calendar = localCalendar
+    let days = RecentSyncDay.groups(for: runs, calendar: calendar)
+    return ForEach(days) { day in
+      Section {
+        ForEach(day.runs) { run in
+          NavigationLink(value: SyncDestination.details(run.id)) {
+            RecentSyncRow(run: run, isNewest: run.id == runs.first?.id,
+                          connectsAbove: run.id != day.runs.first?.id, connectsBelow: run.id != day.runs.last?.id)
+          }
+          .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+          .accessibilityIdentifier("RecentSyncRow\(runs.firstIndex(of: run) ?? 0)")
+        }
+      } header: {
+        VStack(alignment: .leading, spacing: 8) {
+          if day.id == days.first?.id {
+            Text("Recent syncs")
+              .font(.title2.weight(.semibold))
+              .foregroundStyle(Color(uiColor: .label))
+              .accessibilityAddTraits(.isHeader)
+              .accessibilityIdentifier("RecentSyncsHeading")
+          }
+          Text(day.title(now: now, calendar: calendar))
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color(uiColor: .label))
+            .accessibilityAddTraits(.isHeader)
+        }
+        .textCase(nil)
+      }
+    }
   }
 
   private func transitionDates(for state: SyncOperationState, lastSuccess: Date?) -> [Date] {
@@ -85,6 +120,11 @@ struct SyncView: View {
     }
     if case .failed(let failure) = state, let deadline = failure.retryAfter { dates.append(deadline) }
     if let lastSuccess { dates.append(lastSuccess.addingTimeInterval(AppConstants.staleSyncInterval)) }
+    if let nextDay = localCalendar.dateInterval(of: .day, for: .now)?.end {
+      dates.append(nextDay)
+      // All relative labels become absolute within two day boundaries.
+      if let followingDay = localCalendar.date(byAdding: .day, value: 1, to: nextDay) { dates.append(followingDay) }
+    }
     return dates.sorted()
   }
 
@@ -96,10 +136,14 @@ struct SyncView: View {
           ? String(localized: "Apple Health access required") : String(localized: "Connect your account"),
           detail: setupMessage, systemImage: "exclamationmark.circle")
       }
+      if case .succeeded(let result) = state, let notice = result.notice {
+        return SyncStatusPresentation(title: String(localized: "Sync needs attention"), notice: notice,
+                                      systemImage: "exclamationmark.circle")
+      }
+      return nil
     case .running, .failed:
-      break
+      return SyncStatusPresentation.make(for: state, now: now)
     }
-    return SyncStatusPresentation.make(for: state, now: now)
   }
 
   @ViewBuilder
@@ -184,34 +228,67 @@ struct SyncView: View {
 
 private struct SyncDetailsView: View {
   @Environment(AppServices.self) private var services
+  let id: RecentSync.ID
 
   var body: some View {
     let coordinator = services.syncCoordinator
-    let history = coordinator.dashboardHistory
     Form {
-      if let history, let lastSuccess = history.lastSuccess {
-        Section("Last Successful Sync") {
-          LabeledContent("Completed", value: lastSuccess.formatted(date: .abbreviated, time: .standard))
-          LabeledContent("Records received", value: history.returned?.formatted() ?? String(localized: "Not recorded"))
+      if let run = coordinator.retainedSync(id: id) {
+        Section {
+          LabeledContent("Completed", value: run.completedAt.formatted(date: .abbreviated, time: .standard))
+          LabeledContent("Records received", value: run.returned?.formatted() ?? String(localized: "Not recorded"))
             .accessibilityIdentifier("SyncRecordsReceived")
-          LabeledContent("Samples saved", value: history.imported?.formatted() ?? String(localized: "Not recorded"))
+          LabeledContent("Samples saved", value: run.saved?.formatted() ?? String(localized: "Not recorded"))
             .accessibilityIdentifier("SyncSamplesSaved")
-          if let skipped = history.permissionSkipped, skipped > 0 {
+          if let skipped = run.permissionSkipped, skipped > 0 {
             LabeledContent("Awaiting Health write access", value: skipped.formatted())
           }
         }
-      }
-      if let lastAttempt = history?.lastAttempt {
-        LabeledContent("Last attempt started", value: lastAttempt.formatted(date: .abbreviated, time: .standard))
-      }
-      if case .succeeded(let result) = coordinator.dashboardState,
-         result.permissionSkipped > 0, services.healthKitService.hasAnyWritePermission, !services.healthKitService.isAuthorized {
-        // People who intentionally grant only one Health permission can continue manual imports.
-        Button("Sync Allowed Types") { coordinator.startManualSync() }
-          .disabled(coordinator.hasActiveSyncExecution)
+        if run.id == coordinator.recentSyncs.first?.id,
+           case .succeeded(let result) = coordinator.dashboardState,
+           result.permissionSkipped > 0, services.healthKitService.hasAnyWritePermission, !services.healthKitService.isAuthorized {
+          // People who intentionally grant only one Health permission can continue manual imports.
+          Button("Sync Allowed Types") { coordinator.startManualSync() }
+            .disabled(coordinator.hasActiveSyncExecution)
+        }
+      } else {
+        ContentUnavailableView("Sync details unavailable", systemImage: "clock.badge.questionmark")
       }
     }
     .navigationTitle("Sync Details")
     .navigationBarTitleDisplayMode(.inline)
+  }
+}
+
+private struct RecentSyncRow: View {
+  let run: RecentSync
+  let isNewest: Bool
+  let connectsAbove: Bool
+  let connectsBelow: Bool
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      Text(run.completedAt, format: .dateTime.hour().minute())
+        .font(isNewest ? .headline : .subheadline.weight(.semibold))
+      Text(isNewest ? run.summary : run.compactSummary)
+        .font(isNewest ? .body : .subheadline)
+    }
+    .foregroundStyle(Color(uiColor: .label))
+    .fixedSize(horizontal: false, vertical: true)
+    .padding(.vertical, 10)
+    .frame(minHeight: 44)
+    .padding(.leading, 40)
+    .background(alignment: .leading) {
+      VStack(spacing: 0) {
+        Rectangle().fill(connectsAbove ? Color.secondary.opacity(0.25) : .clear).frame(width: 2)
+        Image(systemName: (run.permissionSkipped ?? 0) > 0 ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+          .font(.title3)
+          .foregroundStyle(.tint)
+        Rectangle().fill(connectsBelow ? Color.secondary.opacity(0.25) : .clear).frame(width: 2)
+      }
+      .frame(width: 28)
+      .accessibilityHidden(true)
+    }
+    .accessibilityElement(children: .combine)
   }
 }

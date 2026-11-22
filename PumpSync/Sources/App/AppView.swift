@@ -35,7 +35,7 @@ struct AppView: View {
             Group {
               if tab == .sync {
                 NavigationStack(path: $syncPath) {
-                  SyncView(navigate: { syncPath.append($0) })
+                  SyncView(navigate: { syncPath.append($0) }, maximumContentWidth: maximumFormWidth)
                     .toolbarTitleDisplayMode(margin > 20 ? .inline : .automatic)
                 }
               } else {
