@@ -119,11 +119,13 @@ final class PumpSyncUITests: XCTestCase {
     let voiceOver = XCUIDevice.shared.voiceOverService
     defer { try? voiceOver.disable() }
     try voiceOver.disable()
-    _ = launchScreenshotFixture()
+    _ = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-recent-syncs"])
     try enableVoiceOver()
     let speech = try recordVoiceOverScreen("sync-ready", maximum: 24)
-    XCTAssertEqual(speech.filter { $0.localizedCaseInsensitiveContains("last synced") }.count, 1)
-    XCTAssertEqual(speech.filter { $0.localizedCaseInsensitiveContains("48 samples saved") }.count, 1)
+    let newest = try XCTUnwrap(speech.firstIndex { $0.localizedCaseInsensitiveContains("39 samples saved") })
+    let earlier = try XCTUnwrap(speech.firstIndex { $0.localizedCaseInsensitiveContains("no new samples") })
+    XCTAssertLessThan(newest, earlier)
+    XCTAssertEqual(speech.filter { $0.localizedCaseInsensitiveContains("39 samples saved") }.count, 1)
     XCTAssertEqual(speech.filter { $0.contains("Sync Now Button") }.count, 1)
     XCTAssertTrue(speech.contains { $0.contains("selected Sync Tab") })
   }
@@ -475,15 +477,13 @@ final class PumpSyncUITests: XCTestCase {
 
   func testSuccessSummaryPersistsAcrossNavigation() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-sync-success"])
-    let heading = app.staticTexts["SyncProgressTitle"]
-    let summary = app.staticTexts["SyncProgressDetail"]
-    XCTAssertTrue(heading.waitForExistence(timeout: 5))
-    XCTAssertTrue(heading.label.localizedCaseInsensitiveContains("last synced"))
-    XCTAssertEqual(summary.label, "4 samples saved to Apple Health")
+    let summary = app.buttons["RecentSyncRow0"]
+    XCTAssertTrue(summary.waitForExistence(timeout: 5))
+    XCTAssertTrue(summary.label.contains("4 samples saved to Apple Health"))
     XCTAssertFalse(app.staticTexts["SyncRecordsReceived"].exists)
     XCTAssertFalse(app.staticTexts["Connection"].exists)
     XCTAssertFalse(app.buttons["DismissSyncMessageButton"].exists)
-    let details = app.buttons["SyncDetailsLink"]
+    let details = app.buttons["RecentSyncRow0"]
     revealFormControl(details, in: app)
     details.tap()
     XCTAssertTrue(app.navigationBars["Sync Details"].waitForExistence(timeout: 5))
@@ -494,8 +494,50 @@ final class PumpSyncUITests: XCTestCase {
     navigate(to: "Settings", in: app)
     navigate(to: "Sync", in: app)
     XCTAssertTrue(summary.waitForExistence(timeout: 5))
-    XCTAssertEqual(summary.label, "4 samples saved to Apple Health")
+    XCTAssertTrue(summary.label.contains("4 samples saved to Apple Health"))
     attachScreenshot(named: "inline-sync-success", from: app)
+  }
+
+  func testRecentSyncRowsOpenTheirOwnDetailsAndActionStaysInReach() {
+    let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-recent-syncs"])
+    let action = app.buttons["SyncNowButton"]
+    XCTAssertTrue(action.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    let initialPosition = action.frame.midY
+    XCTAssertGreaterThan(initialPosition, app.frame.midY)
+    let tabBar = app.tabBars.firstMatch
+    if tabBar.exists && tabBar.frame.midY > app.frame.midY {
+      XCTAssertLessThanOrEqual(action.frame.maxY, tabBar.frame.minY + 1)
+    }
+    for (index, count) in [39, 0, 18].enumerated() {
+      let row = app.buttons["RecentSyncRow\(index)"]
+      revealFormControl(row, in: app)
+      XCTAssertTrue(action.isHittable)
+      XCTAssertEqual(action.frame.midY, initialPosition, accuracy: 1)
+      XCTAssertLessThanOrEqual(row.frame.maxY, action.frame.minY + 1)
+      row.tap()
+      XCTAssertTrue(app.navigationBars["Sync Details"].waitForExistence(timeout: 5))
+      XCTAssertEqual(app.staticTexts["SyncSamplesSaved"].label, "Samples saved, \(count)")
+      XCTAssertFalse(action.exists)
+      tapBack(in: app)
+    }
+    app.collectionViews.firstMatch.swipeDown()
+    XCTAssertFalse(app.buttons["RecentSyncRow3"].exists)
+    attachScreenshot(named: "sync-recent-timeline", from: app)
+  }
+
+  func testRecentSyncsInLandscapeWithDarkAppearance() throws {
+    guard UIDevice.current.userInterfaceIdiom == .phone else { throw XCTSkip("Compact iPhone landscape") }
+    defer { XCUIDevice.shared.orientation = .portrait }
+    let app = launchScreenshotFixture(orientation: .landscapeLeft, launchArguments: [
+      "--pumpsync-screenshot-recent-syncs", "-AppleInterfaceStyle", "Dark"
+    ])
+    XCTAssertGreaterThan(app.frame.width, app.frame.height)
+    let action = app.buttons["SyncNowButton"]
+    let last = app.buttons["RecentSyncRow2"]
+    revealFormControl(last, in: app)
+    XCTAssertTrue(action.isHittable)
+    XCTAssertLessThanOrEqual(last.frame.maxY, action.frame.minY + 1)
+    attachScreenshot(named: "sync-recent-landscape-dark", from: app)
   }
 
   func testCompletionNoticeAppearsOnlyOnceOnSync() {
@@ -514,7 +556,7 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(app.navigationBars["Apple Health"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.staticTexts["PartialHealthAccessNotice"].exists)
     tapBack(in: app)
-    let details = app.buttons["SyncDetailsLink"]
+    let details = app.buttons["RecentSyncRow0"]
     revealFormControl(details, in: app)
     details.tap()
     let allowedTypes = app.buttons["Sync Allowed Types"]
@@ -559,7 +601,7 @@ final class PumpSyncUITests: XCTestCase {
     for step in 1...7 { advanceFeedback(to: step, title: nil, in: app) }
     let notice = app.staticTexts["SyncCompletionDetail"]
     let bodyHeight = UIFont.preferredFont(forTextStyle: .body).lineHeight
-    // Move just the form. The final line must be readable above the system tab bar.
+    // Move just the form. The final line must be readable above the pinned action.
     let form = app.collectionViews.firstMatch
     for _ in 0..<32 {
       let viewport = feedbackVisibleContent(in: app)
@@ -611,7 +653,9 @@ final class PumpSyncUITests: XCTestCase {
     let navigation = app.navigationBars.firstMatch
     let tabs = app.tabBars.firstMatch
     let top = navigation.exists ? max(frame.minY, navigation.frame.maxY) : frame.minY
-    let bottom = tabs.exists && tabs.frame.midY > frame.midY ? min(frame.maxY, tabs.frame.minY) : frame.maxY
+    let action = app.buttons["SyncNowButton"]
+    let tabsTop = tabs.exists && tabs.frame.midY > frame.midY ? min(frame.maxY, tabs.frame.minY) : frame.maxY
+    let bottom = action.exists ? min(tabsTop, action.frame.minY) : tabsTop
     return CGRect(x: frame.minX, y: top, width: frame.width, height: max(0, bottom - top))
   }
 
@@ -651,10 +695,10 @@ final class PumpSyncUITests: XCTestCase {
 
     XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
     navigate(to: "Sync", in: app)
-    XCTAssertTrue(app.staticTexts["SyncProgressTitle"].waitForExistence(timeout: 5))
-    let recordedSummary = app.staticTexts["SyncProgressDetail"]
+    XCTAssertTrue(app.buttons["RecentSyncRow0"].waitForExistence(timeout: 5))
+    let recordedSummary = app.buttons["RecentSyncRow0"]
     XCTAssertTrue(recordedSummary.waitForExistence(timeout: 3), "Recorded success must remain visible without a transient completion state")
-    XCTAssertEqual(recordedSummary.label, "48 samples saved to Apple Health")
+    XCTAssertTrue(recordedSummary.label.contains("48 samples saved to Apple Health"))
 
     navigate(to: "Settings", in: app)
     XCTAssertTrue(app.buttons["TandemAccountLink"].waitForExistence(timeout: 5))
@@ -911,7 +955,7 @@ final class PumpSyncUITests: XCTestCase {
     assertEmptyField(app.secureTextFields["Tandem password"])
     let region = app.buttons["TandemRegionPicker"]
     XCTAssertTrue("\(region.label)|\(region.value as? String ?? "")".contains("United States"))
-    revealFormControl(app.buttons["Connect Account"], in: app)
+    revealFormControl(app.buttons["Connect Account"], in: app, dismissingPasswordPrompt: true)
     XCTAssertFalse(app.buttons["Connect Account"].isEnabled)
   }
 
@@ -977,7 +1021,7 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Sync"].waitForExistence(timeout: 5))
 
     navigate(to: "Sync", in: app)
-    XCTAssertTrue(app.staticTexts["SyncProgressTitle"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["RecentSyncRow0"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.buttons["Sync Now"].waitForExistence(timeout: 5))
 
     navigate(to: "Settings", in: app)
@@ -1170,7 +1214,7 @@ final class PumpSyncUITests: XCTestCase {
     initialApp.terminate()
 
     let app = launchScreenshotFixture()
-    XCTAssertTrue(app.staticTexts["SyncProgressTitle"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["RecentSyncRow0"].waitForExistence(timeout: 5))
     attachScreenshot(named: "ipad-pro-13-app-store-listing-02-sync-workflow.png", from: app)
 
     navigate(to: "Settings", in: app)
@@ -1204,7 +1248,7 @@ final class PumpSyncUITests: XCTestCase {
     initialApp.terminate()
 
     let app = launchScreenshotFixture()
-    XCTAssertTrue(app.staticTexts["SyncProgressTitle"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["RecentSyncRow0"].waitForExistence(timeout: 5))
     attachScreenshot(named: "iphone-6-7-app-store-listing-02-sync-workflow.png", from: app)
 
     navigate(to: "Settings", in: app)
@@ -1342,19 +1386,11 @@ final class PumpSyncUITests: XCTestCase {
   private func reopenTandemAfterDiscardingPassword(using control: XCUIElement, in app: XCUIApplication) {
     // AutoFill can present its sheet after Back has already exposed Settings.
     // Watch the sheet and the real navigation target until Tandem is visible.
-    let sheet = app.sheets["Save Password?"].firstMatch
     let destination = app.navigationBars["Tandem"]
     let deadline = Date.now.addingTimeInterval(30)
     while Date.now < deadline {
-      if sheet.exists {
-        let decline = sheet.buttons["Not Now"].firstMatch
-        guard decline.wait(for: \.isHittable, toEqual: true, timeout: 5) else {
-          XCTFail("The AutoFill sheet must allow declining the synthetic password")
-          return
-        }
-        decline.tap()
-        XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
-      } else if destination.exists && destination.isHittable {
+      if dismissSyntheticPasswordPrompt(in: app) { continue }
+      if destination.exists && destination.isHittable {
         return
       } else if control.exists && control.isHittable {
         control.tap()
@@ -1364,6 +1400,19 @@ final class PumpSyncUITests: XCTestCase {
     }
     recordUIState(named: "could-not-reopen-tandem", in: app)
     XCTFail("The Tandem account screen must reopen after discarding a credential draft")
+  }
+
+  private func dismissSyntheticPasswordPrompt(in app: XCUIApplication) -> Bool {
+    let sheet = app.sheets["Save Password?"].firstMatch
+    guard sheet.exists else { return false }
+    let decline = sheet.buttons["Not Now"].firstMatch
+    guard decline.wait(for: \.isHittable, toEqual: true, timeout: 5) else {
+      XCTFail("The AutoFill sheet must allow declining the synthetic password")
+      return false
+    }
+    decline.tap()
+    XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
+    return true
   }
 
   private func dismissLogActions(in app: XCUIApplication) {
@@ -1485,10 +1534,13 @@ final class PumpSyncUITests: XCTestCase {
     XCTAssertTrue(header.isHittable)
   }
 
-  private func revealFormControl(_ element: XCUIElement, in app: XCUIApplication) {
+  private func revealFormControl(_ element: XCUIElement, in app: XCUIApplication,
+                                 dismissingPasswordPrompt: Bool = false) {
     for _ in 0..<48 {
       let scroll = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch
         : app.scrollViews.firstMatch.exists ? app.scrollViews.firstMatch : app
+      // AutoFill can present its sheet after the reopened form already has focus.
+      if dismissingPasswordPrompt && dismissSyntheticPasswordPrompt(in: app) { continue }
       var offset = -0.25
       if element.exists {
         let tabBar = app.tabBars.firstMatch

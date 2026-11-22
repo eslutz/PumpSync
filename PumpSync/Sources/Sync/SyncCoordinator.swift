@@ -119,6 +119,17 @@ final class SyncCoordinator {
       attempts: (attemptStore.active.map { [$0] } ?? []) + attemptStore.history)
   }
 
+  var recentSyncs: [RecentSync] { Array(retainedSyncs.prefix(3)) }
+
+  func retainedSync(id: RecentSync.ID) -> RecentSync? {
+    retainedSyncs.first { $0.id == id }
+  }
+
+  private var retainedSyncs: [RecentSync] {
+    guard ownsDisplayedHistory else { return [] }
+    return RecentSync.retained(metadata: syncMetadataStore.metadata, attempts: attemptStore.history)
+  }
+
   /// Live events drive announcements. The dashboard also displays this account's
   /// durable result after relaunch or a background completion.
   var dashboardState: SyncOperationState {

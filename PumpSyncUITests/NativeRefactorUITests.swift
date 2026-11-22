@@ -7,16 +7,16 @@ final class NativeRefactorUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testSyncSummaryPrecedesActionAndDetailsContainOrderedCounts() {
+    func testRecentSyncPrecedesActionAndDetailsContainOrderedCounts() {
         let app = fixture()
-        let progress = app.staticTexts["SyncProgressTitle"]
+        let progress = app.buttons["RecentSyncRow0"]
         let action = app.buttons["SyncNowButton"]
         XCTAssertTrue(progress.waitForExistence(timeout: 5))
         XCTAssertLessThan(progress.frame.minY, action.frame.minY)
         XCTAssertFalse(app.staticTexts["Insulin Concentration"].exists)
         XCTAssertFalse(app.staticTexts["SyncRecordsReceived"].exists)
         capture("native-sync", app: app)
-        open("SyncDetailsLink", app: app)
+        open("RecentSyncRow0", app: app)
         let received = app.staticTexts["SyncRecordsReceived"]
         let saved = app.staticTexts["SyncSamplesSaved"]
         XCTAssertTrue(received.waitForExistence(timeout: 5))
@@ -81,21 +81,25 @@ final class NativeRefactorUITests: XCTestCase {
         print(environment)
         attachText(environment, named: "native-system-typography")
 
-        let app = fixture()
-        let saved = app.staticTexts["SyncProgressDetail"]
+        let app = fixture(arguments: ["--pumpsync-screenshot-recent-syncs"])
+        let saved = app.buttons["RecentSyncRow0"]
         revealEnd(of: saved, in: app, minimumVisibleHeight: bodyLineHeight)
-        XCTAssertEqual(saved.label, "48 samples saved to Apple Health")
-        // Measure the label itself, not the combined label/value row. A fixed
-        // standard-size label cannot satisfy the accessibility-size minimum.
+        XCTAssertTrue(saved.label.contains("39 samples saved to Apple Health"))
+        // The whole tappable row must grow to fit its time and result.
         XCTAssertGreaterThanOrEqual(saved.frame.height, bodyLineHeight * 0.85)
         if category.isAccessibilityCategory {
             XCTAssertGreaterThan(bodyLineHeight, standardBodyLineHeight)
-            XCTAssertGreaterThan(saved.frame.height, standardBodyLineHeight * 1.5)
+            XCTAssertGreaterThan(saved.frame.height, standardBodyLineHeight * 3)
         }
         let measurement = "NATIVE_TYPOGRAPHY samplesSavedHeight=\(saved.frame.height) category=\(category.rawValue)"
         print(measurement)
         attachText(measurement, named: "native-samples-saved-size")
         capture("native-typography-sync", app: app)
+        let lastRun = app.buttons["RecentSyncRow2"]
+        revealEnd(of: lastRun, in: app, minimumVisibleHeight: bodyLineHeight)
+        XCTAssertTrue(lastRun.label.contains("18 samples saved"))
+        XCTAssertTrue(app.buttons["SyncNowButton"].isHittable)
+        capture("native-typography-timeline-final-row", app: app)
 
         settings(app)
         // Follow the Settings row order. At maximum text size, revealing a
@@ -242,9 +246,9 @@ final class NativeRefactorUITests: XCTestCase {
         }
     }
 
-    private func fixture() -> XCUIApplication {
+    private func fixture(arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--pumpsync-screenshot-mode", "--pumpsync-screenshot-diagnostics"]
+        app.launchArguments = ["--pumpsync-screenshot-mode", "--pumpsync-screenshot-diagnostics"] + arguments
         app.launchEnvironment["PUMPSYNC_SCREENSHOT_MODE"] = "1"
         app.launch()
         return app
@@ -307,8 +311,10 @@ final class NativeRefactorUITests: XCTestCase {
             // Native Form footers can end exactly at the tab bar's edge.
             // Their text frame remains unobscured there; an extra margin
             // would incorrectly reject the final line at the scroll limit.
-            let bottom = tabBar.exists && tabBar.frame.midY > app.frame.midY
+            let tabsTop = tabBar.exists && tabBar.frame.midY > app.frame.midY
                 ? tabBar.frame.minY : app.frame.maxY - 8
+            let action = app.buttons["SyncNowButton"]
+            let bottom = action.exists ? min(tabsTop, action.frame.minY) : tabsTop
             if element.exists {
                 let frame = element.frame
                 let finalLineHeight = min(minimumVisibleHeight, frame.height)

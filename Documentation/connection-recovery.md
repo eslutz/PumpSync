@@ -1,6 +1,6 @@
 # Connection recovery and sync feedback
 
-PumpSync connects directly to the selected Tandem region using the sign-in saved on the device. The Sync tab shows the latest outcome for the current account. **Sync Details** shows the last successful import's counts and timestamp and the start of the last attempt.
+PumpSync connects directly to the selected Tandem region using the sign-in saved on the device. The Sync tab shows up to three recent completed imports for the current account. Select a run to see its timestamp and counts in **Sync Details**. The latest issue appears above the timeline, and the primary action stays at the bottom of the Sync tab.
 
 ## Recovering an import
 
