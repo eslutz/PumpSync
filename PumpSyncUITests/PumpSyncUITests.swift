@@ -1055,6 +1055,13 @@ final class PumpSyncUITests: XCTestCase {
 
   func testFreshInstallConnectsDirectlyFromSync() {
     let app = launchScreenshotFixture(launchArguments: ["--pumpsync-screenshot-new-account"])
+    navigate(to: "Settings", in: app)
+    XCTAssertTrue(app.buttons["TandemAccountLink"].exists)
+    XCTAssertFalse(app.buttons["SubscriptionSettingsLink"].exists)
+    XCTAssertFalse(app.textFields["Server URL"].exists)
+    tapNavigationLink("Data Handling", in: app)
+    XCTAssertFalse(app.buttons["Email Deletion Request"].exists)
+    navigate(to: "Sync", in: app)
     let account = app.buttons["Tandem Account"]
     revealFormControl(account, in: app)
     account.tap()
@@ -1069,13 +1076,9 @@ final class PumpSyncUITests: XCTestCase {
     save.tap()
     XCTAssertTrue(app.alerts["Account Connected"].waitForExistence(timeout: 5))
     app.alerts.buttons["OK"].tap()
-    tapBack(in: app)
-    dismissSyntheticPasswordSavePrompt(in: app)
-    navigate(to: "Settings", in: app)
-    XCTAssertFalse(app.buttons["SubscriptionSettingsLink"].exists)
-    XCTAssertFalse(app.textFields["Server URL"].exists)
-    tapNavigationLink("Data Handling", in: app)
-    XCTAssertFalse(app.buttons["Email Deletion Request"].exists)
+    XCTAssertTrue(app.staticTexts["Saved Account"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Change Account Details"].exists)
+    attachScreenshot(named: "direct-tandem-account-connected", from: app)
   }
 
   func testUpgradedAccountRequiresExplicitReconnect() {
@@ -1574,26 +1577,13 @@ final class PumpSyncUITests: XCTestCase {
   }
 
   private func dismissSyntheticPasswordSavePrompt(in app: XCUIApplication) {
-    // AutoFill's remote service can start after Back has already completed.
-    // Wait on its interactive button instead of tapping the app-forwarded
-    // element while the sheet is appearing. Never save fixture credentials.
-    let surfaces: [(XCUIApplication, TimeInterval)] = [
-      (XCUIApplication(bundleIdentifier: "com.apple.SafariViewService"), 8),
-      (app, 2),
-      (XCUIApplication(bundleIdentifier: "com.apple.springboard"), 2)
-    ]
-    for (surface, timeout) in surfaces {
-      let deadline = Date().addingTimeInterval(timeout)
-      let title = surface.staticTexts["Save Password?"]
-      let decline = surface.buttons["Not Now"]
-      if title.waitForExistence(timeout: timeout),
-         decline.wait(for: \.isHittable, toEqual: true, timeout: max(0, deadline.timeIntervalSinceNow)) {
-        decline.tap()
-        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 5),
-                      "The password sheet must return control to PumpSync")
-        return
-      }
-    }
+    // The app exposes the AutoFill sheet while it is actually on screen.
+    // Querying SafariViewService without a presented sheet can stall AX for minutes.
+    guard app.staticTexts["Save Password?"].waitForExistence(timeout: 8) else { return }
+    let decline = app.buttons["Not Now"].firstMatch
+    XCTAssertTrue(decline.wait(for: \.isHittable, toEqual: true, timeout: 5))
+    decline.tap()
+    XCTAssertTrue(app.staticTexts["Save Password?"].waitForNonExistence(timeout: 5))
   }
 
   private func tapBack(in app: XCUIApplication) {
