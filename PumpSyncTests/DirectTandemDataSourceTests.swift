@@ -162,6 +162,59 @@ final class DirectTandemDataSourceTests: XCTestCase {
         }
     }
 
+    func testReportQueryUsesPumpCalendarDayAndFiltersByInstant() async throws {
+        let cases = [
+            ("Europe/Berlin", "2026-11-21T23", "2026-11-22", "00"),
+            ("America/New_York", "2026-11-22T03", "2026-11-21", "22")
+        ]
+        for (zone, utcHour, pumpDay, pumpHour) in cases {
+            let start = try XCTUnwrap(JSONCodec.parseDate(utcHour + ":15:00Z"))
+            let end = try XCTUnwrap(JSONCodec.parseDate(utcHour + ":45:00Z"))
+            let identity = Data(#"{"pumperId":"fixture-identity"}"#.utf8).base64EncodedString()
+            URLProtocolStub.requestHandler = { request in
+                let url = try XCTUnwrap(request.url)
+                var status = 200
+                var headers: [String: String] = [:]
+                let body: Data
+                switch url.path {
+                case "/accounts/api/login":
+                    body = Data()
+                case "/accounts/api/connect/authorize":
+                    status = 302
+                    headers["Location"] = "https://sso.tandemdiabetes.com/auth/callback?code=synthetic"
+                    body = Data()
+                case "/accounts/api/connect/token":
+                    body = Data(#"{"access_token":"fixture","id_token":"fixture.\#(identity).fixture"}"#.utf8)
+                case "/api/reports/bff/pumper/fixture-identity":
+                    body = Data(#"{"pumps":[{"assignmentId":"fixture-pump"}]}"#.utf8)
+                case "/api/reports/bff/pump-logs/fixture-pump":
+                    let query = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)).queryItems
+                    XCTAssertEqual(query?.first(where: { $0.name == "startDate" })?.value, pumpDay + "T00:00:00Z", zone)
+                    XCTAssertEqual(query?.first(where: { $0.name == "endDate" })?.value, pumpDay + "T23:59:59Z", zone)
+                    body = Data(#"""
+                    {"events":[
+                      {"eventCode":20,"sequenceNumber":1,"pumpDateTime":"\#(pumpDay)T\#(pumpHour):10:00","eventProperties":{"bolusId":1,"insulinDelivered":1}},
+                      {"eventCode":20,"sequenceNumber":2,"pumpDateTime":"\#(pumpDay)T\#(pumpHour):30:00","eventProperties":{"bolusId":2,"insulinDelivered":1}},
+                      {"eventCode":20,"sequenceNumber":3,"pumpDateTime":"\#(pumpDay)T\#(pumpHour):50:00","eventProperties":{"bolusId":3,"insulinDelivered":1}}
+                    ]}
+                    """#.utf8)
+                default:
+                    XCTFail("Unexpected endpoint in direct import")
+                    throw URLError(.unsupportedURL)
+                }
+                return (try XCTUnwrap(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers)), body)
+            }
+            defer { URLProtocolStub.requestHandler = nil }
+            let response = try await dataSource(now: end).load(
+                .init(tandem: request().tandem, minDate: start, maxDate: end, timeZoneIdentifier: zone)
+            )
+            XCTAssertEqual(response.samples.map(\.externalId), ["tandem-bolus-2-20-0-2"], zone)
+            XCTAssertEqual(response.samples.first?.startAt, JSONCodec.parseDate(utcHour + ":30:00Z"), zone)
+            XCTAssertEqual(response.effectiveMinDate, start)
+            XCTAssertEqual(response.effectiveMaxDate, end)
+        }
+    }
+
     func testRejectsForeignAuthorizationRedirectWithoutFollowingIt() async {
         URLProtocolStub.requestHandler = { request in
             let url = try XCTUnwrap(request.url)

@@ -68,11 +68,12 @@ struct DirectTandemDataSource: TandemDataSource {
                 do {
                     let pumpData = try await connection.report("pumper", id: identity.pumperId, token: identity.token)
                     let pump = try TandemPumpReports.selectedPump(pumpData, zone: zone)
-                    let dateStyle = Date.ISO8601FormatStyle()
+                    // The report query uses pump-local calendar days in a fixed wire format.
+                    let pumpDay = Date.ISO8601FormatStyle(timeZone: zone).year().month().day()
                     let query = [
                         URLQueryItem(name: "pumperId", value: identity.pumperId),
-                        URLQueryItem(name: "startDate", value: String(dateStyle.format(start).prefix(10)) + "T00:00:00Z"),
-                        URLQueryItem(name: "endDate", value: String(dateStyle.format(end).prefix(10)) + "T23:59:59Z"),
+                        URLQueryItem(name: "startDate", value: pumpDay.format(start) + "T00:00:00Z"),
+                        URLQueryItem(name: "endDate", value: pumpDay.format(end) + "T23:59:59Z"),
                         URLQueryItem(name: "eventCodes", value: "3,20,21,64,65,66,279")
                     ]
                     let logs = try await connection.report("pump-logs", id: pump, token: identity.token, query: query)
