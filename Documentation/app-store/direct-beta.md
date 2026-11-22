@@ -1,6 +1,6 @@
 # Direct-to-Tandem internal beta
 
-The candidate is free and connects directly to the tester’s Tandem account. Live checking and internal distribution require authorization covering this Tandem sign-in flow. Record the scope of authorization, the source commit, build number, validation results, and tester confirmation separately. Use only synthetic data in CI.
+The candidate is free and connects directly to the tester’s Tandem account. Testers sign in with their own Tandem credentials. Record the source commit, build number, validation results, and tester confirmation separately. Use only synthetic data in CI.
 
 1. Generate the Xcode project and run `bash Scripts/ios/validate-cloud-tests.sh` in the frontend checkout. Inspect the full suite and both compact-device Dynamic Type checks. Verify the signed Beta archive includes the expected bundle identifier, HealthKit entitlement and background task configuration.
 2. Use the internal TestFlight workflow. Verify that the archive corresponding to the tested source is processed and assigned to the existing internal group. Record the build number actually assigned by Apple.
@@ -9,4 +9,4 @@ The candidate is free and connects directly to the tester’s Tandem account. Li
 5. Test app-open catch-up after four hours. After an iOS-granted background run on a locked device following first unlock, inspect the local diagnostics and verify the Health results after unlocking. Record the trigger, counts, and Health/ledger checkpoints. A scheduled request alone leaves this check pending.
 6. Open Inspect Source Data and refresh. Confirm inspection leaves sync history and Health writes untouched. Verify diagnostics report safe operation stages and counts. Keep personal records, identifiers and passwords out of release evidence.
 
-Start live acceptance with an authorized US account. Record EU fixture coverage separately from any later live EU run. Legacy service retirement is tracked separately.
+Start live acceptance with a tester’s US account. Record EU fixture coverage separately from any later live EU run. Legacy service retirement is tracked separately.
