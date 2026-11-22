@@ -49,7 +49,7 @@ jobs:
     runs-on: xcode-27
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate workflow shell syntax
         run: ruby Scripts/tests/validate-ci-workflow-tests.rb
@@ -128,6 +128,6 @@ jobs:
     runs-on: ubuntu-latest
     container: semgrep/semgrep:1.179.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run Semgrep Swift rules
         run: semgrep scan --config p/swift --disable-version-check --metrics off --error PumpSync/Sources
